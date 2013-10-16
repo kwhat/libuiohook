@@ -86,7 +86,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		pthread_mutex_unlock(&hook_control_mutex);
 	}
 	else if (hook->category == XRecordEndOfData) {
-		//pthread_mutex_lock(&hook_control_mutex);
+		// We do not need to touch the hook_control_mutex because hook_disable() 
+		// is blocking on pthread_join().
 		pthread_mutex_unlock(&hook_running_mutex);
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {

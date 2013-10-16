@@ -31,7 +31,8 @@ extern HINSTANCE hInst;
 
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
-static HANDLE hook_thread_handle = NULL, hook_control_handle = NULL;
+static HANDLE hook_thread_handle = NULL;
+static hook_control_handle = NULL, hook_running_handle = NULL;
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
@@ -95,8 +96,9 @@ NATIVEHOOK_API int hook_enable() {
 
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
-		// Create event handle for the thread hook.
+		// Create event handles for the thread hook.
 		hook_control_handle = CreateEvent(NULL, TRUE, FALSE, "hook_control_handle");
+		hook_running_handle = CreateEvent(NULL, TRUE, FALSE, "hook_running_handle");
 
 		LPTHREAD_START_ROUTINE lpStartAddress = &hook_thread_proc;
 		hook_thread_handle = CreateThread(NULL, 0, lpStartAddress, NULL, 0, &hook_thread_id);
@@ -182,11 +184,27 @@ NATIVEHOOK_API int hook_disable() {
 NATIVEHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
-	DWORD status;
-	GetExitCodeThread(hook_thread_handle, &status);
-
-	if (status == STILL_ACTIVE) {
-		is_running = true;
+	if (hook_running_handle != NULL) {
+		DWORD status = WaitForSingleObject(hook_running_handle, 0);
+		switch (status)	{
+			case WAIT_TIMEOUT:
+				is_running = true;
+				break;
+			
+			case WAIT_ABANDONED:
+				// GetExitCodeThread(hook_thread_handle, &status);
+				logger(LOG_LEVEL_WARN,	
+						"%s [%u]: Running mutex abandoned and reclaimed!\n", 
+						__FUNCTION__, __LINE__);
+				break;
+				
+			case WAIT_FAILED:
+				logger(LOG_LEVEL_ERROR,	
+						"%s [%u]: Failed to wait for running mutex! (%#lX)\n", 
+						__FUNCTION__, __LINE__, 
+						(unsigned long) GetLastError());
+				break;
+		}
 	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State: %i.\n", 

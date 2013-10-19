@@ -32,7 +32,7 @@ static bool running = false;
 
 // NOTE: This function executes on the hook thread!  If you need to block
 // please do so on another thread with your own event dispatcher implementation.
-void dispatch_proc(VirtualEvent * const event) {
+void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
 	fprintf(stdout,	"id=%i,when=%I64u,mask=0x%X",
 					event->type, event->time, event->mask);
@@ -48,15 +48,15 @@ void dispatch_proc(VirtualEvent * const event) {
 				running = false;
 			}
 		case EVENT_KEY_RELEASED:
-			fprintf(stdout, ",keycode=%u,scancode=0x%X",
+			fprintf(stdout, ",keycode=%u,rawcode=0x%X",
 							event->data.keyboard.keycode,
-							event->data.keyboard.scancode);
+							event->data.keyboard.rawcode);
 			break;
 
 		case EVENT_KEY_TYPED:
-			fprintf(stdout, "keychar=%lc,scancode=%u",
+			fprintf(stdout, "keychar=%lc,rawcode=%u",
 							event->data.keyboard.keychar, 
-							event->data.keyboard.scancode);
+							event->data.keyboard.rawcode);
 			break;
 
 		case EVENT_MOUSE_PRESSED:

@@ -26,11 +26,11 @@
 #include <stdlib.h>
 
 // Virtual event pointers
-static VirtualEvent *event = NULL;
+static virtual_event *event = NULL;
 
 int main() {
 	// Allocate memory for the virtual events only once.
-	event = (VirtualEvent *) malloc(sizeof(VirtualEvent));
+	event = (virtual_event *) malloc(sizeof(virtual_event));
 
 	event->type = EVENT_KEY_PRESSED;
 	event->mask = 0x00;

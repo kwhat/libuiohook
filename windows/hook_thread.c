@@ -32,7 +32,7 @@ extern HINSTANCE hInst;
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HANDLE hook_thread_handle = NULL;
-static hook_control_handle = NULL, hook_running_handle = NULL;
+static HANDLE hook_control_handle = NULL, hook_running_handle = NULL;
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {

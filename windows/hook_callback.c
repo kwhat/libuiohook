@@ -136,8 +136,8 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	// Convert Windows epoch to Unix epoch (1970 - 1601 in milliseconds)
 	event.time = system_time - 11644473600000;
 
-	// Set the event to propagate.  The dispatcher will set this to false if needed.
-	event.propagate = true;
+	// Make sure reserved bits are zeroed out.
+	event.reserved = 0x00;
 
 	switch(wParam) {
 		case WM_KEYDOWN:
@@ -218,7 +218,7 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				event.data.keyboard.rawcode = kbhook->vkCode;
 				event.data.keyboard.keychar = keywchar;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%ls)\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n", 
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 				dispatch_event(&event);
 			}
@@ -297,7 +297,7 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	}
 
 	LRESULT hook_result = -1;
-	if (nCode < 0 || event.propagate != false) {
+	if (nCode < 0 || !(event.reserved & 0x01)) {
 		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);
 	}
 	else {
@@ -372,7 +372,7 @@ LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.data.mouse.x = mshook->pt.x;
 			event.data.mouse.y = mshook->pt.y;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X  pressed %u time(s). (%u, %u)\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n", 
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
@@ -415,7 +415,7 @@ LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.data.mouse.x = mshook->pt.x;
 			event.data.mouse.y = mshook->pt.y;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X released %u time(s). (%u, %u)\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n", 
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 
@@ -431,7 +431,7 @@ LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				event.data.mouse.x = mshook->pt.x;
 				event.data.mouse.y = mshook->pt.y;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X clicked %u time(s). (%u, %u)\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n", 
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
@@ -507,8 +507,16 @@ LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			break;
 	}
 
-
-	return CallNextHookEx(mouse_event_hhook, nCode, wParam, lParam);
+	LRESULT hook_result = -1;
+	if (nCode < 0 || !(event.reserved & 0x01)) {
+		hook_result = CallNextHookEx(mouse_event_hhook, nCode, wParam, lParam);
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%li)\n", 
+				__FUNCTION__, __LINE__, (long) hook_result);
+	}
+	
+	return hook_result;
 }
 
 void initialize_modifiers() {

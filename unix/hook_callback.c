@@ -131,7 +131,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					event.data.keyboard.keycode = VC_UNDEFINED;
 					event.data.keyboard.keychar = keychar;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%ls)\n", 
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n", 
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 					dispatch_event(&event);
 				}
@@ -153,12 +153,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				break;
 
 			case ButtonPress:
-				#ifdef USE_DEBUG
-				fprintf(stdout, "hook_event_proc(): Button pressed. (%i)\n", event_code);
-				#endif
-
 				// Track the number of clicks.
-				if ((long) (event.time - click_time) <= hook_get_multi_click_time()) {
+				if ((event.time - click_time) <= hook_get_multi_click_time()) {
 					click_count++;
 				}
 				else {
@@ -167,8 +163,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				click_time = event.time;
 
 				/* This information is all static for X11, its up to the WM to
-				* decide how to interpret the wheel events.
-				*/
+				 * decide how to interpret the wheel events.
+				 */
 				// TODO Should use constants and a lookup table for button codes.
 				if (event_code > 0 && (event_code <= 3 || event_code == 8 || event_code == 9)) {
 					unsigned int button = convert_to_virtual_button(event_code);
@@ -182,46 +178,48 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					event.data.mouse.x = event_x;
 					event.data.mouse.y = event_y;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X  pressed %u time(s). (%u, %u)\n", 
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n", 
 							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 				}
 				else if (event_code == WheelUp || event_code == WheelDown) {
 					/* Scroll wheel release events.
-					* Scroll type: WHEEL_UNIT_SCROLL
-					* Scroll amount: 3 unit increments per notch
-					* Units to scroll: 3 unit increments
-					* Vertical unit increment: 15 pixels
-					*/
-
-					/* X11 does not have an API call for acquiring the mouse scroll type.  This
-					* maybe part of the XInput2 (XI2) extention but I will wont know until it
-					* is available on my platform.  For the time being we will just use the
-					* unit scroll value.
-					*/
-					int scroll_type = WHEEL_UNIT_SCROLL;
-
-					/* Some scroll wheel properties are available via the new XInput2 (XI2)
-					* extention.  Unfortunately the extention is not available on my
-					* development platform at this time.  For the time being we will just
-					* use the Windows default value of 3.
-					*/
-					int scroll_amount = 3;
-
-					// Wheel Rotated Down and Towards.
-					int wheel_rotation = 1; // event_code == WheelDown
-					if (event_code == WheelUp) {
-						// Wheel Rotated Up and Away.
-						wheel_rotation = -1;
-					}
-
+					 * Scroll type: WHEEL_UNIT_SCROLL
+					 * Scroll amount: 3 unit increments per notch
+					 * Units to scroll: 3 unit increments
+					 * Vertical unit increment: 15 pixels
+					 */
+					
 					// Fire mouse wheel event.
 					event.type = EVENT_MOUSE_WHEEL;
 					event.mask = convert_to_virtual_mask(event_mask);
 
-					event.data.wheel.type = scroll_type;
-					event.data.wheel.amount = scroll_amount;
-					event.data.wheel.rotation = wheel_rotation;
+					event.data.wheel.clicks = click_count;
+					event.data.wheel.x = event_x;
+					event.data.wheel.y = event_y;
+					
+					/* X11 does not have an API call for acquiring the mouse scroll type.  This
+					 * maybe part of the XInput2 (XI2) extention but I will wont know until it
+					 * is available on my platform.  For the time being we will just use the
+					 * unit scroll value.
+					 */
+					event.data.wheel.type = WHEEL_UNIT_SCROLL;
+
+					/* Some scroll wheel properties are available via the new XInput2 (XI2)
+					 * extention.  Unfortunately the extention is not available on my
+					 * development platform at this time.  For the time being we will just
+					 * use the Windows default value of 3.
+					 */
+					event.data.wheel.amount = 3;
+
+					if (event_code == WheelUp) {
+						// Wheel Rotated Up and Away.
+						event.data.wheel.rotation = -1;
+					}
+					else { // event_code == WheelDown
+						// Wheel Rotated Down and Towards.
+						event.data.wheel.rotation = 1;
+					}
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n", 
 							__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
@@ -244,7 +242,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					event.data.mouse.x = event_x;
 					event.data.mouse.y = event_y;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X released %u time(s). (%u, %u)\n", 
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n", 
 							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 
@@ -258,7 +256,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 						event.data.mouse.x = event_x;
 						event.data.mouse.y = event_y;
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X clicked %u time(s). (%u, %u)\n", 
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n", 
 								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 						dispatch_event(&event);
 					}
@@ -266,15 +264,13 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				break;
 
 			case MotionNotify:
-				#ifdef USE_DEBUG
-				fprintf(stdout, "hook_event_proc(): Motion Notified. (%i, %i)\n", event_x, event_y);
-				#endif
-
 				// Reset the click count.
-				if (click_count != 0 && (long) (event.time - click_time) > hook_get_multi_click_time()) {
+				if (click_count != 0 && (event.time - click_time) > hook_get_multi_click_time()) {
 					click_count = 0;
 				}
-				unsigned int modifiers = convert_to_virtual_mask(event_mask);
+				
+				// Populate common event info.
+				event.mask = convert_to_virtual_mask(event_mask);
 
 				// Check the upper half of virtual modifiers for non zero
 				// values and set the mouse dragged flag.
@@ -287,9 +283,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					// Create a Mouse Moved event.
 					event.type = EVENT_MOUSE_MOVED;
 				}
-
-				// Populate common event info.
-				event.mask = modifiers;
 
 				event.data.mouse.button = MOUSE_NOBUTTON;
 				event.data.mouse.clicks = click_count;

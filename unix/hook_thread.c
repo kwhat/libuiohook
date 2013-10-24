@@ -42,6 +42,7 @@ static XRecordContext context;
 
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
+// TODO Determine if volatile should be used.
 static volatile bool running;
 #endif
 pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;

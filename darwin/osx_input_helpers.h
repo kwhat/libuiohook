@@ -34,33 +34,6 @@
 #define kVK_ContextMenu					0x6E	// AKA kMenuPowerGlyph
 
 
-// These button codes do not appear to be defined anywhere by Apple.
-#define kVK_LBUTTON						kCGMouseButtonLeft
-#define kVK_RBUTTON						kCGMouseButtonRight
-#define kVK_MBUTTON						kCGMouseButtonCenter
-#define kVK_XBUTTON1					3
-#define kVK_XBUTTON2					4
-
-// These button masks do not appear to be defined anywhere by Apple.
-#define kCGEventFlagMaskButtonLeft		1
-#define kCGEventFlagMaskButtonRight		2
-#define kCGEventFlagMaskButtonCenter	4
-#define kCGEventFlagMaskXButton1		8
-#define kCGEventFlagMaskXButton2		16
-
-
-/* Set the native modifier mask for future events.
- */
-extern void set_modifier_mask(CGEventFlags mask);
-
-/* Unset the native modifier mask for future events.
- */
-extern void unset_modifier_mask(CGEventFlags mask);
-
-/* Get the current native modifier mask state.
- */
-extern CGEventFlags get_modifiers();
-
 /* Converts an OSX key code and event mask to the appropriate Unicode character
  * representation.
  */

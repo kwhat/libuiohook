@@ -16,20 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef IOKIT
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
+#include <nativehook.h>
+
+#include <stdbool.h>
+
+#ifdef USE_IOKIT
 #include <IOKit/hidsystem/IOHIDLib.h>
 #include <IOKit/hidsystem/IOHIDParameter.h>
 #endif
 
-#ifdef COREFOUNDATION
+#ifdef USE_COREFOUNDATION
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
-#ifdef CARBON_LEGACY
+#ifdef USE_CARBON_LEGACY
 #include <Carbon/Carbon.h>
 #endif
 
-#include "NativeErrors.h"
+#include "logger.h"
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this
@@ -59,15 +67,15 @@
  * CharSec = 66 / (MS / 15)
  */
 
-long int GetAutoRepeatRate() {
-	#if defined IOKIT || defined COREFOUNDATION || defined CARBON_LEGACY
+NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
+	#if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
 	bool successful = false;
 	SInt64 rate;
 	#endif
 
 	long int value = -1;
 
-	#ifdef IOKIT
+	#ifdef USE_IOKIT
 	if (!successful) {
 		io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
 		if (service) {
@@ -95,13 +103,16 @@ long int GetAutoRepeatRate() {
 					 */
 					value = (long) (900.0 * ((double) rate) / 1000.0 / 1000.0 / 1000.0 + 0.5);
 					successful = true;
+					
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %l.\n", 
+							__FUNCTION__, __LINE__, value);
 				}
 			}
 		}
 	}
 	#endif
 
-	#ifdef COREFOUNDATION
+	#ifdef USE_COREFOUNDATION
 	if (!successful) {
 		CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("KeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
 		if (pref_val != NULL && CFGetTypeID(pref_val) == CFNumberGetTypeID()) {
@@ -109,12 +120,15 @@ long int GetAutoRepeatRate() {
 				// This is the slider value, we must multiply by 15 to convert to milliseconds.
 				value = (long) rate * 15;
 				successful = true;
+				
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n", 
+						__FUNCTION__, __LINE__, value);
 			}
 		}
 	}
 	#endif
 
-	#ifdef CARBON_LEGACY
+	#ifdef USE_CARBON_LEGACY
 	if (!successful) {
 		// Apple documentation states that value is in 'ticks'. I am not sure
 		// what that means, but it looks a lot like the arbitrary slider value.
@@ -125,6 +139,9 @@ long int GetAutoRepeatRate() {
 			 */
 			value = (long) rate * 15;
 			successful = true;
+			
+			logger(LOG_LEVEL_INFO,	"%s [%u]: LMGetKeyRepThresh: %l.\n", 
+					__FUNCTION__, __LINE__, value);
 		}
 	}
 	#endif
@@ -132,15 +149,15 @@ long int GetAutoRepeatRate() {
 	return value;
 }
 
-long int GetAutoRepeatDelay() {
-	#if defined IOKIT || defined COREFOUNDATION || defined CARBON_LEGACY
+NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
+	#if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
 	bool successful = false;
 	SInt64 delay;
 	#endif
 
 	long int value = -1;
 
-	#ifdef IOKIT
+	#ifdef USE_IOKIT
 	if (!successful) {
 		io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
 		if (service) {
@@ -168,13 +185,16 @@ long int GetAutoRepeatDelay() {
 					 */
 					value = (long) (900.0 * ((double) delay) / 1000.0 / 1000.0 / 1000.0 + 0.5);
 					successful = true;
+					
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %l.\n", 
+							__FUNCTION__, __LINE__, value);
 				}
 			}
 		}
 	}
 	#endif
 
-	#ifdef COREFOUNDATION
+	#ifdef USE_COREFOUNDATION
 	if (!successful) {
 		CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("InitialKeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
 		if (pref_val != NULL && CFGetTypeID(pref_val) == CFNumberGetTypeID()) {
@@ -183,12 +203,15 @@ long int GetAutoRepeatDelay() {
 				// milliseconds.
 				value = (long) delay * 15;
 				successful = true;
+				
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n", 
+						__FUNCTION__, __LINE__, value);
 			}
 		}
 	}
 	#endif
 
-	#ifdef CARBON_LEGACY
+	#ifdef USE_CARBON_LEGACY
 	if (!successful) {
 		// Apple documentation states that value is in 'ticks'. I am not sure
 		// what that means, but it looks a lot like the arbitrary slider value.
@@ -198,6 +221,9 @@ long int GetAutoRepeatDelay() {
 			// milliseconds.
 			value = (long) delay * 15;
 			successful = true;
+			
+			logger(LOG_LEVEL_INFO,	"%s [%u]: LMGetKeyThresh: %l.\n", 
+					__FUNCTION__, __LINE__, value);
 		}
 	}
 	#endif
@@ -205,16 +231,15 @@ long int GetAutoRepeatDelay() {
 	return value;
 }
 
-
-long int GetPointerAccelerationMultiplier() {
-	#if defined IOKIT || defined COREFOUNDATION
+NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
+	#if defined USE_IOKIT || defined USE_COREFOUNDATION
 	bool successful = false;
 	double multiplier;
 	#endif
 
 	long int value = -1;
 
-	#ifdef IOKIT
+	#ifdef USE_IOKIT
 	if (!successful) {
 		io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
 
@@ -241,18 +266,24 @@ long int GetPointerAccelerationMultiplier() {
 
 					value = denominator / gcf;
 					successful = true;
+					
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetAccelerationWithKey: %l.\n", 
+							__FUNCTION__, __LINE__, value);
 				}
 			}
 		}
 	}
 	#endif
 
-	#ifdef COREFOUNDATION
+	#ifdef USE_COREFOUNDATION
 	if (!successful) {
 		CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.scaling"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
 		if (pref_val != NULL && CFGetTypeID(pref_val) == CFNumberGetTypeID()) {
 			if (CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &multiplier)) {
 				value = (long) multiplier;
+				
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n", 
+						__FUNCTION__, __LINE__, value);
 			}
 		}
 	}
@@ -261,21 +292,23 @@ long int GetPointerAccelerationMultiplier() {
 	return value;
 }
 
-
-long int GetPointerAccelerationThreshold() {
-	#if defined COREFOUNDATION
+NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
+	#if defined USE_COREFOUNDATION
 	bool successful = false;
 	SInt32 threshold;
 	#endif
 
 	long int value = -1;
 
-	#ifdef COREFOUNDATION
+	#ifdef USE_COREFOUNDATION
 	if (!successful) {
 		CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("mouseDriverMaxSpeed"), CFSTR("com.apple.universalaccess"), kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
 		if (pref_val != NULL && CFGetTypeID(pref_val) == CFNumberGetTypeID()) {
 			if (CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &threshold)) {
 				value = (long) threshold;
+				
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n", 
+						__FUNCTION__, __LINE__, value);
 			}
 		}
 	}
@@ -284,16 +317,15 @@ long int GetPointerAccelerationThreshold() {
 	return value;
 }
 
-
-long int GetPointerSensitivity() {
-	#if defined IOKIT
+NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
+	#ifdef USE_IOKIT
 	bool successful = false;
 	double sensitivity;
 	#endif
 
 	long int value = -1;
 
-	#ifdef IOKIT
+	#ifdef USE_IOKIT
 	if (!successful) {
 		io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
 
@@ -320,6 +352,9 @@ long int GetPointerSensitivity() {
 
 					value = numerator / gcf;
 					successful = true;
+					
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetAccelerationWithKey: %l.\n", 
+							__FUNCTION__, __LINE__, value);
 				}
 			}
 		}
@@ -329,18 +364,18 @@ long int GetPointerSensitivity() {
 	return value;
 }
 
-long int GetMultiClickTime() {
-	#if defined IOKIT || defined COREFOUNDATION || defined CARBON_LEGACY
+NATIVEHOOK_API long int hook_get_multi_click_time() {
+	#if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
 	bool successful = false;
-	#if defined IOKIT || defined CARBON_LEGACY
-	// This needs to be defined only if we have IOKIT or CARBON_LEGACY.
+	#if defined USE_IOKIT || defined USE_CARBON_LEGACY
+	// This needs to be defined only if we have USE_IOKIT or USE_CARBON_LEGACY.
 	SInt64 time;
 	#endif
 	#endif
 
 	long int value = -1;
 
-	#ifdef IOKIT
+	#ifdef USE_IOKIT
 	if (!successful) {
 		io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
 		if (service) {
@@ -360,13 +395,16 @@ long int GetMultiClickTime() {
 					 */
 					value = (long) (900.0 * ((double) time) / 1000.0 / 1000.0 / 1000.0 + 0.5);
 					successful = true;
+					
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %l.\n", 
+							__FUNCTION__, __LINE__, value);
 				}
 			}
 		}
 	}
 	#endif
 
-	#ifdef COREFOUNDATION
+	#ifdef USE_COREFOUNDATION
 	if (!successful) {
 		Float32 clicktime;
 		CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.doubleClickThreshold"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
@@ -380,12 +418,15 @@ long int GetMultiClickTime() {
 				 * to confirm this.
 				 */
 				value = (long) (clicktime * 900);
+				
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n", 
+						__FUNCTION__, __LINE__, value);
 			}
 		}
 	}
 	#endif
 
-	#ifdef CARBON_LEGACY
+	#ifdef USE_CARBON_LEGACY
 	if (!successful) {
 		// Apple documentation states that value is in 'ticks'. I am not sure
 		// what that means, but it looks a lot like the arbitrary slider value.
@@ -395,17 +436,12 @@ long int GetMultiClickTime() {
 			// milliseconds.
 			value = (long) time * 15;
 			successful = true;
+			
+			logger(LOG_LEVEL_INFO,	"%s [%u]: GetDblTime: %l.\n", 
+					__FUNCTION__, __LINE__, value);
 		}
 	}
 	#endif
 
 	return value;
-}
-
-void OnLibraryLoad() {
-	// Do Nothing.
-}
-
-void OnLibraryUnload() {
-	// Do Nothing.
 }

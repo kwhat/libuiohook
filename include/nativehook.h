@@ -27,20 +27,32 @@
 #define NATIVEHOOK_SUCCESS							0x00
 #define NATIVEHOOK_FAILURE							0x01
 
+// System level errors.
 #define NATIVEHOOK_ERROR_OUT_OF_MEMORY				0x02
 
+// Native thread errors.
 #define NATIVEHOOK_ERROR_THREAD_CREATE				0x10
 #define NATIVEHOOK_ERROR_THREAD_INIT				0x11
 #define NATIVEHOOK_ERROR_THREAD_START				0x12
 #define NATIVEHOOK_ERROR_THREAD_STOP				0x13
 
+// Unix specific errors.
 #define NATIVEHOOK_ERROR_X_OPEN_DISPLAY				0x20
 #define NATIVEHOOK_ERROR_X_RECORD_NOT_FOUND			0x21
 #define NATIVEHOOK_ERROR_X_RECORD_ALLOC_RANGE		0x22
 #define NATIVEHOOK_ERROR_X_RECORD_CREATE_CONTEXT	0x23
 #define NATIVEHOOK_ERROR_X_RECORD_ENABLE_CONTEXT	0x24
 
+// Windows specific errors.
 #define NATIVEHOOK_ERROR_SET_WINDOWS_HOOK_EX		0x30
+
+// OS X specific errors.
+#define NATIVEHOOK_ERROR_AXAPI_DISABLED				0x40
+#define NATIVEHOOK_ERROR_EVENT_PORT					0x41
+#define NATIVEHOOK_ERROR_CREATE_RUN_LOOP_SOURCE		0x42
+#define NATIVEHOOK_ERROR_GET_RUNLOOP				0x43
+#define NATIVEHOOK_ERROR_OBSERVER_CREATE			0X44
+
 /* End Error Codes */
 
 typedef enum _log_level {
@@ -74,7 +86,7 @@ typedef struct _keyboard_event_data {
 		key_released_event_data, 
 		key_typed_event_data;
 
-typedef struct _MouseEventData {
+typedef struct _mouse_event_data {
 	unsigned short button;
 	unsigned short clicks;
 	unsigned short x;
@@ -84,7 +96,7 @@ typedef struct _MouseEventData {
 		mouse_released_event_data, 
 		mouse_clicked_event_data;
 
-typedef struct _MouseWheelEventData {
+typedef struct _mouse_wheel_event_data {
 	unsigned short clicks;
 	unsigned short x;
 	unsigned short y;
@@ -97,7 +109,7 @@ typedef struct _virtual_event {
 	event_type type;
 	unsigned long long time;
 	unsigned short mask;
-	bool propagate;	// Please note this flag is unsupported.
+	unsigned short reserved;
 	union {
 		keyboard_event_data keyboard;
 		mouse_event_data mouse;
@@ -208,7 +220,7 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 #define VC_PRINTSCREEN							0x0E37
 #define VC_SCROLL_LOCK							0x0046
-//FIXME #define VC_PAUSE								0x0045
+//FIXME #define VC_PAUSE						0x0045
 
 
 // Begin Edit Key Zone

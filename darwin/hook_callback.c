@@ -22,10 +22,11 @@
 
 #include <nativehook.h>
 #include <pthread.h>
+#include <sys/time.h>
 
-#include "hook_callback.h"
+#include "input_converter.h"
 #include "logger.h"
-#include "osx_input_helpers.h"
+#include "osx_input_helper.h"
 
 //
 typedef struct {
@@ -58,11 +59,31 @@ static struct timeval system_time;
 // Virtual event pointer.
 static virtual_event event;
 
+extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
+
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
 
-extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
+NATIVEHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n", 
+			__FUNCTION__, __LINE__, dispatch_proc);
 
+	dispatcher = dispatch_proc;
+}
+
+// Send out an event if a dispatcher was set.
+static inline void dispatch_event(virtual_event *const event) {
+	if (dispatcher != NULL) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n", 
+				__FUNCTION__, __LINE__, event->type);
+
+		dispatcher(event);
+	}
+	else {
+		logger(LOG_LEVEL_WARN,	"%s [%u]: No dispatch callback set!\n", 
+				__FUNCTION__, __LINE__);
+	}
+}
 
 // Keyboard Upper 16 / Mouse Lower 16
 static CGEventFlags curr_modifier_mask = 0x00000000;
@@ -163,15 +184,15 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
 
 	// Get the event class.
-	switch (type) {
+	switch (type_ref) {
 		case kCGEventKeyDown:
 		EVENT_KEYDOWN:
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = convert_to_virtual_mask(get_modifiers());
 			
-			keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-			event.data.keyboard.keycode = keycode_to_scancode(event_code);
+			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+			event.data.keyboard.keycode = keycode_to_scancode(keycode);
 			event.data.keyboard.rawcode = keycode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 			
@@ -224,8 +245,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = convert_to_virtual_mask(get_modifiers());
 			
-			keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-			event.data.keyboard.keycode = keycode_to_scancode(event_code);
+			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+			event.data.keyboard.keycode = keycode_to_scancode(keycode);
 			event.data.keyboard.rawcode = keycode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 			
@@ -292,7 +313,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			goto BUTTONDOWN;
 
 		case kCGEventOtherMouseDown:
-			button = CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber);
+			button = CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber);
 
 			if (button == kVK_MBUTTON) {
 				set_modifier_mask(kCGEventFlagMaskButtonCenter);
@@ -306,7 +327,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 
 		BUTTONDOWN:
 			// Track the number of clicks.
-			if ((event.time - click_time) <= hook_get_multi_click_time()) {
+			if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
 				click_count++;
 			}
 			else {
@@ -314,7 +335,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			}
 			click_time = event.time;
 
-			event_point = CGEventGetLocation(event);
+			event_point = CGEventGetLocation(event_ref);
 			
 			// Fire mouse pressed event.
 			event.type = EVENT_MOUSE_PRESSED;
@@ -341,7 +362,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			goto BUTTONUP;
 
 		case kCGEventOtherMouseUp:
-			button = CGEventGetIntegerValueField(event, kCGMouseEventButtonNumber);
+			button = CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber);
 
 			if (button == kVK_MBUTTON) {
 				unset_modifier_mask(kCGEventFlagMaskButtonCenter);
@@ -354,7 +375,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			}
 
 		BUTTONUP:
-			event_point = CGEventGetLocation(event);
+			event_point = CGEventGetLocation(event_ref);
 			
 			// Fire mouse released event.
 			event.type = EVENT_MOUSE_RELEASED;
@@ -390,10 +411,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 		case kCGEventLeftMouseDragged:
 		case kCGEventRightMouseDragged:
 		case kCGEventOtherMouseDragged:
-			event_point = CGEventGetLocation(event);
+			event_point = CGEventGetLocation(event_ref);
 
 			// Reset the click count.
-			if (click_count != 0 && (event.time - click_time) > hook_get_multi_click_time()) {
+			if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
 				click_count = 0;
 			}
 
@@ -414,10 +435,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			break;
 
 		case kCGEventMouseMoved:
-			event_point = CGEventGetLocation(event);
+			event_point = CGEventGetLocation(event_ref);
 			
 			// Reset the click count.
-			if (click_count != 0 && (event.time - click_time) > hook_get_multi_click_time()) {
+			if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
 				click_count = 0;
 			}
 
@@ -438,10 +459,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			break;
 
 		case kCGEventScrollWheel:
-			event_point = CGEventGetLocation(event);
+			event_point = CGEventGetLocation(event_ref);
 
 			// Track the number of clicks.
-			if ((event.time - click_time) <= hook_get_multi_click_time()) {
+			if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
 				click_count++;
 			}
 			else {
@@ -459,7 +480,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.data.wheel.y = event_point.y;
 			
 			// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
-			if (CGEventGetIntegerValueField(event, kCGScrollWheelEventIsContinuous) == 0) {
+			if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
 				event.data.wheel.type = WHEEL_UNIT_SCROLL;
 			}
 			else {
@@ -470,10 +491,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			* suspect that Apples Java implementation maybe reporting a
 			* static "1" inaccurately.
 			*/
-			event.data.wheel.amount = CGEventGetIntegerValueField(event, kCGScrollWheelEventPointDeltaAxis1) * -1;
+			event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * -1;
 			
 			// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
-			event.data.wheel.rotation = CGEventGetIntegerValueField(event, kCGScrollWheelEventDeltaAxis1) * -1;
+			event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n", 
 					__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);

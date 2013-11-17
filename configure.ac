@@ -161,6 +161,31 @@ AS_IF([test "x$enable_demo" = "xyes"], [
 ])
 
 AS_IF(
+	[test "x$backend" = "xdarwin"], [
+		AS_IF([test "x$enable_corefoundation" = "xyes"], [
+			AC_DEFINE([USE_COREFOUNDATION], 1, [Enable CoreFoundation framework])
+			LIBS="${LIBS} -framework ApplicationServices"
+		])
+
+		AS_IF([test "x$enable_iokit" = "xyes"], [
+			AC_DEFINE([USE_IOKIT], 1, [Enable IOKit framework])
+			LIBS="${LIBS} -framework IOKit"
+		])
+
+		AS_IF([test "x$enable_carbon_legacy" = "xyes"], [
+			# FIXME AC_MSG_ERROR if this is a 64 bit target.
+			AC_MSG_WARN([Carbon legacy functionality is required for OS X version 10.4 and should only be used on 32-bit targets.])
+			AC_DEFINE([USE_CARBON_LEGACY], 1, [Enable Carbon framework legacy functionality])
+		])
+
+		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
+
+		# Always add Carbon due to non-deprecated #define's
+		LIBS="${LIBS} -framework Carbon"
+
+		#CFLAGS="$CFLAGS -I/usr/local/include"
+		#LDFLAGS="$LDFLAGS  -Wl,-undefined,error"
+	],
 	[test "x$backend" = "xunix"], [
 		# Checks for libraries.
 		PKG_PROG_PKG_CONFIG
@@ -222,29 +247,7 @@ AS_IF(
 		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
 		LIBS="$PTHREAD_LIBS $LIBS"
 		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
-	],
-	[test "x$backend" = "xdarwin"], [
-		if test "x$enable_corefoundation" = "xyes" ; then
-			AC_DEFINE([USE_COREFOUNDATION], 1, [Enable CoreFoundation framework])
-			LIBS="${LIBS} -framework ApplicationServices"
-		fi
-
-		if test "x$enable_iokit" = "xyes" ; then
-			AC_DEFINE([USE_IOKIT], 1, [Enable IOKit framework])
-			LIBS="${LIBS} -framework IOKit"
-		fi
-
-		if test "x$enable_carbon_legacy" = "xyes" ; then
-			# FIXME AC_MSG_ERROR if this is a 64 bit target.
-			AC_MSG_WARN([Carbon legacy functionality is required for OS X version 10.4 and should only be used on 32-bit targets.])
-			AC_DEFINE([USE_CARBON_LEGACY], 1, [Enable Carbon framework legacy functionality])
-		fi
-
-		# Always add Carbon due to non-deprecated #define's
-		LIBS="${LIBS} -framework Carbon"
-
-		CFLAGS="$CFLAGS -I/usr/local/include"
-		LDFLAGS="$LDFLAGS -L/usr/local/lib"
+		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
 	],
 	[test "x$backend" = "xwindows"], [
 		AC_DEFINE([_WIN32_WINNT], 0x0500, [Set minimum Windows version to Windows 2000])
@@ -258,6 +261,7 @@ AS_IF(
 		#EXTRA_LIBS="-lmsvcrt -luser32 -lkernel32"
 
 		#LIBS="${LIBS} -lsetupapi"
+		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
 	])
 
 # OS info for Automake

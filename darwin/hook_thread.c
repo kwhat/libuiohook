@@ -23,7 +23,7 @@
 
 #include "hook_callback.h"
 #include "logger.h"
-
+#include "osx_input_helper.h"
 
 // Thread and hook handles.
 static CFRunLoopRef event_loop;
@@ -94,7 +94,7 @@ static void *hook_thread_proc(void *arg) {
 							__FUNCTION__, __LINE__);
 
 					// Initialize Native Input Functions.
-					LoadInputHelper();
+					load_input_helper();
 
 
 					// Create run loop observers.
@@ -136,8 +136,8 @@ static void *hook_thread_proc(void *arg) {
 						*status = NATIVEHOOK_ERROR_OBSERVER_CREATE;
 					}
 
-					// Callback for additional thread cleanup.
-					ThreadStopCallback();
+					// Cleanup Native Input Functions.
+					unload_input_helper();
 				}
 				else {
 					logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n", 
@@ -200,14 +200,25 @@ NATIVEHOOK_API int hook_enable() {
 
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
-		if (pthread_create(&hook_thread_id, NULL, ThreadProc, malloc(sizeof(int))) == 0) {
+		// Create the thread attribute.
+		int policy = 0;
+		int priority = 0;
+
+		pthread_attr_init(&hook_thread_attr);
+		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
+		priority = sched_get_priority_max(policy);
+		
+		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, malloc(sizeof(int))) == 0) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
 					__FUNCTION__, __LINE__);
 
+			/* FIXME OS X does not support pthread_setschedprio, try using 
+			 * pthread_setschedparam
 			if (pthread_setschedprio(hook_thread_id, priority) != 0) {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n", 
 						__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);
 			}
+			*/
 			
 			// Wait for the thread to unlock the control mutex indicating
 			// that it has started or failed.
@@ -298,5 +309,5 @@ NATIVEHOOK_API bool hook_is_enabled() {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n", 
 			__FUNCTION__, __LINE__, is_running);
 
-	return isRunning;
+	return is_running;
 }

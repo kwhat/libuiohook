@@ -23,7 +23,7 @@ extern void start_message_port_runloop();
 
 extern void stop_message_port_runloop();
 
-extern void hook_status_proc(CFRunLoopObserverRef UNUSED(observer), CFRunLoopActivity activity, void *info);
+extern void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info);
 
 extern CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEventRef event_ref, void *refcon);
 

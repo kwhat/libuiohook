@@ -17,7 +17,7 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-DARWIN_SRC =
+DARWIN_SRC = darwin/osx_input_helper.c
 UNIX_SRC = unix/x_input_helper.c unix/x_unicode_helper.c
 WINDOWS_SRC = windows/win_unicode_helper.c
 
@@ -40,7 +40,7 @@ include_HEADERS = include/nativehook.h
 
 lib_LTLIBRARIES = libnativehook.la
 libnativehook_la_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -Wno-unused-parameter -I$(top_srcdir)/common -I$(top_srcdir)/include
-libnativehook_la_LDFLAGS = $(LTLDFLAGS) -Wl,--no-undefined
+libnativehook_la_LDFLAGS = $(LTLDFLAGS)
 libnativehook_la_SOURCES = \
 	common/scancode_table.c \
 	common/logger.c \

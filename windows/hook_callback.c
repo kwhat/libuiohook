@@ -1,6 +1,6 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
  * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+ * https://github.com/kwhat/libuiohook/
  *
  * JNativeHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -46,10 +46,10 @@ static POINT last_click;
 // Virtual event pointer.
 static virtual_event event;
 
+extern HHOOK keyboard_event_hhook, mouse_event_hhook;
+
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
-
-extern HHOOK keyboard_event_hhook, mouse_event_hhook;
 
 NATIVEHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n", 

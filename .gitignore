@@ -10,3 +10,14 @@
 /configure
 /aclocal.m4
 /nbproject/
+/config.log
+/Makefile
+/libtool
+/config.status
+/.deps/
+/conf*.dir/
+/pc/nativehook.pc
+/include/config.h
+/include/stamp-h1
+/include/config.h.in~
+/.libs/

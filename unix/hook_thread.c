@@ -212,6 +212,9 @@ NATIVEHOOK_API int hook_enable() {
 					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
 							__FUNCTION__, __LINE__);
 
+					/* FIXME OS X does not support pthread_setschedprio, try using 
+					 * pthread_setschedparam
+					 */
 					if (pthread_setschedprio(hook_thread_id, priority) != 0) {
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n", 
 								__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);

@@ -28,13 +28,13 @@
 
 static unsigned int btnmask_lookup[10] = {
 	kCGEventLeftMouseDown,	// Button 1
-	kCGEventRightMouseDown	// Button 2
+	kCGEventRightMouseDown,	// Button 2
 	kCGEventOtherMouseDown,	// Button 3
 	kCGEventOtherMouseDown,	// Button 4
 	kCGEventOtherMouseDown,	// Button 5
 	
 	kCGEventLeftMouseUp,	// Button 1
-	kCGEventRightMouseUp	// Button 2
+	kCGEventRightMouseUp,	// Button 2
 	kCGEventOtherMouseUp,	// Button 3
 	kCGEventOtherMouseUp,	// Button 4
 	kCGEventOtherMouseUp,	// Button 5
@@ -61,7 +61,7 @@ NATIVEHOOK_API void hook_post_event(virtual_event * const event) {
 			cg_event = CGEventCreateKeyboardEvent(NULL, 
 					(CGKeyCode) convert_to_native_key(event->data.keyboard.keycode), 
 					true);
-			CGEventSetFlags(event, (CGEventFlags) 0x00);
+			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
 			break;
 
 

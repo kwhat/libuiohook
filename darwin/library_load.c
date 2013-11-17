@@ -20,6 +20,7 @@
 #include <nativehook.h>
 
 #include "library_load.h"
+#include "osx_input_helper.h"
 
 // Create a shared object constructor and destructor.
 void __attribute__ ((constructor)) on_library_load(void);

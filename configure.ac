@@ -1,13 +1,13 @@
-# JNativeHook: Global keyboard and mouse hooking for Java.
-# Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
-# http://code.google.com/p/jnativehook/
-
-# JNativeHook is free software: you can redistribute it and/or modify
+# libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+# Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+# https://github.com/kwhat/libuiohook/
+#
+# libUIOHook is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
 # by the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# JNativeHook is distributed in the hope that it will be useful,
+# libUIOHook is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -17,12 +17,12 @@
 #
 
 # Define a few constants using m4 macros to prevent multiple definitions.
-m4_define([NATIVEHOOK_MAJOR],	[1])
-m4_define([NATIVEHOOK_MINOR],	[2])
-m4_define([NATIVEHOOK_PATCH],	[0])
-m4_define([NATIVEHOOK_RC],		[_M1])
-m4_define([NATIVEHOOK_BUGS],	[alex@1stleg.com])
-m4_define([NATIVEHOOK_VERSION_STRING], NATIVEHOOK_MAJOR[.]NATIVEHOOK_MINOR[.]NATIVEHOOK_PATCH[]NATIVEHOOK_RC)
+m4_define([UIOHOOK_MAJOR],	[1])
+m4_define([UIOHOOK_MINOR],	[2])
+m4_define([UIOHOOK_PATCH],	[0])
+m4_define([UIOHOOK_RC],		[_M1])
+m4_define([UIOHOOK_BUGS],	[alex@1stleg.com])
+m4_define([UIOHOOK_VERSION_STRING], UIOHOOK_MAJOR[.]UIOHOOK_MINOR[.]UIOHOOK_PATCH[]UIOHOOK_RC)
 
 m4_pattern_allow([AM_PROG_AR])
 
@@ -37,13 +37,13 @@ LTLDFLAGS="-version-info ${lt_current}:${lt_revision}:${lt_age}"
 
 
 # Initialize autoconf.
-AC_INIT([nativehook], [NATIVEHOOK_VERSION_STRING], [NATIVEHOOK_BUGS])
+AC_INIT([uiohook], [UIOHOOK_VERSION_STRING], [UIOHOOK_BUGS])
 
 AC_PREREQ(2.64)
 #AC_CANONICAL_SYSTEM requires src/native/install.sh
-AC_CONFIG_SRCDIR([include/nativehook.h])
+AC_CONFIG_SRCDIR([include/uiohook.h])
 AC_CONFIG_FILES([
-	pc/nativehook.pc \
+	pc/uiohook.pc \
 	Makefile
 ])
 AC_CONFIG_AUX_DIR([config])

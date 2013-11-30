@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,14 +20,12 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <uiohook.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-
 #ifdef USE_XTEST
 #include <X11/extensions/XTest.h>
 #endif
@@ -59,7 +57,7 @@ static unsigned int btnmask_lookup[5] = {
 };
 #endif
 
-NATIVEHOOK_API void hook_post_event(virtual_event * const event) {
+UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	char buffer[4];
 
 	#ifdef USE_XTEST

@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,7 +20,7 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
+#include <uiohook.h>
 #include <stdbool.h>
 
 
@@ -33,16 +33,16 @@
 #else
 #include <stdio.h>
 #define COPYRIGHT()	fprintf(stdout, \
-		"JNativeHook: Global keyboard and mouse hooking for Java.\n" \
-		"Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.\n" \
-		"http://code.google.com/p/jnativehook/\n" \
+		"libUIOHook: Cross-platfrom userland keyboard and mouse hooking.\n" \
+		"Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.\n" \
+		"https://github.com/kwhat/libuiohook/\n" \
 		"\n" \
-		"JNativeHook is free software: you can redistribute it and/or modify\n" \
+		"libUIOHook is free software: you can redistribute it and/or modify\n" \
 		"it under the terms of the GNU Lesser General Public License as published\n" \
 		"by the Free Software Foundation, either version 3 of the License, or\n" \
 		"(at your option) any later version.\n" \
 		"\n" \
-		"JNativeHook is distributed in the hope that it will be useful,\n" \
+		"libUIOHook is distributed in the hope that it will be useful,\n" \
 		"but WITHOUT ANY WARRANTY; without even the implied warranty of\n" \
 		"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n" \
 		"GNU General Public License for more details.\n" \

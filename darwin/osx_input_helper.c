@@ -1,13 +1,13 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -16,21 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
-#include "osx_input_helper.h"
-#ifdef COREFOUNDATION
+#ifdef USE_COREFOUNDATION
 #include <CoreFoundation/CoreFoundation.h>
 #endif
+#include <stdbool.h>
+
+#include "osx_input_helper.h"
 
 // Current dead key state.
-#if defined(CARBON_LEGACY) || defined(COREFOUNDATION)
+#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 static UInt32 curr_deadkey_state = 0;
 #endif
 
 // Input source data for the keyboard.
-#if defined(CARBON_LEGACY)
+#if defined(USE_CARBON_LEGACY)
 static KeyboardLayoutRef prev_keyboard_layout = NULL;
-#elif defined(COREFOUNDATION)
+#elif defined(USE_COREFOUNDATION)
 static TISInputSourceRef prev_keyboard_layout = NULL;
 #endif
 
@@ -38,8 +39,8 @@ static TISInputSourceRef prev_keyboard_layout = NULL;
 // Exception detected while handling key input.  TSMProcessRawKeyCode failed (-192) errors.
 // CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())
 void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *length, UniChar *buffer) {
-	#if defined(CARBON_LEGACY) || defined(COREFOUNDATION)
-	#if defined(CARBON_LEGACY)
+	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
+	#if defined(USE_CARBON_LEGACY)
 	KeyboardLayoutRef curr_keyboard_layout;
 	void *inputData = NULL;
 	if (KLGetCurrentKeyboardLayout(&curr_keyboard_layout) == noErr) {
@@ -47,7 +48,7 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 			inputData = NULL;
 		}
 	}
-	#elif defined(COREFOUNDATION)
+	#elif defined(USE_COREFOUNDATION)
 	TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
 	CFDataRef inputData = NULL;
 	if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
@@ -74,7 +75,7 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 	#endif
 
 	if (inputData != NULL) {
-		#ifdef CARBON_LEGACY
+		#ifdef USE_CARBON_LEGACY
 		const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout *) inputData;
 		#else
 		const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout*) CFDataGetBytePtr(inputData);
@@ -155,7 +156,7 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 	#endif
 
 	// Fallback to CGEventKeyboardGetUnicodeString if we were unable to use UCKeyTranslate().
-	#if defined(CARBON_LEGACY) || defined(COREFOUNDATION)
+	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 	if (*length == 0) {
 		CGEventKeyboardGetUnicodeString(event_ref, size, length, buffer);
 	}
@@ -340,14 +341,14 @@ UInt64 scancode_to_keycode(uint16_t keycode) {
 }
 
 void load_input_helper() {
-	#if defined(CARBON_LEGACY) || defined(COREFOUNDATION)
+	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 	// Start with a fresh dead key state.
 	curr_deadkey_state = 0;
 	#endif
 }
 
 void unload_input_helper() {
-	#if defined(CARBON_LEGACY) || defined(COREFOUNDATION)
+	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 	if (prev_keyboard_layout != NULL) {
 		// Cleanup tracking of the previous layout.
 		CFRelease(prev_keyboard_layout);

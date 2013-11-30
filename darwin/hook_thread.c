@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -15,11 +15,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <pthread.h>
-#include <sys/time.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <ApplicationServices/ApplicationServices.h>
+#include <pthread.h>
+#include <sys/time.h>
+#include <uiohook.h>
 
 #include "hook_callback.h"
 #include "logger.h"
@@ -37,7 +40,7 @@ static pthread_attr_t hook_thread_attr;
 
 static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
-	*status = NATIVEHOOK_FAILURE;
+	*status = UIOHOOK_FAILURE;
 
 	// Check and make sure assistive devices is enabled.
 	if (AXAPIEnabled() == true) {
@@ -109,7 +112,7 @@ static void *hook_thread_proc(void *arg) {
 
 					if (observer != NULL) {
 						// Set the exit status.
-						*status = NATIVEHOOK_SUCCESS;
+						*status = UIOHOOK_SUCCESS;
 
 						start_message_port_runloop();
 
@@ -133,7 +136,7 @@ static void *hook_thread_proc(void *arg) {
 								__FUNCTION__, __LINE__);
 
 						// Set the exit status.
-						*status = NATIVEHOOK_ERROR_OBSERVER_CREATE;
+						*status = UIOHOOK_ERROR_OBSERVER_CREATE;
 					}
 
 					// Cleanup Native Input Functions.
@@ -144,7 +147,7 @@ static void *hook_thread_proc(void *arg) {
 							__FUNCTION__, __LINE__);
 
 					// Set the exit status.
-					*status = NATIVEHOOK_ERROR_GET_RUNLOOP;
+					*status = UIOHOOK_ERROR_GET_RUNLOOP;
 				}
 
 				// Clean up the event source.
@@ -155,7 +158,7 @@ static void *hook_thread_proc(void *arg) {
 					__FUNCTION__, __LINE__);
 
 				// Set the exit status.
-				*status = NATIVEHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+				*status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
 			}
 
 			// Stop the CFMachPort from receiving any more messages.
@@ -167,7 +170,7 @@ static void *hook_thread_proc(void *arg) {
 					__FUNCTION__, __LINE__);
 
 			// Set the exit status.
-			*status = NATIVEHOOK_ERROR_EVENT_PORT;
+			*status = UIOHOOK_ERROR_EVENT_PORT;
 		}
 	}
 	else {
@@ -175,7 +178,7 @@ static void *hook_thread_proc(void *arg) {
 				__FUNCTION__, __LINE__);
 
 		// Set the exit status.
-		*status = NATIVEHOOK_ERROR_AXAPI_DISABLED;
+		*status = UIOHOOK_ERROR_AXAPI_DISABLED;
 	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n", 
@@ -187,8 +190,8 @@ static void *hook_thread_proc(void *arg) {
 	pthread_exit(status);
 }
 
-NATIVEHOOK_API int hook_enable() {
-	int status = NATIVEHOOK_FAILURE;
+UIOHOOK_API int hook_enable() {
+	int status = UIOHOOK_FAILURE;
 
 	// We shall use the default pthread attributes: thread is joinable
 	// (not detached) and has default (non real-time) scheduling policy.
@@ -231,7 +234,7 @@ NATIVEHOOK_API int hook_enable() {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Initialization successful.\n", 
 						__FUNCTION__, __LINE__);
 
-				status = NATIVEHOOK_SUCCESS;
+				status = UIOHOOK_SUCCESS;
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n", 
@@ -251,7 +254,7 @@ NATIVEHOOK_API int hook_enable() {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n", 
 					__FUNCTION__, __LINE__);
 
-			status = NATIVEHOOK_ERROR_THREAD_CREATE;
+			status = UIOHOOK_ERROR_THREAD_CREATE;
 		}
 	}
 
@@ -261,8 +264,8 @@ NATIVEHOOK_API int hook_enable() {
 	return status;
 }
 
-NATIVEHOOK_API int hook_disable() {
-	int status = NATIVEHOOK_FAILURE;
+UIOHOOK_API int hook_disable() {
+	int status = UIOHOOK_FAILURE;
 
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has fully stopped.
@@ -294,7 +297,7 @@ NATIVEHOOK_API int hook_disable() {
 	return status;
 }
 
-NATIVEHOOK_API bool hook_is_enabled() {
+UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
 	// Try to aquire a lock on the running mutex.

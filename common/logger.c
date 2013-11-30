@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,11 +20,11 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <uiohook.h>
 
 #include "logger.h"
 
@@ -59,7 +59,7 @@ static bool default_logger(unsigned int level, const char *format, ...) {
 logger_t logger = &default_logger;
 
 
-NATIVEHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
+UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
 	if (logger_proc == NULL) {
 		logger = &default_logger;
 	}

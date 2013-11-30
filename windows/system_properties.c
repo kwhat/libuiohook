@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,13 +20,13 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
+#include <uiohook.h>
 #include <windows.h>
 
 #include "logger.h"
 #include "win_unicode_helper.h"
 
-NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
+UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	long int value = -1;
 	long int rate;
 
@@ -40,7 +40,7 @@ NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
+UIOHOOK_API long int hook_get_auto_repeat_delay() {
 	long int value = -1;
 	long int delay;
 
@@ -54,7 +54,7 @@ NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
+UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 	long int value = -1;
 	int mouse[3]; // 0-Threshold X, 1-Threshold Y and 2-Speed.
 
@@ -68,7 +68,7 @@ NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
+UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 	long int value = -1;
 	int mouse[3]; // 0-Threshold X, 1-Threshold Y and 2-Speed.
 
@@ -85,7 +85,7 @@ NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
+UIOHOOK_API long int hook_get_pointer_sensitivity() {
 	long int value = -1;
 	int sensitivity;
 
@@ -99,7 +99,7 @@ NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_multi_click_time() {
+UIOHOOK_API long int hook_get_multi_click_time() {
 	long int value = -1;
 	UINT clicktime;
 

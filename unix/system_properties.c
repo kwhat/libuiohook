@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,21 +20,17 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
-
 #include <stdbool.h>
 #include <stdio.h>
+#include <uiohook.h>
 #include <X11/Xlib.h>
-
 #ifdef USE_XKB
 #include <X11/XKBlib.h>
 #endif
-
 #ifdef USE_XF86MISC
 #include <X11/extensions/xf86misc.h>
 #include <X11/extensions/xf86mscstr.h>
 #endif
-
 #ifdef USE_XT
 #include <X11/Intrinsic.h>
 extern Display *xt_disp;
@@ -44,7 +40,7 @@ extern Display *xt_disp;
 
 extern Display *disp;
 
-NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
+UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	bool successful = false;
 	long int value = -1;
 	unsigned int delay = 0, rate = 0;
@@ -83,7 +79,7 @@ NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
+UIOHOOK_API long int hook_get_auto_repeat_delay() {
 	bool successful = false;
 	long int value = -1;
 	unsigned int delay = 0, rate = 0;
@@ -122,7 +118,7 @@ NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
+UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 	long int value = -1;
 	int accel_numerator, accel_denominator, threshold;
 
@@ -137,7 +133,7 @@ NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
+UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 	long int value = -1;
 	int accel_numerator, accel_denominator, threshold;
 
@@ -152,7 +148,7 @@ NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
+UIOHOOK_API long int hook_get_pointer_sensitivity() {
 	long int value = -1;
 	int accel_numerator, accel_denominator, threshold;
 
@@ -167,7 +163,7 @@ NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_multi_click_time() {
+UIOHOOK_API long int hook_get_multi_click_time() {
 	long int value = 200;
 	int click_time;
 	bool successful = false;

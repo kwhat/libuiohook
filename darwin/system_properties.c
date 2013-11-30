@@ -1,18 +1,18 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * libUIOHook is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -20,22 +20,18 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
-
-#include <stdbool.h>
-
+#ifdef USE_CARBON_LEGACY
+#include <Carbon/Carbon.h>
+#endif
+#ifdef USE_COREFOUNDATION
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #ifdef USE_IOKIT
 #include <IOKit/hidsystem/IOHIDLib.h>
 #include <IOKit/hidsystem/IOHIDParameter.h>
 #endif
-
-#ifdef USE_COREFOUNDATION
-#include <CoreFoundation/CoreFoundation.h>
-#endif
-
-#ifdef USE_CARBON_LEGACY
-#include <Carbon/Carbon.h>
-#endif
+#include <stdbool.h>
+#include <uiohook.h>
 
 #include "logger.h"
 
@@ -67,7 +63,7 @@
  * CharSec = 66 / (MS / 15)
  */
 
-NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
+UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	#if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
 	bool successful = false;
 	SInt64 rate;
@@ -149,7 +145,7 @@ NATIVEHOOK_API long int hook_get_auto_repeat_rate() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
+UIOHOOK_API long int hook_get_auto_repeat_delay() {
 	#if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
 	bool successful = false;
 	SInt64 delay;
@@ -231,7 +227,7 @@ NATIVEHOOK_API long int hook_get_auto_repeat_delay() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
+UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 	#if defined USE_IOKIT || defined USE_COREFOUNDATION
 	bool successful = false;
 	double multiplier;
@@ -292,7 +288,7 @@ NATIVEHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
+UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 	#if defined USE_COREFOUNDATION
 	bool successful = false;
 	SInt32 threshold;
@@ -317,7 +313,7 @@ NATIVEHOOK_API long int hook_get_pointer_acceleration_threshold() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
+UIOHOOK_API long int hook_get_pointer_sensitivity() {
 	#ifdef USE_IOKIT
 	bool successful = false;
 	double sensitivity;
@@ -364,7 +360,7 @@ NATIVEHOOK_API long int hook_get_pointer_sensitivity() {
 	return value;
 }
 
-NATIVEHOOK_API long int hook_get_multi_click_time() {
+UIOHOOK_API long int hook_get_multi_click_time() {
 	#if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
 	bool successful = false;
 	#if defined USE_IOKIT || defined USE_CARBON_LEGACY

@@ -1,12 +1,13 @@
-# JNativeHook: Global keyboard and mouse hooking for Java.
-# Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
+# libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+# Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+# https://github.com/kwhat/libuiohook/
 #
-# This program is free software: you can redistribute it and/or modify
+# libUIOHook is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
 # by the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful,
+# libUIOHook is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -34,14 +35,14 @@ OS_SRC = $(WINDOWS_SRC)
 endif
 
 pkgconfigdir = $(libdir)/pc
-pkgconfig_DATA = $(top_builddir)/pc/nativehook.pc
+pkgconfig_DATA = $(top_builddir)/pc/uiohook.pc
 
-include_HEADERS = include/nativehook.h
+include_HEADERS = include/uiohook.h
 
-lib_LTLIBRARIES = libnativehook.la
-libnativehook_la_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -Wno-unused-parameter -I$(top_srcdir)/common -I$(top_srcdir)/include
-libnativehook_la_LDFLAGS = $(LTLDFLAGS)
-libnativehook_la_SOURCES = \
+lib_LTLIBRARIES = libuiohook.la
+libuiohook_la_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -Wno-unused-parameter -I$(top_srcdir)/common -I$(top_srcdir)/include
+libuiohook_la_LDFLAGS = $(LTLDFLAGS)
+libuiohook_la_SOURCES = \
 	common/scancode_table.c \
 	common/logger.c \
 	$(backend)/hook_callback.c \
@@ -56,12 +57,12 @@ if BUILD_DEMO
 bin_PROGRAMS = hookdemo postdemo
 
 hookdemo_SOURCES = demo/hook_demo.c
-hookdemo_LDADD = $(top_builddir)/libnativehook.la
+hookdemo_LDADD = $(top_builddir)/libuiohook.la
 hookdemo_CFLAGS = -Wall -Wextra -pedantic -I$(top_srcdir)/include
 hookdemo_LDFLAGS = -Wl,--as-needed,-O1
 
 postdemo_SOURCES = demo/post_demo.c
-postdemo_LDADD = $(top_builddir)/libnativehook.la
+postdemo_LDADD = $(top_builddir)/libuiohook.la
 postdemo_CFLAGS = -Wall -Wextra -pedantic -I$(top_srcdir)/include
 postdemo_LDFLAGS = -Wl,--as-needed,-O1
 endif

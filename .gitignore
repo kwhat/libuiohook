@@ -16,7 +16,7 @@
 /config.status
 /.deps/
 /conf*.dir/
-/pc/nativehook.pc
+/pc/uiohook.pc
 /include/config.h
 /include/stamp-h1
 /include/config.h.in~

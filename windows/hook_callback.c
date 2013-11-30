@@ -1,13 +1,13 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,7 +20,7 @@
 #include <config.h>
 #endif
 #include <limits.h>
-#include <nativehook.h>
+#include <uiohook.h>
 #include <time.h>
 #include <windows.h>
 
@@ -51,7 +51,7 @@ extern HHOOK keyboard_event_hhook, mouse_event_hhook;
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
 
-NATIVEHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
+UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n", 
 			__FUNCTION__, __LINE__, dispatch_proc);
 

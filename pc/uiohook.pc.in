@@ -2,9 +2,9 @@ prefix=@prefix@
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
-Name: nativehook
-Description: nativehook library
+Name: uiohook
+Description: uiohook library
 Version: @VERSION@
-Libs: -L${libdir} -lnativehook
+Libs: -L${libdir} -luiohook
 Cflags: -I${includedir}
 Requires: @REQUIRE@

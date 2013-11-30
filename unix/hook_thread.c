@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -24,10 +24,9 @@
 #include <time.h>
 #endif
 
-#include <nativehook.h>
 #include <pthread.h>
 #include <stdlib.h>
-
+#include <uiohook.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/record.h>
@@ -53,7 +52,7 @@ static pthread_attr_t hook_thread_attr;
 
 static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
-	*status = NATIVEHOOK_FAILURE;
+	*status = UIOHOOK_FAILURE;
 
 	// XRecord context for use later.
 	context = 0;
@@ -98,7 +97,7 @@ static void *hook_thread_proc(void *arg) {
 				// Async requires that we loop so that our thread does not return.
 				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, NULL) != 0) {
 					// Set the exit status.
-					*status = NATIVEHOOK_SUCCESS;
+					*status = UIOHOOK_SUCCESS;
 
 					while (running) {
 						XRecordProcessReplies(disp_data);
@@ -115,7 +114,7 @@ static void *hook_thread_proc(void *arg) {
 				// Sync blocks until XRecordDisableContext() is called.
 				if (XRecordEnableContext(disp_data, context, hook_event_proc, NULL) != 0) {
 					// Set the exit status.
-					*status = NATIVEHOOK_SUCCESS;
+					*status = UIOHOOK_SUCCESS;
 				}
 				#endif
 				else {
@@ -128,7 +127,7 @@ static void *hook_thread_proc(void *arg) {
 					#endif
 
 					// Set the exit status.
-					*status = NATIVEHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
+					*status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 				}
 
 				// Free up the context after the run loop terminates.
@@ -142,7 +141,7 @@ static void *hook_thread_proc(void *arg) {
 						__FUNCTION__, __LINE__);
 
 				// Set the exit status.
-				*status = NATIVEHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
+				*status = UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
 			}
 
 			// Free the XRecordRange.
@@ -153,7 +152,7 @@ static void *hook_thread_proc(void *arg) {
 					__FUNCTION__, __LINE__);
 
 			// Set the exit status.
-			*status = NATIVEHOOK_ERROR_X_RECORD_ALLOC_RANGE;
+			*status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
 		}
 
 		XCloseDisplay(disp_data);
@@ -164,7 +163,7 @@ static void *hook_thread_proc(void *arg) {
 				__FUNCTION__, __LINE__);
 
 		// Set the exit status.
-		*status = NATIVEHOOK_ERROR_X_OPEN_DISPLAY;
+		*status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
 	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n", 
@@ -176,8 +175,8 @@ static void *hook_thread_proc(void *arg) {
 	pthread_exit(status);
 }
 
-NATIVEHOOK_API int hook_enable() {
-	int status = NATIVEHOOK_FAILURE;
+UIOHOOK_API int hook_enable() {
+	int status = UIOHOOK_FAILURE;
 
 	// We shall use the default pthread attributes: thread is joinable
 	// (not detached) and has default (non real-time) scheduling policy.
@@ -231,7 +230,7 @@ NATIVEHOOK_API int hook_enable() {
 						logger(LOG_LEVEL_DEBUG,	"%s [%u]: Initialization successful.\n", 
 								__FUNCTION__, __LINE__);
 
-						status = NATIVEHOOK_SUCCESS;
+						status = UIOHOOK_SUCCESS;
 					}
 					else {
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n", 
@@ -251,14 +250,14 @@ NATIVEHOOK_API int hook_enable() {
 					logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n", 
 							__FUNCTION__, __LINE__);
 
-					status = NATIVEHOOK_ERROR_THREAD_CREATE;
+					status = UIOHOOK_ERROR_THREAD_CREATE;
 				}
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecord is not currently available!\n", 
 							__FUNCTION__, __LINE__);
 
-				status = NATIVEHOOK_ERROR_X_RECORD_NOT_FOUND;
+				status = UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
 			}
 		}
 		else {
@@ -271,7 +270,7 @@ NATIVEHOOK_API int hook_enable() {
 				disp_ctrl = NULL;
 			}
 
-			status = NATIVEHOOK_ERROR_X_OPEN_DISPLAY;
+			status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
 		}
 	}
 
@@ -281,8 +280,8 @@ NATIVEHOOK_API int hook_enable() {
 	return status;
 }
 
-NATIVEHOOK_API int hook_disable() {
-	int status = NATIVEHOOK_FAILURE;
+UIOHOOK_API int hook_disable() {
+	int status = UIOHOOK_FAILURE;
 
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has fully stopped.
@@ -327,7 +326,7 @@ NATIVEHOOK_API int hook_disable() {
 	return status;
 }
 
-NATIVEHOOK_API bool hook_is_enabled() {
+UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
 	// Try to aquire a lock on the running mutex.

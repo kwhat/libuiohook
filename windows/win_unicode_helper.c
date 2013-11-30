@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -31,7 +31,7 @@
  *
  * I have contacted Marc-André Moreau who has granted permission for
  * his original source code to be used under the Public Domain.  Although
- * the JNativeHook library as a whole is currently covered under the GPLv3,
+ * the libUIOHook library as a whole is currently covered under the LGPLv3,
  * please feel free to use and learn from the source code contained in this
  * file under the terms of the Public Domain.
  *
@@ -48,7 +48,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <nativehook.h>
+#include <uiohook.h>
 #include <windows.h>
 
 #include "logger.h"
@@ -95,7 +95,7 @@ static BOOL is_wow64() {
 
 // Locate the DLL that contains the current keyboard layout.
 static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
-	int status = NATIVEHOOK_FAILURE;
+	int status = UIOHOOK_FAILURE;
 	HKEY hKey;
 	DWORD varType = REG_SZ;
 
@@ -107,7 +107,7 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 		if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
 			if(RegQueryValueEx(hKey, "Layout File", NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
 				RegCloseKey(hKey);
-				status = NATIVEHOOK_SUCCESS;
+				status = UIOHOOK_SUCCESS;
 			}
 		}
 	}
@@ -208,7 +208,7 @@ static int refresh_locale_list() {
 
 					// Try to pull the current keyboard layout DLL from the registry.
 					char layoutFile[MAX_PATH];
-					if (get_keyboard_layout_file(layoutFile, sizeof(layoutFile)) == NATIVEHOOK_SUCCESS) {
+					if (get_keyboard_layout_file(layoutFile, sizeof(layoutFile)) == UIOHOOK_SUCCESS) {
 						//You can't trust the %SYSPATH%, look it up manually.
 						char systemDirectory[MAX_PATH];
 						if (GetSystemDirectory(systemDirectory, MAX_PATH) != 0) {

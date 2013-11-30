@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,7 +20,7 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
+#include <uiohook.h>
 #include <windows.h>
 
 #include "hook_callback.h"
@@ -36,7 +36,7 @@ static HANDLE hook_control_handle = NULL, hook_running_handle = NULL;
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
-	DWORD status = NATIVEHOOK_FAILURE;
+	DWORD status = UIOHOOK_FAILURE;
 
 	// Create the native hooks.
 	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_event_proc, hInst, 0);
@@ -51,7 +51,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		initialize_modifiers();
 
 		// Set the exit status.
-		status = NATIVEHOOK_SUCCESS;
+		status = UIOHOOK_SUCCESS;
 
 		// Signal that we have passed the thread initialization.
 		SetEvent(hook_control_handle);
@@ -67,7 +67,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n", 
 				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 
-		status = NATIVEHOOK_ERROR_SET_WINDOWS_HOOK_EX;
+		status = UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX;
 	}
 
 	// Destroy the native hooks.
@@ -91,8 +91,8 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	ExitThread(status);
 }
 
-NATIVEHOOK_API int hook_enable() {
-	int status = NATIVEHOOK_FAILURE;
+UIOHOOK_API int hook_enable() {
+	int status = UIOHOOK_FAILURE;
 
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
@@ -128,7 +128,7 @@ NATIVEHOOK_API int hook_enable() {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
 						__FUNCTION__, __LINE__);
 
-				status = NATIVEHOOK_SUCCESS;
+				status = UIOHOOK_SUCCESS;
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n", 
@@ -149,15 +149,15 @@ NATIVEHOOK_API int hook_enable() {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n", 
 					__FUNCTION__, __LINE__);
 
-			status = NATIVEHOOK_ERROR_THREAD_CREATE;
+			status = UIOHOOK_ERROR_THREAD_CREATE;
 		}
 	}
 
 	return status;
 }
 
-NATIVEHOOK_API int hook_disable() {
-	int status = NATIVEHOOK_FAILURE;
+UIOHOOK_API int hook_disable() {
+	int status = UIOHOOK_FAILURE;
 
 	if (hook_is_enabled() == true) {
 		// Try to exit the thread naturally.
@@ -181,7 +181,7 @@ NATIVEHOOK_API int hook_disable() {
 	return status;
 }
 
-NATIVEHOOK_API bool hook_is_enabled() {
+UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
 	if (hook_running_handle != NULL) {

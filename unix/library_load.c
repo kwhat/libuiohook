@@ -1,13 +1,13 @@
-/* JNativeHook: Global keyboard and mouse hooking for Java.
- * Copyright (C) 2006-2013 Alexander Barker.  All Rights Received.
- * http://code.google.com/p/jnativehook/
+/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * https://github.com/kwhat/libuiohook/
  *
- * JNativeHook is free software: you can redistribute it and/or modify
+ * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * JNativeHook is distributed in the hope that it will be useful,
+ * libUIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -20,13 +20,11 @@
 #include <config.h>
 #endif
 
-#include <nativehook.h>
+#include <uiohook.h>
 #include <X11/Xlib.h>
-
 #ifdef USE_XKB
 #include <X11/XKBlib.h>
 #endif
-
 #ifdef USE_XT
 #include <X11/Intrinsic.h>
 
@@ -67,7 +65,7 @@ void on_library_load() {
 
 	int argc = 0;
 	char ** argv = { NULL };
-	xt_disp = XtOpenDisplay(xt_context, NULL, "NativeHook", "libnativehook", NULL, 0, &argc, argv);
+	xt_disp = XtOpenDisplay(xt_context, NULL, "UIOHook", "libuiohook", NULL, 0, &argc, argv);
 	#endif
 
 	// NOTE: is_auto_repeat is NOT stdbool!

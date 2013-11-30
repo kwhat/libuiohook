@@ -248,7 +248,7 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 
 KeyCode scancode_to_keycode(uint16_t scancode) {
 	// FIXME Implement!
-	(void) 0;
+	return NoSymbol;
 }
 
 // Faster more flexible alternative to XKeycodeToKeysym...

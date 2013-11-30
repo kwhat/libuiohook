@@ -154,7 +154,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 			case ButtonPress:
 				// Track the number of clicks.
-				if ((event.time - click_time) <= hook_get_multi_click_time()) {
+				if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
 					click_count++;
 				}
 				else {
@@ -265,7 +265,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 			case MotionNotify:
 				// Reset the click count.
-				if (click_count != 0 && (event.time - click_time) > hook_get_multi_click_time()) {
+				if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
 					click_count = 0;
 				}
 				
@@ -274,7 +274,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 				// Check the upper half of virtual modifiers for non zero
 				// values and set the mouse dragged flag.
-				mouse_dragged = modifiers >> 4 > 0;
+				mouse_dragged = event_mask >> 4 > 0;
 				if (mouse_dragged) {
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;

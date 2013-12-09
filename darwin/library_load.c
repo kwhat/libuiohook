@@ -23,6 +23,7 @@
 #include <uiohook.h>
 
 #include "library_load.h"
+#include "logger.h"
 #include "osx_input_helper.h"
 
 // Create a shared object constructor and destructor.
@@ -30,6 +31,9 @@ void __attribute__ ((constructor)) on_library_load(void);
 void __attribute__ ((destructor)) on_library_unload(void);
 
 void on_library_load() {
+	// Display the copyright on library load.
+	COPYRIGHT();
+
 	load_input_helper();
 }
 

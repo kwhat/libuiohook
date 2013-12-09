@@ -37,8 +37,8 @@
 #define UIOHOOK_ERROR_THREAD_STOP				0x13
 
 // Unix specific errors.
-#define UIOHOOK_ERROR_X_OPEN_DISPLAY				0x20
-#define UIOHOOK_ERROR_X_RECORD_NOT_FOUND			0x21
+#define UIOHOOK_ERROR_X_OPEN_DISPLAY			0x20
+#define UIOHOOK_ERROR_X_RECORD_NOT_FOUND		0x21
 #define UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE		0x22
 #define UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT	0x23
 #define UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT	0x24
@@ -47,12 +47,11 @@
 #define UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX		0x30
 
 // OS X specific errors.
-#define UIOHOOK_ERROR_AXAPI_DISABLED				0x40
-#define UIOHOOK_ERROR_EVENT_PORT					0x41
-#define UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE		0x42
+#define UIOHOOK_ERROR_AXAPI_DISABLED			0x40
+#define UIOHOOK_ERROR_EVENT_PORT				0x41
+#define UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE	0x42
 #define UIOHOOK_ERROR_GET_RUNLOOP				0x43
-#define UIOHOOK_ERROR_OBSERVER_CREATE			0X44
-
+#define UIOHOOK_ERROR_OBSERVER_CREATE			0x44
 /* End Error Codes */
 
 typedef enum _log_level {
@@ -81,9 +80,9 @@ typedef struct _keyboard_event_data {
 	unsigned short keycode;
 	unsigned short rawcode;
 	wchar_t keychar;
-} keyboard_event_data, 
-		key_pressed_event_data, 
-		key_released_event_data, 
+} keyboard_event_data,
+		key_pressed_event_data,
+		key_released_event_data,
 		key_typed_event_data;
 
 typedef struct _mouse_event_data {
@@ -91,9 +90,9 @@ typedef struct _mouse_event_data {
 	unsigned short clicks;
 	unsigned short x;
 	unsigned short y;
-} mouse_event_data, 
-		mouse_pressed_event_data, 
-		mouse_released_event_data, 
+} mouse_event_data,
+		mouse_pressed_event_data,
+		mouse_released_event_data,
 		mouse_clicked_event_data;
 
 typedef struct _mouse_wheel_event_data {

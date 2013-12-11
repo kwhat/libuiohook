@@ -28,7 +28,8 @@
 #include "logger.h"
 #include "osx_input_helper.h"
 
-//
+// Required to transport messages between the main runloop and our thread for
+// Unicode lookups.
 typedef struct {
 	CGEventRef event;
 	UniChar buffer[4];
@@ -48,9 +49,9 @@ static bool mouse_dragged = false;
 
 static CFRunLoopSourceRef src_msg_port;
 static CGEventFlags prev_event_mask, diff_event_mask, keyup_event_mask;
-static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift + 
+static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift +
 											kCGEventFlagMaskControl +
-											kCGEventFlagMaskAlternate + 
+											kCGEventFlagMaskAlternate +
 											kCGEventFlagMaskCommand;
 
 // Structure for the current Unix epoch in milliseconds.
@@ -65,7 +66,7 @@ extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
 static dispatcher_t dispatcher = NULL;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n",
 			__FUNCTION__, __LINE__, dispatch_proc);
 
 	dispatcher = dispatch_proc;
@@ -74,13 +75,13 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 // Send out an event if a dispatcher was set.
 static inline void dispatch_event(virtual_event *const event) {
 	if (dispatcher != NULL) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n",
 				__FUNCTION__, __LINE__, event->type);
 
 		dispatcher(event);
 	}
 	else {
-		logger(LOG_LEVEL_WARN,	"%s [%u]: No dispatch callback set!\n", 
+		logger(LOG_LEVEL_WARN,	"%s [%u]: No dispatch callback set!\n",
 				__FUNCTION__, __LINE__);
 	}
 }
@@ -102,7 +103,7 @@ CGEventFlags get_modifiers() {
 
 
 
-// Runloop to execute KeyCodeToString on the "Main" runloop due to an 
+// Runloop to execute KeyCodeToString on the "Main" runloop due to an
 // undocumented thread safety requirement.
 static void message_port_proc(void *info) {
 	TISMessage *data = (TISMessage *) info;
@@ -112,7 +113,7 @@ static void message_port_proc(void *info) {
 		keycode_to_string(data->event, sizeof(data->buffer), &(data->length), data->buffer);
 	}
 
-	// Unlock the control mutex to signal that we have finished on the main 
+	// Unlock the control mutex to signal that we have finished on the main
 	// runloop.
 	pthread_mutex_unlock(&hook_control_mutex);
 }
@@ -135,7 +136,7 @@ void start_message_port_runloop() {
 	src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
 	CFRunLoopAddSource(CFRunLoopGetMain(), src_msg_port, kCFRunLoopDefaultMode);
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
 			__FUNCTION__, __LINE__);
 }
 
@@ -147,7 +148,7 @@ void stop_message_port_runloop() {
 
 	src_msg_port = NULL;
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
 			__FUNCTION__, __LINE__);
 }
 
@@ -159,16 +160,15 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			break;
 
 		case kCFRunLoopExit:
-			// We do not need to touch the hook_control_mutex because 
+			// We do not need to touch the hook_control_mutex because
 			// hook_disable() is blocking on pthread_join().
 			pthread_mutex_unlock(&hook_running_mutex);
 			break;
 
-		#ifdef DEBUG
 		default:
-			fprintf(stderr, "CallbackProc(): Unhandled Activity: 0x%X\n", (unsigned int) activity);
+			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled RunLoop activity! (%#X)\n",
+				__FUNCTION__, __LINE__, (unsigned int) activity);
 			break;
-		#endif
 	}
 }
 
@@ -190,13 +190,13 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = convert_to_virtual_mask(get_modifiers());
-			
+
 			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 			event.data.keyboard.keycode = keycode_to_scancode(keycode);
 			event.data.keyboard.rawcode = keycode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
-			
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n", 
+
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
 				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 
@@ -230,7 +230,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				event.data.keyboard.keycode = VC_UNDEFINED;
 				event.data.keyboard.keychar = info->buffer[0];
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%ls)\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%ls)\n",
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 				dispatch_event(&event);
 			}
@@ -244,26 +244,25 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			// Fire key released event.
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = convert_to_virtual_mask(get_modifiers());
-			
+
 			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 			event.data.keyboard.keycode = keycode_to_scancode(keycode);
 			event.data.keyboard.rawcode = keycode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
-			
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n", 
+
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
 				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 			break;
 
 		case kCGEventFlagsChanged:
-			#ifdef DEBUG
-			fprintf(stdout, "LowLevelProc(): Modifiers Changed (0x%X)\n", (unsigned int) event_mask);
-			#endif
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed. (%#X)\n",
+				__FUNCTION__, __LINE__, (unsigned int) event_mask);
 
-			/* Because Apple treats modifier keys differently than normal key 
-			 * events, any changes to the modifier keys will require a key state 
+			/* Because Apple treats modifier keys differently than normal key
+			 * events, any changes to the modifier keys will require a key state
 			 * change to be fired manually.
-			 * 
+			 *
 			 * Outline of what is happening on the next 3 lines.
  			 * 1010 1100	prev
 			 * 1100 1010	curr
@@ -336,7 +335,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			click_time = event.time;
 
 			event_point = CGEventGetLocation(event_ref);
-			
+
 			// Fire mouse pressed event.
 			event.type = EVENT_MOUSE_PRESSED;
 			event.mask = convert_to_virtual_mask(event_mask);
@@ -346,7 +345,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X  pressed %u time(s). (%u, %u)\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X  pressed %u time(s). (%u, %u)\n",
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
@@ -376,7 +375,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 
 		BUTTONUP:
 			event_point = CGEventGetLocation(event_ref);
-			
+
 			// Fire mouse released event.
 			event.type = EVENT_MOUSE_RELEASED;
 			event.mask = convert_to_virtual_mask(event_mask);
@@ -386,11 +385,11 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X released %u time(s). (%u, %u)\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X released %u time(s). (%u, %u)\n",
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
-		
-			
+
+
 			if (mouse_dragged != true) {
 				// Fire mouse clicked event.
 				event.type = EVENT_MOUSE_CLICKED;
@@ -401,7 +400,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				event.data.mouse.x = event_point.x;
 				event.data.mouse.y = event_point.y;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X clicked %u time(s). (%u, %u)\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button%#X clicked %u time(s). (%u, %u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
@@ -429,14 +428,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			// Set the mouse dragged flag.
 			mouse_dragged = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
 					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
 
 		case kCGEventMouseMoved:
 			event_point = CGEventGetLocation(event_ref);
-			
+
 			// Reset the click count.
 			if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
 				click_count = 0;
@@ -449,11 +448,11 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
-			
+
 			// Set the mouse dragged flag.
 			mouse_dragged = false;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
 					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
@@ -469,16 +468,16 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				click_count = 1;
 			}
 			click_time = event.time;
-			
-			
+
+
 			// Fire mouse wheel event.
 			event.type = EVENT_MOUSE_WHEEL;
 			event.mask = convert_to_virtual_mask(event_mask);
-			
+
 			event.data.wheel.clicks = click_count;
 			event.data.wheel.x = event_point.x;
 			event.data.wheel.y = event_point.y;
-			
+
 			// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
 			if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
 				event.data.wheel.type = WHEEL_UNIT_SCROLL;
@@ -492,22 +491,22 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			* static "1" inaccurately.
 			*/
 			event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * -1;
-			
+
 			// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
 			event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n", 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n",
 					__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
 			dispatch_event(&event);
 			break;
 
-		#ifdef DEBUG
 		default:
-			fprintf(stderr, "LowLevelProc(): Unhandled Event Type: 0x%X\n", type);
+			// In theory this *should* never execute.
+			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Darwin event! (%#X)\n",
+					__FUNCTION__, __LINE__, (unsigned int) type);
+				break;
 			break;
-		#endif
 	}
 
 	return noErr;
 }
-

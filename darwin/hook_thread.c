@@ -21,6 +21,7 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <sys/time.h>
 #include <uiohook.h>
 
@@ -32,21 +33,45 @@
 static CFRunLoopRef event_loop;
 static CFRunLoopSourceRef event_source;
 
-static pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_t hook_thread_id; // = 0; ?
+pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t hook_thread_id; // TODO = 0; ?
 static pthread_attr_t hook_thread_attr;
 
+// Required to dynamically check for AXIsProcessTrustedWithOptions availability.
+// FIXME Move to osx_input_helper.h after testing.
+extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribute__((weak_import));
+extern CFStringRef kAXTrustedCheckOptionPrompt __attribute__((weak_import));
 
 static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
+	bool accessibilityEnabled = false;
 	// Check and make sure assistive devices is enabled.
-	if (AXAPIEnabled() == true) {
-		#ifdef DEBUG
-		fprintf(stdout, "ThreadProc(): Accessibility API is enabled.\n");
-		#endif
+	if (AXIsProcessTrustedWithOptions != NULL) {
+		// 10.9 and later
+		const void * keys[] = { kAXTrustedCheckOptionPrompt };
+		const void * values[] = { kCFBooleanTrue };
+
+		CFDictionaryRef options = CFDictionaryCreate(
+				kCFAllocatorDefault,
+				keys,
+				values,
+				sizeof(keys) / sizeof(*keys),
+				&kCFCopyStringDictionaryKeyCallBacks,
+				&kCFTypeDictionaryValueCallBacks);
+
+		accessibilityEnabled = AXIsProcessTrustedWithOptions(options);
+	}
+	else {
+		// 10.8 and older
+		accessibilityEnabled = AXAPIEnabled();
+	}
+
+	if (accessibilityEnabled == true) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
+				__FUNCTION__, __LINE__);
 
 		// Setup the event mask to listen for.
 		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
@@ -68,7 +93,7 @@ static void *hook_thread_proc(void *arg) {
 									CGEventMaskBit(kCGEventMouseMoved) |
 									CGEventMaskBit(kCGEventScrollWheel);
 
-		#ifdef DEBUG
+		#ifdef USE_DEBUG
 		event_mask |= CGEventMaskBit(kCGEventNull);
 		#endif
 
@@ -83,17 +108,17 @@ static void *hook_thread_proc(void *arg) {
 
 
 		if (event_port != NULL) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n", 
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
 					__FUNCTION__, __LINE__);
 
 			event_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, event_port, 0);
 			if (event_source != NULL) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n", 
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
 						__FUNCTION__, __LINE__);
 
 				event_loop = CFRunLoopGetCurrent();
 				if (event_loop != NULL) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n", 
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
 							__FUNCTION__, __LINE__);
 
 					// Initialize Native Input Functions.
@@ -132,7 +157,7 @@ static void *hook_thread_proc(void *arg) {
 						// We cant do a whole lot of anything if we cant
 						// create run loop observer.
 
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n", 
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
 								__FUNCTION__, __LINE__);
 
 						// Set the exit status.
@@ -143,7 +168,7 @@ static void *hook_thread_proc(void *arg) {
 					unload_input_helper();
 				}
 				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n", 
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
 							__FUNCTION__, __LINE__);
 
 					// Set the exit status.
@@ -154,7 +179,7 @@ static void *hook_thread_proc(void *arg) {
 				CFRelease(event_source);
 			}
 			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
 					__FUNCTION__, __LINE__);
 
 				// Set the exit status.
@@ -166,7 +191,7 @@ static void *hook_thread_proc(void *arg) {
 			CFRelease(event_port);
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n", 
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
 					__FUNCTION__, __LINE__);
 
 			// Set the exit status.
@@ -174,14 +199,14 @@ static void *hook_thread_proc(void *arg) {
 		}
 	}
 	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n", 
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
 				__FUNCTION__, __LINE__);
 
 		// Set the exit status.
 		*status = UIOHOOK_ERROR_AXAPI_DISABLED;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
 	// Make sure we signal that we have passed any exception throwing code.
@@ -210,19 +235,19 @@ UIOHOOK_API int hook_enable() {
 		pthread_attr_init(&hook_thread_attr);
 		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
 		priority = sched_get_priority_max(policy);
-		
+
 		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, malloc(sizeof(int))) == 0) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 					__FUNCTION__, __LINE__);
 
-			/* FIXME OS X does not support pthread_setschedprio, try using 
+			/* FIXME OS X does not support pthread_setschedprio, try using
 			 * pthread_setschedparam
 			if (pthread_setschedprio(hook_thread_id, priority) != 0) {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",
 						__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);
 			}
 			*/
-			
+
 			// Wait for the thread to unlock the control mutex indicating
 			// that it has started or failed.
 			if (pthread_mutex_lock(&hook_control_mutex) == 0) {
@@ -231,13 +256,13 @@ UIOHOOK_API int hook_enable() {
 
 			// Handle any possible JNI issue that may have occurred.
 			if (hook_is_enabled()) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Initialization successful.\n", 
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Initialization successful.\n",
 						__FUNCTION__, __LINE__);
 
 				status = UIOHOOK_SUCCESS;
 			}
 			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n",
 						__FUNCTION__, __LINE__);
 
 				// Wait for the thread to die.
@@ -246,12 +271,12 @@ UIOHOOK_API int hook_enable() {
 				status = *(int *) thread_status;
 				free(thread_status);
 
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%i)!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%i)!\n",
 						__FUNCTION__, __LINE__, status);
 			}
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n", 
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
 					__FUNCTION__, __LINE__);
 
 			status = UIOHOOK_ERROR_THREAD_CREATE;
@@ -283,8 +308,8 @@ UIOHOOK_API int hook_disable() {
 
 		// Clean up the thread attribute.
 		pthread_attr_destroy(&hook_thread_attr);
-		
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%i).\n", 
+
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%i).\n",
 				__FUNCTION__, __LINE__, status);
 	}
 
@@ -309,7 +334,7 @@ UIOHOOK_API bool hook_is_enabled() {
 		is_running = true;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n",
 			__FUNCTION__, __LINE__, is_running);
 
 	return is_running;

@@ -156,10 +156,6 @@ AS_IF([test "x$enable_debug" = "xyes"], [
 	AC_DEFINE([USE_DEBUG], 1, [Enable Debug Output])
 ])
 
-AS_IF([test "x$enable_demo" = "xyes"], [
-	AM_PROG_CC_C_O
-])
-
 AS_IF(
 	[test "x$backend" = "xdarwin"], [
 		AS_IF([test "x$enable_corefoundation" = "xyes"], [
@@ -178,7 +174,11 @@ AS_IF(
 			AC_DEFINE([USE_CARBON_LEGACY], 1, [Enable Carbon framework legacy functionality])
 		])
 
+		AC_DEFINE([MAC_OS_X_VERSION_MIN_REQUIRED], 1050, [Set minimum OS X version to 10.5])
+
 		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
+		LIBS="$PTHREAD_LIBS $LIBS"
+		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
 
 		# Always add Carbon due to non-deprecated #define's
 		LIBS="${LIBS} -framework Carbon"
@@ -269,6 +269,7 @@ AC_SUBST([backend])
 
 # Requires for pkg-config
 AC_SUBST([REQUIRE])
+AC_SUBST([LIBS])
 #AC_SUBST([EXTRA_LIBS])
 
 # Should the demo application be built?

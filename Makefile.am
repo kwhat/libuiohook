@@ -67,4 +67,4 @@ postdemo_CFLAGS = -Wall -Wextra -pedantic -I$(top_srcdir)/include
 postdemo_LDFLAGS = -Wl,--as-needed,-O1
 endif
 
-EXTRA_DIST = license-commercial.txt license-gpl.txt readme.txt
+EXTRA_DIST = COPYING.md COPYING.LESSER.md README.md

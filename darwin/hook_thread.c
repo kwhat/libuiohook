@@ -19,6 +19,11 @@
 #include <config.h>
 #endif
 
+// FIXME Move to osx_input_helper.h after testing.
+#ifndef USE_WEAK_IMPORT
+#include <dlfcn.h>
+#endif
+
 #include <ApplicationServices/ApplicationServices.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -38,19 +43,27 @@ pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t hook_thread_id; // TODO = 0; ?
 static pthread_attr_t hook_thread_attr;
 
-// Required to dynamically check for AXIsProcessTrustedWithOptions availability.
 // FIXME Move to osx_input_helper.h after testing.
+#ifdef USE_WEAK_IMPORT
+// Required to dynamically check for AXIsProcessTrustedWithOptions availability.
 extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribute__((weak_import));
 extern CFStringRef kAXTrustedCheckOptionPrompt __attribute__((weak_import));
+#else
+typedef Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef options);
+typedef Boolean (*AXAPIEnabled_t)(void);
+#endif
 
 static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
 	bool accessibilityEnabled = false;
+
+	// FIXME Move to osx_input_helper.h after testing.
+	#ifdef USE_WEAK_IMPORT
 	// Check and make sure assistive devices is enabled.
 	if (AXIsProcessTrustedWithOptions != NULL) {
-		// 10.9 and later
+		// New accessibility API 10.9 and later.
 		const void * keys[] = { kAXTrustedCheckOptionPrompt };
 		const void * values[] = { kCFBooleanTrue };
 
@@ -65,9 +78,58 @@ static void *hook_thread_proc(void *arg) {
 		accessibilityEnabled = AXIsProcessTrustedWithOptions(options);
 	}
 	else {
-		// 10.8 and older
+		// Old accessibility check 10.8 and older.
 		accessibilityEnabled = AXAPIEnabled();
 	}
+	#else
+	const char *dlError = NULL;
+	void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
+	dlError = dlerror();
+	if (libApplicaitonServices != NULL && dlError == NULL) {
+		// Check for the new function AXIsProcessTrustedWithOptions().
+		AXIsProcessTrustedWithOptions_t fpAXIsProcessTrustedWithOptions = (AXIsProcessTrustedWithOptions_t) dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
+		dlError = dlerror();
+		if (fpAXIsProcessTrustedWithOptions != NULL && dlError == NULL) {
+			// New accessibility API 10.9 and later.
+			const void * keys[] = { kAXTrustedCheckOptionPrompt };
+			const void * values[] = { kCFBooleanTrue };
+
+			CFDictionaryRef options = CFDictionaryCreate(
+					kCFAllocatorDefault,
+					keys,
+					values,
+					sizeof(keys) / sizeof(*keys),
+					&kCFCopyStringDictionaryKeyCallBacks,
+					&kCFTypeDictionaryValueCallBacks);
+
+			accessibilityEnabled = (*fpAXIsProcessTrustedWithOptions)(options);
+		}
+		else {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Failed to locate AXIsProcessTrustedWithOptions(). (%s)\n",
+					__FUNCTION__, __LINE__, dlError);
+
+			// Check for the fallback function AXAPIEnabled().
+			AXAPIEnabled_t fpAXAPIEnabled = (AXAPIEnabled_t) dlsym(libApplicaitonServices, "AXAPIEnabled");
+			dlError = dlerror();
+			if (fpAXAPIEnabled != NULL && dlError == NULL) {
+				// Old accessibility check 10.8 and older.
+				accessibilityEnabled = (*fpAXAPIEnabled)();
+			}
+			else {
+				// Could not load the AXAPIEnabled function!
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()! (%s)\n",
+						__FUNCTION__, __LINE__, dlError);
+			}
+		}
+
+		dlclose(libApplicaitonServices);
+	}
+	else {
+		// Could not load the ApplicationServices framework!
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
+				__FUNCTION__, __LINE__, dlError);
+	}
+	#endif
 
 	if (accessibilityEnabled == true) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",

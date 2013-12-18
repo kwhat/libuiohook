@@ -191,13 +191,13 @@ AS_IF(
 		PKG_PROG_PKG_CONFIG
 
 		PKG_CHECK_MODULES([X11], [x11])
-		LIBS="$X11_LIBS $LIBS"
-		CFLAGS="$X11_CFLAGS $CFLAGS"
+		#LIBS="$X11_LIBS $LIBS"
+		#CFLAGS="$X11_CFLAGS $CFLAGS"
 		REQUIRE="$REQUIRE x11"
 
 		PKG_CHECK_MODULES([XTST], [xtst])
-		LIBS="$XTST_LIBS $LIBS"
-		CFLAGS="$XTST_CFLAGS $CFLAGS"
+		#LIBS="$XTST_LIBS $LIBS"
+		#CFLAGS="$XTST_CFLAGS $CFLAGS"
 		REQUIRE="$REQUIRE xtst"
 
 		# Check for XRecord.
@@ -216,16 +216,16 @@ AS_IF(
 		AS_IF([test "x$enable_xt" = "xyes"], [
 			AC_DEFINE([USE_XT], 1, [Enable X Toolkit Intrinsics])
 			PKG_CHECK_MODULES([XT], [xt])
-			LIBS="$XT_LIBS $LIBS"
-			CFLAGS="$XT_CFLAGS $CFLAGS"
+			#LIBS="$XT_LIBS $LIBS"
+			#CFLAGS="$XT_CFLAGS $CFLAGS"
 			REQUIRE="$REQUIRE xt"
 		])
 
 		AS_IF([test "x$enable_xf86misc" = "xyes"], [
 			AC_DEFINE([USE_XF86MISC], 1, [Enable XFree86-Misc X Extension])
 			PKG_CHECK_MODULES([XF86MISC], [xxf86misc])
-			LIBS="$XF86MISC_LIBS $LIBS"
-			CFLAGS="$XF86MISC_CFLAGS $CFLAGS"
+			#LIBS="$XF86MISC_LIBS $LIBS"
+			#CFLAGS="$XF86MISC_CFLAGS $CFLAGS"
 			REQUIRE="$REQUIRE xxf86misc"
 		])
 

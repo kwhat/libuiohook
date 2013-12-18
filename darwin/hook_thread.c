@@ -49,8 +49,8 @@ static pthread_attr_t hook_thread_attr;
 extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribute__((weak_import));
 extern CFStringRef kAXTrustedCheckOptionPrompt __attribute__((weak_import));
 #else
-typedef Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef options);
-typedef Boolean (*AXAPIEnabled_t)(void);
+Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef);
+Boolean (*AXAPIEnabled_t)(void);
 #endif
 
 static void *hook_thread_proc(void *arg) {
@@ -87,11 +87,11 @@ static void *hook_thread_proc(void *arg) {
 	dlError = dlerror();
 	if (libApplicaitonServices != NULL && dlError == NULL) {
 		// Check for the new function AXIsProcessTrustedWithOptions().
-		AXIsProcessTrustedWithOptions_t fpAXIsProcessTrustedWithOptions = (AXIsProcessTrustedWithOptions_t) dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
+		*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
 		dlError = dlerror();
-		if (fpAXIsProcessTrustedWithOptions != NULL && dlError == NULL) {
+		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
 			// New accessibility API 10.9 and later.
-			const void * keys[] = { kAXTrustedCheckOptionPrompt };
+			const void * keys[] = { dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt") };
 			const void * values[] = { kCFBooleanTrue };
 
 			CFDictionaryRef options = CFDictionaryCreate(
@@ -102,18 +102,18 @@ static void *hook_thread_proc(void *arg) {
 					&kCFCopyStringDictionaryKeyCallBacks,
 					&kCFTypeDictionaryValueCallBacks);
 
-			accessibilityEnabled = (*fpAXIsProcessTrustedWithOptions)(options);
+			accessibilityEnabled = (*AXIsProcessTrustedWithOptions_t)(options);
 		}
 		else {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Failed to locate AXIsProcessTrustedWithOptions(). (%s)\n",
 					__FUNCTION__, __LINE__, dlError);
 
 			// Check for the fallback function AXAPIEnabled().
-			AXAPIEnabled_t fpAXAPIEnabled = (AXAPIEnabled_t) dlsym(libApplicaitonServices, "AXAPIEnabled");
+			*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
 			dlError = dlerror();
-			if (fpAXAPIEnabled != NULL && dlError == NULL) {
+			if (AXAPIEnabled_t != NULL && dlError == NULL) {
 				// Old accessibility check 10.8 and older.
-				accessibilityEnabled = (*fpAXAPIEnabled)();
+				accessibilityEnabled = (*AXAPIEnabled_t)();
 			}
 			else {
 				// Could not load the AXAPIEnabled function!

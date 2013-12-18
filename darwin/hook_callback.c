@@ -222,7 +222,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			if (pthread_mutex_lock(&hook_control_mutex) == 0) {
 				pthread_mutex_unlock(&hook_control_mutex);
 			}
-
+			
 			if (info->length == 1) {
 				// Fire key typed event.
 				event.type = EVENT_KEY_TYPED;
@@ -230,7 +230,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				event.data.keyboard.keycode = VC_UNDEFINED;
 				event.data.keyboard.keychar = info->buffer[0];
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%ls)\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n", 
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 				dispatch_event(&event);
 			}

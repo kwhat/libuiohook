@@ -310,21 +310,160 @@ static const uint16_t keycode_to_scancode_table[128] = {
     0x48 | 0x100,	// 124 kVK_UpArrow
 };
 
-/* The following code is based on the MACDRV keyboard driver under the terms:
- * 
- * Copyright 1993 Bob Amstadt
- * Copyright 1996 Albrecht Kleine
- * Copyright 1997 David Faure
- * Copyright 1998 Morten Welinder
- * Copyright 1998 Ulrich Weigand
- * Copyright 1999 Ove Kåven
- * Copyright 2011, 2012, 2013 Ken Thomases for CodeWeavers Inc.
- * 
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- */
+static const uint16_t scancode_to_keycode_table[128] = {
+    0x01,			//  53 kVK_Escape
+    0x02,			//  18 kVK_ANSI_1
+    0x03,			//  19 kVK_ANSI_2
+    0x04,			//  20 kVK_ANSI_3
+    0x05,			//  21 kVK_ANSI_4
+    0x06,			//  23 kVK_ANSI_5
+    0x07,			//	22 kVK_ANSI_6
+    0x08,			//  26 kVK_ANSI_7
+    0x09,			//  28 kVK_ANSI_8
+    0x0A,			//  25 kVK_ANSI_9
+    0x0B,			//  29 kVK_ANSI_0
+    0x0C,			//  27 kVK_ANSI_Minus
+    0x0D,			//  24 kVK_ANSI_Equal
+	0x0E,			//	51 kVK_Delete
+    0x0F,			//  48 kVK_Tab
+	0x10,			//  12 kVK_ANSI_Q
+	0x11,			//  13 kVK_ANSI_W
+    0x12,			//  14 kVK_ANSI_E
+    0x13,			//  15 kVK_ANSI_R
+    0x14,			//  17 kVK_ANSI_T
+	0x15,			//  16 kVK_ANSI_Y
+	0x16,			//  32 kVK_ANSI_U
+	0x17,			//  34 kVK_ANSI_I
+	0x18,			//  31 kVK_ANSI_O
+    0x19,			//  35 kVK_ANSI_P
+    0x1A,			//  33 kVK_ANSI_LeftBracket
+    0x1B,			//  30 kVK_ANSI_RightBracket
+    0x1C,			//  36 kVK_Return	
+    0x1D,			//  59 kVK_Control	
+    0x1E,			//   0 kVK_ANSI_A
+    0x1F,			//   1 kVK_ANSI_S
+	0x20,			//   2 kVK_ANSI_D
+    0x21,			//   3 kVK_ANSI_F
+    0x22,			//   5 kVK_ANSI_G
+    0x23,			//   4 kVK_ANSI_H
+    0x24,			//  38 kVK_ANSI_J
+    0x25,			//  40 kVK_ANSI_K
+	0x26,			//  37 kVK_ANSI_L
+	0x27,			//  41 kVK_ANSI_Semicolon
+    0x28,			//  39 kVK_ANSI_Quote
+    0x29,			//  50 kVK_ANSI_Grave
+    0x2A,			//  56 kVK_Shift
+    0x2B,			//  42 kVK_ANSI_Backslash
+    0x2C,			//   6 kVK_ANSI_Z
+    0x2D,			//   7 kVK_ANSI_X
+    0x2E,			//   8 kVK_ANSI_C
+    0x2F,			//   9 kVK_ANSI_V
+	0x30,			//  11 kVK_ANSI_B
+	0x31,			//  45 kVK_ANSI_N
+    0x32,			//  46 kVK_ANSI_M
+	0x33,			//  43 kVK_ANSI_Comma
+    0x34,			//  47 kVK_ANSI_Period
+	0x35,			//  44 kVK_ANSI_Slash
+	0x36,			//  60 kVK_RightShift
+	0x37,			//  67 kVK_ANSI_KeypadMultiply
+	0x38,			//  55 kVK_Command
+	0x39,			//  49 kVK_Space
+	0x3A,			//  57 kVK_CapsLock	
+	0x3B,			// 120 kVK_F1
+	0x3C,			// 118 kVK_F2
+	0x3D,			//  97 kVK_F3
+    0x3E,			// 116 kVK_F4
+	0x3F,			//  94 kVK_F5
+	0x40,			//  95 kVK_F6
+    0x41,			//  96 kVK_F7
+	0x42,			//  98 kVK_F8
+	0x43,			//  99 kVK_F9
+	0x44,			// 107 kVK_F10
+	
+    0x47,			//  87 kVK_ANSI_Keypad7    
+    0x48,			//  89 kVK_ANSI_Keypad8
+    0x49,			//  90 kVK_ANSI_Keypad9
+
+	0x4B,			//  84 kVK_ANSI_Keypad4
+    0x4C,			//  85 kVK_ANSI_Keypad5
+    0x4D,			//  86 kVK_ANSI_Keypad6
+	0x4F,			//  81 kVK_ANSI_Keypad1
+    0x50,			//  82 kVK_ANSI_Keypad2
+    0x51,			//  83 kVK_ANSI_Keypad3
+    0x52,			//  80 kVK_ANSI_Keypad0
+	
+	0x4A,			//  76 kVK_ANSI_KeypadMinus
+	0x4E,			//  69 kVK_ANSI_KeypadPlus
+
+	0x53,			//  65 kVK_ANSI_KeypadDecimal
+    0x56,			//  10 kVK_ISO_Section
+	0x57,			// 101 kVK_F11
+	0x58,			// 109 kVK_F12
+	0x59,			//  71 kVK_ANSI_KeypadClear
+   
+	0x64,			// 103 kVK_F13
+    0x65,			// 105 kVK_F14
+	0x66,			// 111 kVK_F15
+	0x67,			// 104 kVK_F16
+    0x68,			//  64 kVK_F17
+	0x69,			//  77 kVK_F18
+	0x6A,			//  78 kVK_F19
+    0x6B,			//  88 kVK_F20
+
+
+	0x71,           // 102 kVK_JIS_Kana
+    0x72,			// 100 kVK_JIS_Eisu
+    0x73,			//  92 kVK_JIS_Underscore
+	
+	0x7D,			//  91 kVK_JIS_Yen
+    0x7E,			//  93 kVK_JIS_KeypadComma
+
+
+	
+    
+	0x0D | 0x100,	//  79 kVK_ANSI_KeypadEquals
+	0x1C | 0x100,	//  76 kVK_ANSI_KeypadEnter
+	0x1D | 0x100,	//  62 kVK_RightControl
+	0x35 | 0x100,	//  75 kVK_ANSI_KeypadDivide
+	0x38 | 0x100,	//  54 kVK_RightCommand
+	0x47 | 0x100,	// 113 kVK_Home
+	0x48 | 0x100,	// 124 kVK_UpArrow
+    0x49 | 0x100,	// 114 kVK_PageUp
+    0x4B | 0x100,	// 121 kVK_LeftArrow
+    0x4D | 0x100,   // 122 kVK_RightArrow
+    0x4F | 0x100,	// 117 kVK_End
+	0x50 | 0x100,   // 123 kVK_DownArrow
+	0x51 | 0x100,	// 119 kVK_PageDown
+    0x52 | 0x100,	// 112 kVK_Help
+    0x53 | 0x100,	// 115 kVK_ForwardDelete
+    
+    
+    0x00,			//  52 unused
+
+    0x00,			//  58 kVK_Option
+    
+    0x00,			//  61 kVK_RightOption
+    
+    0x00,			//  63 kVK_Function
+
+    0x00,			//  66 unused
+    
+    0x00,			//	68 unused
+    
+    0x00,			//  70 unused
+
+    0x00 | 0x100,	//  72 kVK_VolumeUp
+    0x00 | 0x100,	//  73 kVK_VolumeDown
+    0x00 | 0x100,	//  74 kVK_Mute
+	0x00,			//  75 unused
+	
+	0x00,			// 106 unused
+    0x00,			// 108 unused
+    0x00,			// 110 unused
+    
+
+};
+
 uint16_t keycode_to_scancode(UInt64 keycode) {
 	uint16_t scancode = 0x00;
 	

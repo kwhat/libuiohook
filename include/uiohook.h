@@ -138,18 +138,18 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_F11									0x0057
 #define VC_F12									0x0058
 
-#define VC_F13									0x005B
-#define VC_F14									0x005C
-#define VC_F15									0x005D
-#define VC_F16									0x0063
-#define VC_F17									0x0064
-#define VC_F18									0x0065
-#define VC_F19									0x0066
-#define VC_F20									0x0067
-#define VC_F21									0x0068
-#define VC_F22									0x0069
-#define VC_F23									0x006A
-#define VC_F24									0x006B
+#define VC_F13									0x0064
+#define VC_F14									0x0065
+#define VC_F15									0x0066
+#define VC_F16									0x0067
+#define VC_F17									0x0068
+#define VC_F18									0x0069
+#define VC_F19									0x006A
+#define VC_F20									0x006B
+#define VC_F21									0x006C
+#define VC_F22									0x006D
+#define VC_F23									0x006E
+#define VC_F24									0x0076
 // End Function Keys
 
 

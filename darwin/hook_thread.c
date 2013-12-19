@@ -57,7 +57,7 @@ static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
-	bool accessibilityEnabled = false;
+	Boolean accessibilityEnabled = kCFBooleanFalse;
 
 	// FIXME Move to osx_input_helper.h after testing.
 	#ifdef USE_WEAK_IMPORT
@@ -82,6 +82,7 @@ static void *hook_thread_proc(void *arg) {
 		accessibilityEnabled = AXAPIEnabled();
 	}
 	#else
+	// Dynamically load the application services framework for examination.
 	const char *dlError = NULL;
 	void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
 	dlError = dlerror();
@@ -90,22 +91,27 @@ static void *hook_thread_proc(void *arg) {
 		*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
 		dlError = dlerror();
 		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
-			// New accessibility API 10.9 and later.
-			const void * keys[] = { dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt") };
-			const void * values[] = { kCFBooleanTrue };
+			// Check for property kAXTrustedCheckOptionPrompt
+			void *kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
+			dlError = dlerror();
+			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
+				// New accessibility API 10.9 and later.
+				const void * keys[] = { kAXTrustedCheckOptionPrompt_t };
+				const void * values[] = { kCFBooleanTrue };
 
-			CFDictionaryRef options = CFDictionaryCreate(
-					kCFAllocatorDefault,
-					keys,
-					values,
-					sizeof(keys) / sizeof(*keys),
-					&kCFCopyStringDictionaryKeyCallBacks,
-					&kCFTypeDictionaryValueCallBacks);
+				CFDictionaryRef options = CFDictionaryCreate(
+						kCFAllocatorDefault,
+						keys,
+						values,
+						sizeof(keys) / sizeof(*keys),
+						&kCFCopyStringDictionaryKeyCallBacks,
+						&kCFTypeDictionaryValueCallBacks);
 
-			accessibilityEnabled = (*AXIsProcessTrustedWithOptions_t)(options);
+				accessibilityEnabled = (*AXIsProcessTrustedWithOptions_t)(options);
+			}
 		}
 		else {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Failed to locate AXIsProcessTrustedWithOptions(). (%s)\n",
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled(). (%s)\n",
 					__FUNCTION__, __LINE__, dlError);
 
 			// Check for the fallback function AXAPIEnabled().

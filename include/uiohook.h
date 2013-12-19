@@ -241,7 +241,6 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 
 // Begin Numeric Zone
-#define VC_CLEAR								0x0E45	// 0x76?? OSX: Number Lock
 #define VC_NUM_LOCK								0x0E45
 #define VC_KP_DIVIDE							0x0E35
 #define VC_KP_MULTIPLY							0x0037

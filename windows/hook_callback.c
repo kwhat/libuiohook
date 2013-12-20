@@ -152,63 +152,16 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			else if (kbhook->vkCode == VK_LWIN)		set_modifier_mask(MASK_META_L);
 			else if (kbhook->vkCode == VK_RWIN)		set_modifier_mask(MASK_META_R);
 
-
-			// Workaround for Windows numpad keys.
-			/*
-			if (kbhook->vkCode == VK_RETURN && (kbhook->flags & 0x01) != 0) {
-				jkey = NativeToJKey(VK_NUMPAD_RETURN);
-			}
-			else if (kbhook->vkCode == VK_PRIOR && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_PRIOR);
-			}
-			else if (kbhook->vkCode == VK_NEXT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_NEXT);
-			}
-			else if (kbhook->vkCode == VK_END && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_END);
-			}
-			else if (kbhook->vkCode == VK_HOME && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_HOME);
-			}
-			else if (kbhook->vkCode == VK_LEFT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_LEFT);
-			}
-			else if (kbhook->vkCode == VK_UP && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_UP);
-			}
-			else if (kbhook->vkCode == VK_RIGHT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_RIGHT);
-			}
-			else if (kbhook->vkCode == VK_DOWN && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_DOWN);
-			}
-			else if (kbhook->vkCode == VK_INSERT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_INSERT);
-			}
-			else if (kbhook->vkCode == VK_DELETE && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_DELETE);
-			}
-			else {
-				jkey = NativeToJKey(kbhook->vkCode);
-			}
-			*/
-
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
 
 			event.data.keyboard.keycode = kbhook->scanCode;
-			if (kbhook->flags != 0x00) {
-				event.data.keyboard.keycode |= ((UINT8) kbhook->flags ^ 0x0F) << 8;
+			if (kbhook->flags & 0x03) {
+				// This is a bit of a hack, but it seems to work and it is fast.
+				event.data.keyboard.keycode |= (UINT8) ((kbhook->flags ^ 0x0F) & 0x0F) << 8;
 			}
 
-			// FIXME Remove this log entry as it is only for testing.
-			fprintf(stdout, "%s [%u]: kbhook->flags == %#X; kbhook->scanCode == %#X; kbhook->keyCode == %#X\n",
-					__FUNCTION__, __LINE__,
-					kbhook->flags,
-					kbhook->scanCode,
-					event.data.keyboard.keycode);
-			
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
@@ -243,53 +196,14 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			else if (kbhook->vkCode == VK_LWIN)		unset_modifier_mask(MASK_META_L);
 			else if (kbhook->vkCode == VK_RWIN)		unset_modifier_mask(MASK_META_R);
 
-			// Workaround for Windows numpad keys.
-			/*
-			if (kbhook->vkCode == VK_RETURN && (kbhook->flags & 0x01) != 0) {
-				jkey = NativeToJKey(VK_NUMPAD_RETURN);
-			}
-			else if (kbhook->vkCode == VK_PRIOR && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_PRIOR);
-			}
-			else if (kbhook->vkCode == VK_NEXT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_NEXT);
-			}
-			else if (kbhook->vkCode == VK_END && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_END);
-			}
-			else if (kbhook->vkCode == VK_HOME && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_HOME);
-			}
-			else if (kbhook->vkCode == VK_LEFT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_LEFT);
-			}
-			else if (kbhook->vkCode == VK_UP && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_UP);
-			}
-			else if (kbhook->vkCode == VK_RIGHT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_RIGHT);
-			}
-			else if (kbhook->vkCode == VK_DOWN && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_DOWN);
-			}
-			else if (kbhook->vkCode == VK_INSERT && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_INSERT);
-			}
-			else if (kbhook->vkCode == VK_DELETE && (kbhook->flags & 0x01) == 0) {
-				jkey = NativeToJKey(VK_NUMPAD_DELETE);
-			}
-			else {
-				jkey = NativeToJKey(kbhook->vkCode);
-			}
-			*/
-
 			// Fire key released event.
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
 			event.data.keyboard.keycode = kbhook->scanCode;
-			if (kbhook->flags != 0x00) {
-				event.data.keyboard.keycode |= ((UINT8) kbhook->flags ^ 0x0F) << 8;
+			if (kbhook->flags & 0x03) {
+				// This is a bit of a hack, but it seems to work and it is fast.
+				event.data.keyboard.keycode |= (UINT8) ((kbhook->flags ^ 0x0F) & 0x0F) << 8;
 			}
 
 			event.data.keyboard.rawcode = kbhook->vkCode;

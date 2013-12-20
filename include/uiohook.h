@@ -219,7 +219,7 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 #define VC_PRINTSCREEN							0x0E37
 #define VC_SCROLL_LOCK							0x0046
-//FIXME #define VC_PAUSE						0x0045
+#define VC_PAUSE								0x0045
 
 
 // Begin Edit Key Zone
@@ -268,8 +268,8 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_SHIFT_R								0x0E36
 #define VC_CONTROL_L							0x001D
 #define VC_CONTROL_R							0x0E1D
-#define VC_ALT_L								0xD038	// Option or Alt Key
-#define VC_ALT_R								0xDE38	// Option or Alt Key
+#define VC_ALT_L								0x0038	// Option or Alt Key
+#define VC_ALT_R								0x0E38	// Option or Alt Key
 #define VC_META_L								0x0E5B	// Windows or Command Key
 #define VC_META_R								0x0E5C	// Windows or Command Key
 #define VC_CONTEXT_MENU							0x0E5D

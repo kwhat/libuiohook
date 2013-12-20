@@ -193,18 +193,22 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 			*/
 
+			// Fire key pressed event.
+			event.type = EVENT_KEY_PRESSED;
+			event.mask = get_modifiers();
+
+			event.data.keyboard.keycode = kbhook->scanCode;
+			if (kbhook->flags != 0x00) {
+				event.data.keyboard.keycode |= ((UINT8) kbhook->flags ^ 0x0F) << 8;
+			}
+
 			// FIXME Remove this log entry as it is only for testing.
 			fprintf(stdout, "%s [%u]: kbhook->flags == %#X; kbhook->scanCode == %#X; kbhook->keyCode == %#X\n",
 					__FUNCTION__, __LINE__,
 					kbhook->flags,
 					kbhook->scanCode,
-					(UINT16) ( ~kbhook->flags << 12 | (BYTE) kbhook->scanCode) );
-
-			// Fire key pressed event.
-			event.type = EVENT_KEY_PRESSED;
-			event.mask = get_modifiers();
-
-			event.data.keyboard.keycode = (UINT16) ( ~kbhook->flags << 12 | (BYTE) kbhook->scanCode);
+					event.data.keyboard.keycode);
+			
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
@@ -283,7 +287,11 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
-			event.data.keyboard.keycode = (~kbhook->flags << 20) | kbhook->scanCode;
+			event.data.keyboard.keycode = kbhook->scanCode;
+			if (kbhook->flags != 0x00) {
+				event.data.keyboard.keycode |= ((UINT8) kbhook->flags ^ 0x0F) << 8;
+			}
+
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 

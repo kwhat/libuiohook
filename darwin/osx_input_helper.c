@@ -260,7 +260,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_UNDEFINED,				//	 68 unused
 	VC_KP_ADD,					//	 69 kVK_ANSI_KeypadPlus
 	VC_UNDEFINED,				//	 70 unused
-	VC_CLEAR,		//	 71 kVK_ANSI_KeypadClear
+	VC_NUM_LOCK,				//	 71 kVK_ANSI_KeypadClear
 	VC_VOLUME_UP,				//	 72 kVK_VolumeUp
 	VC_VOLUME_DOWN,				//	 73 kVK_VolumeDown
 	VC_MUTE,					//	 74 kVK_Mute
@@ -316,6 +316,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_RIGHT,					//	122 kVK_RightArrow
 	VC_DOWN,					//	123 kVK_DownArrow
 	VC_UP,						//	124 kVK_UpArrow
+	0
 };
 
 static const UInt64 scancode_to_keycode_table[128] = {
@@ -409,7 +410,7 @@ static const UInt64 scancode_to_keycode_table[128] = {
 	kVK_Undefined,				//	 86 kVK_ISO_Section	FIXME What is kVK_ISO_Section?
 	kVK_F11,					//	 87 VC_F11
 	kVK_F12,					//	 88 VC_F12
-	VC_CLEAR,					//	 89	kVK_ANSI_KeypadClear
+	kVK_ANSI_KeypadClear,		//	 89	VC_NUM_LOCK
 	kVK_Undefined,				//	 90
 	kVK_Undefined,				//	 91
 	kVK_Undefined,				//	 92

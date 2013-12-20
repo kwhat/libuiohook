@@ -177,8 +177,8 @@ AS_IF(
 		AC_DEFINE([MAC_OS_X_VERSION_MIN_REQUIRED], 1050, [Set minimum OS X version to 10.5])
 
 		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
-		LIBS="$PTHREAD_LIBS $LIBS"
-		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+		#LIBS="$PTHREAD_LIBS $LIBS"
+		#CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
 
 		# Always add Carbon due to non-deprecated #define's
 		LIBS="${LIBS} -framework Carbon"

@@ -57,7 +57,7 @@ static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
-	Boolean accessibilityEnabled = kCFBooleanFalse;
+	bool accessibilityEnabled = false;
 
 	// FIXME Move to osx_input_helper.h after testing.
 	#ifdef USE_WEAK_IMPORT
@@ -92,11 +92,11 @@ static void *hook_thread_proc(void *arg) {
 		dlError = dlerror();
 		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
 			// Check for property kAXTrustedCheckOptionPrompt
-			void *kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
+			CFStringRef kAXTrustedCheckOptionPrompt_t = (CFStringRef) dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
 			dlError = dlerror();
 			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
 				// New accessibility API 10.9 and later.
-				const void * keys[] = { kAXTrustedCheckOptionPrompt_t };
+				const void * keys[] = { kAXTrustedCheckOptionPrompt };
 				const void * values[] = { kCFBooleanTrue };
 
 				CFDictionaryRef options = CFDictionaryCreate(

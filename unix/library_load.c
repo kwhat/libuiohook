@@ -38,24 +38,23 @@ Display *xt_disp;
 Display *disp;
 
 // Create a shared object constructor and destructor.
-void __attribute__ ((constructor)) on_library_load(void);
-void __attribute__ ((destructor)) on_library_unload(void);
 
+__attribute__ ((destructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
-	
+
 	// Tell X Threads are OK.
 	XInitThreads();
 
 	// Open local display.
 	disp = XOpenDisplay(XDisplayName(NULL));
 	if (disp == NULL) {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n", 
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}
 	else {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay success.");
 	}
 
@@ -83,15 +82,16 @@ void on_library_load() {
 	#endif
 
 	if (is_auto_repeat == False) {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n", 
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "Could not enable detectable auto-repeat!");
 	}
 	else {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
 				__FUNCTION__, __LINE__);
 	}
 }
 
+__attribute__ ((destructor))
 void on_library_unload() {
 	/* FIXME This seems to be causing problems with SIGTERM
 	// Stop the native thread if its running.

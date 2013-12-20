@@ -54,7 +54,7 @@ void dispatch_proc(virtual_event * const event) {
 
 		case EVENT_KEY_TYPED:
 			fprintf(stdout, "keychar=%lc,rawcode=%u",
-							event->data.keyboard.keychar, 
+							event->data.keyboard.keychar,
 							event->data.keyboard.rawcode);
 			break;
 

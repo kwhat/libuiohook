@@ -27,16 +27,21 @@
 #include "osx_input_helper.h"
 
 // Create a shared object constructor and destructor.
-void __attribute__ ((constructor)) on_library_load(void);
-void __attribute__ ((destructor)) on_library_unload(void);
 
+// FIXME This still does not work on OS X presumably because it is not required
+// by anything when statically linked.
+
+__attribute__ ((constructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
 
-	load_input_helper();
+	//load_input_helper();
 }
 
+__attribute__ ((destructor))
 void on_library_unload() {
-	unload_input_helper();
+	//unload_input_helper();
 }
+
+void test(){}

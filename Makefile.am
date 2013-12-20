@@ -58,13 +58,13 @@ bin_PROGRAMS = hookdemo postdemo
 
 hookdemo_SOURCES = demo/hook_demo.c
 hookdemo_LDADD = $(top_builddir)/libuiohook.la
-hookdemo_CFLAGS = -Wall -Wextra -pedantic -I$(top_srcdir)/include
-hookdemo_LDFLAGS = -Wl,--as-needed,-O1
+hookdemo_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -I$(top_srcdir)/include
+hookdemo_LDFLAGS = $(LTLDFLAGS)
 
 postdemo_SOURCES = demo/post_demo.c
 postdemo_LDADD = $(top_builddir)/libuiohook.la
-postdemo_CFLAGS = -Wall -Wextra -pedantic -I$(top_srcdir)/include
-postdemo_LDFLAGS = -Wl,--as-needed,-O1
+postdemo_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -I$(top_srcdir)/include
+postdemo_LDFLAGS = $(LTLDFLAGS)
 endif
 
 EXTRA_DIST = COPYING.md COPYING.LESSER.md README.md

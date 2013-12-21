@@ -36,12 +36,12 @@ void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
 
-	//load_input_helper();
+	load_input_helper();
 }
 
 __attribute__ ((destructor))
 void on_library_unload() {
-	//unload_input_helper();
+	unload_input_helper();
 }
 
 void test(){}

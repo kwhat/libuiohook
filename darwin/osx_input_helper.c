@@ -270,7 +270,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_KP_SUBTRACT,				//	 76 kVK_ANSI_KeypadMinus
 	VC_F18,						//	 77 kVK_F18
 	VC_F19,						//	 78 kVK_F19
-	0x0D | 0x100,	//	 79 kVK_ANSI_KeypadEquals
+	VB_KP_EQUALS,				//	 79 kVK_ANSI_KeypadEquals
 	VC_KP_0,					//	 80 kVK_ANSI_Keypad0
 	VC_KP_1,					//	 81 kVK_ANSI_Keypad1
 	VC_KP_2,					//	 82 kVK_ANSI_Keypad2
@@ -451,7 +451,7 @@ static const UInt64 scancode_to_keycode_table[128] = {
 	0x7F						//	127
 
 	/*
-	0x0D | 0x100,	//79 kVK_ANSI_KeypadEquals
+	VC_KP_EQUALS,	//79 kVK_ANSI_KeypadEquals
 	0x1C | 0x100,	//76 kVK_ANSI_KeypadEnter
 	0x1D | 0x100,	//62 kVK_RightControl
 	0x35 | 0x100,	//75 kVK_ANSI_KeypadDivide
@@ -472,7 +472,7 @@ static const UInt64 scancode_to_keycode_table[128] = {
 	0x00,			//61 kVK_RightOption
 	0x00,			//63 kVK_Function
 	0x00,			//66 unused
-	0x00,			//	68 unused
+	0x00,			//68 unused
 	0x00,			//70 unused
 
 	0x00 | 0x100,	//72 kVK_VolumeUp

@@ -96,7 +96,8 @@ static void *hook_thread_proc(void *arg) {
 			dlError = dlerror();
 			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
 				// New accessibility API 10.9 and later.
-				const void * keys[] = { kAXTrustedCheckOptionPrompt };
+				// FIXME This is causing an error on 10.9
+				const void * keys[] = { kAXTrustedCheckOptionPrompt_t };
 				const void * values[] = { kCFBooleanTrue };
 
 				CFDictionaryRef options = CFDictionaryCreate(

@@ -39,7 +39,7 @@ Display *disp;
 
 // Create a shared object constructor and destructor.
 
-__attribute__ ((destructor))
+__attribute__ ((constructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();

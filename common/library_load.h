@@ -20,7 +20,7 @@
 #define _included_library_load
 
 // Native library load callback for platform specific initialization.
-extern __attribute__ ((destructor)) void on_library_load();
+extern __attribute__ ((constructor)) void on_library_load();
 
 // Native library unload callback for platform specific de-initialization.
 extern __attribute__ ((destructor)) void on_library_unload();

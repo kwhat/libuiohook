@@ -25,4 +25,8 @@ extern __attribute__ ((destructor)) void on_library_load();
 // Native library unload callback for platform specific de-initialization.
 extern __attribute__ ((destructor)) void on_library_unload();
 
+// FIXME This is only here to preserve constructors during static linking.  
+// This should go away after platform refactoring.
+extern void test();
+
 #endif

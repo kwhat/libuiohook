@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <uiohook.h>
 
+// FIXME library_load.h only required for test()
+#include "library_load.h"
 #include "logger.h"
 
 static bool default_logger(unsigned int level, const char *format, ...) {
@@ -60,6 +62,9 @@ logger_t logger = &default_logger;
 
 
 UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
+	// FIXME library_load.h only required for test()
+	test();
+	
 	if (logger_proc == NULL) {
 		logger = &default_logger;
 	}

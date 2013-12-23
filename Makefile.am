@@ -43,7 +43,6 @@ lib_LTLIBRARIES = libuiohook.la
 libuiohook_la_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -Wno-unused-parameter -I$(top_srcdir)/common -I$(top_srcdir)/include
 libuiohook_la_LDFLAGS = $(LTLDFLAGS)
 libuiohook_la_SOURCES = \
-	common/scancode_table.c \
 	common/logger.c \
 	$(backend)/hook_callback.c \
 	$(backend)/hook_thread.c \

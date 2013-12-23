@@ -44,4 +44,6 @@ void on_library_unload() {
 	unload_input_helper();
 }
 
+// FIXME This is only here to preserve constructors during static linking.  
+// This should go away after platform refactoring.
 void test(){}

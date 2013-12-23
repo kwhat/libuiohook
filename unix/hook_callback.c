@@ -113,13 +113,15 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				event.type = EVENT_KEY_PRESSED;
 				event.mask = convert_to_virtual_mask(event_mask);
 
+				printf("TEST %u\n", event_code);
+				
 				keysym = keycode_to_keysym(event_code, event_mask);
 				event.data.keyboard.keycode = keycode_to_scancode(event_code);
 				event.data.keyboard.rawcode = keysym;
 				event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n", 
-					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 				dispatch_event(&event);
 
 				// Check to make sure the key is printable.
@@ -132,7 +134,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					event.data.keyboard.keychar = keychar;
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n", 
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 					dispatch_event(&event);
 				}
 				break;

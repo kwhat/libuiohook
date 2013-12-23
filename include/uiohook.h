@@ -219,7 +219,7 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 #define VC_PRINTSCREEN							0x0E37
 #define VC_SCROLL_LOCK							0x0046
-#define VC_PAUSE								0x0045
+#define VC_PAUSE								0x0E45	// FIXME Testing needed on Windows!
 
 
 // Begin Edit Key Zone
@@ -241,7 +241,7 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 
 // Begin Numeric Zone
-#define VC_NUM_LOCK								0x0E45
+#define VC_NUM_LOCK								0x0045
 #define VC_KP_DIVIDE							0x0E35
 #define VC_KP_MULTIPLY							0x0037
 #define VC_KP_SUBTRACT							0x004A
@@ -265,7 +265,7 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 // Begin Modifier and Control Keys
 #define VC_SHIFT_L								0x002A
-#define VC_SHIFT_R								0x0E36
+#define VC_SHIFT_R								0x0036
 #define VC_CONTROL_L							0x001D
 #define VC_CONTROL_R							0x0E1D
 #define VC_ALT_L								0x0038	// Option or Alt Key

@@ -133,7 +133,7 @@ static const uint8_t xfree86_keycode_to_scancode_table[61] = {
  * and the keycode mappings in /usr/share/X11/xkb/keycodes/evdev
  * and  /usr/share/X11/xkb/keycodes/xfree86
  */
-static const uint8_t evdev_keycode_to_scancode_table[61] = {
+static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	0x00,	// 97 EVDEV - RO   ("Internet" Keyboards)
 	0x00,	// 98 EVDEV - KATA (Katakana)
 	0x00,	// 99 EVDEV - HIRA (Hiragana)
@@ -141,22 +141,22 @@ static const uint8_t evdev_keycode_to_scancode_table[61] = {
 	0x70,	// 101 EVDEV - HKTG (Hiragana/Katakana toggle)
 	0x7B,	// 102 EVDEV - MUHE (Muhenkan)
 	0x00,	// 103 EVDEV - JPCM (KPJPComma)
-	0x9C,	// 104 KPEN
-	0x9D,	// 105 RCTL
-	0xB5,	// 106 KPDV
-	0xB7,	// 107 PRSC
+	0x0E1C,	// 104 KPEN
+	0x0E1D,	// 105 RCTL
+	0x0E35,	// 106 KPDV
+	0x0E37,	// 107 PRSC
 	0xB8,	// 108 RALT
 	0x00,	// 109 EVDEV - LNFD ("Internet" Keyboards)
-	0xC7,	// 110 HOME
-	0xC8,	// 111 UP
-	0xC9,	// 112 PGUP
-	0xCB,	// 113 LEFT
-	0xCD,	// 114 RGHT
-	0xCF,	// 115 END
-	0xD0,	// 116 DOWN
-	0xD1,	// 117 PGDN
-	0xD2,	// 118 INS
-	0xD3,	// 119 DELE
+	0x0E47,	// 110 HOME
+	0xE048,	// 111 UP
+	0x0E49,	// 112 PGUP
+	0xE04B,	// 113 LEFT
+	0xE04D,	// 114 RGHT
+	0x0E4F,	// 115 END
+	0xE050,	// 116 DOWN
+	0x0E51,	// 117 PGDN
+	0x0E52,	// 118 INS
+	0x0E53,	// 119 DELE
 	0x00,	// 120 EVDEV - I120 ("Internet" Keyboards)
 	0x00,	// 121 EVDEV - MUTE
 	0x00,	// 122 EVDEV - VOL-
@@ -164,15 +164,15 @@ static const uint8_t evdev_keycode_to_scancode_table[61] = {
 	0x00,	// 124 EVDEV - POWR
 	0x00,	// 125 EVDEV - KPEQ
 	0x00,	// 126 EVDEV - I126 ("Internet" Keyboards)
-	0x00,	// 127 EVDEV - PAUS
+	0x0045,	// 127 EVDEV - PAUS
 	0x00,	// 128 EVDEV - ????
 	0x00,	// 129 EVDEV - I129 ("Internet" Keyboards)
 	0xF1,	// 130 EVDEV - HNGL (Korean Hangul Latin toggle)
 	0xF2,	// 131 EVDEV - HJCV (Korean Hangul Hanja toggle)
 	0x7D,	// 132 AE13 (Yen)
-	0xDB,	// 133 EVDEV - LWIN
-	0xDC,	// 134 EVDEV - RWIN
-	0xDD,	// 135 EVDEV - MENU
+	0x0E5B,	// 133 EVDEV - LWIN
+	0x0E5C,	// 134 EVDEV - RWIN
+	0x0E5D,	// 135 EVDEV - MENU
 	0x00,	// 136 EVDEV - STOP
 	0x00,	// 137 EVDEV - AGAI
 	0x00,	// 138 EVDEV - PROP
@@ -208,7 +208,7 @@ static const uint8_t evdev_keycode_to_scancode_table[61] = {
  * published by the Free Software Foundation.
  */
 uint16_t keycode_to_scancode(KeyCode keycode) {
-	uint16_t scancode = 0x00;
+	uint16_t scancode = 0x0000;
 
 	// FIXME Address Pause Key.
 	//if (keycode == GDK_Pause) {
@@ -425,7 +425,7 @@ void load_input_helper() {
 
 		const char *prefix_xfree86 = "xfree86_";
 		const char *prefix_evdev = "evdev_";
-		if (strncmp(layout_name, prefix_evdev, strlen(prefix_evdev))) {
+		if (strncmp(layout_name, prefix_evdev, strlen(prefix_evdev)) == 0) {
 			is_evdev = true;
 		}
 		else if (layout_name == NULL) {
@@ -433,7 +433,7 @@ void load_input_helper() {
 					"%s [%u]: X atom name failure for desc->names->keycodes!\n", 
 					__FUNCTION__, __LINE__);
 		}
-		else if (!strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86))) {
+		else if (strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86)) != 0) {
 			logger(LOG_LEVEL_ERROR, 
 					"%s [%u]: Unknown keycode name '%s', please file a bug report!\n", 
 					__FUNCTION__, __LINE__, layout_name);

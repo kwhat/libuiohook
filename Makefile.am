@@ -18,9 +18,9 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-DARWIN_SRC = darwin/osx_input_helper.c
-UNIX_SRC = unix/x_input_helper.c unix/x_unicode_helper.c
-WINDOWS_SRC = windows/win_unicode_helper.c
+DARWIN_SRC = darwin/osx_input_helper.c darwin/osx_system_properties.c
+UNIX_SRC = unix/x11_input_helper.c unix/x_unicode_helper.c unix/x11_system_properties.c
+WINDOWS_SRC = windows/win_unicode_helper.c windows/win_system_properties.c
 
 if BUILD_DARWIN
 OS_SRC = $(DARWIN_SRC)
@@ -46,10 +46,8 @@ libuiohook_la_SOURCES = \
 	common/logger.c \
 	$(backend)/hook_callback.c \
 	$(backend)/hook_thread.c \
-	$(backend)/input_converter.c \
 	$(backend)/library_load.c \
 	$(backend)/post_event.c \
-	$(backend)/system_properties.c \
 	$(OS_SRC)
 
 if BUILD_DEMO

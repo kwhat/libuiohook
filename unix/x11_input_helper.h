@@ -22,6 +22,17 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
 
+// Virtual button codes that are not defined by X11.
+#define Button1			1
+#define Button2			2
+#define Button3			3
+#define WheelUp			4
+#define WheelDown		5
+#define WheelLeft		6
+#define WheelRight		7
+#define XButton1		8
+#define XButton2		9
+
 /* Converts an X11 key code to the appropriate keyboard scan code.
  */
 extern uint16_t keycode_to_scancode(KeyCode keycode);

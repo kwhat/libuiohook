@@ -21,17 +21,19 @@
 #endif
 
 #include <pthread.h>
+#include <stdint.h>
 #include <sys/time.h>
 #include <uiohook.h>
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
 
-#include "input_converter.h"
 #include "logger.h"
-#include "x_input_helper.h"
+#include "x11_input_helper.h"
 #include "x_unicode_helper.h"
-#include "x_wheel_codes.h"
+
+// Modifiers for tracking key masks.
+static uint16_t current_modifiers = 0x0000;
 
 // For this struct, refer to libxnee, requires Xlibint.h
 typedef union {
@@ -80,6 +82,21 @@ static inline void dispatch_event(virtual_event *const event) {
 	}
 }
 
+// Set the native modifier mask for future events.
+static inline void set_modifier_mask(uint16_t mask) {
+	current_modifiers |= mask;
+}
+
+// Unset the native modifier mask for future events.
+static inline void unset_modifier_mask(uint16_t mask) {
+	current_modifiers ^= mask;
+}
+
+// Get the current native modifier mask state.
+static inline uint16_t get_modifiers() {
+	return current_modifiers;
+}
+
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		pthread_mutex_lock(&hook_running_mutex);
@@ -101,22 +118,37 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		// Use more readable variables.
 		int event_type = data->type;
 		BYTE event_code = data->event.u.u.detail;
-		int event_mask = data->event.u.keyButtonPointer.state;
 		int event_x = data->event.u.keyButtonPointer.rootX;
 		int event_y = data->event.u.keyButtonPointer.rootY;
 
+		// FIXME Its not worth using the native modifier tracking.
+		int event_mask = data->event.u.keyButtonPointer.state;
+		printf("TEST %u  %#x\n", event_code, event_mask);
+		
 		KeySym keysym;
-		unsigned short int button;
+		unsigned short int button, scancode;
 		switch (event_type) {
 			case KeyPress:
+				scancode = keycode_to_scancode(event_code);
+				
+				// TODO If you have a better suggestion for this ugly, let me know.
+				// Maybe able to use the event_mask for left modifiers and only check the right.
+				if (scancode == VC_SHIFT_L)			set_modifier_mask(MASK_SHIFT_L);
+				else if (scancode == VC_SHIFT_R)	set_modifier_mask(MASK_SHIFT_R);
+				else if (scancode == VC_CONTROL_L)	set_modifier_mask(MASK_CTRL_L);
+				else if (scancode == VC_CONTROL_R)	set_modifier_mask(MASK_CTRL_R);
+				else if (scancode == VC_ALT_L)		set_modifier_mask(MASK_ALT_L);
+				else if (scancode == VC_ALT_R)		set_modifier_mask(MASK_ALT_R);
+				else if (scancode == VC_META_L)		set_modifier_mask(MASK_META_L);
+				else if (scancode == VC_META_R)		set_modifier_mask(MASK_META_R);
+			
+				
 				// Fire key pressed event.
 				event.type = EVENT_KEY_PRESSED;
-				event.mask = convert_to_virtual_mask(event_mask);
+				event.mask = get_modifiers();
 
-				printf("TEST %u\n", event_code);
-				
 				keysym = keycode_to_keysym(event_code, event_mask);
-				event.data.keyboard.keycode = keycode_to_scancode(event_code);
+				event.data.keyboard.keycode = scancode;
 				event.data.keyboard.rawcode = keysym;
 				event.data.keyboard.keychar = CHAR_UNDEFINED;
 
@@ -140,9 +172,23 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				break;
 
 			case KeyRelease:
+				scancode = keycode_to_scancode(event_code);
+				
+				// TODO If you have a better suggestion for this ugly, let me know.
+				// Maybe able to use the event_mask for left modifiers and only check the right.
+				if (scancode == VC_SHIFT_L)			unset_modifier_mask(MASK_SHIFT_L);
+				else if (scancode == VC_SHIFT_R)	unset_modifier_mask(MASK_SHIFT_R);
+				else if (scancode == VC_CONTROL_L)	unset_modifier_mask(MASK_CTRL_L);
+				else if (scancode == VC_CONTROL_R)	unset_modifier_mask(MASK_CTRL_R);
+				else if (scancode == VC_ALT_L)		unset_modifier_mask(MASK_ALT_L);
+				else if (scancode == VC_ALT_R)		unset_modifier_mask(MASK_ALT_R);
+				else if (scancode == VC_META_L)		unset_modifier_mask(MASK_META_L);
+				else if (scancode == VC_META_R)		unset_modifier_mask(MASK_META_R);
+				
+				
 				// Fire key released event.
 				event.type = EVENT_KEY_RELEASED;
-				event.mask = convert_to_virtual_mask(event_mask);
+				event.mask = get_modifiers();
 
 				keysym = keycode_to_keysym(event_code, event_mask);
 				event.data.keyboard.keycode = keycode_to_scancode(event_code);
@@ -168,12 +214,16 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				 * decide how to interpret the wheel events.
 				 */
 				// TODO Should use constants and a lookup table for button codes.
-				if (event_code > 0 && (event_code <= 3 || event_code == 8 || event_code == 9)) {
-					unsigned int button = convert_to_virtual_button(event_code);
+				if (event_code > 0 && (event_code <= 3 || event_code == XButton1 || event_code == XButton2)) {
+					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
+					button = (event_code & 0x03) | (event_code & 0x08) >> 1;
+					printf("Button Down %u %u\n", event_code, button);
+					
+					set_modifier_mask(1 << (button + 7));
 
 					// Fire mouse pressed event.
 					event.type = EVENT_MOUSE_PRESSED;
-					event.mask = convert_to_virtual_mask(event_mask);
+					event.mask = get_modifiers();
 
 					event.data.mouse.button = button;
 					event.data.mouse.clicks = click_count;
@@ -194,7 +244,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					
 					// Fire mouse wheel event.
 					event.type = EVENT_MOUSE_WHEEL;
-					event.mask = convert_to_virtual_mask(event_mask);
+					event.mask = get_modifiers();
 
 					event.data.wheel.clicks = click_count;
 					event.data.wheel.x = event_x;
@@ -231,14 +281,19 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 			case ButtonRelease:
 				// TODO Should use constants for button codes.
-				if (event_code > 0 && (event_code <= 3 || event_code == 8 || event_code == 9)) {
+				if (event_code > 0 && (event_code <= 3 || event_code == XButton1 || event_code == XButton2)) {
 					// Handle button release events.
-
+					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
+					button = (event_code & 0x03) | (event_code & 0x08) >> 1;
+					printf("Button Down %u %u\n", event_code, button);
+					
+					unset_modifier_mask(1 << (button + 7));
+					
 					// Fire mouse released event.
 					event.type = EVENT_MOUSE_RELEASED;
-					event.mask = convert_to_virtual_mask(event_mask);
+					event.mask = get_modifiers();
 
-					button = convert_to_virtual_button(event_code);
+					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
 					event.data.mouse.button = button;
 					event.data.mouse.clicks = click_count;
 					event.data.mouse.x = event_x;
@@ -251,7 +306,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					if (mouse_dragged != true) {
 						// Fire mouse clicked event.
 						event.type = EVENT_MOUSE_CLICKED;
-						event.mask = convert_to_virtual_mask(event_mask);
+						event.mask = get_modifiers();
 
 						event.data.mouse.button = button;
 						event.data.mouse.clicks = click_count;
@@ -272,11 +327,11 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				}
 				
 				// Populate common event info.
-				event.mask = convert_to_virtual_mask(event_mask);
+				event.mask = get_modifiers();
 
 				// Check the upper half of virtual modifiers for non zero
 				// values and set the mouse dragged flag.
-				mouse_dragged = event_mask >> 4 > 0;
+				mouse_dragged = event.mask >> 4 > 0;
 				if (mouse_dragged) {
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;

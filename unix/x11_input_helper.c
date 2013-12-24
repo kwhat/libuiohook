@@ -164,7 +164,7 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	0x00,	// 124 EVDEV - POWR
 	0x00,	// 125 EVDEV - KPEQ
 	0x00,	// 126 EVDEV - I126 ("Internet" Keyboards)
-	0x0045,	// 127 EVDEV - PAUS
+	0x0E45,	// 127 EVDEV - PAUS
 	0x00,	// 128 EVDEV - ????
 	0x00,	// 129 EVDEV - I129 ("Internet" Keyboards)
 	0xF1,	// 130 EVDEV - HNGL (Korean Hangul Latin toggle)

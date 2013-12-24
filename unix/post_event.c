@@ -30,8 +30,6 @@
 #include <X11/extensions/XTest.h>
 #endif
 
-#include "input_converter.h"
-
 extern Display *disp;
 
 // This lookup table must be in the same order the masks are defined.
@@ -88,7 +86,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			snprintf(buffer, 4, "%lc", event->data.keyboard.keychar);
 
 			event->type = EVENT_KEY_PRESSED;
-			event->data.keyboard.keycode = convert_to_virtual_key(XStringToKeysym(buffer));
+			event->data.keyboard.keycode = keycode_to_scancode(XStringToKeysym(buffer));
 			event->data.keyboard.keychar = CHAR_UNDEFINED;
 			hook_post_event(event);
 
@@ -98,7 +96,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		EVENT_KEY:
 			XTestFakeKeyEvent(
 				disp,
-				XKeysymToKeycode(disp, convert_to_native_key(event->data.keyboard.keycode)),
+				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
 				is_press,
 				0);
 			break;
@@ -170,7 +168,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			snprintf(buffer, 4, "U%04d", event->data.keyboard.keychar);
 
 			event->type = EVENT_KEY_PRESSED;
-			event->data.keyboard.keycode = convert_to_virtual_key(XStringToKeysym(buffer));
+			event->data.keyboard.keycode = keycode_to_scancode(XStringToKeysym(buffer));
 			event->data.keyboard.keychar = CHAR_UNDEFINED;
 			hook_post_event(event);
 
@@ -189,8 +187,9 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			((XKeyEvent *) x_event)->y = win_y;
 			((XKeyEvent *) x_event)->x_root = root_x;
 			((XKeyEvent *) x_event)->y_root = root_y;
-			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, convert_to_native_key(event->data.keyboard.keycode));
+			// FIXME convert modifiers to native!
+			//((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
+			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
 			((XKeyEvent *) x_event)->same_screen = True;
 			break;
 
@@ -221,7 +220,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			((XButtonEvent *) x_event)->y = win_y;
 			((XButtonEvent *) x_event)->x_root = root_x;
 			((XButtonEvent *) x_event)->y_root = root_y;
-			((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
+			// FIXME convert modifiers to native!
+			//((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
 			((XButtonEvent *) x_event)->button = event->data.mouse.button;
 			((XButtonEvent *) x_event)->same_screen = True;
 			break;
@@ -262,7 +262,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 
 		case EVENT_MOUSE_MOVED:
 			x_event = (XEvent *) malloc(sizeof(XMotionEvent));
-			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
+			// FIXME convert modifiers to native!
+			//((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
 			goto EVENT_MOTION;
 
 		EVENT_MOTION:
@@ -275,7 +276,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			((XMotionEvent *) x_event)->y = win_y; // Not sure what to do this
 			((XMotionEvent *) x_event)->x_root = event->data.mouse.x;
 			((XMotionEvent *) x_event)->y_root = event->data.mouse.y;
-			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);;
+			// FIXME convert modifiers to native!
+			//((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);;
 			((XMotionEvent *) x_event)->is_hint = NotifyNormal;
 			((XMotionEvent *) x_event)->same_screen = True;
 			break;

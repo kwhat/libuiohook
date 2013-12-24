@@ -24,9 +24,12 @@
 #include <sys/time.h>
 #include <uiohook.h>
 
-#include "input_converter.h"
 #include "logger.h"
 #include "osx_input_helper.h"
+
+// Modifiers for tracking key masks.
+static uint16_t current_modifiers = 0x00000000;
+static uint8_t modifier_flag = 0x0000;
 
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
@@ -48,10 +51,13 @@ static CGEventTimestamp click_time = 0;
 static bool mouse_dragged = false;
 
 static CFRunLoopSourceRef src_msg_port;
-static CGEventFlags prev_event_mask, diff_event_mask, keyup_event_mask;
-static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift +
-											kCGEventFlagMaskControl +
-											kCGEventFlagMaskAlternate +
+
+
+
+// Modifier masks that we are interested in tracking.
+static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift | 
+											kCGEventFlagMaskControl | 
+											kCGEventFlagMaskAlternate | 
 											kCGEventFlagMaskCommand;
 
 // Structure for the current Unix epoch in milliseconds.
@@ -86,22 +92,20 @@ static inline void dispatch_event(virtual_event *const event) {
 	}
 }
 
-// Keyboard Upper 16 / Mouse Lower 16
-static CGEventFlags curr_modifier_mask = 0x00000000;
-
-void set_modifier_mask(CGEventFlags mask) {
-	curr_modifier_mask |= mask;
+// Set the native modifier mask for future events.
+static inline void set_modifier_mask(uint16_t mask) {
+	current_modifiers |= mask;
 }
 
-void unset_modifier_mask(CGEventFlags mask) {
-	curr_modifier_mask ^= mask;
+// Unset the native modifier mask for future events.
+static inline void unset_modifier_mask(uint16_t mask) {
+	current_modifiers ^= mask;
 }
 
-CGEventFlags get_modifiers() {
-	return curr_modifier_mask;
+// Get the current native modifier mask state.
+static inline uint16_t get_modifiers() {
+	return current_modifiers;
 }
-
-
 
 // Runloop to execute KeyCodeToString on the "Main" runloop due to an
 // undocumented thread safety requirement.
@@ -120,17 +124,16 @@ static void message_port_proc(void *info) {
 
 void start_message_port_runloop() {
 	CFRunLoopSourceContext context = {
-		.version = 0,
-		.info = &data,
-		.retain = NULL,
-		.release = NULL,
-		.copyDescription = NULL,
-		.equal = NULL,
-		.hash = NULL,
-		.schedule = NULL,
-		.cancel = NULL,
-
-		.perform = message_port_proc
+		.version			= 0,
+		.info				= &data,
+		.retain				= NULL,
+		.release			= NULL,
+		.copyDescription	= NULL,
+		.equal				= NULL,
+		.hash				= NULL,
+		.schedule			= NULL,
+		.cancel				= NULL,
+		.perform			= message_port_proc
 	};
 
 	src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
@@ -167,7 +170,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 
 		default:
 			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled RunLoop activity! (%#X)\n",
-				__FUNCTION__, __LINE__, (unsigned int) activity);
+					__FUNCTION__, __LINE__, (unsigned int) activity);
 			break;
 	}
 }
@@ -189,7 +192,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 		EVENT_KEYDOWN:
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
-			event.mask = convert_to_virtual_mask(get_modifiers());
+			event.mask = get_modifiers();
 
 			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 			event.data.keyboard.keycode = keycode_to_scancode(keycode);
@@ -197,7 +200,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
-				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 
 
@@ -231,7 +234,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				event.data.keyboard.keychar = info->buffer[0];
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n", 
-					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 				dispatch_event(&event);
 			}
 
@@ -243,7 +246,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 		EVENT_KEYUP:
 			// Fire key released event.
 			event.type = EVENT_KEY_RELEASED;
-			event.mask = convert_to_virtual_mask(get_modifiers());
+			event.mask = get_modifiers();
 
 			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 			event.data.keyboard.keycode = keycode_to_scancode(keycode);
@@ -251,80 +254,71 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
-				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 			break;
 
 		case kCGEventFlagsChanged:
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed. (%#X)\n",
-				__FUNCTION__, __LINE__, (unsigned int) event_mask);
+					__FUNCTION__, __LINE__, (unsigned int) event_mask);
 
 			/* Because Apple treats modifier keys differently than normal key
 			 * events, any changes to the modifier keys will require a key state
 			 * change to be fired manually.
-			 *
-			 * Outline of what is happening on the next 3 lines.
- 			 * 1010 1100	prev
-			 * 1100 1010	curr
-			 * 0110 0110	prev xor curr
-			 *
-			 * turned on - i.e. pressed
-			 * 1100 1010	curr
-			 * 0110 0110	(prev xor curr)
-			 * 0100 0010	(prev xor curr) of prev
-			 *
-			 * turned off - i.e. released
-			 * 1010 1100	prev
-			 * 0110 0110	(prev xor curr)
-			 * 0010 0100	(prev xor curr) and prev
-			 *
-			 * CGEventFlags diff_event_mask = prev_event_mask ^ event_mask;
-			 * CGEventFlags keydown_event_mask = prev_event_mask | diff_event_mask;
-			 * CGEventFlags keyup_event_mask = event_mask & diff_event_mask;
 			 */
 
-			prev_event_mask = get_modifiers() & 0xFFFF0000;
-			diff_event_mask = prev_event_mask ^ (event_mask & 0xFFFF0000);
-			keyup_event_mask = (event_mask & 0xFFFF0000) & diff_event_mask;
-
-			// Update the previous event mask.
-			unset_modifier_mask(prev_event_mask);
-			set_modifier_mask(event_mask & 0xFFFF0000);
-
-			if (diff_event_mask & key_event_mask && keyup_event_mask & key_event_mask) {
-				// Process as a key pressed event.
-				goto EVENT_KEYDOWN;
+			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+			if (keycode == kVK_Shift) {
+				modifier_flag = MASK_SHIFT_L;
 			}
-			else if (diff_event_mask & key_event_mask && keyup_event_mask ^ key_event_mask) {
-				// Process as a key released event.
-				goto EVENT_KEYUP;
+			else if (keycode == kVK_Control) {
+				modifier_flag = MASK_CTRL_L;
+			}
+			else if (keycode == kVK_Command) {
+				modifier_flag = MASK_META_L;
+			}
+			else if (keycode == kVK_Option) {
+				modifier_flag = MASK_ALT_L;
+			}
+			else if (keycode == kVK_RightShift) {
+				modifier_flag = MASK_SHIFT_R;
+			}
+			else if (keycode == kVK_RightControl) {
+				modifier_flag = MASK_CTRL_R;
+			}
+			else if (keycode == kVK_RightCommand) {
+				modifier_flag = MASK_META_R;
+			}
+			else if (keycode == kVK_RightOption) {
+				modifier_flag = MASK_ALT_R;
+			}
+			else {
+				modifier_flag = 0x0000;
+			}
+			
+			// First check to see if a modifier we care about changed.
+			if (modifier_flag != 0x0000) {
+				if (get_modifiers() & modifier_flag) {
+					unset_modifier_mask(modifier_flag);
+					
+					// Process as a key released event.
+					goto EVENT_KEYUP;
+				}
+				else {
+					set_modifier_mask(modifier_flag);
+					
+					// Process as a key pressed event.
+					goto EVENT_KEYDOWN;
+				}
 			}
 			break;
 
 		case kCGEventLeftMouseDown:
-			button = kVK_LBUTTON;
-			set_modifier_mask(kCGEventFlagMaskButtonLeft);
-			goto BUTTONDOWN;
-
 		case kCGEventRightMouseDown:
-			button = kVK_RBUTTON;
-			set_modifier_mask(kCGEventFlagMaskButtonRight);
-			goto BUTTONDOWN;
-
 		case kCGEventOtherMouseDown:
-			button = CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber);
+			button = CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
+			set_modifier_mask(1 << (button + 7));
 
-			if (button == kVK_MBUTTON) {
-				set_modifier_mask(kCGEventFlagMaskButtonCenter);
-			}
-			else if (button == kVK_XBUTTON1) {
-				set_modifier_mask(kCGEventFlagMaskXButton1);
-			}
-			else if (button == kVK_XBUTTON2) {
-				set_modifier_mask(kCGEventFlagMaskXButton2);
-			}
-
-		BUTTONDOWN:
 			// Track the number of clicks.
 			if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
 				click_count++;
@@ -338,9 +332,9 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 
 			// Fire mouse pressed event.
 			event.type = EVENT_MOUSE_PRESSED;
-			event.mask = convert_to_virtual_mask(event_mask);
+			event.mask = get_modifiers();
 
-			event.data.mouse.button = convert_to_virtual_button(button);
+			event.data.mouse.button = button;
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
@@ -351,36 +345,18 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			break;
 
 		case kCGEventLeftMouseUp:
-			button = kVK_LBUTTON;
-			unset_modifier_mask(kCGEventFlagMaskButtonLeft);
-			goto BUTTONUP;
-
 		case kCGEventRightMouseUp:
-			button = kVK_RBUTTON;
-			unset_modifier_mask(kCGEventFlagMaskButtonRight);
-			goto BUTTONUP;
-
 		case kCGEventOtherMouseUp:
-			button = CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber);
+			button = CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
+			unset_modifier_mask(1 << (button + 7));
 
-			if (button == kVK_MBUTTON) {
-				unset_modifier_mask(kCGEventFlagMaskButtonCenter);
-			}
-			else if (button == kVK_XBUTTON1) {
-				unset_modifier_mask(kCGEventFlagMaskXButton1);
-			}
-			else if (button == kVK_XBUTTON2) {
-				unset_modifier_mask(kCGEventFlagMaskXButton2);
-			}
-
-		BUTTONUP:
 			event_point = CGEventGetLocation(event_ref);
 
 			// Fire mouse released event.
 			event.type = EVENT_MOUSE_RELEASED;
-			event.mask = convert_to_virtual_mask(event_mask);
+			event.mask = get_modifiers();
 
-			event.data.mouse.button = convert_to_virtual_button(button);
+			event.data.mouse.button = button;
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
@@ -393,9 +369,9 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			if (mouse_dragged != true) {
 				// Fire mouse clicked event.
 				event.type = EVENT_MOUSE_CLICKED;
-				event.mask = convert_to_virtual_mask(event_mask);
+				event.mask = get_modifiers();
 
-				event.data.mouse.button = convert_to_virtual_button(button);
+				event.data.mouse.button = button;
 				event.data.mouse.clicks = click_count;
 				event.data.mouse.x = event_point.x;
 				event.data.mouse.y = event_point.y;
@@ -418,7 +394,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			}
 
 			event.type = EVENT_MOUSE_DRAGGED;
-			event.mask = convert_to_virtual_mask(get_modifiers());
+			event.mask = get_modifiers();
 
 			event.data.mouse.button = MOUSE_NOBUTTON;
 			event.data.mouse.clicks = click_count;
@@ -442,7 +418,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			}
 
 			event.type = EVENT_MOUSE_MOVED;
-			event.mask = convert_to_virtual_mask(get_modifiers());
+			event.mask = get_modifiers();
 
 			event.data.mouse.button = MOUSE_NOBUTTON;
 			event.data.mouse.clicks = click_count;
@@ -472,7 +448,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 
 			// Fire mouse wheel event.
 			event.type = EVENT_MOUSE_WHEEL;
-			event.mask = convert_to_virtual_mask(event_mask);
+			event.mask = get_modifiers();
 
 			event.data.wheel.clicks = click_count;
 			event.data.wheel.x = event_point.x;

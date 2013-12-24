@@ -25,7 +25,6 @@
 #include <windows.h>
 
 #include "hook_callback.h"
-#include "input_converter.h"
 #include "logger.h"
 #include "win_unicode_helper.h"
 
@@ -124,10 +123,13 @@ static inline unsigned short int get_scroll_wheel_amount() {
 }
 
 
-LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	// MS Keyboard event struct data.
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
 
+	// MS Mouse event struct data.
+	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
+	
 	// Set the event time.
 	GetSystemTimeAsFileTime(&ft);
 	// Convert to milliseconds = 100-nanoseconds / 10000
@@ -156,6 +158,8 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
 
+			printf("Scancode: %#00X,  Flags %#00X\n", kbhook->scanCode, kbhook->flags);
+			
 			event.data.keyboard.keycode = kbhook->scanCode;
 			if (kbhook->flags & 0x03) {
 				// This is a bit of a hack, but it seems to work and it is fast.
@@ -214,64 +218,33 @@ LRESULT CALLBACK keyboard_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			dispatch_event(&event);
 			break;
 
-		default:
-			// In theory this *should* never execute.
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Windows event! (%#X)\n",
-					__FUNCTION__, __LINE__, (unsigned int) wParam);
-			break;
-	}
-
-	LRESULT hook_result = -1;
-	if (nCode < 0 || !(event.reserved & 0x01)) {
-		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);
-	}
-	else {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%li)\n",
-				__FUNCTION__, __LINE__, (long) hook_result);
-	}
-
-	return hook_result;
-}
-
-LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// MS Mouse event struct data.
-	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
-
-	// Set the event time.
-	GetSystemTimeAsFileTime(&ft);
-	// Convert to milliseconds = 100-nanoseconds / 10000
-	__int64 system_time = (((__int64) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
-
-	// Convert Windows epoch to Unix epoch (1970 - 1601 in milliseconds)
-	event.time = system_time - 11644473600000;
-
-	switch(wParam) {
 		case WM_LBUTTONDOWN:
-			event.data.mouse.button = convert_to_virtual_button(VK_LBUTTON);
+			event.data.mouse.button = MOUSE_BUTTON1;
 			set_modifier_mask(MASK_BUTTON1);
 			goto BUTTONDOWN;
 
 		case WM_RBUTTONDOWN:
-			event.data.mouse.button = convert_to_virtual_button(VK_RBUTTON);
+			event.data.mouse.button = MOUSE_BUTTON2;
 			set_modifier_mask(MASK_BUTTON2);
 			goto BUTTONDOWN;
 
 		case WM_MBUTTONDOWN:
-			event.data.mouse.button = convert_to_virtual_button(VK_MBUTTON);
+			event.data.mouse.button = MOUSE_BUTTON3;
 			set_modifier_mask(MASK_BUTTON3);
 			goto BUTTONDOWN;
 
 		case WM_XBUTTONDOWN:
 		case WM_NCXBUTTONDOWN:
 			if (HIWORD(mshook->mouseData) == XBUTTON1) {
-				event.data.mouse.button = convert_to_virtual_button(VK_XBUTTON1);
+				event.data.mouse.button = MOUSE_BUTTON4;
 				set_modifier_mask(MASK_BUTTON4);
 			}
 			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
-				event.data.mouse.button = convert_to_virtual_button(VK_XBUTTON2);
+				event.data.mouse.button = MOUSE_BUTTON5;
 				set_modifier_mask(MASK_BUTTON5);
 			}
 			else {
+				// Extra mouse buttons.
 				event.data.mouse.button = HIWORD(mshook->mouseData);
 			}
 
@@ -303,31 +276,32 @@ LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			break;
 
 		case WM_LBUTTONUP:
-			event.data.mouse.button = convert_to_virtual_button(VK_LBUTTON);
+			event.data.mouse.button = MOUSE_BUTTON1;
 			unset_modifier_mask(MASK_BUTTON1);
 			goto BUTTONUP;
 
 		case WM_RBUTTONUP:
-			event.data.mouse.button = convert_to_virtual_button(VK_RBUTTON);
+			event.data.mouse.button = MOUSE_BUTTON2;
 			unset_modifier_mask(MASK_BUTTON2);
 			goto BUTTONUP;
 
 		case WM_MBUTTONUP:
-			event.data.mouse.button = convert_to_virtual_button(VK_MBUTTON);
+			event.data.mouse.button = MOUSE_BUTTON3;
 			unset_modifier_mask(MASK_BUTTON3);
 			goto BUTTONUP;
 
 		case WM_XBUTTONUP:
 		case WM_NCXBUTTONUP:
 			if (HIWORD(mshook->mouseData) == XBUTTON1) {
-				event.data.mouse.button = convert_to_virtual_button(VK_XBUTTON1);
+				event.data.mouse.button = MOUSE_BUTTON4;
 				unset_modifier_mask(MASK_BUTTON4);
 			}
 			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
-				event.data.mouse.button = convert_to_virtual_button(VK_XBUTTON2);
+				event.data.mouse.button = MOUSE_BUTTON5;
 				unset_modifier_mask(MASK_BUTTON5);
 			}
 			else {
+				// Extra mouse buttons.
 				event.data.mouse.button = HIWORD(mshook->mouseData);
 			}
 
@@ -434,7 +408,7 @@ LRESULT CALLBACK mouse_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	LRESULT hook_result = -1;
 	if (nCode < 0 || !(event.reserved & 0x01)) {
-		hook_result = CallNextHookEx(mouse_event_hhook, nCode, wParam, lParam);
+		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);
 	}
 	else {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%li)\n",

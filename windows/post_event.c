@@ -24,8 +24,6 @@
 #include <uiohook.h>
 #include <windows.h>
 
-#include "input_converter.h"
-
 static UINT keymask_lookup[8] = {
 	VK_LSHIFT,
 	VK_LCONTROL,
@@ -46,7 +44,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
 			if (event->mask & 1 << i) {
 				events[events_size].type = INPUT_KEYBOARD;
-				events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
+				//events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
 				events[events_size].ki.dwFlags = 0x0000;  // KEYEVENTF_KEYDOWN
 				events[events_size].ki.time = 0; // Use current system time.
 				events_size++;
@@ -98,7 +96,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 
 			event->type = EVENT_KEY_PRESSED;
 			// TODO Find a better way to do this.
-			event->data.keyboard.keycode = convert_to_native_key(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)));
+			//event->data.keyboard.keycode = convert_to_native_key(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)));
 			event->data.keyboard.keychar = CHAR_UNDEFINED;
 			hook_post_event(event);
 
@@ -108,7 +106,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		EVENT_KEY:
 			events[events_size].type = INPUT_KEYBOARD;
 
-			events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
+			//events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
 			//events[events_size].ki.wScan = MapVirtualKey(vkCode, 0); //MAPVK_VK_TO_VSC
 			//events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
 
@@ -161,7 +159,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
 			if (event->mask & 1 << i) {
 				events[events_size].type = INPUT_KEYBOARD;
-				events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
+				//events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
 				events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
 				events[events_size].ki.time = 0; // Use current system time.
 				events_size++;

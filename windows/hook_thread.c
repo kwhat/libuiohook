@@ -39,8 +39,8 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
 
 	// Create the native hooks.
-	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_event_proc, hInst, 0);
-	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_event_proc, hInst, 0);
+	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, hook_event_proc, hInst, 0);
+	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, hook_event_proc, hInst, 0);
 
 	// If we did not encounter a problem, start processing events.
 	if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {

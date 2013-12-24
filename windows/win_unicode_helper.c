@@ -316,7 +316,7 @@ int load_unicode_helper() {
 	count = refresh_locale_list();
 
 	logger(LOG_LEVEL_INFO,	
-			"%s [%u]: refresh_locale_lis() found %i locale(s).\n", 
+			"%s [%u]: refresh_locale_list() found %i locale(s).\n", 
 			__FUNCTION__, __LINE__, count);
 
 	return count;

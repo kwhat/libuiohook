@@ -19,7 +19,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 DARWIN_SRC = darwin/osx_input_helper.c darwin/osx_system_properties.c
-UNIX_SRC = unix/x11_input_helper.c unix/x_unicode_helper.c unix/x11_system_properties.c
+UNIX_SRC = unix/x11_input_helper.c unix/x11_system_properties.c
 WINDOWS_SRC = windows/win_unicode_helper.c windows/win_system_properties.c
 
 if BUILD_DARWIN

@@ -33,6 +33,16 @@
 #define XButton1		8
 #define XButton2		9
 
+/* Converts an X11 key symbol to a single Unicode character.  No direct X11
+ * functionality exists to provide this information.
+ */
+extern wchar_t keysym_to_unicode(KeySym keysym);
+
+/* Convert a single Unicode character to an X11 key symbol.  This function
+ * provides a better translation than XStringToKeysym() for Unicode characters.
+ */
+extern KeySym unicode_to_keysym(wchar_t unicode);
+
 /* Converts an X11 key code to the appropriate keyboard scan code.
  */
 extern uint16_t keycode_to_scancode(KeyCode keycode);

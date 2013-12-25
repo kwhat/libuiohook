@@ -25,6 +25,7 @@ extern void stop_message_port_runloop();
 
 extern void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info);
 
+// Callback used by hook_thead for all events.
 extern CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEventRef event_ref, void *refcon);
 
 #endif

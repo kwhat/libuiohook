@@ -20,43 +20,50 @@
 #include <config.h>
 #endif
 
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <uiohook.h>
-#include <windows.h>
 
-#include "library_load.h"
 #include "logger.h"
-#include "win_unicode_helper.h"
 
-// Global Variables.
-HINSTANCE hInst = NULL;
-
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
-	switch (fdwReason) {
-		case DLL_PROCESS_ATTACH:
-			//hInst = hinstDLL;
-			on_library_load();
-			break;
-		case DLL_PROCESS_DETACH:
-			on_library_unload();
-	        break;
-    }
-
-    return TRUE;
-}
-
-void on_library_load() {
-	hInst = GetModuleHandle(NULL);
-
-	// Display the copyright on library load.
-	COPYRIGHT();
+static bool default_logger(unsigned int level, const char *format, ...) {
+	bool status = false;
 	
-	load_unicode_helper();
+	#ifndef USE_QUIET
+	va_list args;
+	switch (level) {
+		#ifdef USE_DEBUG
+		case LOG_LEVEL_DEBUG:
+		#endif
+		case LOG_LEVEL_INFO:
+			va_start(args, format);
+  			status = vfprintf(stdout, format, args) >= 0;
+			va_end(args);
+			break;
+			
+		case LOG_LEVEL_WARN:
+		case LOG_LEVEL_ERROR:
+			va_start(args, format);
+  			status = vfprintf(stderr, format, args) >= 0;
+			va_end(args);
+			break;
+	}
+	#endif
+	
+	return status;
 }
 
-void on_library_unload() {
-	unload_unicode_helper();
-}
+// Current logger function pointer, this should never be null.
+logger_t logger = &default_logger;
 
-// FIXME This is only here to preserve constructors during static linking.  
-// This should go away after platform refactoring.
-void test(){}
+
+UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
+	if (logger_proc == NULL) {
+		logger = &default_logger;
+	}
+	else {
+		logger = logger_proc;
+	}
+}

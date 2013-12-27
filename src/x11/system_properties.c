@@ -33,12 +33,14 @@
 #endif
 #ifdef USE_XT
 #include <X11/Intrinsic.h>
-extern Display *xt_disp;
+
+static XtAppContext xt_context;
+static Display *xt_disp;
 #endif
 
 #include "logger.h"
 
-extern Display *disp;
+Display *disp;
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	bool successful = false;
@@ -208,4 +210,79 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	}
 
 	return value;
+}
+
+// Create a shared object constructor.
+__attribute__ ((constructor))
+void on_library_load() {
+	// Display the copyright on library load.
+	COPYRIGHT();
+
+	// Tell X Threads are OK.
+	XInitThreads();
+
+	// Open local display.
+	disp = XOpenDisplay(XDisplayName(NULL));
+	if (disp == NULL) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
+				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
+				__FUNCTION__, __LINE__, "XOpenDisplay success.");
+	}
+
+	#ifdef USE_XT
+	XtToolkitInitialize();
+	xt_context = XtCreateApplicationContext();
+
+	int argc = 0;
+	char ** argv = { NULL };
+	xt_disp = XtOpenDisplay(xt_context, NULL, "UIOHook", "libuiohook", NULL, 0, &argc, argv);
+	#endif
+
+	// NOTE: is_auto_repeat is NOT stdbool!
+	Bool is_auto_repeat = False;
+	#ifdef USE_XKB
+	// Enable detectable autorepeat.
+	XkbSetDetectableAutoRepeat(disp, True, &is_auto_repeat);
+	#else
+	XAutoRepeatOn(disp);
+
+	XKeyboardState kb_state;
+	XGetKeyboardControl(disp, &kb_state);
+
+	is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
+	#endif
+
+	if (is_auto_repeat == False) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
+				__FUNCTION__, __LINE__, "Could not enable detectable auto-repeat!");
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
+				__FUNCTION__, __LINE__);
+	}
+}
+
+// Create a shared object destructor.
+__attribute__ ((destructor))
+void on_library_unload() {
+	/* FIXME This seems to be causing problems with SIGTERM
+	// Stop the native thread if its running.
+	if (hook_is_enabled()) {
+		hook_disable();
+	}
+	*/
+
+	#ifdef USE_XT
+	XtCloseDisplay(xt_disp);
+	XtDestroyApplicationContext(xt_context);
+	#endif
+
+	// Destroy the native displays.
+	if (disp != NULL) {
+		XCloseDisplay(disp);
+		disp = NULL;
+	}
 }

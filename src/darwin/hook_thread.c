@@ -96,7 +96,7 @@ static void *hook_thread_proc(void *arg) {
 			dlError = dlerror();
 			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
 				// New accessibility API 10.9 and later.
-				// FIXME This is causing an error on 10.9
+				// FIXME This is causing a segfault on 10.9 probably due to an invalid pointer type.
 				const void * keys[] = { kAXTrustedCheckOptionPrompt_t };
 				const void * values[] = { kCFBooleanTrue };
 

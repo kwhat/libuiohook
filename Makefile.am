@@ -18,16 +18,30 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-DARWIN_SRC = darwin/osx_input_helper.c darwin/osx_system_properties.c
-UNIX_SRC = unix/x11_input_helper.c unix/x11_system_properties.c
-WINDOWS_SRC = windows/win_unicode_helper.c windows/win_system_properties.c
+DARWIN_SRC = src/darwin/hook_callback.c \
+	src/darwin/hook_thread.c \
+	src/darwin/input_helper.c \
+	src/darwin/post_event.c \
+	src/darwin/system_properties.c
+	
+X11_SRC = src/x11/hook_callback.c \
+	src/x11/hook_thread.c \
+	src/x11/input_helper.c \
+	src/x11/post_event.c \
+	src/x11/system_properties.c
+	
+WINDOWS_SRC = src/windows/hook_callback.c \
+	src/windows/hook_thread.c \
+	src/windows/input_helper.c \
+	src/windows/post_event.c \
+	src/windows/system_properties.c
 
 if BUILD_DARWIN
 OS_SRC = $(DARWIN_SRC)
 endif
 
-if BUILD_UNIX
-OS_SRC = $(UNIX_SRC)
+if BUILD_X11
+OS_SRC = $(X11_SRC)
 endif
 
 if BUILD_WINDOWS
@@ -40,28 +54,22 @@ pkgconfig_DATA = $(top_builddir)/pc/uiohook.pc
 include_HEADERS = include/uiohook.h
 
 lib_LTLIBRARIES = libuiohook.la
-libuiohook_la_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -Wno-unused-parameter -I$(top_srcdir)/common -I$(top_srcdir)/include
-libuiohook_la_LDFLAGS = $(LTLDFLAGS)
-libuiohook_la_SOURCES = \
-	common/logger.c \
-	$(backend)/hook_callback.c \
-	$(backend)/hook_thread.c \
-	$(backend)/library_load.c \
-	$(backend)/post_event.c \
-	$(OS_SRC)
+libuiohook_la_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic -Wno-unused-parameter -I$(top_srcdir)/include -I$(top_srcdir)/src/$(backend) -I$(top_srcdir)/src
+libuiohook_la_LDFLAGS = $(LTLDFLAGS) $(LDFLAGS)
+libuiohook_la_SOURCES = src/logger.c $(OS_SRC)
 
 if BUILD_DEMO
-bin_PROGRAMS = hookdemo postdemo
+bin_PROGRAMS = demohook demopost
 
-hookdemo_SOURCES = demo/hook_demo.c
-hookdemo_LDADD = $(top_builddir)/libuiohook.la
-hookdemo_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
-hookdemo_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
+demohook_SOURCES = src/demo_hook.c
+demohook_LDADD = $(top_builddir)/libuiohook.la
+demohook_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
+demohook_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
 
-postdemo_SOURCES = demo/post_demo.c
-postdemo_LDADD = $(top_builddir)/libuiohook.la
-postdemo_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
-postdemo_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
+demopost_SOURCES = src/demo_post.c
+demopost_LDADD = $(top_builddir)/libuiohook.la
+demopost_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
+demopost_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
 endif
 
 EXTRA_DIST = COPYING.md COPYING.LESSER.md README.md

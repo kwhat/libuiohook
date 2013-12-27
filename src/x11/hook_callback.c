@@ -29,8 +29,7 @@
 #include <X11/extensions/record.h>
 
 #include "logger.h"
-#include "x11_input_helper.h"
-#include "x_unicode_helper.h"
+#include "input_helper.h"
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;

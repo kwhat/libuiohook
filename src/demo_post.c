@@ -16,34 +16,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
+#include <stdio.h>
+#include <stdlib.h>
 #include <uiohook.h>
 
-#include "library_load.h"
-#include "logger.h"
-#include "osx_input_helper.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
-// Create a shared object constructor and destructor.
+// Virtual event pointers
+static virtual_event *event = NULL;
 
-// FIXME This still does not work on OS X presumably because it is not required
-// by anything when statically linked.
+//int main(int argc, char *argv[]) {
+int main() {
+	// Allocate memory for the virtual events only once.
+	event = (virtual_event *) malloc(sizeof(virtual_event));
 
-__attribute__ ((constructor))
-void on_library_load() {
-	// Display the copyright on library load.
-	COPYRIGHT();
+	event->type = EVENT_KEY_PRESSED;
+	event->mask = 0x00;
 
-	load_input_helper();
+	event->data.keyboard.keycode = VC_A;
+	event->data.keyboard.keychar = CHAR_UNDEFINED;
+
+	hook_post_event(event);
+
+	event->type = EVENT_KEY_RELEASED;
+	
+	hook_post_event(event);
+
+	free(event);
+
+	return 0;
 }
-
-__attribute__ ((destructor))
-void on_library_unload() {
-	unload_input_helper();
-}
-
-// FIXME This is only here to preserve constructors during static linking.  
-// This should go away after platform refactoring.
-void test(){}

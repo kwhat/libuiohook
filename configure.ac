@@ -52,7 +52,8 @@ AC_CONFIG_MACRO_DIR([m4])
 
 # Initialize automake.
 # FIXME This should use subdir-objects, but the makefile needs work.
-AM_INIT_AUTOMAKE([1.9 foreign -Wall])
+#AM_INIT_AUTOMAKE([1.9 foreign -Wall])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 # Checks for language.
 AC_LANG([C])
@@ -81,7 +82,7 @@ AS_CASE([$host],
 	],
 	[*-freebsd* | *-linux* | *-solaris*], [
 		AC_MSG_RESULT([$host (Unix Compatible)])
-		backend="unix"
+		backend="x11"
 
 		#LT_INIT
 	],
@@ -184,20 +185,20 @@ AS_IF(
 		LIBS="${LIBS} -framework Carbon"
 
 		#CFLAGS="$CFLAGS -I/usr/local/include"
-		#LDFLAGS="$LDFLAGS  -Wl,-undefined,error"
+		#LDFLAGS="$LDFLAGS -Wl,-undefined,error"
 	],
-	[test "x$backend" = "xunix"], [
+	[test "x$backend" = "xx11"], [
 		# Checks for libraries.
 		PKG_PROG_PKG_CONFIG
 
 		PKG_CHECK_MODULES([X11], [x11])
-		DEMO_LIBS="$X11_LIBS $DEMO_LIBS"
-		DEMO_CFLAGS="$X11_CFLAGS $DEMO_CFLAGS"
+		LIBS="$X11_LIBS $LIBS"
+		#CFLAGS="$X11_CFLAGS $CFLAGS"
 		REQUIRE="$REQUIRE x11"
 
 		PKG_CHECK_MODULES([XTST], [xtst])
-		DEMO_CFLAGS="$XTST_CFLAGS $DEMO_CFLAGS"
-		DEMO_LIBS="$XTST_LIBS $DEMO_LIBS"
+		#CFLAGS="$XTST_CFLAGS $CFLAGS"
+		LIBS="$XTST_LIBS $LIBS"
 		REQUIRE="$REQUIRE xtst"
 
 		# Check for XRecord.
@@ -216,16 +217,16 @@ AS_IF(
 		AS_IF([test "x$enable_xt" = "xyes"], [
 			AC_DEFINE([USE_XT], 1, [Enable X Toolkit Intrinsics])
 			PKG_CHECK_MODULES([XT], [xt])
-			DEMO_CFLAGS="$XT_CFLAGS $DEMO_CFLAGS"
-			DEMO_LIBS="$XT_LIBS $DEMO_LIBS"
+			#CFLAGS="$XT_CFLAGS $CFLAGS"
+			LIBS="$XT_LIBS $LIBS"
 			REQUIRE="$REQUIRE xt"
 		])
 
 		AS_IF([test "x$enable_xf86misc" = "xyes"], [
 			AC_DEFINE([USE_XF86MISC], 1, [Enable XFree86-Misc X Extension])
 			PKG_CHECK_MODULES([XF86MISC], [xxf86misc])
-			DEMO_CFLAGS="$XF86MISC_CFLAGS $DEMO_CFLAGS"
-			DEMO_LIBS="$XF86MISC_LIBS $DEMO_LIBS"
+			#CFLAGS="$XF86MISC_CFLAGS $CFLAGS"
+			LIBS="$XF86MISC_LIBS $LIBS"
 			REQUIRE="$REQUIRE xxf86misc"
 		])
 
@@ -247,7 +248,7 @@ AS_IF(
 		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
 		LIBS="$PTHREAD_LIBS $LIBS"
 		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
-		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
+		LDFLAGS="$LDFLAGS -Wl,--no-undefined"
 	],
 	[test "x$backend" = "xwindows"], [
 		AC_DEFINE([_WIN32_WINNT], 0x0500, [Set minimum Windows version to Windows 2000])
@@ -263,7 +264,7 @@ AS_IF(
 		#LIBS="${LIBS} -lsetupapi"
 		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
 	])
-
+AC_MSG_RESULT([$LIBS])
 # OS info for Automake
 AC_SUBST([backend])
 
@@ -278,7 +279,7 @@ AM_CONDITIONAL([BUILD_DEMO], [test "x$enable_demo" = "xyes"])
 # Department of redundancy department.  We have already checked the platform 3
 # times!  I am sure there is a technical reason for this...
 AM_CONDITIONAL(BUILD_DARWIN, test "x$backend" = "xdarwin")
-AM_CONDITIONAL(BUILD_UNIX, test "x$backend" = "xunix")
+AM_CONDITIONAL(BUILD_X11, test "x$backend" = "xx11")
 AM_CONDITIONAL(BUILD_WINDOWS, test "x$backend" = "xwindows")
 
 # Generate the "configure" script

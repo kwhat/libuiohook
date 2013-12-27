@@ -33,7 +33,7 @@
 
 #include "hook_callback.h"
 #include "logger.h"
-#include "x11_input_helper.h"
+#include "input_helper.h"
 
 // The pointer to the X11 display accessed by the callback.
 static Display *disp_ctrl;

@@ -26,6 +26,8 @@
 #include <time.h>
 #endif
 
+#include "logger.h"
+
 // Program's is running sentinel.
 static bool running = false;
 
@@ -33,11 +35,11 @@ static bool running = false;
 // please do so on another thread with your own event dispatcher implementation.
 void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
-	fprintf(stdout,	"id=%i,when=%I64u,mask=0x%X",
-					event->type, event->time, event->mask);
+	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X", 
+			event->type, event->time, event->mask);
 	#else
-	fprintf(stdout,	"id=%i,when=%llu,mask=0x%X",
-					event->type, event->time, event->mask);
+	logger(LOG_LEVEL_INFO, "id=%i,when=%llu,mask=0x%X", 
+			event->type, event->time, event->mask);
 	#endif
 
 	switch (event->type) {
@@ -47,15 +49,13 @@ void dispatch_proc(virtual_event * const event) {
 				running = false;
 			}
 		case EVENT_KEY_RELEASED:
-			fprintf(stdout, ",keycode=%u,rawcode=0x%X",
-							event->data.keyboard.keycode,
-							event->data.keyboard.rawcode);
+			logger(LOG_LEVEL_INFO, ",keycode=%u,rawcode=0x%X",
+					event->data.keyboard.keycode, event->data.keyboard.rawcode);
 			break;
 
 		case EVENT_KEY_TYPED:
-			fprintf(stdout, "keychar=%lc,rawcode=%u",
-							event->data.keyboard.keychar,
-							event->data.keyboard.rawcode);
+			logger(LOG_LEVEL_INFO, ",keychar=%lc,rawcode=%u",
+					event->data.keyboard.keychar, event->data.keyboard.rawcode);
 			break;
 
 		case EVENT_MOUSE_PRESSED:
@@ -63,19 +63,19 @@ void dispatch_proc(virtual_event * const event) {
 		case EVENT_MOUSE_CLICKED:
 		case EVENT_MOUSE_MOVED:
 		case EVENT_MOUSE_DRAGGED:
-			fprintf(stdout, ",x=%i,y=%i,button=%i,clicks=%i",
-							event->data.mouse.x, event->data.mouse.y,
-							event->data.mouse.button, event->data.mouse.clicks);
+			logger(LOG_LEVEL_INFO, ",x=%i,y=%i,button=%i,clicks=%i",
+					event->data.mouse.x, event->data.mouse.y,
+					event->data.mouse.button, event->data.mouse.clicks);
 			break;
 
 		case EVENT_MOUSE_WHEEL:
-			fprintf(stdout, ",type=%i,amount=%i,rotation=%i",
+			logger(LOG_LEVEL_INFO, ",type=%i,amount=%i,rotation=%i",
 							event->data.wheel.type, event->data.wheel.amount,
 							event->data.wheel.rotation);
 			break;
 	}
 
-	fprintf(stdout, "\n");
+	logger(LOG_LEVEL_INFO, "\n");
 }
 
 int main() {

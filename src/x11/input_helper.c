@@ -1018,6 +1018,7 @@ static struct codepair {
  *
  * This software is in the public domain. Share and enjoy!
  ***********************************************************************/
+// TODO See if the above mentioned alternative is viable.
 KeySym unicode_to_keysym(wchar_t ucs) {
 	int min = 0;
 	int max = sizeof(keysym_unicode_table) / sizeof(struct codepair) - 1;
@@ -1065,6 +1066,7 @@ KeySym unicode_to_keysym(wchar_t ucs) {
  *
  * This software is in the public domain. Share and enjoy!
  ***********************************************************************/
+// TODO See if the above mentioned alternative is viable.
 wchar_t keysym_to_unicode(KeySym keysym) {
 	int min = 0;
 	int max = sizeof(keysym_unicode_table) / sizeof(struct codepair) - 1;

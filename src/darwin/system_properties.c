@@ -34,6 +34,7 @@
 #include <uiohook.h>
 
 #include "logger.h"
+#include "osx_input_helper.h"
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this
@@ -440,4 +441,19 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	#endif
 
 	return value;
+}
+
+// Create a shared object constructor.
+__attribute__ ((constructor))
+void on_library_load() {
+	// Display the copyright on library load.
+	COPYRIGHT();
+
+	load_input_helper();
+}
+
+// Create a shared object destructor.
+__attribute__ ((destructor))
+void on_library_unload() {
+	unload_input_helper();
 }

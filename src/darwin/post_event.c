@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <uiohook.h>
 
-static unsigned int btnmask_lookup[10] = {
+static unsigned int button_mask_table[10] = {
 	kCGEventLeftMouseDown,	// Button 1
 	kCGEventRightMouseDown,	// Button 2
 	kCGEventOtherMouseDown,	// Button 3
@@ -70,7 +70,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			
 		case EVENT_MOUSE_PRESSED:
 			CGEventCreateMouseEvent(NULL, 
-					btnmask_lookup[event->data.mouse.button - 1],
+					button_mask_table[event->data.mouse.button - 1],
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y
@@ -83,7 +83,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			}
 		case EVENT_MOUSE_RELEASED:
 			CGEventCreateMouseEvent(NULL, 
-					btnmask_lookup[event->data.mouse.button - 1],
+					button_mask_table[event->data.mouse.button - 1],
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y

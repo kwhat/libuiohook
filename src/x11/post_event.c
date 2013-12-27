@@ -63,7 +63,6 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 
 	// XTest does not have modifier support, so we fake it by depressing the
 	// appropriate modifier keys.
-	// TODO Check and see if GCC unrolls these loops with -02
 	for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(KeySym); i++) {
 		if (event->mask & 1 << i) {
 			XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, keymask_lookup[i]), True, 0);
@@ -187,8 +186,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			((XKeyEvent *) x_event)->y = win_y;
 			((XKeyEvent *) x_event)->x_root = root_x;
 			((XKeyEvent *) x_event)->y_root = root_y;
-			// FIXME convert modifiers to native!
-			//((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
+			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
 			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
 			((XKeyEvent *) x_event)->same_screen = True;
 			break;
@@ -220,8 +218,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			((XButtonEvent *) x_event)->y = win_y;
 			((XButtonEvent *) x_event)->x_root = root_x;
 			((XButtonEvent *) x_event)->y_root = root_y;
-			// FIXME convert modifiers to native!
-			//((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
+			((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
 			((XButtonEvent *) x_event)->button = event->data.mouse.button;
 			((XButtonEvent *) x_event)->same_screen = True;
 			break;
@@ -276,8 +273,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			((XMotionEvent *) x_event)->y = win_y; // Not sure what to do this
 			((XMotionEvent *) x_event)->x_root = event->data.mouse.x;
 			((XMotionEvent *) x_event)->y_root = event->data.mouse.y;
-			// FIXME convert modifiers to native!
-			//((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);;
+			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);;
 			((XMotionEvent *) x_event)->is_hint = NotifyNormal;
 			((XMotionEvent *) x_event)->same_screen = True;
 			break;
@@ -288,4 +284,22 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 
 	// Don't forget to flush!
 	XFlush(disp);
+}
+
+// TODO Possibly relocate to input converter.
+static unsigned int convert_to_native_mask(unsigned int mask) {
+        unsigned int native_mask = 0;
+
+        if (mask & MASK_SHIFT)		native_mask |= ShiftMask;
+        if (mask & MASK_CTRL)		native_mask |= ControlMask;
+        if (mask & MASK_META)		native_mask |= Mod4Mask;
+        if (mask & MASK_ALT)		native_mask |= Mod1Mask;
+
+        if (mask & MASK_BUTTON1)	native_mask |= Button1Mask;
+        if (mask & MASK_BUTTON2)	native_mask |= Button2Mask;
+        if (mask & MASK_BUTTON3)	native_mask |= Button3Mask;
+        if (mask & MASK_BUTTON4)	native_mask |= Button4Mask;
+        if (mask & MASK_BUTTON5)	native_mask |= Button5Mask;
+
+        return native_mask;
 }

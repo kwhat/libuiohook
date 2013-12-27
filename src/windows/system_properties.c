@@ -26,6 +26,9 @@
 #include "logger.h"
 #include "win_unicode_helper.h"
 
+// Global Variables.
+HINSTANCE hInst = NULL;
+
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	long int value = -1;
 	long int rate;
@@ -110,4 +113,34 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	value = (long int) clicktime;
 
 	return value;
+}
+
+// Create a shared object constructor.
+void on_library_load() {
+	hInst = GetModuleHandle(NULL);
+
+	// Display the copyright on library load.
+	COPYRIGHT();
+	
+	load_unicode_helper();
+}
+
+// Create a shared object destructor.
+void on_library_unload() {
+	unload_unicode_helper();
+}
+
+// DLL Entry point.
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
+	switch (fdwReason) {
+		case DLL_PROCESS_ATTACH:
+			//hInst = hinstDLL;
+			on_library_load();
+			break;
+		case DLL_PROCESS_DETACH:
+			on_library_unload();
+	        break;
+    }
+
+    return TRUE;
 }

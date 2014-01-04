@@ -32,7 +32,7 @@
 
 #include "hook_callback.h"
 #include "logger.h"
-#include "osx_input_helper.h"
+#include "input_helper.h"
 
 // Thread and hook handles.
 static CFRunLoopRef event_loop;

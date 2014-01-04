@@ -26,7 +26,7 @@
 
 #include "hook_callback.h"
 #include "logger.h"
-#include "win_unicode_helper.h"
+#include "input_helper.h"
 
 // Modifiers for tracking key masks.
 static unsigned short int current_modifiers = 0x0000;

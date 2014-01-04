@@ -264,7 +264,7 @@ AS_IF(
 		#LIBS="${LIBS} -lsetupapi"
 		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
 	])
-AC_MSG_RESULT([$LIBS])
+
 # OS info for Automake
 AC_SUBST([backend])
 

@@ -25,7 +25,7 @@
 #include <uiohook.h>
 
 #include "logger.h"
-#include "osx_input_helper.h"
+#include "input_helper.h"
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x00000000;

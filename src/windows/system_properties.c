@@ -24,7 +24,7 @@
 #include <windows.h>
 
 #include "logger.h"
-#include "win_unicode_helper.h"
+#include "input_helper.h"
 
 // Global Variables.
 HINSTANCE hInst = NULL;

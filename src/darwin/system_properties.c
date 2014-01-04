@@ -34,7 +34,7 @@
 #include <uiohook.h>
 
 #include "logger.h"
-#include "osx_input_helper.h"
+#include "input_helper.h"
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this

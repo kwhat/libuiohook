@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
-#include "osx_input_helper.h"
+#include "input_helper.h"
 
 // Current dead key state.
 #if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)

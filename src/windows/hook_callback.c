@@ -157,8 +157,6 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
-
-			printf("Scancode: %#00X,  Flags %#00X\n", kbhook->scanCode, kbhook->flags);
 			
 			event.data.keyboard.keycode = kbhook->scanCode;
 			if (kbhook->flags & 0x03) {

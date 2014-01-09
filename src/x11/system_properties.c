@@ -41,7 +41,7 @@ static Display *xt_disp;
 #include "copyright.h"
 #include "logger.h"
 
-static Display *disp;
+Display *disp;
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	bool successful = false;
@@ -175,17 +175,12 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	// Try and use the Xt extention to get the current multi-click.
 	if (!successful) {
 		// Fall back to the X Toolkit extension if available and other efforts failed.
-			click_time = XtGetMultiClickTime(xt_disp);
-			if (click_time >= 0) {
-				logger(LOG_LEVEL_INFO,	"%s [%u]: XtGetMultiClickTime: %i.\n", 
-						__FUNCTION__, __LINE__, click_time);
-
-				successful = true;
-			}
-		}
-		else {
-			logger(LOG_LEVEL_WARN,	"%s [%u]: XtOpenDisplay failure!\n", 
+		click_time = XtGetMultiClickTime(xt_disp);
+		if (click_time >= 0) {
+			logger(LOG_LEVEL_INFO,	"%s [%u]: XtGetMultiClickTime: %i.\n", 
 					__FUNCTION__, __LINE__, click_time);
+
+			successful = true;
 		}
 	}
 	#endif

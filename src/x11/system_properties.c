@@ -38,7 +38,7 @@ static XtAppContext xt_context;
 static Display *xt_disp;
 #endif
 
-#include "copyright"
+#include "copyright.h"
 #include "logger.h"
 
 static Display *disp;

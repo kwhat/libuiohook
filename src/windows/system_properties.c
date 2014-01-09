@@ -23,7 +23,7 @@
 #include <uiohook.h>
 #include <windows.h>
 
-#include "copyright"
+#include "copyright.h"
 #include "logger.h"
 #include "input_helper.h"
 

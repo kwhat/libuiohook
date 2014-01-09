@@ -33,7 +33,7 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
-#include "copyright"
+#include "copyright.h"
 #include "logger.h"
 #include "input_helper.h"
 

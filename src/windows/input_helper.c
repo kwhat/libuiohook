@@ -304,7 +304,7 @@ static int refresh_locale_list() {
 	return count;
 }
 
-int load_unicode_helper() {
+int load_input_helper() {
 	int count = 0;
 
 	#if defined(_WIN32) && !defined(_WIN64)
@@ -323,7 +323,7 @@ int load_unicode_helper() {
 }
 
 // This returns the number of locales that were removed.
-int unload_unicode_helper() {
+int unload_input_helper() {
 	int count = 0;
 
 	// Cleanup and free memory from the old list.

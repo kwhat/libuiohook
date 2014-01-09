@@ -38,9 +38,6 @@ static bool is_caps_lock = false, is_shift_lock = false;
 
 #include "logger.h"
 
-// Unicode-Remapse the NativeHelpers display.
-extern Display *disp;
-
 /*
  * This table is taken from QEMU x_keymap.c, under the terms:
  *
@@ -1316,7 +1313,7 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 	return keysym;
 }
 
-void load_input_helper() {
+void load_input_helper(Display *disp) {
 	#ifdef USE_XKB
 	/* The following code block is based on vncdisplaykeymap.c under the terms:
 	 *
@@ -1356,7 +1353,6 @@ void load_input_helper() {
 		logger(LOG_LEVEL_ERROR, 
 				"%s [%u]: XkbGetKeyboard failed to locate a valid keyboard!\n", 
 				__FUNCTION__, __LINE__);
-		fprintf(stderr, "keycode_to_keysym(): !\n");
 	}
 
 	// Get the map.

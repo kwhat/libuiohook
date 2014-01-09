@@ -38,15 +38,16 @@ static XtAppContext xt_context;
 static Display *xt_disp;
 #endif
 
+#include "copyright"
 #include "logger.h"
 
-Display *disp;
+static Display *disp;
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	bool successful = false;
 	long int value = -1;
 	unsigned int delay = 0, rate = 0;
-
+	
 	#ifdef USE_XKB
 	// Attempt to acquire the keyboard auto repeat rate using the XKB extension.
 	if (!successful) {
@@ -146,7 +147,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 
 		value = (long int) threshold;
 	}
-
+	
 	return value;
 }
 
@@ -161,7 +162,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 
 		value = (long int) accel_numerator;
 	}
-
+	
 	return value;
 }
 
@@ -174,12 +175,17 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	// Try and use the Xt extention to get the current multi-click.
 	if (!successful) {
 		// Fall back to the X Toolkit extension if available and other efforts failed.
-		click_time = XtGetMultiClickTime(xt_disp);
-		if (click_time >= 0) {
-			logger(LOG_LEVEL_INFO,	"%s [%u]: XtGetMultiClickTime: %i.\n", 
-					__FUNCTION__, __LINE__, click_time);
+			click_time = XtGetMultiClickTime(xt_disp);
+			if (click_time >= 0) {
+				logger(LOG_LEVEL_INFO,	"%s [%u]: XtGetMultiClickTime: %i.\n", 
+						__FUNCTION__, __LINE__, click_time);
 
-			successful = true;
+				successful = true;
+			}
+		}
+		else {
+			logger(LOG_LEVEL_WARN,	"%s [%u]: XtOpenDisplay failure!\n", 
+					__FUNCTION__, __LINE__, click_time);
 		}
 	}
 	#endif
@@ -204,7 +210,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 			successful = true;
 		}
 	}
-
+	
 	if (successful) {
 		value = (long int) click_time;
 	}
@@ -240,29 +246,6 @@ void on_library_load() {
 	char ** argv = { NULL };
 	xt_disp = XtOpenDisplay(xt_context, NULL, "UIOHook", "libuiohook", NULL, 0, &argc, argv);
 	#endif
-
-	// NOTE: is_auto_repeat is NOT stdbool!
-	Bool is_auto_repeat = False;
-	#ifdef USE_XKB
-	// Enable detectable autorepeat.
-	XkbSetDetectableAutoRepeat(disp, True, &is_auto_repeat);
-	#else
-	XAutoRepeatOn(disp);
-
-	XKeyboardState kb_state;
-	XGetKeyboardControl(disp, &kb_state);
-
-	is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
-	#endif
-
-	if (is_auto_repeat == False) {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
-				__FUNCTION__, __LINE__, "Could not enable detectable auto-repeat!");
-	}
-	else {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
-				__FUNCTION__, __LINE__);
-	}
 }
 
 // Create a shared object destructor.

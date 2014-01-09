@@ -27,6 +27,9 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <uiohook.h>
+#ifdef USE_XKB
+#include <X11/XKBlib.h>
+#endif
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/record.h>
@@ -88,7 +91,7 @@ static void *hook_thread_proc(void *arg) {
 						__FUNCTION__, __LINE__);
 
 				// Initialize Native Input Functions.
-				load_input_helper();
+				load_input_helper(disp_ctrl);
 
 				#ifdef USE_XRECORD_ASYNC
 				// Allow the thread loop to block.
@@ -192,6 +195,30 @@ UIOHOOK_API int hook_enable() {
 		disp_ctrl = XOpenDisplay(NULL);
 
 		if (disp_ctrl != NULL) {
+			// Attempt to setup detectable autorepeat.
+			// NOTE: is_auto_repeat is NOT stdbool!
+			Bool is_auto_repeat = False;
+			#ifdef USE_XKB
+			// Enable detectable autorepeat.
+			XkbSetDetectableAutoRepeat(disp_ctrl, True, &is_auto_repeat);
+			#else
+			XAutoRepeatOn(disp_ctrl);
+
+			XKeyboardState kb_state;
+			XGetKeyboardControl(disp_ctrl, &kb_state);
+
+			is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
+			#endif
+
+			if (is_auto_repeat == False) {
+				logger(LOG_LEVEL_WARN,	"%s [%u]: %s\n",
+						__FUNCTION__, __LINE__, "Could not enable detectable auto-repeat!\n");
+			}
+			else {
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
+						__FUNCTION__, __LINE__);
+			}
+		
 			// Check to make sure XRecord is installed and enabled.
 			int major, minor;
 			if (XRecordQueryVersion(disp_ctrl, &major, &minor) != 0) {

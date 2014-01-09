@@ -28,28 +28,5 @@
 #define __FUNCTION__ __func__
 #endif
 
-#ifdef USE_QUIET
-#define COPYRIGHT() (void) 0;
-#else
-#include <stdio.h>
-#define COPYRIGHT()	fprintf(stdout, \
-		"libUIOHook: Cross-platfrom userland keyboard and mouse hooking.\n" \
-		"Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.\n" \
-		"https://github.com/kwhat/libuiohook/\n" \
-		"\n" \
-		"libUIOHook is free software: you can redistribute it and/or modify\n" \
-		"it under the terms of the GNU Lesser General Public License as published\n" \
-		"by the Free Software Foundation, either version 3 of the License, or\n" \
-		"(at your option) any later version.\n" \
-		"\n" \
-		"libUIOHook is distributed in the hope that it will be useful,\n" \
-		"but WITHOUT ANY WARRANTY; without even the implied warranty of\n" \
-		"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n" \
-		"GNU General Public License for more details.\n" \
-		"\n" \
-		"You should have received a copy of the GNU Lesser General Public License\n" \
-		"along with this program.  If not, see <http://www.gnu.org/licenses/>.\n\n");
-#endif
-
 // logger(level, message)
 extern logger_t logger;

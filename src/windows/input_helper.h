@@ -128,8 +128,8 @@ typedef struct tagKbdLayer {
 	DWORD dwSubType;
 } KBDTABLES, *PKBDTABLES; // __ptr64
 
-int load_unicode_helper();
-int unload_unicode_helper();
+int load_input_helper();
+int unload_input_helper();
 int convert_vk_to_wchar(int virtualKey, PWCHAR out, PWCHAR buffer);
 
 #endif

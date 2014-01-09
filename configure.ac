@@ -101,7 +101,7 @@ AC_PROG_LIBTOOL
 
 # Common Options
 AC_ARG_ENABLE([debug],
-	AS_HELP_STRING([--enable-debug], [Enable Debug Output (default: disabled)]),
+	AS_HELP_STRING([--enable-debug], [Enable debug output (default: disabled)]),
 	[enable_debug="$enableval"],
 	[enable_debug="no"])
 
@@ -109,6 +109,11 @@ AC_ARG_ENABLE([demo],
 	AS_HELP_STRING([--enable-demo], [Enable demo application (default: disabled)]),
 	[enable_demo=$enableval],
 	[enable_demo="no"])
+
+AC_ARG_ENABLE([quiet],
+	AS_HELP_STRING([--enable-quiet], [Enable copyright suppression (default: disabled)]),
+	[enable_quiet=$enableval],
+	[enable_quiet="no"])
 
 # Unix Options
 AC_ARG_ENABLE([xkb],
@@ -155,6 +160,10 @@ AC_ARG_ENABLE([carbon-legacy],
 
 AS_IF([test "x$enable_debug" = "xyes"], [
 	AC_DEFINE([USE_DEBUG], 1, [Enable Debug Output])
+])
+
+AS_IF([test "x$enable_quiet" = "xyes"], [
+	AC_DEFINE([USE_QUIET], 1, [Enable Copyright Suppression])
 ])
 
 AS_IF(

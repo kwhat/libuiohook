@@ -122,7 +122,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		// FIXME Its not worth using the native modifier tracking.
 		int event_mask = data->event.u.keyButtonPointer.state;
-		printf("TEST %u  %#x\n", event_code, event_mask);
 		
 		KeySym keysym;
 		unsigned short int button, scancode;
@@ -216,7 +215,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				if (event_code > 0 && (event_code <= 3 || event_code == XButton1 || event_code == XButton2)) {
 					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
 					button = (event_code & 0x03) | (event_code & 0x08) >> 1;
-					printf("Button Down %u %u\n", event_code, button);
 					
 					set_modifier_mask(1 << (button + 7));
 
@@ -284,7 +282,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					// Handle button release events.
 					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
 					button = (event_code & 0x03) | (event_code & 0x08) >> 1;
-					printf("Button Down %u %u\n", event_code, button);
 					
 					unset_modifier_mask(1 << (button + 7));
 					

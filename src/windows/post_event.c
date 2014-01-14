@@ -24,6 +24,28 @@
 #include <uiohook.h>
 #include <windows.h>
 
+#include "logger.h"
+
+// I am not sure why this isn't defined by windows.h.
+#ifndef MAPVK_VK_TO_VSC_EX
+#define MAPVK_VK_TO_VSC			0
+#define MAPVK_VSC_TO_VK			1
+#define MAPVK_VK_TO_CHAR		2
+#define MAPVK_VSC_TO_VK_EX		3
+#define MAPVK_VK_TO_VSC_EX		4
+#endif
+
+#ifndef KEYEVENTF_SCANCODE
+#define KEYEVENTF_EXTENDEDKEY	0x0001
+#define KEYEVENTF_KEYUP			0x0002
+#define	KEYEVENTF_UNICODE		0x0004
+#define KEYEVENTF_SCANCODE		0x0008
+#endif
+
+#ifndef KEYEVENTF_KEYDOWN
+#define KEYEVENTF_KEYDOWN		0x0000
+#endif
+
 static UINT keymask_lookup[8] = {
 	VK_LSHIFT,
 	VK_LCONTROL,
@@ -44,8 +66,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
 			if (event->mask & 1 << i) {
 				events[events_size].type = INPUT_KEYBOARD;
-				//events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
-				events[events_size].ki.dwFlags = 0x0000;  // KEYEVENTF_KEYDOWN
+				events[events_size].ki.wVk = keymask_lookup[i];
+				events[events_size].ki.dwFlags = KEYEVENTF_KEYDOWN;
 				events[events_size].ki.time = 0; // Use current system time.
 				events_size++;
 			}
@@ -95,8 +117,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			snprintf(buffer, 4, "%lc", event->data.keyboard.keychar);
 
 			event->type = EVENT_KEY_PRESSED;
-			// TODO Find a better way to do this.
-			//event->data.keyboard.keycode = convert_to_native_key(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)));
+			event->data.keyboard.keycode = MapVirtualKey(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)), MAPVK_VK_TO_VSC_EX);
 			event->data.keyboard.keychar = CHAR_UNDEFINED;
 			hook_post_event(event);
 
@@ -106,9 +127,9 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		EVENT_KEY:
 			events[events_size].type = INPUT_KEYBOARD;
 
-			//events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
-			//events[events_size].ki.wScan = MapVirtualKey(vkCode, 0); //MAPVK_VK_TO_VSC
-			//events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
+			events[events_size].ki.wVk = MapVirtualKey(event->data.keyboard.keycode, MAPVK_VK_TO_VSC_EX);
+			events[events_size].ki.wScan = event->data.keyboard.keycode;
+			events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
 
 			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
 					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
@@ -123,7 +144,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			goto EVENT_BUTTON;
 
 		case EVENT_MOUSE_WHEEL:
-			// Wheel events should be the same as click events on X11.
+			// Wheel events should be the same as click events.
 
 		case EVENT_MOUSE_CLICKED:
 			event->type = EVENT_MOUSE_PRESSED;
@@ -159,7 +180,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
 			if (event->mask & 1 << i) {
 				events[events_size].type = INPUT_KEYBOARD;
-				//events[events_size].ki.wVk = convert_to_native_key(event->data.keyboard.keycode);
+				events[events_size].ki.wVk = keymask_lookup[i];
 				events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
 				events[events_size].ki.time = 0; // Use current system time.
 				events_size++;
@@ -204,7 +225,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	//key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
 
 	if (! SendInput(events_size, events, sizeof(INPUT)) ) {
-		printf("Error 0x%X\n", (unsigned int) GetLastError());
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: SendInput() failed! (%#lX)\n", 
+				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 	}
 
 	free(events);

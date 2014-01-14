@@ -48,9 +48,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		case EVENT_KEY_TYPED:
 
 		case EVENT_KEY_PRESSED:
-/*
 			cg_event = CGEventCreateKeyboardEvent(NULL, 
-					(CGKeyCode) convert_to_native_key(event->data.keyboard.keycode), 
+					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode), 
 					true);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
 			
@@ -60,7 +59,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			
 		case EVENT_KEY_RELEASED:
 			cg_event = CGEventCreateKeyboardEvent(NULL, 
-					(CGKeyCode) convert_to_native_key(event->data.keyboard.keycode), 
+					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode), 
 					true);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
 			break;
@@ -102,7 +101,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 					0
 			);
 			break;
-*/			
+		
 		case EVENT_MOUSE_DRAGGED:
 			//kCGEventLeftMouseDragged
 			//kCGEventRightMouseDragged

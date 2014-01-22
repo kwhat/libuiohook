@@ -22,3 +22,7 @@
 /include/config.h.in~
 /.libs/
 /include/config.h.in
+/src/windows/.deps/
+/src/windows/.dirstamp
+/src/.dirstamp
+/src/.deps/

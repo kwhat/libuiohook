@@ -40,7 +40,7 @@ LTLDFLAGS="-version-info ${lt_current}:${lt_revision}:${lt_age}"
 AC_INIT([uiohook], [UIOHOOK_VERSION_STRING], [UIOHOOK_BUGS])
 
 AC_PREREQ(2.64)
-#AC_CANONICAL_SYSTEM requires src/native/install.sh
+
 AC_CONFIG_SRCDIR([include/uiohook.h])
 AC_CONFIG_FILES([
 	pc/uiohook.pc \
@@ -50,9 +50,11 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_HEADERS([include/config.h:include/config.h.in])
 AC_CONFIG_MACRO_DIR([m4])
 
+#AC_CANONICAL_SYSTEM
+AC_CANONICAL_HOST
+AC_CANONICAL_BUILD
+
 # Initialize automake.
-# FIXME This should use subdir-objects, but the makefile needs work.
-#AM_INIT_AUTOMAKE([1.9 foreign -Wall])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 # Checks for language.
@@ -69,7 +71,7 @@ AC_HEADER_STDBOOL
 #AC_CHECK_HEADERS([inttypes.h stdint.h])
 
 # Initialize libtool.
-#LT_PREREQ([2.2])
+AC_PROG_LIBTOOL
 
 # Check for opperating system.
 AC_MSG_CHECKING(operating system)
@@ -77,27 +79,18 @@ AS_CASE([$host],
 	[*-darwin*], [
 		AC_MSG_RESULT([$host (Mac OS X Compatible)])
 		backend="darwin"
-
-		#LT_INIT
 	],
-	[*-freebsd* | *-linux* | *-solaris*], [
+	[*-freebsd* | *-openbsd* | *-linux* | *-solaris*], [
 		AC_MSG_RESULT([$host (Unix Compatible)])
 		backend="x11"
-
-		#LT_INIT
 	],
 	[*-mingw* | *-cygwin* | *-msys* ], [
 		AC_MSG_RESULT([$host (Windows Compatible)])
 		backend="windows"
 
-		#LT_INIT([dlopen pic-only win32-dll ])
-		#LT_LANG([Windows Resource])
 		AC_LIBTOOL_WIN32_DLL
 	],
 	[AC_MSG_ERROR([Unsupported operating system ${host}])])
-
-
-AC_PROG_LIBTOOL
 
 # Common Options
 AC_ARG_ENABLE([debug],

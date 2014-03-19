@@ -20,7 +20,7 @@
 m4_define([UIOHOOK_MAJOR],	[1])
 m4_define([UIOHOOK_MINOR],	[2])
 m4_define([UIOHOOK_PATCH],	[0])
-m4_define([UIOHOOK_RC],		[_M1])
+m4_define([UIOHOOK_RC],		[_M2])
 m4_define([UIOHOOK_BUGS],	[alex@1stleg.com])
 m4_define([UIOHOOK_VERSION_STRING], UIOHOOK_MAJOR[.]UIOHOOK_MINOR[.]UIOHOOK_PATCH[]UIOHOOK_RC)
 
@@ -61,7 +61,7 @@ AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_LANG([C])
 
 # Checks for programs.
-AC_PROG_CC
+AC_PROG_CC([gcc clang])
 AC_PROG_CC_C99
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 

@@ -30,6 +30,8 @@
 #include <X11/extensions/XTest.h>
 #endif
 
+#include "input_helper.h"
+
 extern Display *disp;
 
 // This lookup table must be in the same order the masks are defined.
@@ -53,6 +55,24 @@ static unsigned int btnmask_lookup[5] = {
 	MASK_BUTTON4,
 	MASK_BUTTON5
 };
+#else
+// TODO Possibly relocate to input helper.
+static unsigned int convert_to_native_mask(unsigned int mask) {
+        unsigned int native_mask = 0;
+
+        if (mask & MASK_SHIFT)		native_mask |= ShiftMask;
+        if (mask & MASK_CTRL)		native_mask |= ControlMask;
+        if (mask & MASK_META)		native_mask |= Mod4Mask;
+        if (mask & MASK_ALT)		native_mask |= Mod1Mask;
+
+        if (mask & MASK_BUTTON1)	native_mask |= Button1Mask;
+        if (mask & MASK_BUTTON2)	native_mask |= Button2Mask;
+        if (mask & MASK_BUTTON3)	native_mask |= Button3Mask;
+        if (mask & MASK_BUTTON4)	native_mask |= Button4Mask;
+        if (mask & MASK_BUTTON5)	native_mask |= Button5Mask;
+
+        return native_mask;
+}
 #endif
 
 UIOHOOK_API void hook_post_event(virtual_event * const event) {
@@ -284,22 +304,4 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 
 	// Don't forget to flush!
 	XFlush(disp);
-}
-
-// TODO Possibly relocate to input converter.
-static unsigned int convert_to_native_mask(unsigned int mask) {
-        unsigned int native_mask = 0;
-
-        if (mask & MASK_SHIFT)		native_mask |= ShiftMask;
-        if (mask & MASK_CTRL)		native_mask |= ControlMask;
-        if (mask & MASK_META)		native_mask |= Mod4Mask;
-        if (mask & MASK_ALT)		native_mask |= Mod1Mask;
-
-        if (mask & MASK_BUTTON1)	native_mask |= Button1Mask;
-        if (mask & MASK_BUTTON2)	native_mask |= Button2Mask;
-        if (mask & MASK_BUTTON3)	native_mask |= Button3Mask;
-        if (mask & MASK_BUTTON4)	native_mask |= Button4Mask;
-        if (mask & MASK_BUTTON5)	native_mask |= Button5Mask;
-
-        return native_mask;
 }

@@ -309,9 +309,8 @@ UIOHOOK_API int hook_enable() {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 					__FUNCTION__, __LINE__);
 
-			/* OS X does not support glibc pthread_setschedprio so we will
-			 * always use pthread_setschedparam instead.
-			 */
+			// OS X does not support glibc pthread_setschedprio so we will
+			// always use pthread_setschedparam instead.
 			struct sched_param param = { .sched_priority = priority };
 			if (pthread_setschedparam(hook_thread_id, SCHED_OTHER, &param) != 0) {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",

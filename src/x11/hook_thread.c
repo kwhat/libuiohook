@@ -239,9 +239,8 @@ UIOHOOK_API int hook_enable() {
 							__FUNCTION__, __LINE__);
 
 					#if _POSIX_C_SOURCE >= 200112L
-					/* POSIX does not support pthread_setschedprio so we will use
-					 * pthread_setschedparam instead.
-					 */
+					// POSIX does not support pthread_setschedprio so we will use
+					// pthread_setschedparam instead.
 					struct sched_param param = { .sched_priority = priority };
 					if (pthread_setschedparam(hook_thread_id, SCHED_OTHER, &param) != 0) {
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",

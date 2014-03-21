@@ -91,13 +91,13 @@ static void *hook_thread_proc(void *arg) {
 		*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
 		dlError = dlerror();
 		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
-			// Check for property kAXTrustedCheckOptionPrompt
-			CFStringRef kAXTrustedCheckOptionPrompt_t = (CFStringRef) dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
+			// Check for property CFStringRef kAXTrustedCheckOptionPrompt
+			void ** kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
+
 			dlError = dlerror();
 			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
 				// New accessibility API 10.9 and later.
-				// FIXME This is causing a segfault on 10.9 probably due to an invalid pointer type.
-				const void * keys[] = { kAXTrustedCheckOptionPrompt_t };
+				const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
 				const void * values[] = { kCFBooleanTrue };
 
 				CFDictionaryRef options = CFDictionaryCreate(

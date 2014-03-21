@@ -62,7 +62,7 @@ static void *hook_thread_proc(void *arg) {
 
 	Display *disp_data = XOpenDisplay(NULL);
 	if (disp_data != NULL) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
 				__FUNCTION__, __LINE__);
 
 		// Make sure the data display is synchronized to prevent late event delivery!
@@ -74,7 +74,7 @@ static void *hook_thread_proc(void *arg) {
 		XRecordClientSpec clients = XRecordAllClients;
 		XRecordRange *range = XRecordAllocRange();
 		if (range != NULL) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n", 
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n",
 					__FUNCTION__, __LINE__);
 
 			// Create XRecord Context.
@@ -87,7 +87,7 @@ static void *hook_thread_proc(void *arg) {
 			 */
 			context = XRecordCreateContext(disp_data, 0, &clients, 1, &range, 1);
 			if (context != 0) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n", 
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 						__FUNCTION__, __LINE__);
 
 				// Initialize Native Input Functions.
@@ -121,7 +121,7 @@ static void *hook_thread_proc(void *arg) {
 				}
 				#endif
 				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordEnableContext failure!\n", 
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordEnableContext failure!\n",
 						__FUNCTION__, __LINE__);
 
 					#ifdef USE_XRECORD_ASYNC
@@ -140,7 +140,7 @@ static void *hook_thread_proc(void *arg) {
 				unload_input_helper();
 			}
 			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
 						__FUNCTION__, __LINE__);
 
 				// Set the exit status.
@@ -151,7 +151,7 @@ static void *hook_thread_proc(void *arg) {
 			XFree(range);
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordAllocRange failure!\n", 
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordAllocRange failure!\n",
 					__FUNCTION__, __LINE__);
 
 			// Set the exit status.
@@ -162,14 +162,14 @@ static void *hook_thread_proc(void *arg) {
 		disp_data = NULL;
 	}
 	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n", 
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
 				__FUNCTION__, __LINE__);
 
 		// Set the exit status.
 		*status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
 	// Make sure we signal that we have passed any exception throwing code.
@@ -218,11 +218,11 @@ UIOHOOK_API int hook_enable() {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
 						__FUNCTION__, __LINE__);
 			}
-		
+
 			// Check to make sure XRecord is installed and enabled.
 			int major, minor;
 			if (XRecordQueryVersion(disp_ctrl, &major, &minor) != 0) {
-				logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n",
 						__FUNCTION__, __LINE__, major, minor);
 
 				// Create the thread attribute.
@@ -235,17 +235,26 @@ UIOHOOK_API int hook_enable() {
 
 				// FIXME FIX THIS
 				if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, malloc(sizeof(int))) == 0) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 							__FUNCTION__, __LINE__);
 
-					/* FIXME OS X does not support pthread_setschedprio, try using 
-					 * pthread_setschedparam
+					#if _POSIX_C_SOURCE >= 200112L
+					/* POSIX does not support pthread_setschedprio so we will use
+					 * pthread_setschedparam instead.
 					 */
-					if (pthread_setschedprio(hook_thread_id, priority) != 0) {
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n", 
+					struct sched_param param = { .sched_priority = priority };
+					if (pthread_setschedparam(hook_thread_id, SCHED_OTHER, &param) != 0) {
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",
 								__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);
 					}
-					
+					#else
+					// Raise the thread priority using glibc pthread_setschedprio.
+					if (pthread_setschedprio(hook_thread_id, priority) != 0) {
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",
+								__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);
+					}
+					#endif
+
 					// Wait for the thread to unlock the control mutex indicating
 					// that it has started or failed.
 					if (pthread_mutex_lock(&hook_control_mutex) == 0) {
@@ -254,43 +263,43 @@ UIOHOOK_API int hook_enable() {
 
 					// Handle any possible JNI issue that may have occurred.
 					if (hook_is_enabled()) {
-						logger(LOG_LEVEL_DEBUG,	"%s [%u]: Initialization successful.\n", 
+						logger(LOG_LEVEL_DEBUG,	"%s [%u]: Initialization successful.\n",
 								__FUNCTION__, __LINE__);
 
 						status = UIOHOOK_SUCCESS;
 					}
 					else {
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n", 
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n",
 								__FUNCTION__, __LINE__);
-						
+
 						// Wait for the thread to die.
 						void *thread_status;
 						pthread_join(hook_thread_id, (void *) &thread_status);
 						status = *(int *) thread_status;
 						free(thread_status);
 
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%i)!\n", 
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%i)!\n",
 								__FUNCTION__, __LINE__, status);
 					}
 				}
 				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n", 
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
 							__FUNCTION__, __LINE__);
 
 					status = UIOHOOK_ERROR_THREAD_CREATE;
 				}
 			}
 			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecord is not currently available!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecord is not currently available!\n",
 							__FUNCTION__, __LINE__);
 
 				status = UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
 			}
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n", 
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
 					__FUNCTION__, __LINE__);
-			
+
 			// Close down any open displays.
 			if (disp_ctrl != NULL) {
 				XCloseDisplay(disp_ctrl);
@@ -340,7 +349,7 @@ UIOHOOK_API int hook_disable() {
 			disp_ctrl = NULL;
 		}
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%i).\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%i).\n",
 				__FUNCTION__, __LINE__, status);
 	}
 
@@ -365,7 +374,7 @@ UIOHOOK_API bool hook_is_enabled() {
 		is_running = true;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n",
 			__FUNCTION__, __LINE__, is_running);
 
 	return is_running;

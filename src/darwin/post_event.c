@@ -26,13 +26,15 @@
 #include <stdlib.h>
 #include <uiohook.h>
 
+#include "input_helper.h"
+
 static unsigned int button_mask_table[10] = {
 	kCGEventLeftMouseDown,	// Button 1
 	kCGEventRightMouseDown,	// Button 2
 	kCGEventOtherMouseDown,	// Button 3
 	kCGEventOtherMouseDown,	// Button 4
 	kCGEventOtherMouseDown,	// Button 5
-	
+
 	kCGEventLeftMouseUp,	// Button 1
 	kCGEventRightMouseUp,	// Button 2
 	kCGEventOtherMouseUp,	// Button 3
@@ -43,32 +45,32 @@ static unsigned int button_mask_table[10] = {
 
 UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	CGEventRef cg_event = NULL;
-	
+
 	switch (event->type) {
 		case EVENT_KEY_TYPED:
 
 		case EVENT_KEY_PRESSED:
-			cg_event = CGEventCreateKeyboardEvent(NULL, 
-					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode), 
+			cg_event = CGEventCreateKeyboardEvent(NULL,
+					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
 					true);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
-			
+
 			if (event->type == EVENT_KEY_PRESSED) {
 				break;
 			}
-			
+
 		case EVENT_KEY_RELEASED:
-			cg_event = CGEventCreateKeyboardEvent(NULL, 
-					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode), 
+			cg_event = CGEventCreateKeyboardEvent(NULL,
+					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
 					true);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
 			break;
 
 
 		case EVENT_MOUSE_CLICKED:
-			
+
 		case EVENT_MOUSE_PRESSED:
-			CGEventCreateMouseEvent(NULL, 
+			CGEventCreateMouseEvent(NULL,
 					button_mask_table[event->data.mouse.button - 1],
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -76,12 +78,12 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 					),
 					event->data.mouse.button - 1
 			);
-			
+
 			if (event->type == EVENT_MOUSE_PRESSED) {
 				break;
 			}
 		case EVENT_MOUSE_RELEASED:
-			CGEventCreateMouseEvent(NULL, 
+			CGEventCreateMouseEvent(NULL,
 					button_mask_table[event->data.mouse.button - 1],
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -90,9 +92,9 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 					event->data.mouse.button - 1
 			);
 			break;
-			
+
 		case EVENT_MOUSE_MOVED:
-			CGEventCreateMouseEvent(NULL, 
+			CGEventCreateMouseEvent(NULL,
 					kCGEventMouseMoved,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -101,27 +103,27 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 					0
 			);
 			break;
-		
+
 		case EVENT_MOUSE_DRAGGED:
 			//kCGEventLeftMouseDragged
 			//kCGEventRightMouseDragged
 			//kCGEventOtherMouseDragged
 			break;
-					
+
 		case EVENT_MOUSE_WHEEL:
 			/*
-			CGEventCreateScrollWheelEvent(NULL, 
+			CGEventCreateScrollWheelEvent(NULL,
 					CGScrollEventUnit units,
 					CGWheelCount wheelCount,
 					int32_t wheel1)
 			*/
 			break;
-			
+
 		default:
 		break;
 	}
-	
+
 	CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
-	
-	CFRelease(cg_event); 
+
+	CFRelease(cg_event);
 }

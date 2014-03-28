@@ -42,9 +42,9 @@ static unsigned int button_mask_table[10] = {
 	kCGEventOtherMouseUp,	// Button 5
 };
 
-
 UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	CGEventRef cg_event = NULL;
+	CGEventType cg_event_type = kCGEventNull;
 
 	switch (event->type) {
 		case EVENT_KEY_TYPED:
@@ -62,7 +62,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		case EVENT_KEY_RELEASED:
 			cg_event = CGEventCreateKeyboardEvent(NULL,
 					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
-					true);
+					false);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
 			break;
 
@@ -70,8 +70,21 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		case EVENT_MOUSE_CLICKED:
 
 		case EVENT_MOUSE_PRESSED:
+			if (event->data.mouse.button == MOUSE_NOBUTTON) {
+				cg_event_type = kCGEventNull;
+			}
+			else if (event->data.mouse.button == MOUSE_BUTTON1) {
+				cg_event_type = kCGEventLeftMouseDown;
+			}
+			else if (event->data.mouse.button == MOUSE_BUTTON2) {
+				cg_event_type = kCGEventRightMouseDown;
+			}
+			else {
+				cg_event_type = kCGEventOtherMouseDown;
+			}
+
 			CGEventCreateMouseEvent(NULL,
-					button_mask_table[event->data.mouse.button - 1],
+					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y
@@ -83,8 +96,21 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 				break;
 			}
 		case EVENT_MOUSE_RELEASED:
+			if (event->data.mouse.button == MOUSE_NOBUTTON) {
+				cg_event_type = kCGEventNull;
+			}
+			else if (event->data.mouse.button == MOUSE_BUTTON1) {
+				cg_event_type = kCGEventLeftMouseUp;
+			}
+			else if (event->data.mouse.button == MOUSE_BUTTON2) {
+				cg_event_type = kCGEventRightMouseUp;
+			}
+			else {
+				cg_event_type = kCGEventOtherMouseUp;
+			}
+
 			CGEventCreateMouseEvent(NULL,
-					button_mask_table[event->data.mouse.button - 1],
+					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y
@@ -105,17 +131,44 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			break;
 
 		case EVENT_MOUSE_DRAGGED:
-			//kCGEventLeftMouseDragged
-			//kCGEventRightMouseDragged
-			//kCGEventOtherMouseDragged
+			if (event->data.mouse.button == MOUSE_NOBUTTON) {
+				cg_event_type = kCGEventMouseMoved;
+			}
+			else if (event->data.mouse.button == MOUSE_BUTTON1) {
+				cg_event_type = kCGEventLeftMouseDragged;
+			}
+			else if (event->data.mouse.button == MOUSE_BUTTON2) {
+				cg_event_type = kCGEventRightMouseDragged;
+			}
+			else {
+				cg_event_type = kCGEventOtherMouseDragged;
+			}
+
+			CGEventCreateMouseEvent(NULL,
+					cg_event_type,
+					CGPointMake(
+						(CGFloat) event->data.mouse.x,
+						(CGFloat) event->data.mouse.y
+					),
+					event->data.mouse.button - 1
+			);
 			break;
 
 		case EVENT_MOUSE_WHEEL:
-			/*
+			if (event.data.wheel.type == WHEEL_BLOCK_SCROLL) {
+				// Scrolling data is line-based.
+				//kCGScrollEventUnitLine;
+			}
+			else {
+				// Scrolling data is pixel-based.
+				//kCGScrollEventUnitPixel
+			}
+
+			/* FIXME Need to convert the wheel1 to -10 / +10 from the scrollAmount value.
 			CGEventCreateScrollWheelEvent(NULL,
 					CGScrollEventUnit units,
-					CGWheelCount wheelCount,
-					int32_t wheel1)
+					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.
+					int32_t wheel1);
 			*/
 			break;
 

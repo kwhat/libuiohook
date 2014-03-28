@@ -468,6 +468,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			* suspect that Apples Java implementation maybe reporting a
 			* static "1" inaccurately.
 			*/
+			// FIXME This looks like it maybe overflowing due to a sign issue!
 			event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * -1;
 
 			// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).

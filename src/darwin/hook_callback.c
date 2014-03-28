@@ -55,9 +55,9 @@ static CFRunLoopSourceRef src_msg_port;
 
 
 // Modifier masks that we are interested in tracking.
-static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift | 
-											kCGEventFlagMaskControl | 
-											kCGEventFlagMaskAlternate | 
+static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift |
+											kCGEventFlagMaskControl |
+											kCGEventFlagMaskAlternate |
 											kCGEventFlagMaskCommand;
 
 // Structure for the current Unix epoch in milliseconds.
@@ -225,7 +225,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			if (pthread_mutex_lock(&hook_control_mutex) == 0) {
 				pthread_mutex_unlock(&hook_control_mutex);
 			}
-			
+
 			if (info->length == 1) {
 				// Fire key typed event.
 				event.type = EVENT_KEY_TYPED;
@@ -233,7 +233,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				event.data.keyboard.keycode = VC_UNDEFINED;
 				event.data.keyboard.keychar = info->buffer[0];
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
 				dispatch_event(&event);
 			}
@@ -295,18 +295,18 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			else {
 				modifier_flag = 0x0000;
 			}
-			
+
 			// First check to see if a modifier we care about changed.
 			if (modifier_flag != 0x0000) {
 				if (get_modifiers() & modifier_flag) {
 					unset_modifier_mask(modifier_flag);
-					
+
 					// Process as a key released event.
 					goto EVENT_KEYUP;
 				}
 				else {
 					set_modifier_mask(modifier_flag);
-					
+
 					// Process as a key pressed event.
 					goto EVENT_KEYDOWN;
 				}
@@ -456,10 +456,12 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 
 			// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
 			if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
-				event.data.wheel.type = WHEEL_UNIT_SCROLL;
+				// Scrolling data is line-based.
+				event.data.wheel.type = WHEEL_BLOCK_SCROLL;
 			}
 			else {
-				event.data.wheel.type = WHEEL_BLOCK_SCROLL;
+				// Scrolling data is pixel-based.
+				event.data.wheel.type = WHEEL_UNIT_SCROLL;
 			}
 
 			/* TODO Figure out the scroll wheel amounts are correct.  I

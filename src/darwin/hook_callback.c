@@ -464,12 +464,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				event.data.wheel.type = WHEEL_UNIT_SCROLL;
 			}
 
-			/* TODO Figure out the scroll wheel amounts are correct.  I
-			* suspect that Apples Java implementation maybe reporting a
-			* static "1" inaccurately.
-			*/
-			// FIXME This looks like it maybe overflowing due to a sign issue!
-			event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * -1;
+			// TODO The result of kCGScrollWheelEventIsContinuous may effect this value.
+			// Calculate the amount based on the Point Delta / Event Delta.  Integer sign should always be homogeneous resulting in a positive result.
+			// NOTE kCGScrollWheelEventFixedPtDeltaAxis1 a floating point value (+0.1/-0.1) that takes acceleration into account.
+			event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
 			// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
 			event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;

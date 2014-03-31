@@ -28,23 +28,10 @@
 
 #include "input_helper.h"
 
-static unsigned int button_mask_table[10] = {
-	kCGEventLeftMouseDown,	// Button 1
-	kCGEventRightMouseDown,	// Button 2
-	kCGEventOtherMouseDown,	// Button 3
-	kCGEventOtherMouseDown,	// Button 4
-	kCGEventOtherMouseDown,	// Button 5
-
-	kCGEventLeftMouseUp,	// Button 1
-	kCGEventRightMouseUp,	// Button 2
-	kCGEventOtherMouseUp,	// Button 3
-	kCGEventOtherMouseUp,	// Button 4
-	kCGEventOtherMouseUp,	// Button 5
-};
-
 UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	CGEventRef cg_event = NULL;
 	CGEventType cg_event_type = kCGEventNull;
+	CGScrollEventUnit cg_event_unit;
 
 	switch (event->type) {
 		case EVENT_KEY_TYPED:
@@ -155,21 +142,19 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			break;
 
 		case EVENT_MOUSE_WHEEL:
-			if (event.data.wheel.type == WHEEL_BLOCK_SCROLL) {
+			if (event->data.wheel.type == WHEEL_BLOCK_SCROLL) {
 				// Scrolling data is line-based.
-				//kCGScrollEventUnitLine;
+				cg_event_unit = kCGScrollEventUnitLine;
 			}
 			else {
 				// Scrolling data is pixel-based.
-				//kCGScrollEventUnitPixel
+				cg_event_unit = kCGScrollEventUnitPixel;
 			}
 
-			/* FIXME Need to convert the wheel1 to -10 / +10 from the scrollAmount value.
 			CGEventCreateScrollWheelEvent(NULL,
-					CGScrollEventUnit units,
+					cg_event_unit,
 					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.
-					int32_t wheel1);
-			*/
+					event.data.wheel.amount * event.data.wheel.rotation);
 			break;
 
 		default:

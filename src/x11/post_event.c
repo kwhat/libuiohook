@@ -174,7 +174,6 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 		win_y = 0;
 	}
 
-	void *data = event->data;
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			x_event = (XEvent *) malloc(sizeof(XKeyEvent));
@@ -247,7 +246,18 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			x_event = (XEvent *) malloc(sizeof(XMotionEvent));
 			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
 
-			// TODO Dump the ASM and check how GCC optimizes the following...
+			#if Button1Mask == Button1MotionMask && \
+				Button2Mask == Button2MotionMask && \
+				Button3Mask == Button3MotionMask && \
+				Button4Mask == Button4MotionMask && \
+				Button5Mask == Button5MotionMask
+			// This little trick only works if Button#MotionMasks align with
+			// the Button#Masks.
+			x_mask = ((XButtonEvent *) x_event)->state &
+					(Button1MotionMask | Button2MotionMask |
+					Button2MotionMask | Button3MotionMask | Button5MotionMask);
+			#else
+			// Fallback to some slightly larger, slower code.
 			if (((XMotionEvent *) x_event)->state & Button1Mask) {
 				x_mask |= Button1MotionMask;
 			}
@@ -267,14 +277,8 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			if (((XMotionEvent *) x_event)->state & Button5Mask) {
 				x_mask |= Button5MotionMask;
 			}
+			#endif
 
-			// This little trick works because Button#MotionMasks align with
-			// the Button#Masks.  The compiler *SHOULD* do this for us!
-			/*
-			x_mask = ((XButtonEvent *) x_event)->state &
-					(Button1MotionMask | Button2MotionMask |
-					Button2MotionMask | Button3MotionMask | Button5MotionMask);
-			*/
 			goto EVENT_MOTION;
 
 		case EVENT_MOUSE_MOVED:

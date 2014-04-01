@@ -304,6 +304,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	}
 
 	XSendEvent(disp, InputFocus, False, x_mask, x_event);
+	free(x_event);
 	#endif
 
 	// Don't forget to flush!

@@ -154,7 +154,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			CGEventCreateScrollWheelEvent(NULL,
 					cg_event_unit,
 					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.
-					event.data.wheel.amount * event.data.wheel.rotation);
+					event->data.wheel.amount * event->data.wheel.rotation);
 			break;
 
 		default:

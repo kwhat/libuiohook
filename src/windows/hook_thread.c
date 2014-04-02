@@ -32,7 +32,7 @@ extern HINSTANCE hInst;
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HANDLE hook_thread_handle = NULL;
-static HANDLE hook_control_handle = NULL, hook_running_handle = NULL;
+static HANDLE hook_control_handle = NULL;
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
@@ -44,7 +44,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 
 	// If we did not encounter a problem, start processing events.
 	if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
 				__FUNCTION__, __LINE__);
 
 		// Check and setup modifiers.
@@ -64,7 +64,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		}
 	}
 	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n", 
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
 				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 
 		status = UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX;
@@ -81,12 +81,11 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		mouse_event_hhook = NULL;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
-	// Make sure we signal that we have passed any exception throwing code.
-	// This should only make a difference if we had an initialization exception.
-	SetEvent(hook_control_handle);
+	// Reset the control event to signal that the thread is no longer running.
+	ResetEvent(hook_control_handle);
 
 	ExitThread(status);
 }
@@ -98,40 +97,39 @@ UIOHOOK_API int hook_enable() {
 	if (hook_is_enabled() != true) {
 		// Create event handles for the thread hook.
 		hook_control_handle = CreateEvent(NULL, TRUE, FALSE, "hook_control_handle");
-		hook_running_handle = CreateEvent(NULL, TRUE, FALSE, "hook_running_handle");
 
 		LPTHREAD_START_ROUTINE lpStartAddress = &hook_thread_proc;
 		hook_thread_handle = CreateThread(NULL, 0, lpStartAddress, NULL, 0, &hook_thread_id);
 		if (hook_thread_handle != INVALID_HANDLE_VALUE) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 							__FUNCTION__, __LINE__);
-			
+
 			// Attempt to set the thread priority to time critical.
 			// TODO This maybe a little overkill, re-evaluate.
-			BOOL status_priority = 
+			BOOL status_priority =
 					SetThreadPriority(hook_thread_handle, THREAD_PRIORITY_TIME_CRITICAL);
 			if (!status_priority) {
-				logger(LOG_LEVEL_WARN,	
-						"%s [%u]: Could not set thread priority %li for thread %#p! (%#lX)\n", 
-						__FUNCTION__, __LINE__, 
-						(long) THREAD_PRIORITY_TIME_CRITICAL, 
+				logger(LOG_LEVEL_WARN,
+						"%s [%u]: Could not set thread priority %li for thread %#p! (%#lX)\n",
+						__FUNCTION__, __LINE__,
+						(long) THREAD_PRIORITY_TIME_CRITICAL,
 						hook_thread_handle,
 						(unsigned long) GetLastError());
 			}
-			
+
 			// Wait for any possible thread exceptions to get thrown into
 			// the queue
 			WaitForSingleObject(hook_control_handle, INFINITE);
 
 			// TODO Set the return status to the thread exit code.
 			if (hook_is_enabled()) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n", 
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 						__FUNCTION__, __LINE__);
 
 				status = UIOHOOK_SUCCESS;
 			}
 			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Initialization failure!\n",
 						__FUNCTION__, __LINE__);
 
 				// Wait for the thread to die.
@@ -141,12 +139,12 @@ UIOHOOK_API int hook_enable() {
 				GetExitCodeThread(hook_thread_handle, &thread_status);
 				status = (int) thread_status;
 
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: %i!\n", 
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: %i!\n",
 						__FUNCTION__, __LINE__, status);
 			}
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n", 
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
 					__FUNCTION__, __LINE__);
 
 			status = UIOHOOK_ERROR_THREAD_CREATE;
@@ -174,7 +172,7 @@ UIOHOOK_API int hook_disable() {
 		CloseHandle(hook_control_handle);
 		hook_control_handle = NULL;
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result: %i.\n", 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result: %i.\n",
 				__FUNCTION__, __LINE__, status);
 	}
 
@@ -184,30 +182,39 @@ UIOHOOK_API int hook_disable() {
 UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
-	if (hook_running_handle != NULL) {
-		DWORD status = WaitForSingleObject(hook_running_handle, 0);
+	if (hook_control_handle != NULL) {
+		DWORD status = WaitForSingleObject(hook_control_handle, 100);
 		switch (status)	{
-			case WAIT_TIMEOUT:
+			case WAIT_OBJECT_0:
 				is_running = true;
-				break;
-			
-			case WAIT_ABANDONED:
-				// GetExitCodeThread(hook_thread_handle, &status);
-				logger(LOG_LEVEL_WARN,	
-						"%s [%u]: Running mutex abandoned and reclaimed!\n", 
+
+				logger(LOG_LEVEL_DEBUG,
+						"%s [%u]: Running event signaled.\n",
 						__FUNCTION__, __LINE__);
 				break;
-				
+
+			case WAIT_TIMEOUT:
+				logger(LOG_LEVEL_DEBUG,
+						"%s [%u]: Running event not signaled yet...\n",
+						__FUNCTION__, __LINE__);
+				break;
+
+			case WAIT_ABANDONED:
+				logger(LOG_LEVEL_WARN,
+						"%s [%u]: Running event abandoned and reclaimed!\n",
+						__FUNCTION__, __LINE__);
+				break;
+
 			case WAIT_FAILED:
-				logger(LOG_LEVEL_ERROR,	
-						"%s [%u]: Failed to wait for running mutex! (%#lX)\n", 
-						__FUNCTION__, __LINE__, 
+				logger(LOG_LEVEL_ERROR,
+						"%s [%u]: Failed to wait for running event! (%#lX)\n",
+						__FUNCTION__, __LINE__,
 						(unsigned long) GetLastError());
 				break;
 		}
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State: %i.\n", 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State: %i.\n",
 			__FUNCTION__, __LINE__, is_running);
 
 	return is_running;

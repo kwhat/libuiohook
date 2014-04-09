@@ -146,11 +146,15 @@ AC_ARG_ENABLE([iokit],
 	[enable_iokit="$enableval"],
 	[enable_iokit="yes"])
 
+AC_ARG_ENABLE([weak-import],
+	AS_HELP_STRING([--enable-weak-import], [Enable support for weakly-linked symbols (default: disabled)]),
+	[enable_weak_import="$enableval"],
+	[enable_weak_import="no"])
+
 AC_ARG_ENABLE([carbon-legacy],
 	AS_HELP_STRING([--enable-carbon-legacy], [Enable legacy Carbon framework functionality (default: disabled)]),
 	[enable_carbon_legacy="$enableval"],
 	[enable_carbon_legacy="no"])
-
 
 AS_IF([test "x$enable_debug" = "xyes"], [
 	AC_DEFINE([USE_DEBUG], 1, [Enable Debug Output])
@@ -170,6 +174,11 @@ AS_IF(
 		AS_IF([test "x$enable_iokit" = "xyes"], [
 			AC_DEFINE([USE_IOKIT], 1, [Enable IOKit framework])
 			LIBS="${LIBS} -framework IOKit"
+		])
+
+		AS_IF([test "x$enable_weak_import" = "xyes"], [
+			AC_DEFINE([USE_WEAK_IMPORT], 1, [Enable support for weakly-linked symbols])
+			LDFLAGS="$LDFLAGS -Wl,-flat_namespace,-undefined,dynamic_lookup"
 		])
 
 		AS_IF([test "x$enable_carbon_legacy" = "xyes"], [

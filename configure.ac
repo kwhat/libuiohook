@@ -53,6 +53,7 @@ AC_CONFIG_MACRO_DIR([m4])
 #AC_CANONICAL_SYSTEM
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
+AC_CANONICAL_TARGET
 
 # Initialize automake.
 AM_INIT_AUTOMAKE([foreign subdir-objects])
@@ -73,7 +74,7 @@ AC_HEADER_STDBOOL
 # Initialize libtool.
 AC_PROG_LIBTOOL
 
-# Check for opperating system.
+# Check for operating system.
 AC_MSG_CHECKING(operating system)
 AS_CASE([$host],
 	[*-darwin*], [

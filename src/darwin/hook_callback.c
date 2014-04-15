@@ -484,6 +484,15 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				break;
 			break;
 	}
+	
+	CGEventRef result_ref = NULL;
+	if (event.reserved ^ 0x01) {
+		result_ref = event_ref;
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%#p)\n",
+				__FUNCTION__, __LINE__, result_ref);
+	}
 
-	return event_ref;
+	return result_ref;
 }

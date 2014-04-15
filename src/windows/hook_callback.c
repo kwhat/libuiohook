@@ -405,7 +405,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	}
 
 	LRESULT hook_result = -1;
-	if (nCode < 0 || !(event.reserved & 0x01)) {
+	if (nCode < 0 || event.reserved ^ 0x01) {
 		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);
 	}
 	else {

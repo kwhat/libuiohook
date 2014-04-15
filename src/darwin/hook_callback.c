@@ -52,14 +52,6 @@ static bool mouse_dragged = false;
 
 static CFRunLoopSourceRef src_msg_port;
 
-
-
-// Modifier masks that we are interested in tracking.
-static const CGEventFlags key_event_mask =	kCGEventFlagMaskShift |
-											kCGEventFlagMaskControl |
-											kCGEventFlagMaskAlternate |
-											kCGEventFlagMaskCommand;
-
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
 

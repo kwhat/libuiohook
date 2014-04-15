@@ -485,5 +485,5 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			break;
 	}
 
-	return noErr;
+	return event_ref;
 }

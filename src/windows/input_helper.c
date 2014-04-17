@@ -20,8 +20,8 @@
  * The following code is based on code provided by Marc-André Moreau
  * to work around a failure to support dead keys in the ToUnicode() API.
  * According to the author some parts were taken directly from
- * Microsoft's  kbd.h header file that is shipped with the Windows
- * Driver Development Kit.
+ * Microsoft's kbd.h header file that is shipped with the Windows Driver
+ * Development Kit.
  *
  * The original code was substantially modified to provide the following:
  *   1) More dynamic code structure.
@@ -75,16 +75,16 @@ static short int ptr_padding = 0;
 static BOOL is_wow64() {
 	BOOL status = FALSE;
 
-	LPFN_ISWOW64PROCESS pIsWow64Process = (LPFN_ISWOW64PROCESS) 
+	LPFN_ISWOW64PROCESS pIsWow64Process = (LPFN_ISWOW64PROCESS)
 			GetProcAddress(GetModuleHandle("kernel32"), "IsWow64Process");
 
-	if(pIsWow64Process != NULL) {
+	if (pIsWow64Process != NULL) {
 		HANDLE current_proc = GetCurrentProcess();
-				
+
 		if (!pIsWow64Process(current_proc, &status)) {
 			status = FALSE;
-			
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: pIsWow64Process(%#p, (%#p) failed!\n", 
+
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: pIsWow64Process(%#p, (%#p) failed!\n",
 				__FUNCTION__, __LINE__, current_proc, &status);
 		}
 	}
@@ -104,8 +104,8 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 		char kbdKeyPath[51 + KL_NAMELENGTH];
 		snprintf(kbdKeyPath, 51 + KL_NAMELENGTH, "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s", kbdName);
 
-		if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
-			if(RegQueryValueEx(hKey, "Layout File", NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
+		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
+			if (RegQueryValueEx(hKey, "Layout File", NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
 				RegCloseKey(hKey);
 				status = UIOHOOK_SUCCESS;
 			}
@@ -121,7 +121,7 @@ static int refresh_locale_list() {
 	// Get the number of layouts the user has activated.
 	int hkl_size = GetKeyboardLayoutList(0, NULL);
 	if (hkl_size > 0) {
-		logger(LOG_LEVEL_INFO,	"%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n", 
+		logger(LOG_LEVEL_INFO,	"%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
 				__FUNCTION__, __LINE__, hkl_size);
 
 		// Get the thread id that currently has focus for our default.
@@ -134,11 +134,11 @@ static int refresh_locale_list() {
 		if (new_size > 0) {
 			if (new_size != hkl_size) {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Locale size mismatch!  "
-						"Expected %i, received %i!\n", 
+						"Expected %i, received %i!\n",
 						__FUNCTION__, __LINE__, hkl_size, new_size);
 			}
 			else {
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Received %i locales.\n", 
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Received %i locales.\n",
 						__FUNCTION__, __LINE__, new_size);
 			}
 
@@ -160,7 +160,7 @@ static int refresh_locale_list() {
 
 
 				if (is_loaded) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found loacle ID %#p in the cache.\n", 
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found loacle ID %#p in the cache.\n",
 							__FUNCTION__, __LINE__, locale_item->id);
 
 					// Set the previous local to the current locale.
@@ -174,9 +174,9 @@ static int refresh_locale_list() {
 					count++;
 				}
 				else {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Removing loacle ID %#p from the cache.\n", 
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Removing loacle ID %#p from the cache.\n",
 							__FUNCTION__, __LINE__, locale_item->id);
-					
+
 					// If the old id is not in the new list, remove it.
 					locale_previous->next = locale_item->next;
 
@@ -202,7 +202,7 @@ static int refresh_locale_list() {
 				// Check to see if the item was already in the list.
 				if (hkl_list[i] != NULL) {
 					// TODO Unload this to a function, See else clause.
-					
+
 					// Set the active keyboard layout for this thread to the HKL.
 					ActivateKeyboardLayout(hkl_list[i], 0x00);
 
@@ -215,7 +215,7 @@ static int refresh_locale_list() {
 							char kbdLayoutFilePath[MAX_PATH];
 							snprintf(kbdLayoutFilePath, MAX_PATH, "%s\\%s", systemDirectory, layoutFile);
 
-							logger(LOG_LEVEL_DEBUG,	"%s [%u]: Loading layout for %#p: %s.\n", 
+							logger(LOG_LEVEL_DEBUG,	"%s [%u]: Loading layout for %#p: %s.\n",
 									__FUNCTION__, __LINE__, hkl_list[i], layoutFile);
 
 							// Create the new locale item.
@@ -225,7 +225,7 @@ static int refresh_locale_list() {
 
 							// Get the function pointer from the library to get the keyboard layer descriptor.
 							KbdLayerDescriptor pKbdLayerDescriptor = (KbdLayerDescriptor) GetProcAddress(locale_item->library, "KbdLayerDescriptor");
-							if(pKbdLayerDescriptor != NULL) {
+							if (pKbdLayerDescriptor != NULL) {
 								PKBDTABLES pKbd = pKbdLayerDescriptor();
 
 								// Store the memory address of the following 3 structures.
@@ -265,8 +265,8 @@ static int refresh_locale_list() {
 								count++;
 							}
 							else {
-								logger(LOG_LEVEL_ERROR,	
-										"%s [%u]: GetProcAddress() failed for KbdLayerDescriptor!\n", 
+								logger(LOG_LEVEL_ERROR,
+										"%s [%u]: GetProcAddress() failed for KbdLayerDescriptor!\n",
 										__FUNCTION__, __LINE__);
 
 								FreeLibrary(locale_item->library);
@@ -275,22 +275,22 @@ static int refresh_locale_list() {
 							}
 						}
 						else {
-							logger(LOG_LEVEL_ERROR,	
-									"%s [%u]: GetSystemDirectory() failed!\n", 
+							logger(LOG_LEVEL_ERROR,
+									"%s [%u]: GetSystemDirectory() failed!\n",
 									__FUNCTION__, __LINE__);
 						}
 					}
 					else {
-						logger(LOG_LEVEL_ERROR,	
-								"%s [%u]: Could not find keyboard map for locale %#p!\n", 
+						logger(LOG_LEVEL_ERROR,
+								"%s [%u]: Could not find keyboard map for locale %#p!\n",
 								__FUNCTION__, __LINE__, hkl_list[i]);
 					}
 				} // End NULL Check.
 			} // for (...)
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	
-					"%s [%u]: GetKeyboardLayoutList() failed!\n", 
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: GetKeyboardLayoutList() failed!\n",
 					__FUNCTION__, __LINE__);
 
 			// TODO Try and recover by using the current layout.
@@ -315,8 +315,8 @@ int load_input_helper() {
 
 	count = refresh_locale_list();
 
-	logger(LOG_LEVEL_INFO,	
-			"%s [%u]: refresh_locale_list() found %i locale(s).\n", 
+	logger(LOG_LEVEL_INFO,
+			"%s [%u]: refresh_locale_list() found %i locale(s).\n",
 			__FUNCTION__, __LINE__, count);
 
 	return count;
@@ -356,8 +356,8 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 		while (locale_item != NULL) {
 			// Search the linked list.
 			if (locale_item->id == locale_id) {
-				logger(LOG_LEVEL_INFO,	
-					"%s [%u]: Activating keyboard layout %#p.\n", 
+				logger(LOG_LEVEL_INFO,
+					"%s [%u]: Activating keyboard layout %#p.\n",
 					__FUNCTION__, __LINE__, locale_item->id);
 
 				// If they layout changes the dead key state needs to be reset.
@@ -373,8 +373,8 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 
 		// If we were unable to find the locale in the list, refresh the list.
 		if (locale_current == NULL) {
-			logger(LOG_LEVEL_DEBUG,	
-					"%s [%u]: Refreshing locale cache.\n", 
+			logger(LOG_LEVEL_DEBUG,
+					"%s [%u]: Refreshing locale cache.\n",
 					__FUNCTION__, __LINE__);
 
 			refresh_locale_list();
@@ -387,12 +387,10 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 
 	// Check and make sure the Unicode helper was loaded.
 	if (locale_current != NULL) {
-		logger(LOG_LEVEL_INFO,	
-				"%s [%u]: Using keyboard layout %#p.\n", 
+		logger(LOG_LEVEL_INFO,
+				"%s [%u]: Using keyboard layout %#p.\n",
 				__FUNCTION__, __LINE__, locale_current->id);
 
-		short state = 0;
-		int shift = -1;
 		int mod = 0;
 
 		WCHAR baseChar;
@@ -404,24 +402,37 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 		PVK_TO_WCHAR_TABLE pVkToWcharTable = locale_current->pVkToWcharTable;
 		PDEADKEY pDeadKey = locale_current->pDeadKey;
 
-		/* Because this is only a structure of two bytes, we don't need to worry
-		* about the structure padding of __ptr64 offsets on Wow64.
-		*/
+		/* Loop over the modifier keys for this locale and determine what is
+		 * currently depressed.  Because this is only a structure of two
+		 * bytes, we don't need to worry about the structure padding of __ptr64
+		 * offsets on Wow64.
+		 */
+		bool is_shift = false, is_ctrl = false, is_alt = false;
 		for (int i = 0; pVkToBit[i].Vk != 0; i++) {
-			state = GetAsyncKeyState(pVkToBit[i].Vk);
+			short state = GetAsyncKeyState(pVkToBit[i].Vk);
 
-			if(pVkToBit[i].Vk == VK_SHIFT) {
-				shift = i + 1; // Get modification number for Shift key
+			// Check to see if the most significant bit is active.
+			if (state & ~SHRT_MAX) {
+				if (pVkToBit[i].Vk == VK_SHIFT) {
+					is_shift = true;
+				}
+				else if (pVkToBit[i].Vk == VK_CONTROL) {
+					is_ctrl = true;
+				}
+				else if (pVkToBit[i].Vk == VK_MENU) {
+					is_alt = true;
+				}
 			}
+		}
 
-			if(state & ~SHRT_MAX) {
-				if (mod == 0) {
-					mod = i + 1;
-				}
-				else {
-					mod = 0; // Two modifiers at the same time!
-				}
-			}
+		// Check the Shift modifier.
+		if (is_shift) {
+			mod = 1;
+		}
+
+		// Check for the AltGr modifier.
+		if (is_ctrl && is_alt) {
+			mod += 3;
 		}
 
 		// Default 32 bit structure size should be 6 bytes (4 for the pointer and 2
@@ -446,14 +457,19 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 			// Same as VK_TO_WCHARS pVkToWchars[] = pVkToWcharTable[i].pVkToWchars
 			PVK_TO_WCHARS pVkToWchars = (PVK_TO_WCHARS) ((PVK_TO_WCHAR_TABLE) ptrCurrentVkToWcharTable)->pVkToWchars;
 
-			if(pVkToWchars != NULL && mod < n) {
+			if (pVkToWchars != NULL && mod < n) {
 				// pVkToWchars[j].VirtualKey
 				BYTE *pCurrentVkToWchars = (BYTE *) pVkToWchars;
 
 				do {
 					if (((PVK_TO_WCHARS) pCurrentVkToWchars)->VirtualKey == virtualKey) {
 						if ((((PVK_TO_WCHARS) pCurrentVkToWchars)->Attributes == CAPLOK) && capsLock) {
-							if(mod == shift) mod = 0; else mod = shift;
+							if (is_shift && mod > 0) {
+								mod -= 1;
+							}
+							else {
+								mod += 1;
+							}
 						}
 						*outputChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
 						charCount = 1;
@@ -461,10 +477,10 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 						// Increment the pCurrentVkToWchars by the size of wch[n].
 						pCurrentVkToWchars += sizeof(VK_TO_WCHARS) + (sizeof(WCHAR) * n);
 
-						if(*outputChar == WCH_NONE) {
+						if (*outputChar == WCH_NONE) {
 							charCount = 0;
 						}
-						else if(*outputChar == WCH_DEAD) {
+						else if (*outputChar == WCH_DEAD) {
 							*deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
 							charCount = 0;
 						}
@@ -483,12 +499,12 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 
 
 		// Code to check for dead characters...
-		if( *deadChar != 0) {
+		if (*deadChar != 0) {
 			for (int i = 0; pDeadKey[i].dwBoth != 0; i++) {
 				baseChar = (WCHAR) pDeadKey[i].dwBoth;
 				diacritic = (WCHAR) (pDeadKey[i].dwBoth >> 16);
 
-				if((baseChar == *outputChar) && (diacritic == *deadChar)) {
+				if ((baseChar == *outputChar) && (diacritic == *deadChar)) {
 					*deadChar = 0;
 					*outputChar = (WCHAR) pDeadKey[i].wchComposed;
 				}

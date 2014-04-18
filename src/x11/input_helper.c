@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <X11/keysym.h>
 #include <X11/Xlib.h>
 
 #ifdef USE_XKB
@@ -214,7 +215,8 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
  * encoded in UTF-8, so for viewing and editing best use an editor in
  * UTF-8 mode.
  * 
- * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, June 1999
+ * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, 
+ * June 1999
  *
  * Special thanks to Richard Verhoeven <river@win.tue.nl> for preparing
  * an initial draft of the mapping table.
@@ -1008,7 +1010,8 @@ static struct codepair {
  * Xlib via XmbLookupString() and should ideally not have to be
  * done in X applications. But we are not there yet.
  *
- * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, June 1999
+ * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, 
+ * June 1999
  *
  * Special thanks to Richard Verhoeven <river@win.tue.nl> for preparing
  * an initial draft of the mapping table.
@@ -1056,7 +1059,8 @@ KeySym unicode_to_keysym(wchar_t ucs) {
  * Xlib via XLookupKeySym and should ideally not have to be done in X 
  * applications. But we are not there yet.
  *
- * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, June 1999
+ * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, 
+ * June 1999
  *
  * Special thanks to Richard Verhoeven <river@win.tue.nl> for preparing
  * an initial draft of the mapping table.

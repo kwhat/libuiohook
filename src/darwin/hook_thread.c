@@ -143,6 +143,13 @@ static void *hook_thread_proc(void *arg) {
 				__FUNCTION__, __LINE__);
 
 		// Setup the event mask to listen for.
+		#ifdef USE_DEBUG
+		CGEventMask event_mask =	kCGEventMaskForAllEvents;
+		#else
+		// This includes everything except:
+		//	kCGEventNull
+		//	kCGEventTapDisabledByTimeout
+		//	kCGEventTapDisabledByTimeout
 		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
 									CGEventMaskBit(kCGEventKeyUp) |
 									CGEventMaskBit(kCGEventFlagsChanged) |
@@ -161,15 +168,12 @@ static void *hook_thread_proc(void *arg) {
 
 									CGEventMaskBit(kCGEventMouseMoved) |
 									CGEventMaskBit(kCGEventScrollWheel);
-
-		#ifdef USE_DEBUG
-		event_mask |= CGEventMaskBit(kCGEventNull);
 		#endif
 
 		CFMachPortRef event_port = CGEventTapCreate(
-										kCGSessionEventTap,				// kCGHIDEventTap
-										kCGHeadInsertEventTap,			// kCGTailAppendEventTap
-										kCGEventTapOptionListenOnly,	// kCGEventTapOptionDefault See Bug #22
+										kCGSessionEventTap,			// kCGHIDEventTap
+										kCGHeadInsertEventTap,		// kCGTailAppendEventTap
+										kCGEventTapOptionDefault,	// kCGEventTapOptionListenOnly See Bug #22
 										event_mask,
 										hook_event_proc,
 										NULL

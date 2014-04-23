@@ -157,18 +157,21 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 				dispatch_event(&event);
 
-				// Check to make sure the key is printable.
-				wchar_t keychar = keysym_to_unicode(keysym);
-				if (keychar != 0x0000) {
-					// Fire key typed event.
-					event.type = EVENT_KEY_TYPED;
+				// If the pressed event was not consumed...
+				if (event.reserved ^ 0x01) {
+					// Check to make sure the key is printable.
+					wchar_t keychar = keysym_to_unicode(keysym);
+					if (keychar != 0x0000) {
+						// Fire key typed event.
+						event.type = EVENT_KEY_TYPED;
 
-					event.data.keyboard.keycode = VC_UNDEFINED;
-					event.data.keyboard.keychar = keychar;
+						event.data.keyboard.keycode = VC_UNDEFINED;
+						event.data.keyboard.keychar = keychar;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-							__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
-					dispatch_event(&event);
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+								__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+						dispatch_event(&event);
+					}
 				}
 				break;
 
@@ -361,6 +364,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Unix hook category! (%#X)\n",
 				__FUNCTION__, __LINE__, hook->category);
 	}
+
+	// TODO There is no way to consume the XRecord event.
 
 	XRecordFreeData(hook);
 }

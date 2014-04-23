@@ -129,7 +129,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	// MS Mouse event struct data.
 	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
-	
+
 	// Set the event time.
 	GetSystemTimeAsFileTime(&ft);
 	// Convert to milliseconds = 100-nanoseconds / 10000
@@ -157,7 +157,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
-			
+
 			event.data.keyboard.keycode = kbhook->scanCode;
 			if (kbhook->flags & 0x03) {
 				// This is a bit of a hack, but it seems to work and it is fast.
@@ -171,7 +171,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 
-			if (convert_vk_to_wchar(kbhook->vkCode, &keywchar, &keydead) > 0) {
+			// If the pressed event was not consumed and a wchar exists...
+			if (event.reserved ^ 0x01 && convert_vk_to_wchar(kbhook->vkCode, &keywchar, &keydead) > 0) {
 				// Fire key typed event.
 				event.type = EVENT_KEY_TYPED;
 				event.mask = get_modifiers();

@@ -131,5 +131,6 @@ typedef struct tagKbdLayer {
 int load_input_helper();
 int unload_input_helper();
 int convert_vk_to_wchar(int virtualKey, PWCHAR out, PWCHAR buffer);
+unsigned short convert_vk_to_scancode(DWORD vk_code);
 
 #endif

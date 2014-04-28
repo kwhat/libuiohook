@@ -280,25 +280,39 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_POWER								0xE05E
 #define VC_SLEEP								0xE05F
 #define VC_WAKE									0xE063
-#define VC_MUTE									0xE020
+
+#define VC_MEDIA_PLAY							0xE022
+#define VC_MEDIA_STOP							0xE024
+#define VC_MEDIA_PREVIOUS						0xE010
+#define VC_MEDIA_NEXT							0xE019
+#define VC_MEDIA_SELECT							0xE06D
+
+#define VC_VOLUME_MUTE							0xE020
 #define VC_VOLUME_UP							0xE030
 #define VC_VOLUME_DOWN							0xE02E
+
 #define VC_CUT									0xE017
 #define VC_COPY									0xE018
 #define VC_PASTE								0xE00A
 #define VC_HELP									0xE03B
 #define VC_UNDO									0xE008
 #define VC_REDO									0xE007
-#define VC_PLAY									0xE022
-#define VC_STOP									0xE024
-#define VC_REWIND								0xE010
-#define VC_FAST_FORWARD							0xE019
-#define VC_EJECT								0xE02C
-#define VC_MAIL									0xE01E
-#define VC_WEB									0xE032
-#define VC_MUSIC								0xE03C
-#define VC_PICTURES								0xE064
-#define VC_VIDEO								0xE06D
+
+//#define VC_EJECT								0xE02C
+//#define VC_WEB								0xE032
+//#define VC_MUSIC								0xE03C
+//#define VC_PICTURES							0xE064
+
+#define VC_APP_MAIL								0xE06C
+#define VC_APP_CALCULATOR						0xE021
+
+#define VC_BROWSER_SEARCH						0xE065
+#define VC_BROWSER_HOME							0xE032
+#define VC_BROWSER_BACK							0xE06A
+#define VC_BROWSER_FORWARD						0xE069
+#define VC_BROWSER_STOP							0xE068
+#define VC_BROWSER_REFRESH						0xE067
+#define VC_BROWSER_FAVORITES					0xE066
 // End Media Control Keys
 
 

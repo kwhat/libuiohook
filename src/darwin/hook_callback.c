@@ -175,6 +175,9 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 	gettimeofday(&system_time, NULL);
 	event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 
+	// Make sure reserved bits are zeroed out.
+	event.reserved = 0x00;
+
 	UInt64	keycode, button;
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
 
@@ -195,43 +198,45 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 
+			// If the pressed event was not consumed...
+			if (event.reserved ^ 0x01) {
+				// Lookup the Unicode representation for this event.
+				CFRunLoopSourceContext context = { .version = 0 };
+				CFRunLoopSourceGetContext(src_msg_port, &context);
 
-			// Lookup the Unicode representation for this event.
-			CFRunLoopSourceContext context = { .version = 0 };
-			CFRunLoopSourceGetContext(src_msg_port, &context);
+				// Get the run loop context info pointer.
+				TISMessage *info = (TISMessage *) context.info;
 
-			// Get the run loop context info pointer.
-			TISMessage *info = (TISMessage *) context.info;
+				// Set the event pointer.
+				info->event = event_ref;
 
-			// Set the event pointer.
-			info->event = event_ref;
+				// Lock the control mutex as we enter the main run loop.
+				pthread_mutex_lock(&hook_control_mutex);
 
-			// Lock the control mutex as we enter the main run loop.
-			pthread_mutex_lock(&hook_control_mutex);
+				// Signal the custom source and wakeup the main run loop.
+				CFRunLoopSourceSignal(src_msg_port);
+				CFRunLoopWakeUp(CFRunLoopGetMain());
 
-			// Signal the custom source and wakeup the main run loop.
-			CFRunLoopSourceSignal(src_msg_port);
-			CFRunLoopWakeUp(CFRunLoopGetMain());
+				// Wait for a lock while the main run loop processes they key typed event.
+				if (pthread_mutex_lock(&hook_control_mutex) == 0) {
+					pthread_mutex_unlock(&hook_control_mutex);
+				}
 
-			// Wait for a lock while the main run loop processes they key typed event.
-			if (pthread_mutex_lock(&hook_control_mutex) == 0) {
-				pthread_mutex_unlock(&hook_control_mutex);
+				if (info->length == 1) {
+					// Fire key typed event.
+					event.type = EVENT_KEY_TYPED;
+
+					event.data.keyboard.keycode = VC_UNDEFINED;
+					event.data.keyboard.keychar = info->buffer[0];
+
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+					dispatch_event(&event);
+				}
+
+				info->event = NULL;
+				info->length = 0;
 			}
-
-			if (info->length == 1) {
-				// Fire key typed event.
-				event.type = EVENT_KEY_TYPED;
-
-				event.data.keyboard.keycode = VC_UNDEFINED;
-				event.data.keyboard.keychar = info->buffer[0];
-
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
-				dispatch_event(&event);
-			}
-
-			info->event = NULL;
-			info->length = 0;
 			break;
 
 		case kCGEventKeyUp:
@@ -476,7 +481,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 				break;
 			break;
 	}
-	
+
 	CGEventRef result_ref = NULL;
 	if (event.reserved ^ 0x01) {
 		result_ref = event_ref;

@@ -82,7 +82,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_UNDEFINED,				// 0x15 VK_KANA					IME Kana mode
 
 	VC_UNDEFINED,				// 0x16 Undefined
-	
+
 	// FIXME
 	VC_UNDEFINED,				// 0x17 VK_JUNJA				IME Junja mode
 	VC_UNDEFINED,				// 0x18 VK_FINAL
@@ -111,7 +111,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_INSERT,					// 0x2D VK_INSERT				INS key
 	VC_DELETE,					// 0x2E VK_DELETE				DEL key
 	VC_UNDEFINED,				// 0x2F VK_HELP					HELP key
-	
+
 	VC_0,						// 0x30							0 key
 	VC_1,						// 0x31							1 key
 	VC_2,						// 0x32							2 key
@@ -149,10 +149,10 @@ static unsigned short vk_lookup_table[] = {
 	VC_X,						// 0x58							X key
 	VC_Y,						// 0x59							Y key
 	VC_Z,						// 0x5A							Z key
-	
+
 	VC_META_L,					// 0x5B VK_LWIN 				Left Windows key (Natural keyboard)
 	VC_META_R,					// 0x5C VK_RWIN					Right Windows key (Natural keyboard)
-	
+
 	// 0x5D VK_APPS					Applications key (Natural keyboard)
 	VC_UNDEFINED,				// 0x5E Reserved
 	VC_SLEEP,					// 0x5F VK_SLEEP				Computer Sleep key
@@ -167,14 +167,14 @@ static unsigned short vk_lookup_table[] = {
 	VC_KP_7,					// 0x67 VK_NUMPAD7				Numeric keypad 7 key
 	VC_KP_8,					// 0x68 VK_NUMPAD8				Numeric keypad 8 key
 	VC_KP_9,					// 0x69 VK_NUMPAD9				Numeric keypad 9 key
-	
+
 	VC_KP_MULTIPLY,				// 0x6A VK_MULTIPLY				Multiply key
 	VC_KP_ADD,					// 0x6B VK_ADD					Add key
 	VC_KP_SEPARATOR,			// 0x6C VK_SEPARATOR			Separator key
 	VC_KP_SUBTRACT,				// 0x6D VK_SUBTRACT				Subtract key
 	VC_KP_SEPARATOR,			// 0x6E VK_DECIMAL				Decimal key
 	VC_KP_DIVIDE,				// 0x6F VK_DIVIDE				Divide key
-	
+
 	VC_F1,						// 0x70 VK_F1					F1 key
 	VC_F2,						// 0x71 VK_F2					F2 key
 	VC_F3,						// 0x72 VK_F3					F3 key
@@ -187,7 +187,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_F10,						// 0x79 VK_F10					F10 key
 	VC_F11,						// 0x7A VK_F11					F11 key
 	VC_F12,						// 0x7B VK_F12					F12 key
-	
+
 	VC_F13,						// 0x7C VK_F13					F13 key
 	VC_F14,						// 0x7D VK_F14					F14 key
 	VC_F15,						// 0x7E VK_F15					F15 key
@@ -195,12 +195,12 @@ static unsigned short vk_lookup_table[] = {
 	VC_F17,						// 0x80 VK_F17					F17 key
 	VC_F18,						// 0x81 VK_F18					F18 key
 	VC_F19,						// 0x82 VK_F19					F19 key
-	VC_F20,						// 0x83 VK_F20					F20 key		
+	VC_F20,						// 0x83 VK_F20					F20 key
 	VC_F21,						// 0x84 VK_F21					F21 key
 	VC_F22,						// 0x85 VK_F22					F22 key
 	VC_F23,						// 0x86 VK_F23					F23 key
 	VC_F24,						// 0x87 VK_F24					F24 key
-	
+
 	VC_UNDEFINED,				// 0x88							Unassigned
 	VC_UNDEFINED,				// 0x89							Unassigned
 	VC_UNDEFINED,				// 0x8A							Unassigned
@@ -234,7 +234,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_CONTROL_R,				// 0xA3 VK_RCONTROL				Right CONTROL key
 	VC_ALT_L,					// 0xA4 VK_LMENU				Left MENU key
 	VC_ALT_R,					// 0xA5 VK_RMENU				Right MENU key
-	
+
 	VC_BROWSER_BACK,			// 0xA6 VK_BROWSER_BACK			Browser Back key
 	VC_BROWSER_FORWARD,			// 0xA7 VK_BROWSER_FORWARD		Browser Forward key
 	VC_BROWSER_REFRESH,			// 0xA8 VK_BROWSER_REFRESH		Browser Refresh key
@@ -242,25 +242,25 @@ static unsigned short vk_lookup_table[] = {
 	VC_BROWSER_SEARCH,			// 0xAA VK_BROWSER_SEARCH		Browser Search key
 	VC_BROWSER_FAVORITES,		// 0xAB VK_BROWSER_FAVORITES	Browser Favorites key
 	VC_BROWSER_HOME,			// 0xAC VK_BROWSER_HOME			Browser Start and Home key
-	
+
 	VC_VOLUME_MUTE,				// 0xAD VK_VOLUME_MUTE			Volume Mute key
 	VC_VOLUME_UP,				// 0xAE VK_VOLUME_DOWN			Volume Down key
 	VC_VOLUME_DOWN,				// 0xAF VK_VOLUME_UP			Volume Up key
-	
+
 	VC_MEDIA_NEXT,				// 0xB0 VK_MEDIA_NEXT_TRACK		Next Track key
 	VC_MEDIA_PREVIOUS,			// 0xB1 VK_MEDIA_PREV_TRACK		Previous Track key
 	VC_MEDIA_STOP,				// 0xB2 VK_MEDIA_STOP			Stop Media key
 	VC_MEDIA_PLAY,				// 0xB3 VK_MEDIA_PLAY_PAUSE		Play/Pause Media key
-	
+
 	VC_APP_MAIL,				// 0xB4 VK_LAUNCH_MAIL			Start Mail key
-	
+
 	VC_MEDIA_SELECT,			// 0xB5 VK_LAUNCH_MEDIA_SELECT	Select Media key
 	VC_APP_MAIL,				// 0xB6 VK_LAUNCH_APP1			Start Application 1 key
 	VC_APP_CALCULATOR,			// 0xB7 VK_LAUNCH_APP2			Start Application 2 key
 
 	VC_UNDEFINED,				// 0xB8							Reserved
 	VC_UNDEFINED,				// 0xB9							Reserved
-	
+
 	VC_SEMICOLON,				// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
 	VC_EQUALS,					// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
 	VC_COMMA,					// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
@@ -302,7 +302,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_CLOSE_BRACKET,			// 0xDD VK_OEM_6				Varies by keyboard. For the US standard keyboard, the ']}' key
 	VC_QUOTE,					// 0xDE VK_OEM_7				Varies by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
 
-	VC_UNDEFINED,				// 0xDF VK_OEM_8	 			Varies by keyboard. 
+	VC_UNDEFINED,				// 0xDF VK_OEM_8	 			Varies by keyboard.
 	VC_UNDEFINED,				// 0xE0							Reserved
 	VC_UNDEFINED,				// 0xE1							OEM specific
 	VC_UNDEFINED,				// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
@@ -335,7 +335,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_UNDEFINED,				// 0xFC VK_NONAME				Reserved
 	VC_UNDEFINED,				// 0xFD VK_PA1					PA1 key
 	VC_UNDEFINED,				// 0xFE VK_OEM_CLEAR			Clear key
-}
+};
 
 // Structure and pointers for the keyboard locale cache.
 typedef struct _KeyboardLocale {
@@ -800,11 +800,11 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 
 unsigned short convert_vk_to_scancode(DWORD vk_code) {
 	unsigned short scancode = VC_UNDEFINED;
-	
+
 	// Check the vk_code is in range.
 	if (vk_code >= 0 && vk_code < sizeof(vk_lookup_table) / sizeof(vk_lookup_table[0])) {
 		scancode = vk_lookup_table[vk_code];
 	}
-	
+
 	return scancode;
 }

@@ -42,7 +42,7 @@ static bool is_caps_lock = false, is_shift_lock = false;
 /*
  * This table is taken from QEMU x_keymap.c, under the terms:
  *
- * Copyright (c) 2003 Fabrice Bellard
+ * Copyright (C) 2003 Fabrice Bellard <fabrice@bellard.org>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -197,12 +197,12 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
 #endif
 
 /***********************************************************************
- * The following table contains pairs of X11 keysym values for graphical 
+ * The following table contains pairs of X11 keysym values for graphical
  * characters and the corresponding Unicode value. The function
- * keysym_to_unicode() maps a keysym onto a Unicode value using a binary 
- * search, therefore keysym_unicode_table[] must remain SORTED by KeySym 
+ * keysym_to_unicode() maps a keysym onto a Unicode value using a binary
+ * search, therefore keysym_unicode_table[] must remain SORTED by KeySym
  * value.
- * 
+ *
  * We allow to represent any UCS character in the range U+00000000 to
  * U+00FFFFFF by a keysym value in the range 0x01000000 to 0x01FFFFFF.
  * This admittedly does not cover the entire 31-bit space of UCS, but
@@ -210,12 +210,12 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
  * represented by UTF-16, and more, and it is very unlikely that higher
  * UCS codes will ever be assigned by ISO. So to get Unicode character
  * U+ABCD you can directly use keysym 0x1000ABCD.
- * 
+ *
  * NOTE: The comments in the table below contain the actual character
  * encoded in UTF-8, so for viewing and editing best use an editor in
  * UTF-8 mode.
- * 
- * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, 
+ *
+ * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge,
  * June 1999
  *
  * Special thanks to Richard Verhoeven <river@win.tue.nl> for preparing
@@ -1006,11 +1006,11 @@ static struct codepair {
  * The following function converts ISO 10646-1 (UCS, Unicode) values to
  * their corresponding KeySym values.
  *
- * The UTF-8 -> keysym conversion will hopefully one day be provided by 
+ * The UTF-8 -> keysym conversion will hopefully one day be provided by
  * Xlib via XmbLookupString() and should ideally not have to be
  * done in X applications. But we are not there yet.
  *
- * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, 
+ * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge,
  * June 1999
  *
  * Special thanks to Richard Verhoeven <river@win.tue.nl> for preparing
@@ -1052,14 +1052,14 @@ KeySym unicode_to_keysym(wchar_t ucs) {
 }
 
 /***********************************************************************
- * The following function converts KeySym values into the corresponding 
+ * The following function converts KeySym values into the corresponding
  * ISO 10646-1 (UCS, Unicode) values.
  *
- * The keysym -> UTF-8 conversion will hopefully one day be provided by 
- * Xlib via XLookupKeySym and should ideally not have to be done in X 
+ * The keysym -> UTF-8 conversion will hopefully one day be provided by
+ * Xlib via XLookupKeySym and should ideally not have to be done in X
  * applications. But we are not there yet.
  *
- * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge, 
+ * Author: Markus G. Kuhn <mkuhn@acm.org>, University of Cambridge,
  * June 1999
  *
  * Special thanks to Richard Verhoeven <river@win.tue.nl> for preparing
@@ -1113,7 +1113,7 @@ wchar_t keysym_to_unicode(KeySym keysym) {
 
 /* The following code is based on vncdisplaykeymap.c under the terms:
  *
- * Copyright (C) 2008  Anthony Liguori <anthony codemonkey ws>
+ * Copyright (C) 2008  Anthony Liguori <anthony@codemonkey.ws>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License version 2 as
@@ -1308,7 +1308,7 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 			keysym = keyboard_map[keycode *keysym_per_keycode + 1];
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Unable to determine the KeySym index!\n", 
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Unable to determine the KeySym index!\n",
 					__FUNCTION__, __LINE__);
 		}
 	}
@@ -1330,9 +1330,9 @@ void load_input_helper(Display *disp) {
 	XkbDescPtr desc = XkbGetKeyboard(disp, XkbGBN_AllComponentsMask, XkbUseCoreKbd);
 	if (desc != NULL && desc->names != NULL) {
 		const char *layout_name = XGetAtomName(disp, desc->names->keycodes);
-		logger(LOG_LEVEL_INFO, 
-				"%s [%u]: Found keycode atom '%s' (%i)!\n", 
-				__FUNCTION__, __LINE__, layout_name, 
+		logger(LOG_LEVEL_INFO,
+				"%s [%u]: Found keycode atom '%s' (%i)!\n",
+				__FUNCTION__, __LINE__, layout_name,
 				(unsigned int) desc->names->keycodes);
 
 		const char *prefix_xfree86 = "xfree86_";
@@ -1341,21 +1341,21 @@ void load_input_helper(Display *disp) {
 			is_evdev = true;
 		}
 		else if (layout_name == NULL) {
-			logger(LOG_LEVEL_ERROR, 
-					"%s [%u]: X atom name failure for desc->names->keycodes!\n", 
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: X atom name failure for desc->names->keycodes!\n",
 					__FUNCTION__, __LINE__);
 		}
 		else if (strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86)) != 0) {
-			logger(LOG_LEVEL_ERROR, 
-					"%s [%u]: Unknown keycode name '%s', please file a bug report!\n", 
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
 					__FUNCTION__, __LINE__, layout_name);
 		}
 
 		XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
 	}
 	else {
-		logger(LOG_LEVEL_ERROR, 
-				"%s [%u]: XkbGetKeyboard failed to locate a valid keyboard!\n", 
+		logger(LOG_LEVEL_ERROR,
+				"%s [%u]: XkbGetKeyboard failed to locate a valid keyboard!\n",
 				__FUNCTION__, __LINE__);
 	}
 
@@ -1366,13 +1366,13 @@ void load_input_helper(Display *disp) {
 	#pragma message("*** Warning: XKB support is required to accuratly determine keyboard scancodes!")
 	#pragma message("... Assuming XFree86 keyboard layout.")
 
-	logger(LOG_LEVEL_WARN, 
-				"%s [%u]: XKB support is required to accuratly determine keyboard scancodes!\n", 
+	logger(LOG_LEVEL_WARN,
+				"%s [%u]: XKB support is required to accuratly determine keyboard scancodes!\n",
 				__FUNCTION__, __LINE__);
-	logger(LOG_LEVEL_WARN, 
-				"%s [%u]: Assuming XFree86 keyboard layout.\n", 
+	logger(LOG_LEVEL_WARN,
+				"%s [%u]: Assuming XFree86 keyboard layout.\n",
 				__FUNCTION__, __LINE__);
-	
+
 	int minKeyCode, maxKeyCode;
 	XDisplayKeycodes(disp, &minKeyCode, &maxKeyCode);
 
@@ -1410,14 +1410,14 @@ void load_input_helper(Display *disp) {
 		else {
 			XFree(keyboard_map);
 
-			logger(LOG_LEVEL_ERROR, 
-					"%s [%u]: Unable to get modifier mapping table!\n", 
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: Unable to get modifier mapping table!\n",
 					__FUNCTION__, __LINE__);
 		}
 	}
 	else {
-		logger(LOG_LEVEL_ERROR, 
-				"%s [%u]: Unable to get keyboard mapping table!\n", 
+		logger(LOG_LEVEL_ERROR,
+				"%s [%u]: Unable to get keyboard mapping table!\n",
 				__FUNCTION__, __LINE__);
 	}
 	#endif

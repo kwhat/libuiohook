@@ -344,12 +344,12 @@ typedef struct _KeyboardLocale {
 	PVK_TO_BIT pVkToBit;					// Pointers struct arrays.
 	PVK_TO_WCHAR_TABLE pVkToWcharTable;
 	PDEADKEY pDeadKey;
-	WCHAR deadChar;
 	struct _KeyboardLocale* next;
 } KeyboardLocale;
 
 static KeyboardLocale* locale_first = NULL;
 static KeyboardLocale* locale_current = NULL;
+static WCHAR deadChar = WCH_NONE;
 
 // Amount of pointer padding to apply for Wow64 instances.
 static short int ptr_padding = 0;
@@ -458,7 +458,7 @@ static int refresh_locale_list() {
 					count++;
 				}
 				else {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Removing loacle ID %#p from the cache.\n",
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Removing locale ID %#p from the cache.\n",
 							__FUNCTION__, __LINE__, locale_item->id);
 
 					// If the old id is not in the new list, remove it.
@@ -524,9 +524,6 @@ static int refresh_locale_list() {
 								// Third element of pKbd, +8 byte offset on wow64.
 								locale_item->pDeadKey = *((PDEADKEY *) (base + offsetof(KBDTABLES, pDeadKey) + (ptr_padding * 2)));
 								
-								// Set the dead wchar to the default, none.
-								locale_item->deadChar = WCH_NONE;
-
 								// This will always be added to the end of the list.
 								locale_item->next = NULL;
 
@@ -654,6 +651,10 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 			// Switch the current locale.
 			locale_current = locale_item;
 			locale_item = NULL;
+			
+			// If they layout changes the dead key state needs to be reset.
+			// This is consistent with the way Windows handles locale changes.
+			deadChar = WCH_NONE;
 		}
 		else {
 			logger(LOG_LEVEL_DEBUG,
@@ -766,16 +767,16 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 						}
 						else if (*outputChar == WCH_DEAD) {
 							// Handle the dead keys.
-							if (locale_current->deadChar == WCH_NONE) {
+							if (deadChar == WCH_NONE) {
 								// Received the first dead key.
-								locale_current->deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
+								deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
 								charCount = 0;
 							}
 							else {
 								// Received a second dead key.
-								*outputChar = locale_current->deadChar;
-								 locale_current->deadChar = WCH_NONE;
-								 charCount = 2;
+								*outputChar = deadChar;
+								deadChar = WCH_NONE;
+								charCount = 2;
 							}
 						}
 						
@@ -794,15 +795,15 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 
 
 		// If the current local has a dead key set.
-		if (locale_current->deadChar != WCH_NONE) {
+		if (deadChar != WCH_NONE) {
 			// Loop over the pDeadKey lookup table for the locale.
 			for (int i = 0; pDeadKey[i].dwBoth != 0; i++) {
 				baseChar = (WCHAR) pDeadKey[i].dwBoth;
 				diacritic = (WCHAR) (pDeadKey[i].dwBoth >> 16);
 				
 				// If we locate an extended dead char, set it.
-				if (baseChar == *outputChar && diacritic == locale_current->deadChar) {
-					locale_current->deadChar = WCH_NONE;
+				if (baseChar == *outputChar && diacritic == deadChar) {
+					deadChar = WCH_NONE;
 					*outputChar = (WCHAR) pDeadKey[i].wchComposed;
 				}
 			}

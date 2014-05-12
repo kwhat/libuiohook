@@ -26,12 +26,16 @@
 
 #include "logger.h"
 
-// I am not sure why this isn't defined by windows.h.
-#ifndef MAPVK_VK_TO_VSC_EX
+// Some buggy versions of MinGW and MSys do not include these constants in winuser.h.
+#ifndef MAPVK_VK_TO_VSC
 #define MAPVK_VK_TO_VSC			0
 #define MAPVK_VSC_TO_VK			1
 #define MAPVK_VK_TO_CHAR		2
 #define MAPVK_VSC_TO_VK_EX		3
+#endif
+// Some buggy versions of MinGW and MSys only define this value for Windows
+// versions >= 0x0600 (Windows Vista) when it should be 0x0500 (Windows 2000).
+#ifndef MAPVK_VK_TO_VSC_EX
 #define MAPVK_VK_TO_VSC_EX		4
 #endif
 
@@ -225,7 +229,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 	//key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
 
 	if (! SendInput(events_size, events, sizeof(INPUT)) ) {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: SendInput() failed! (%#lX)\n", 
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: SendInput() failed! (%#lX)\n",
 				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 	}
 

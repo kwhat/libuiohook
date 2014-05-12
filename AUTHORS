@@ -1,1 +1,16 @@
 Alexander Barker <alex@1stleg.com>
+
+Anthony Liguori <anthony@codemonkey.ws>
+	original version of the keycode_to_scancode function in x11/input_helper.c
+
+Fabrice Bellard <fabrice@bellard.org>
+	xfree86_keycode_to_scancode_table lookup table in x11/input_helper.c
+
+Marc-André Moreau <marcandre.moreau@gmail.com>
+	original version of windows/input_helper.c
+	original version of windows/input_helper.h
+
+Markus G. Kuhn <mkuhn@acm.org>
+	keysym_unicode_table lookup table in x11/input_helper.c
+	original version of the unicode_to_keysym function in x11/input_helper.c
+	original version of the keysym_to_unicode function in x11/input_helper.c

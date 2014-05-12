@@ -263,7 +263,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_NUM_LOCK,				//	 71 kVK_ANSI_KeypadClear
 	VC_VOLUME_UP,				//	 72 kVK_VolumeUp
 	VC_VOLUME_DOWN,				//	 73 kVK_VolumeDown
-	VC_MUTE,					//	 74 kVK_Mute
+	VC_VOLUME_MUTE,				//	 74 kVK_Mute
 	VC_KP_DIVIDE,				//	 75 kVK_ANSI_KeypadDivide
 	VC_KP_ENTER,				//	 76 kVK_ANSI_KeypadEnter
 	VC_UNDEFINED,				//	 75 unused

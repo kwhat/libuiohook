@@ -153,7 +153,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_META_L,					// 0x5B VK_LWIN 				Left Windows key (Natural keyboard)
 	VC_META_R,					// 0x5C VK_RWIN					Right Windows key (Natural keyboard)
 	
-	// 0x5D VK_APPS					Applications key (Natural keyboard)
+	VC_UNDEFINED,				// 0x5D VK_APPS					Applications key (Natural keyboard)
 	VC_UNDEFINED,				// 0x5E Reserved
 	VC_SLEEP,					// 0x5F VK_SLEEP				Computer Sleep key
 
@@ -335,7 +335,7 @@ static unsigned short vk_lookup_table[] = {
 	VC_UNDEFINED,				// 0xFC VK_NONAME				Reserved
 	VC_UNDEFINED,				// 0xFD VK_PA1					PA1 key
 	VC_UNDEFINED,				// 0xFE VK_OEM_CLEAR			Clear key
-}
+};
 
 // Structure and pointers for the keyboard locale cache.
 typedef struct _KeyboardLocale {
@@ -344,6 +344,7 @@ typedef struct _KeyboardLocale {
 	PVK_TO_BIT pVkToBit;					// Pointers struct arrays.
 	PVK_TO_WCHAR_TABLE pVkToWcharTable;
 	PDEADKEY pDeadKey;
+	WCHAR deadChar;
 	struct _KeyboardLocale* next;
 } KeyboardLocale;
 
@@ -416,7 +417,7 @@ static int refresh_locale_list() {
 		int new_size = GetKeyboardLayoutList(hkl_size, hkl_list);
 		if (new_size > 0) {
 			if (new_size != hkl_size) {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Locale size mismatch!  "
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Locale size mismatch!  "
 						"Expected %i, received %i!\n",
 						__FUNCTION__, __LINE__, hkl_size, new_size);
 			}
@@ -443,7 +444,7 @@ static int refresh_locale_list() {
 
 
 				if (is_loaded) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found loacle ID %#p in the cache.\n",
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found locale ID %#p in the cache.\n",
 							__FUNCTION__, __LINE__, locale_item->id);
 
 					// Set the previous local to the current locale.
@@ -522,7 +523,9 @@ static int refresh_locale_list() {
 
 								// Third element of pKbd, +8 byte offset on wow64.
 								locale_item->pDeadKey = *((PDEADKEY *) (base + offsetof(KBDTABLES, pDeadKey) + (ptr_padding * 2)));
-
+								
+								// Set the dead wchar to the default, none.
+								locale_item->deadChar = WCH_NONE;
 
 								// This will always be added to the end of the list.
 								locale_item->next = NULL;
@@ -627,7 +630,7 @@ int unload_input_helper() {
 	return count;
 }
 
-int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
+int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 	// Get the thread id that currently has focus and
 	DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
 	HKL locale_id = GetKeyboardLayout(focus_pid);
@@ -636,26 +639,23 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 	if (locale_current == NULL || locale_current->id != locale_id) {
 		locale_current = NULL;
 		KeyboardLocale* locale_item = locale_first;
-		while (locale_item != NULL) {
-			// Search the linked list.
-			if (locale_item->id == locale_id) {
-				logger(LOG_LEVEL_INFO,
+		
+		// Search the linked list...
+		while (locale_item != NULL && locale_item->id != locale_id) {
+			locale_item = locale_item->next;
+		}
+
+		// You may already be a winner!
+		if (locale_item != NULL && locale_item->id != locale_id) {
+			logger(LOG_LEVEL_INFO,
 					"%s [%u]: Activating keyboard layout %#p.\n",
 					__FUNCTION__, __LINE__, locale_item->id);
 
-				// If they layout changes the dead key state needs to be reset.
-				// This is consistent with the way Windows handles locale changes.
-				*deadChar = 0;
-				locale_current = locale_item;
-				locale_item = NULL;
-			}
-			else {
-				locale_item = locale_item->next;
-			}
+			// Switch the current locale.
+			locale_current = locale_item;
+			locale_item = NULL;
 		}
-
-		// If we were unable to find the locale in the list, refresh the list.
-		if (locale_current == NULL) {
+		else {
 			logger(LOG_LEVEL_DEBUG,
 					"%s [%u]: Refreshing locale cache.\n",
 					__FUNCTION__, __LINE__);
@@ -664,9 +664,9 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 		}
 	}
 
-
+	// Initialize to empty.
 	int charCount = 0;
-	*outputChar = 0;
+	*outputChar = WCH_NONE;
 
 	// Check and make sure the Unicode helper was loaded.
 	if (locale_current != NULL) {
@@ -756,17 +756,29 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 						}
 						*outputChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
 						charCount = 1;
-
+						
 						// Increment the pCurrentVkToWchars by the size of wch[n].
 						pCurrentVkToWchars += sizeof(VK_TO_WCHARS) + (sizeof(WCHAR) * n);
 
 						if (*outputChar == WCH_NONE) {
+							// Set the char count to zero.
 							charCount = 0;
 						}
 						else if (*outputChar == WCH_DEAD) {
-							*deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
-							charCount = 0;
+							// Handle the dead keys.
+							if (locale_current->deadChar == WCH_NONE) {
+								// Received the first dead key.
+								locale_current->deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
+								charCount = 0;
+							}
+							else {
+								// Received a second dead key.
+								*outputChar = locale_current->deadChar;
+								 locale_current->deadChar = WCH_NONE;
+								 charCount = 2;
+							}
 						}
+						
 						break;
 					}
 					else {
@@ -781,14 +793,16 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar, PWCHAR deadChar) {
 		} while (cbSize != 0);
 
 
-		// Code to check for dead characters...
-		if (*deadChar != 0) {
+		// If the current local has a dead key set.
+		if (locale_current->deadChar != WCH_NONE) {
+			// Loop over the pDeadKey lookup table for the locale.
 			for (int i = 0; pDeadKey[i].dwBoth != 0; i++) {
 				baseChar = (WCHAR) pDeadKey[i].dwBoth;
 				diacritic = (WCHAR) (pDeadKey[i].dwBoth >> 16);
-
-				if ((baseChar == *outputChar) && (diacritic == *deadChar)) {
-					*deadChar = 0;
+				
+				// If we locate an extended dead char, set it.
+				if (baseChar == *outputChar && diacritic == locale_current->deadChar) {
+					locale_current->deadChar = WCH_NONE;
 					*outputChar = (WCHAR) pDeadKey[i].wchComposed;
 				}
 			}
@@ -802,7 +816,8 @@ unsigned short convert_vk_to_scancode(DWORD vk_code) {
 	unsigned short scancode = VC_UNDEFINED;
 	
 	// Check the vk_code is in range.
-	if (vk_code >= 0 && vk_code < sizeof(vk_lookup_table) / sizeof(vk_lookup_table[0])) {
+	// NOTE vk_code >= 0 is assumed because DWORD is unsigned.
+	if (vk_code < sizeof(vk_lookup_table) / sizeof(vk_lookup_table[0])) {
 		scancode = vk_lookup_table[vk_code];
 	}
 	

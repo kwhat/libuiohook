@@ -35,7 +35,7 @@ static unsigned short int current_modifiers = 0x0000;
 static FILETIME ft;
 
 // Key typed Unicode return values.
-static WCHAR keywchar = '\0', keydead = 0;
+static WCHAR keywchar = '\0';
 
 // Click count globals.
 static unsigned short click_count = 0;
@@ -175,7 +175,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			dispatch_event(&event);
 
 			// If the pressed event was not consumed and a wchar exists...
-			if (event.reserved ^ 0x01 && convert_vk_to_wchar(kbhook->vkCode, &keywchar, &keydead) > 0) {
+			int type_count = convert_vk_to_wchar(kbhook->vkCode, &keywchar);
+			for (int i = 0; event.reserved ^ 0x01 && i < type_count; i++) {
 				// Fire key typed event.
 				event.type = EVENT_KEY_TYPED;
 				event.mask = get_modifiers();
@@ -186,7 +187,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
-				dispatch_event(&event);
+				dispatch_event(&event);	
 			}
 			break;
 

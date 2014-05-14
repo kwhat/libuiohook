@@ -157,7 +157,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			// Fire key pressed event.
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
-			
+
 			/* Replaced by convert_vk_to_scancode
 			event.data.keyboard.keycode = kbhook->scanCode;
 			if (kbhook->flags & 0x03) {
@@ -166,7 +166,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			}
 			*/
 			event.data.keyboard.keycode = convert_vk_to_scancode(kbhook->vkCode);
-			
+
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
@@ -187,7 +187,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
-				dispatch_event(&event);	
+				dispatch_event(&event);
 			}
 			break;
 

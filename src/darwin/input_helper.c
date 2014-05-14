@@ -270,7 +270,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_KP_SUBTRACT,				//	 76 kVK_ANSI_KeypadMinus
 	VC_F18,						//	 77 kVK_F18
 	VC_F19,						//	 78 kVK_F19
-	VB_KP_EQUALS,				//	 79 kVK_ANSI_KeypadEquals
+	VC_KP_EQUALS,				//	 79 kVK_ANSI_KeypadEquals
 	VC_KP_0,					//	 80 kVK_ANSI_Keypad0
 	VC_KP_1,					//	 81 kVK_ANSI_Keypad1
 	VC_KP_2,					//	 82 kVK_ANSI_Keypad2

@@ -245,7 +245,7 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_KP_DIVIDE							0x0E35
 #define VC_KP_MULTIPLY							0x0037
 #define VC_KP_SUBTRACT							0x004A
-#define VB_KP_EQUALS							0x0E0D
+#define VC_KP_EQUALS							0x0E0D
 #define VC_KP_ADD								0x004E
 #define VC_KP_ENTER								0x0E1C
 #define VC_KP_SEPARATOR							0x0053

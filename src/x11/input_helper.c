@@ -1124,12 +1124,30 @@ wchar_t keysym_to_unicode(KeySym keysym) {
  * published by the Free Software Foundation.
  */
 uint16_t keycode_to_scancode(KeyCode keycode) {
-	uint16_t scancode = 0x0000;
+	uint16_t scancode = VC_UNDEFINED;
 
-	// FIXME Address Pause Key.
-	//if (keycode == GDK_Pause) {
-	//	return VKC_PAUSE;
-	//}
+	/* This is some experimental code to simplify the evdev scancode conversion,
+	 * unfortunately kernel scancodes do not appear to be set 1.
+	if (keycode >= 8) {
+		#ifdef USE_XKB
+		if (is_evdev) {
+			scancode = keycode - 8;
+		}
+		#else
+		if (keycode < 158) {
+			scancode = xfree86_keycode_to_scancode_table[keycode - 97];
+		}
+		else if (keycode == 208) {
+			// Hiragana_Katakana
+			scancode = 0x70;
+		}
+		else if (keycode == 211) {
+			// Backslash
+			scancode = 0x73;
+		}
+		#endif
+	}
+	*/
 
 	if (keycode < 9) {
 		scancode = 0x00;

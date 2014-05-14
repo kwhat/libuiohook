@@ -40,7 +40,7 @@ static bool is_caps_lock = false, is_shift_lock = false;
 #include "logger.h"
 
 /*
- * This table is taken from QEMU x_keymap.c, under the terms:
+ * This table is taken from QEMU x_keymap.c, under the following terms:
  *
  * Copyright (C) 2003 Fabrice Bellard <fabrice@bellard.org>
  *
@@ -62,25 +62,27 @@ static bool is_caps_lock = false, is_shift_lock = false;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+// FIXME The size of this table should be increased to (255 - 97) to
+// accommodate for media controls and internet keyboards.
 static const uint8_t xfree86_keycode_to_scancode_table[61] = {
-	0xC7,	// 97  Home
-	0xC8,	// 98  Up
-	0xC9,	// 99  PgUp
-	0xCb,	// 100 Left
-	0x4C,	// 101 KP-5
-	0xCD,	// 102 Right
-	0xCF,	// 103 End
-	0xD0,	// 104 Down
-	0xD1,	// 105 PgDn
-	0xD2,	// 106 Ins
-	0xD3,	// 107 Del
-	0x9C,	// 108 Enter
-	0x9D,	// 109 Ctrl-R
-	0x00,	// 110 Pause
-	0xB7,	// 111 Print
-	0xB5,	// 112 Divide
-	0xB8,	// 113 Alt-R
-	0xC6,	// 114 Break
+	VC_HOME,		// 97  Home
+	VC_UP,			// 98  Up
+	VC_PAGE_UP,		// 99  PgUp
+	VC_LEFT,		// 100 Left
+	VC_KP_5,		// 101 KP-5
+	VC_RIGHT,		// 102 Right
+	VC_END,			// 103 End
+	VC_DOWN,		// 104 Down
+	VC_PAGE_DOWN,	// 105 PgDn
+	VC_INSERT,		// 106 Ins
+	VC_DELETE,		// 107 Del
+	VC_KP_ENTER,	// 108 Enter
+	VC_CONTROL_R,	// 109 Ctrl-R
+	VC_PAUSE,		// 110 Pause
+	VC_PRINTSCREEN,	// 111 Print
+	VC_SLASH,		// 112 Divide
+	VC_ALT_R,		// 113 Alt-R
+	VC_PAUSE,		// 114 Break
 	0x00,	// 115
 	0x00,	// 116
 	0x00,	// 117
@@ -97,33 +99,33 @@ static const uint8_t xfree86_keycode_to_scancode_table[61] = {
 	0x00,	// 128
 	0x79,	// 129 Henkan
 	0x00,	// 130
-	0x7b,	// 131 Muhenkan
+	0x7B,	// 131 Muhenkan
 	0x00,	// 132
 	0x7d,	// 133 Yen
 	0x00,	// 134
 	0x00,	// 135
-	0x47,	// 136 KP_7
-	0x48,	// 137 KP_8
-	0x49,	// 138 KP_9
-	0x4b,	// 139 KP_4
-	0x4c,	// 140 KP_5
-	0x4d,	// 141 KP_6
-	0x4f,	// 142 KP_1
-	0x50,	// 143 KP_2
-	0x51,	// 144 KP_3
-	0x52,	// 145 KP_0
-	0x53,	// 146 KP_.
-	0x47,	// 147 KP_HOME
-	0x48,	// 148 KP_UP
-	0x49,	// 149 KP_PgUp
-	0x4b,	// 150 KP_Left
-	0x4c,	// 151 KP_
-	0x4d,	// 152 KP_Right
-	0x4f,	// 153 KP_End
-	0x50,	// 154 KP_Down
-	0x51,	// 155 KP_PgDn
-	0x52,	// 156 KP_Ins
-	0x53,	// 157 KP_Del
+	VC_KP_7,			// 136 KP_7
+	VC_KP_8,			// 137 KP_8
+	VC_KP_9,			// 138 KP_9
+	VC_KP_4,			// 139 KP_4
+	VC_KP_5,			// 140 KP_5
+	VC_KP_6,			// 141 KP_6
+	VC_KP_1,			// 142 KP_1
+	VC_KP_2,			// 143 KP_2
+	VC_KP_3,			// 144 KP_3
+	VC_KP_0,			// 145 KP_0
+	VC_KP_SEPARATOR,	// 146 KP_.
+	VC_KP_7,			// 147 KP_HOME
+	VC_KP_8,			// 148 KP_UP
+	VC_KP_9,			// 149 KP_PgUp
+	VC_KP_4,			// 150 KP_Left
+	VC_KP_5,			// 151 KP_
+	VC_KP_6,			// 152 KP_Right
+	VC_KP_1,			// 153 KP_End
+	VC_KP_2,			// 154 KP_Down
+	VC_KP_3,			// 155 KP_PgDn
+	VC_KP_0,			// 156 KP_Ins
+	VC_KP_SEPARATOR,	// 157 KP_Del
 };
 
 #ifdef USE_XKB
@@ -131,6 +133,8 @@ static const uint8_t xfree86_keycode_to_scancode_table[61] = {
  * and the keycode mappings in /usr/share/X11/xkb/keycodes/evdev
  * and  /usr/share/X11/xkb/keycodes/xfree86
  */
+// FIXME The size of this table should be increased to (255 - 97) to
+// accommodate for media controls and internet keyboards.
 static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	0x00,	// 97 EVDEV - RO   ("Internet" Keyboards)
 	0x00,	// 98 EVDEV - KATA (Katakana)
@@ -139,49 +143,49 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	0x70,	// 101 EVDEV - HKTG (Hiragana/Katakana toggle)
 	0x7B,	// 102 EVDEV - MUHE (Muhenkan)
 	0x00,	// 103 EVDEV - JPCM (KPJPComma)
-	0x0E1C,	// 104 KPEN
-	0x0E1D,	// 105 RCTL
-	0x0E35,	// 106 KPDV
-	0x0E37,	// 107 PRSC
-	0xB8,	// 108 RALT
+	VC_KP_ENTER,		// 104 KPEN
+	VC_CONTROL_R,		// 105 RCTL
+	VC_KP_DIVIDE,		// 106 KPDV
+	VC_PRINTSCREEN,		// 107 PRSC
+	VC_ALT_R,			// 108 RALT
 	0x00,	// 109 EVDEV - LNFD ("Internet" Keyboards)
-	0x0E47,	// 110 HOME
-	0xE048,	// 111 UP
-	0x0E49,	// 112 PGUP
-	0xE04B,	// 113 LEFT
-	0xE04D,	// 114 RGHT
-	0x0E4F,	// 115 END
-	0xE050,	// 116 DOWN
-	0x0E51,	// 117 PGDN
-	0x0E52,	// 118 INS
-	0x0E53,	// 119 DELE
+	VC_HOME,			// 110 HOME
+	VC_UP,				// 111 UP
+	VC_PAGE_UP,			// 112 PGUP
+	VC_LEFT,			// 113 LEFT
+	VC_RIGHT,			// 114 RGHT
+	VC_END,				// 115 END
+	VC_DOWN,			// 116 DOWN
+	VC_PAGE_DOWN,		// 117 PGDN
+	VC_INSERT,			// 118 INS
+	VC_DELETE,			// 119 DELETE
 	0x00,	// 120 EVDEV - I120 ("Internet" Keyboards)
-	0x00,	// 121 EVDEV - MUTE
-	0x00,	// 122 EVDEV - VOL-
-	0x00,	// 123 EVDEV - VOL
+	VC_VOLUME_MUTE,		// 121 EVDEV - MUTE
+	VC_VOLUME_DOWN,		// 122 EVDEV - VOL-
+	VC_VOLUME_UP,		// 123 EVDEV - VOL+
 	0x00,	// 124 EVDEV - POWR
-	0x00,	// 125 EVDEV - KPEQ
+	VC_KP_EQUALS,		// 125 EVDEV - KPEQ
 	0x00,	// 126 EVDEV - I126 ("Internet" Keyboards)
-	0x0E45,	// 127 EVDEV - PAUS
+	VC_PAUSE,			// 127 EVDEV - PAUSE
 	0x00,	// 128 EVDEV - ????
 	0x00,	// 129 EVDEV - I129 ("Internet" Keyboards)
 	0xF1,	// 130 EVDEV - HNGL (Korean Hangul Latin toggle)
 	0xF2,	// 131 EVDEV - HJCV (Korean Hangul Hanja toggle)
 	0x7D,	// 132 AE13 (Yen)
-	0x0E5B,	// 133 EVDEV - LWIN
-	0x0E5C,	// 134 EVDEV - RWIN
-	0x0E5D,	// 135 EVDEV - MENU
+	VC_META_L,			// 133 EVDEV - LWIN
+	VC_META_R,			// 134 EVDEV - RWIN
+	VC_CONTEXT_MENU,	// 135 EVDEV - MENU
 	0x00,	// 136 EVDEV - STOP
 	0x00,	// 137 EVDEV - AGAI
 	0x00,	// 138 EVDEV - PROP
-	0x00,	// 139 EVDEV - UNDO
+	VC_UNDO,			// 139 EVDEV - UNDO
 	0x00,	// 140 EVDEV - FRNT
-	0x00,	// 141 EVDEV - COPY
+	VC_COPY,			// 141 EVDEV - COPY
 	0x00,	// 142 EVDEV - OPEN
-	0x00,	// 143 EVDEV - PAST
+	VC_PASTE,			// 143 EVDEV - PASTE
 	0x00,	// 144 EVDEV - FIND
-	0x00,	// 145 EVDEV - CUT
-	0x00,	// 146 EVDEV - HELP
+	VC_CUT,				// 145 EVDEV - CUT
+	VC_HELP,			// 146 EVDEV - HELP
 	0x00,	// 147 EVDEV - I147
 	0x00,	// 148 EVDEV - I148
 	0x00,	// 149 EVDEV - I149
@@ -1111,7 +1115,7 @@ wchar_t keysym_to_unicode(KeySym keysym) {
 }
 
 
-/* The following code is based on vncdisplaykeymap.c under the terms:
+/* The following code is based on vncdisplaykeymap.c under the following terms:
  *
  * Copyright (C) 2008  Anthony Liguori <anthony@codemonkey.ws>
  *
@@ -1169,7 +1173,7 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 
 	#ifdef USE_XKB
 	if (keyboard_map != NULL) {
-		// What is diff between XkbKeyGroupInfo and XkbKeyNumGroups?
+		// Get the range and number of symbols groups bound to the key.
 		unsigned char info = XkbKeyGroupInfo(keyboard_map, keycode);
 		unsigned int num_groups = XkbKeyNumGroups(keyboard_map, keycode);
 
@@ -1367,7 +1371,7 @@ void load_input_helper(Display *disp) {
 	#pragma message("... Assuming XFree86 keyboard layout.")
 
 	logger(LOG_LEVEL_WARN,
-				"%s [%u]: XKB support is required to accuratly determine keyboard scancodes!\n",
+				"%s [%u]: XKB support is required to accurately determine keyboard scancodes!\n",
 				__FUNCTION__, __LINE__);
 	logger(LOG_LEVEL_WARN,
 				"%s [%u]: Assuming XFree86 keyboard layout.\n",

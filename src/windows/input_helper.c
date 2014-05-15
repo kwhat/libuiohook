@@ -78,16 +78,14 @@ static unsigned short vk_lookup_table[] = {
 	VC_PAUSE,					// 0x13 VK_PAUSE
 	VC_CAPS_LOCK,				// 0x14 VK_CAPITAL				CAPS LOCK key
 
-	// FIXME
-	VC_UNDEFINED,				// 0x15 VK_KANA					IME Kana mode
+	VC_KATAKANA,				// 0x15 VK_KANA					IME Kana mode
 
 	VC_UNDEFINED,				// 0x16 Undefined
 
-	// FIXME
 	VC_UNDEFINED,				// 0x17 VK_JUNJA				IME Junja mode
 	VC_UNDEFINED,				// 0x18 VK_FINAL
 	VC_UNDEFINED,				// 0x19 VK_HANJA				IME Hanja mode
-	VC_UNDEFINED,				// 0x19 VK_KANJI				IME Kanji mode
+	VC_KANJI,					// 0x19 VK_KANJI				IME Kanji mode
 
 	VC_UNDEFINED,				// 0x1A							Undefined
 	VC_ESCAPE,					// 0x1B VK_ESCAPE				ESC key
@@ -152,7 +150,7 @@ static unsigned short vk_lookup_table[] = {
 
 	VC_META_L,					// 0x5B VK_LWIN 				Left Windows key (Natural keyboard)
 	VC_META_R,					// 0x5C VK_RWIN					Right Windows key (Natural keyboard)
-	
+
 	VC_UNDEFINED,				// 0x5D VK_APPS					Applications key (Natural keyboard)
 	VC_UNDEFINED,				// 0x5E Reserved
 	VC_SLEEP,					// 0x5F VK_SLEEP				Computer Sleep key
@@ -523,7 +521,7 @@ static int refresh_locale_list() {
 
 								// Third element of pKbd, +8 byte offset on wow64.
 								locale_item->pDeadKey = *((PDEADKEY *) (base + offsetof(KBDTABLES, pDeadKey) + (ptr_padding * 2)));
-								
+
 								// This will always be added to the end of the list.
 								locale_item->next = NULL;
 
@@ -636,7 +634,7 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 	if (locale_current == NULL || locale_current->id != locale_id) {
 		locale_current = NULL;
 		KeyboardLocale* locale_item = locale_first;
-		
+
 		// Search the linked list...
 		while (locale_item != NULL && locale_item->id != locale_id) {
 			locale_item = locale_item->next;
@@ -651,7 +649,7 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 			// Switch the current locale.
 			locale_current = locale_item;
 			locale_item = NULL;
-			
+
 			// If they layout changes the dead key state needs to be reset.
 			// This is consistent with the way Windows handles locale changes.
 			deadChar = WCH_NONE;
@@ -757,7 +755,7 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 						}
 						*outputChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
 						charCount = 1;
-						
+
 						// Increment the pCurrentVkToWchars by the size of wch[n].
 						pCurrentVkToWchars += sizeof(VK_TO_WCHARS) + (sizeof(WCHAR) * n);
 
@@ -779,7 +777,7 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 								charCount = 2;
 							}
 						}
-						
+
 						break;
 					}
 					else {
@@ -800,7 +798,7 @@ int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
 			for (int i = 0; pDeadKey[i].dwBoth != 0; i++) {
 				baseChar = (WCHAR) pDeadKey[i].dwBoth;
 				diacritic = (WCHAR) (pDeadKey[i].dwBoth >> 16);
-				
+
 				// If we locate an extended dead char, set it.
 				if (baseChar == *outputChar && diacritic == deadChar) {
 					deadChar = WCH_NONE;

@@ -315,58 +315,15 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_BROWSER_FAVORITES					0xE066
 // End Media Control Keys
 
-
+// Begin Japanese Language Keys
 #define VC_KATAKANA								0x0070
+#define VC_UNDERSCORE							0x0073
 #define VC_FURIGANA								0x0077
 #define VC_KANJI								0x0079
 #define VC_HIRAGANA								0x007B
-
-
-// For European keyboards.
-/*
-#define VC_DEAD_GRAVE							0x80
-#define VC_DEAD_ACUTE							0x81
-#define VC_DEAD_CIRCUMFLEX						0x82
-#define VC_DEAD_TILDE							0x83
-#define VC_DEAD_MACRON							0x84
-#define VC_DEAD_BREVE							0x85
-#define VC_DEAD_ABOVEDOT						0x86
-#define VC_DEAD_DIAERESIS						0x87
-#define VC_DEAD_ABOVERING						0x88
-#define VC_DEAD_DOUBLEACUTE						0x89
-#define VC_DEAD_CARON							0x8A
-#define VC_DEAD_CEDILLA							0x8B
-#define VC_DEAD_OGONEK							0x8C
-#define VC_DEAD_IOTA							0x8D
-#define VC_DEAD_VOICED_SOUND					0x8E
-#define VC_DEAD_SEMIVOICED_SOUND				0x8F
-*/
-
-// For input method support on Asian Keyboards.
-/*
-#define VC_FINAL								0x0018	// Unknown Win32 API
-#define VC_CONVERT								0x001C
-#define VC_NONCONVERT							0x001D
-#define VC_ACCEPT								0x001E
-#define VC_MODECHANGE							0x001F	// Unknown Win32 API
-#define VC_KANA									0x0015
-
-#define VC_ALPHANUMERIC							0x00F0
-*/
-
-/*
-#define VC_FULL_WIDTH							0x00F3
-#define VC_HALF_WIDTH							0x00F4
-#define VC_ROMAN_CHARACTERS						0x00F5
-#define VC_ALL_CANDIDATES						0x0100
-#define VC_PREVIOUS_CANDIDATE					0x0101
-#define VC_CODE_INPUT							0x0102
-#define VC_JAPANESE_KATAKANA					0x0103
-#define VC_JAPANESE_HIRAGANA					0x0104
-#define VC_JAPANESE_ROMAN						0x0105
-#define VC_KANA_LOCK							0x0106
-#define VC_INPUT_METHOD_ON_OFF					0x0107
-*/
+#define VC_YEN									0x007D
+#define VC_KP_COMMA								0x007E
+// End Japanese Language Keys
 
 // For Sun keyboards.
 /*

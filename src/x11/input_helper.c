@@ -64,46 +64,46 @@ static bool is_caps_lock = false, is_shift_lock = false;
  */
 // FIXME The size of this table should be increased to (255 - 97) to
 // accommodate for media controls and internet keyboards.
-static const uint8_t xfree86_keycode_to_scancode_table[61] = {
-	VC_HOME,		// 97  Home
-	VC_UP,			// 98  Up
-	VC_PAGE_UP,		// 99  PgUp
-	VC_LEFT,		// 100 Left
-	VC_KP_5,		// 101 KP-5
-	VC_RIGHT,		// 102 Right
-	VC_END,			// 103 End
-	VC_DOWN,		// 104 Down
-	VC_PAGE_DOWN,	// 105 PgDn
-	VC_INSERT,		// 106 Ins
-	VC_DELETE,		// 107 Del
-	VC_KP_ENTER,	// 108 Enter
-	VC_CONTROL_R,	// 109 Ctrl-R
-	VC_PAUSE,		// 110 Pause
-	VC_PRINTSCREEN,	// 111 Print
-	VC_SLASH,		// 112 Divide
-	VC_ALT_R,		// 113 Alt-R
-	VC_PAUSE,		// 114 Break
-	0x00,	// 115
-	0x00,	// 116
-	0x00,	// 117
-	0x00,	// 118
-	0x00,	// 119
-	0x00,	// 120
-	0x00,	// 121
-	0x00,	// 122
-	0x00,	// 123
-	0x00,	// 124
-	0x00,	// 125
-	0x00,	// 126
-	0x00,	// 127
-	0x00,	// 128
-	0x79,	// 129 Henkan
-	0x00,	// 130
-	0x7B,	// 131 Muhenkan
-	0x00,	// 132
-	0x7d,	// 133 Yen
-	0x00,	// 134
-	0x00,	// 135
+static const uint16_t xfree86_keycode_to_scancode_table[61] = {
+	VC_HOME,			// 97  Home
+	VC_UP,				// 98  Up
+	VC_PAGE_UP,			// 99  PgUp
+	VC_LEFT,			// 100 Left
+	VC_KP_5,			// 101 KP-5
+	VC_RIGHT,			// 102 Right
+	VC_END,				// 103 End
+	VC_DOWN,			// 104 Down
+	VC_PAGE_DOWN,		// 105 PgDn
+	VC_INSERT,			// 106 Ins
+	VC_DELETE,			// 107 Del
+	VC_KP_ENTER,		// 108 Enter
+	VC_CONTROL_R,		// 109 Ctrl-R
+	VC_PAUSE,			// 110 Pause
+	VC_PRINTSCREEN,		// 111 Print
+	VC_SLASH,			// 112 Divide
+	VC_ALT_R,			// 113 Alt-R
+	VC_PAUSE,			// 114 Break
+	VC_UNDEFINED,		// 115
+	VC_UNDEFINED,		// 116
+	VC_UNDEFINED,		// 117
+	VC_UNDEFINED,		// 118
+	VC_UNDEFINED,		// 119
+	VC_UNDEFINED,		// 120
+	VC_UNDEFINED,		// 121
+	VC_UNDEFINED,		// 122
+	VC_UNDEFINED,		// 123
+	VC_UNDEFINED,		// 124
+	VC_UNDEFINED,		// 125
+	VC_UNDEFINED,		// 126
+	VC_UNDEFINED,		// 127
+	VC_UNDEFINED,		// 128
+	VC_KANJI,			// 129 Henkan
+	VC_UNDEFINED,		// 130
+	VC_HIRAGANA,		// 131 Muhenkan
+	VC_UNDEFINED,		// 132
+	VC_YEN,				// 133 Yen (0x7D)
+	VC_UNDEFINED,		// 134
+	VC_UNDEFINED,		// 135
 	VC_KP_7,			// 136 KP_7
 	VC_KP_8,			// 137 KP_8
 	VC_KP_9,			// 138 KP_9
@@ -130,25 +130,27 @@ static const uint8_t xfree86_keycode_to_scancode_table[61] = {
 
 #ifdef USE_XKB
 /* This table is generated based off the xfree86 -> scancode mapping above
- * and the keycode mappings in /usr/share/X11/xkb/keycodes/evdev
- * and  /usr/share/X11/xkb/keycodes/xfree86
+ * and the keycode mappings in the following files:
+ *		/usr/include/linux/input.h
+ *		/usr/share/X11/xkb/keycodes/evdev
+ *		/usr/share/X11/xkb/keycodes/xfree86
  */
 // FIXME The size of this table should be increased to (255 - 97) to
 // accommodate for media controls and internet keyboards.
 static const uint16_t evdev_keycode_to_scancode_table[61] = {
-	0x00,	// 97 EVDEV - RO   ("Internet" Keyboards)
-	0x00,	// 98 EVDEV - KATA (Katakana)
-	0x00,	// 99 EVDEV - HIRA (Hiragana)
-	0x79,	// 100 EVDEV - HENK (Henkan)
-	0x70,	// 101 EVDEV - HKTG (Hiragana/Katakana toggle)
-	0x7B,	// 102 EVDEV - MUHE (Muhenkan)
-	0x00,	// 103 EVDEV - JPCM (KPJPComma)
+	VC_UNDEFINED,		// 97 EVDEV - RO   ("Internet" Keyboards)
+	VC_KATAKANA,		// 98 EVDEV - KATA (Katakana)
+	VC_KATAKANA,		// 99 EVDEV - HIRA (Hiragana)
+	VC_KANJI,			// 100 EVDEV - HENK (Henkan)
+	VC_KATAKANA,		// 101 EVDEV - HKTG (Hiragana/Katakana toggle)
+	VC_HIRAGANA,		// 102 EVDEV - MUHE (Muhenkan)
+	VC_UNDEFINED,		// 103 EVDEV - JPCM (KPJPComma)
 	VC_KP_ENTER,		// 104 KPEN
 	VC_CONTROL_R,		// 105 RCTL
 	VC_KP_DIVIDE,		// 106 KPDV
 	VC_PRINTSCREEN,		// 107 PRSC
 	VC_ALT_R,			// 108 RALT
-	0x00,	// 109 EVDEV - LNFD ("Internet" Keyboards)
+	VC_UNDEFINED,		// 109 EVDEV - LNFD ("Internet" Keyboards)
 	VC_HOME,			// 110 HOME
 	VC_UP,				// 111 UP
 	VC_PAGE_UP,			// 112 PGUP
@@ -159,44 +161,44 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	VC_PAGE_DOWN,		// 117 PGDN
 	VC_INSERT,			// 118 INS
 	VC_DELETE,			// 119 DELETE
-	0x00,	// 120 EVDEV - I120 ("Internet" Keyboards)
+	VC_UNDEFINED,		// 120 EVDEV - I120 ("Internet" Keyboards)
 	VC_VOLUME_MUTE,		// 121 EVDEV - MUTE
 	VC_VOLUME_DOWN,		// 122 EVDEV - VOL-
 	VC_VOLUME_UP,		// 123 EVDEV - VOL+
-	0x00,	// 124 EVDEV - POWR
+	VC_UNDEFINED,		// 124 EVDEV - POWR
 	VC_KP_EQUALS,		// 125 EVDEV - KPEQ
-	0x00,	// 126 EVDEV - I126 ("Internet" Keyboards)
+	VC_UNDEFINED,		// 126 EVDEV - KPPLUSMINUS
 	VC_PAUSE,			// 127 EVDEV - PAUSE
-	0x00,	// 128 EVDEV - ????
-	0x00,	// 129 EVDEV - I129 ("Internet" Keyboards)
-	0xF1,	// 130 EVDEV - HNGL (Korean Hangul Latin toggle)
-	0xF2,	// 131 EVDEV - HJCV (Korean Hangul Hanja toggle)
-	0x7D,	// 132 AE13 (Yen)
+	VC_UNDEFINED,		// 128 EVDEV - ????
+	VC_UNDEFINED,		// 129 EVDEV - I129 ("Internet" Keyboards)
+	VC_UNDEFINED,		// 130 EVDEV - HNGL (Korean Hangul Latin toggle) (0xF1)
+	VC_UNDEFINED,		// 131 EVDEV - HJCV (Korean Hangul Hanja toggle) (0xF2)
+	VC_UNDEFINED,		// 132 AE13 (Yen) (0x7D)
 	VC_META_L,			// 133 EVDEV - LWIN
 	VC_META_R,			// 134 EVDEV - RWIN
 	VC_CONTEXT_MENU,	// 135 EVDEV - MENU
-	0x00,	// 136 EVDEV - STOP
-	0x00,	// 137 EVDEV - AGAI
-	0x00,	// 138 EVDEV - PROP
+	VC_UNDEFINED,		// 136 EVDEV - STOP
+	VC_UNDEFINED,		// 137 EVDEV - AGAI
+	VC_UNDEFINED,		// 138 EVDEV - PROP
 	VC_UNDO,			// 139 EVDEV - UNDO
-	0x00,	// 140 EVDEV - FRNT
+	VC_UNDEFINED,		// 140 EVDEV - FRNT
 	VC_COPY,			// 141 EVDEV - COPY
-	0x00,	// 142 EVDEV - OPEN
+	VC_UNDEFINED,		// 142 EVDEV - OPEN
 	VC_PASTE,			// 143 EVDEV - PASTE
-	0x00,	// 144 EVDEV - FIND
+	VC_UNDEFINED,		// 144 EVDEV - FIND
 	VC_CUT,				// 145 EVDEV - CUT
 	VC_HELP,			// 146 EVDEV - HELP
-	0x00,	// 147 EVDEV - I147
-	0x00,	// 148 EVDEV - I148
-	0x00,	// 149 EVDEV - I149
-	0x00,	// 150 EVDEV - I150
-	0x00,	// 151 EVDEV - I151
-	0x00,	// 152 EVDEV - I152
-	0x00,	// 153 EVDEV - I153
-	0x00,	// 154 EVDEV - I154
-	0x00,	// 155 EVDEV - I156
-	0x00,	// 156 EVDEV - I157
-	0x00,	// 157 EVDEV - I158
+	VC_UNDEFINED,		// 147 EVDEV - I147
+	VC_UNDEFINED,		// 148 EVDEV - I148
+	VC_UNDEFINED,		// 149 EVDEV - I149
+	VC_UNDEFINED,		// 150 EVDEV - I150
+	VC_UNDEFINED,		// 151 EVDEV - I151
+	VC_UNDEFINED,		// 152 EVDEV - I152
+	VC_UNDEFINED,		// 153 EVDEV - I153
+	VC_UNDEFINED,		// 154 EVDEV - I154
+	VC_UNDEFINED,		// 155 EVDEV - I156
+	VC_UNDEFINED,		// 156 EVDEV - I157
+	VC_UNDEFINED,		// 157 EVDEV - I158
 };
 #endif
 
@@ -1126,16 +1128,22 @@ wchar_t keysym_to_unicode(KeySym keysym) {
 uint16_t keycode_to_scancode(KeyCode keycode) {
 	uint16_t scancode = VC_UNDEFINED;
 
-	/* This is some experimental code to simplify the evdev scancode conversion,
-	 * unfortunately kernel scancodes do not appear to be set 1.
 	if (keycode >= 8) {
-		#ifdef USE_XKB
-		if (is_evdev) {
+		if (keycode < 97) {
+			// Simple offset of 8
 			scancode = keycode - 8;
 		}
-		#else
-		if (keycode < 158) {
+		else if (keycode < 158) {
+			#ifdef USE_XKB
+			if (is_evdev) {
+				scancode = evdev_keycode_to_scancode_table[keycode - 97];
+			}
+			else {
+				scancode = xfree86_keycode_to_scancode_table[keycode - 97];
+			}
+			#else
 			scancode = xfree86_keycode_to_scancode_table[keycode - 97];
+			#endif
 		}
 		else if (keycode == 208) {
 			// Hiragana_Katakana
@@ -1145,36 +1153,6 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 			// Backslash
 			scancode = 0x73;
 		}
-		#endif
-	}
-	*/
-
-	if (keycode < 9) {
-		scancode = 0x00;
-	}
-	else if (keycode < 97) {
-		// Simple offset of 8
-		scancode = keycode - 8;
-	}
-	else if (keycode < 158) {
-		#ifdef USE_XKB
-		if (is_evdev) {
-			scancode = evdev_keycode_to_scancode_table[keycode - 97];
-		}
-		else {
-			scancode = xfree86_keycode_to_scancode_table[keycode - 97];
-		}
-		#else
-		scancode = xfree86_keycode_to_scancode_table[keycode - 97];
-		#endif
-	}
-	else if (keycode == 208) {
-		// Hiragana_Katakana
-		scancode = 0x70;
-	}
-	else if (keycode == 211) {
-		// Backslash
-		scancode = 0x73;
 	}
 
 	return scancode;

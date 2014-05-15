@@ -199,7 +199,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_X,						//	  7 kVK_ANSI_X
 	VC_C,						//	  8 kVK_ANSI_C
 	VC_V,						//	  9 kVK_ANSI_V
-	0x56,			//	 10 kVK_ISO_Section
+	VC_UNDEFINED,				//	 10 kVK_ISO_Section (0x56)
 	VC_B,						//	 11 kVK_ANSI_B
 	VC_Q,						//	 12 kVK_ANSI_Q
 	VC_W,						//	 13 kVK_ANSI_W
@@ -252,7 +252,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_SHIFT_R,					//	 60 kVK_RightShift
 	VC_ALT_R,					//	 61 kVK_RightOption
 	VC_CONTROL_R,				//	 62 kVK_RightControl
-	0x00,			//	 63 kVK_Function
+	VC_UNDEFINED,				//	 63 kVK_Function
 	VC_F17,						//	 64 kVK_F17
 	VC_KP_SEPARATOR,			//	 65 kVK_ANSI_KeypadDecimal
 	VC_UNDEFINED,				//	 66 unused
@@ -282,18 +282,18 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_F20,						//	 88 kVK_F20
 	VC_KP_8,					//	 89 kVK_ANSI_Keypad8
 	VC_KP_9,					//	 90 kVK_ANSI_Keypad9
-	0x7D,			//	 91 kVK_JIS_Yen
-	0x73,			//	 92 kVK_JIS_Underscore
-	0x7E,			//	 93 kVK_JIS_KeypadComma
+	VC_YEN,						//	 91 kVK_JIS_Yen
+	VC_Underscore,				//	 92 kVK_JIS_Underscore
+	VC_KP_COMMA,				//	 93 kVK_JIS_KeypadComma
 	VC_F5,						//	 94 kVK_F5
 	VC_F6,						//	 95 kVK_F6
 	VC_F7,						//	 96 kVK_F7
 	VC_F3,						//	 97 kVK_F3
 	VC_F8,						//	 98 kVK_F8
 	VC_F9,						//	 99 kVK_F9
-	0x72,			//	100 kVK_JIS_Eisu
-	VC_F11,						//	  101 kVK_F11
-	0x71,           //	102 kVK_JIS_Kana
+	VC_CAPS_LOCK,				//	100 kVK_JIS_Eisu
+	VC_F11,						//	101 kVK_F11
+	VC_KATAKANA,				//	102 kVK_JIS_Kana
 	VC_F13,						//	103 kVK_F13
 	VC_F16,						//	104 kVK_F16
 	VC_F14,						//	105 kVK_F14
@@ -303,7 +303,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_F12,						//	109 kVK_F12
 	VC_UNDEFINED,				//	110 unused
 	VC_F15,						//	111 kVK_F15
-	0x52 | 0x100,	//	112 kVK_Help
+	VC_HELP,					//	112 kVK_Help
 	VC_HOME,					//	113 kVK_Home
 	VC_PAGE_UP,					//	114 kVK_PageUp
 	VC_DELETE,					//	115 kVK_ForwardDelete
@@ -316,7 +316,9 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_RIGHT,					//	122 kVK_RightArrow
 	VC_DOWN,					//	123 kVK_DownArrow
 	VC_UP,						//	124 kVK_UpArrow
-	0
+	VC_UNDEFINED,				//	125
+	VC_UNDEFINED,				//	126
+	VC_UNDEFINED				//	127
 };
 
 static const UInt64 scancode_to_keycode_table[128] = {
@@ -434,23 +436,23 @@ static const UInt64 scancode_to_keycode_table[128] = {
 	kVK_Undefined,				//	110
 	kVK_Undefined,				//	111
 	kVK_Undefined,				//	112
-	0x71,						//	113 kVK_JIS_Kana
-	0x72,						//	114 kVK_JIS_Eisu
-	0x73,						//	115 kVK_JIS_Underscore
-	0x74,						//	116
-	0x75,						//	117
-	0x76,						//	118
-	0x77,						//	119
-	0x78,						//	120
-	0x79,						//	121
-	0x7A,						//	122
-	0x7B,						//	123
-	0x7C,						//	124
-	0x7D,						//	125 kVK_JIS_Yen
-	0x7E,						//	126 kVK_JIS_KeypadComma
-	0x7F						//	127
+	kVK_Undefined,				//	113 kVK_JIS_Kana
+	kVK_Undefined,				//	114 kVK_JIS_Eisu
+	kVK_JIS_Underscore,			//	115 VC_UNDERSCORE
+	kVK_Undefined,				//	116
+	kVK_Undefined,				//	117
+	kVK_Undefined,				//	118
+	kVK_Undefined,				//	119 VC_FURIGANA
+	kVK_Undefined,				//	120
+	kVK_Undefined,				//	121 VC_KANJI
+	kVK_Undefined,				//	122
+	kVK_Undefined,				//	123 VC_HIRAGANA
+	kVK_Undefined,				//	124
+	kVK_JIS_Yen,				//	125 VC_YEN
+	kVK_JIS_KeypadComma,		//	126 VC_KP_COMMA
+	kVK_Undefined				//	127
 
-	/*
+	/* FIXME Implement reverse lookups for the following keys:
 	VC_KP_EQUALS,	//79 kVK_ANSI_KeypadEquals
 	0x1C | 0x100,	//76 kVK_ANSI_KeypadEnter
 	0x1D | 0x100,	//62 kVK_RightControl

@@ -230,7 +230,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 					event.data.keyboard.keychar = info->buffer[0];
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-							__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 					dispatch_event(&event);
 				}
 

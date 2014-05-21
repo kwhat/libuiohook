@@ -266,58 +266,57 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_VOLUME_MUTE,				//	 74 kVK_Mute
 	VC_KP_DIVIDE,				//	 75 kVK_ANSI_KeypadDivide
 	VC_KP_ENTER,				//	 76 kVK_ANSI_KeypadEnter
-	VC_UNDEFINED,				//	 75 unused
-	VC_KP_SUBTRACT,				//	 76 kVK_ANSI_KeypadMinus
-	VC_F18,						//	 77 kVK_F18
-	VC_F19,						//	 78 kVK_F19
-	VC_KP_EQUALS,				//	 79 kVK_ANSI_KeypadEquals
-	VC_KP_0,					//	 80 kVK_ANSI_Keypad0
-	VC_KP_1,					//	 81 kVK_ANSI_Keypad1
-	VC_KP_2,					//	 82 kVK_ANSI_Keypad2
-	VC_KP_3,					//	 83 kVK_ANSI_Keypad3
-	VC_KP_4,					//	 84 kVK_ANSI_Keypad4
-	VC_KP_5,					//	 85 kVK_ANSI_Keypad5
-	VC_KP_6,					//	 86 kVK_ANSI_Keypad6
-	VC_KP_7,					//	 87 kVK_ANSI_Keypad7
-	VC_F20,						//	 88 kVK_F20
-	VC_KP_8,					//	 89 kVK_ANSI_Keypad8
-	VC_KP_9,					//	 90 kVK_ANSI_Keypad9
-	VC_YEN,						//	 91 kVK_JIS_Yen
-	VC_UNDERSCORE,				//	 92 kVK_JIS_Underscore
-	VC_KP_COMMA,				//	 93 kVK_JIS_KeypadComma
-	VC_F5,						//	 94 kVK_F5
-	VC_F6,						//	 95 kVK_F6
-	VC_F7,						//	 96 kVK_F7
-	VC_F3,						//	 97 kVK_F3
-	VC_F8,						//	 98 kVK_F8
-	VC_F9,						//	 99 kVK_F9
-	VC_CAPS_LOCK,				//	100 kVK_JIS_Eisu
-	VC_F11,						//	101 kVK_F11
-	VC_KATAKANA,				//	102 kVK_JIS_Kana
-	VC_F13,						//	103 kVK_F13
-	VC_F16,						//	104 kVK_F16
-	VC_F14,						//	105 kVK_F14
-	VC_UNDEFINED,				//	106 unused
-	VC_F10,						//	107 kVK_F10
+
+	VC_UNDEFINED,				//	 77 unused
+	VC_KP_SUBTRACT,				//	 78 kVK_ANSI_KeypadMinus
+	VC_F18,						//	 79 kVK_F18
+	VC_F19,						//	 80 kVK_F19
+	VC_KP_EQUALS,				//	 81 kVK_ANSI_KeypadEquals
+	VC_KP_0,					//	 82 kVK_ANSI_Keypad0
+	VC_KP_1,					//	 83 kVK_ANSI_Keypad1
+	VC_KP_2,					//	 84 kVK_ANSI_Keypad2
+	VC_KP_3,					//	 85 kVK_ANSI_Keypad3
+	VC_KP_4,					//	 86 kVK_ANSI_Keypad4
+	VC_KP_5,					//	 87 kVK_ANSI_Keypad5
+	VC_KP_6,					//	 88 kVK_ANSI_Keypad6
+	VC_KP_7,					//	 89 kVK_ANSI_Keypad7
+	VC_F20,						//	 90 kVK_F20
+	VC_KP_8,					//	 91 kVK_ANSI_Keypad8
+	VC_KP_9,					//	 92 kVK_ANSI_Keypad9
+	VC_YEN,						//	 93 kVK_JIS_Yen
+	VC_UNDERSCORE,				//	 94 kVK_JIS_Underscore
+	VC_KP_COMMA,				//	 95 kVK_JIS_KeypadComma
+	VC_F5,						//	 96 kVK_F5
+	VC_F6,						//	 97 kVK_F6
+	VC_F7,						//	 98 kVK_F7
+	VC_F3,						//	 99 kVK_F3
+	VC_F8,						//	100 kVK_F8
+	VC_F9,						//	101 kVK_F9
+	VC_CAPS_LOCK,				//	102 kVK_JIS_Eisu
+	VC_F11,						//	103 kVK_F11
+	VC_KATAKANA,				//	104 kVK_JIS_Kana
+	VC_F13,						//	105 kVK_F13
+	VC_F16,						//	106 kVK_F16
+	VC_F14,						//	107 kVK_F14
 	VC_UNDEFINED,				//	108 unused
-	VC_F12,						//	109 kVK_F12
+	VC_F10,						//	109 kVK_F10
 	VC_UNDEFINED,				//	110 unused
-	VC_F15,						//	111 kVK_F15
-	VC_HELP,					//	112 kVK_Help
-	VC_HOME,					//	113 kVK_Home
-	VC_PAGE_UP,					//	114 kVK_PageUp
-	VC_DELETE,					//	115 kVK_ForwardDelete
-	VC_F4,						//	116 kVK_F4
-	VC_END,						//	117 kVK_End
-	VC_F2,						//	118 kVK_F2
-	VC_PAGE_DOWN,				//	119 kVK_PageDown
-	VC_F1,						//	120 kVK_F1
-	VC_LEFT,					//	121 kVK_LeftArrow
-	VC_RIGHT,					//	122 kVK_RightArrow
-	VC_DOWN,					//	123 kVK_DownArrow
-	VC_UP,						//	124 kVK_UpArrow
-	VC_UNDEFINED,				//	125
-	VC_UNDEFINED,				//	126
+	VC_F12,						//	111 kVK_F12
+	VC_UNDEFINED,				//	112 unused
+	VC_F15,						//	113 kVK_F15
+	VC_HELP,					//	114 kVK_Help
+	VC_HOME,					//	115 kVK_Home
+	VC_PAGE_UP,					//	116 kVK_PageUp
+	VC_DELETE,					//	117 kVK_ForwardDelete
+	VC_F4,						//	118 kVK_F4
+	VC_END,						//	119 kVK_End
+	VC_F2,						//	120 kVK_F2
+	VC_PAGE_DOWN,				//	121 kVK_PageDown
+	VC_F1,						//	122 kVK_F1
+	VC_LEFT,					//	123 kVK_LeftArrow
+	VC_RIGHT,					//	124 kVK_RightArrow
+	VC_DOWN,					//	125 kVK_DownArrow
+	VC_UP,						//	126 kVK_UpArrow
 	VC_UNDEFINED				//	127
 };
 

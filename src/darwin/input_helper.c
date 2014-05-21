@@ -283,7 +283,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_KP_8,					//	 89 kVK_ANSI_Keypad8
 	VC_KP_9,					//	 90 kVK_ANSI_Keypad9
 	VC_YEN,						//	 91 kVK_JIS_Yen
-	VC_Underscore,				//	 92 kVK_JIS_Underscore
+	VC_UNDERSCORE,				//	 92 kVK_JIS_Underscore
 	VC_KP_COMMA,				//	 93 kVK_JIS_KeypadComma
 	VC_F5,						//	 94 kVK_F5
 	VC_F6,						//	 95 kVK_F6

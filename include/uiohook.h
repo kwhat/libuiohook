@@ -121,7 +121,6 @@ typedef void (*dispatcher_t)(virtual_event *const);
 
 
 /* Begin Virtual Key Codes */
-
 #define VC_ESCAPE								0x0001
 
 // Begin Function Keys
@@ -291,17 +290,12 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_VOLUME_UP							0xE030
 #define VC_VOLUME_DOWN							0xE02E
 
-#define VC_CUT									0xE017
-#define VC_COPY									0xE018
-#define VC_PASTE								0xE00A
-#define VC_HELP									0xE03B
-#define VC_UNDO									0xE008
-#define VC_REDO									0xE007
-
+// FIXME Need to verify these codes.
 //#define VC_EJECT								0xE02C
 //#define VC_WEB								0xE032
 //#define VC_MUSIC								0xE03C
 //#define VC_PICTURES							0xE064
+//#define VC_VIDEO								0x????
 
 #define VC_APP_MAIL								0xE06C
 #define VC_APP_CALCULATOR						0xE021
@@ -325,13 +319,20 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_KP_COMMA								0x007E
 // End Japanese Language Keys
 
-// For Sun keyboards.
-/*
+// Begin Sun keyboards
+#define VC_CUT									0xE017
+#define VC_COPY									0xE018
+#define VC_PASTE								0xE00A
+#define VC_HELP									0xE03B
+#define VC_UNDO									0xE008
+#define VC_REDO									0xE007
+// End Sun keyboards
+
+// FIXME Verify the following scancodes.
 #define VC_FIND									0xE012
-#define VC_PROPS								//0xFFCA
+#define VC_PROPS								0xFFCA
 #define VC_COMPOSE								0xFF20
 #define VC_ALT_GRAPH							0xFF7E
-*/
 
 #define VC_UNDEFINED							0x0000	// KeyCode Unknown
 

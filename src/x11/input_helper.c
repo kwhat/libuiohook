@@ -62,8 +62,8 @@ static bool is_caps_lock = false, is_shift_lock = false;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-// FIXME The size of this table should be increased to (255 - 97) to
-// accommodate for media controls and internet keyboards.
+// TODO Everything after 157 needs to be populated with scancodes for media 
+// controls and internet keyboards.
 static const uint16_t xfree86_keycode_to_scancode_table[61] = {
 	VC_HOME,			// 97  Home
 	VC_UP,				// 98  Up
@@ -126,6 +126,106 @@ static const uint16_t xfree86_keycode_to_scancode_table[61] = {
 	VC_KP_3,			// 155 KP_PgDn
 	VC_KP_0,			// 156 KP_Ins
 	VC_KP_SEPARATOR,	// 157 KP_Del
+/*
+	VC_UNDEFINED,		// 158 I1E
+	VC_UNDEFINED,		// 159 I1F
+	VC_UNDEFINED,		// 160 I20
+	VC_UNDEFINED,		// 161 I21
+	VC_UNDEFINED,		// 162 I22
+	VC_UNDEFINED,		// 163 I23
+	VC_UNDEFINED,		// 164 I24
+	VC_UNDEFINED,		// 165 I25
+	VC_UNDEFINED,		// 166 I26
+	VC_UNDEFINED,		// 167 I27
+	VC_UNDEFINED,		// 168 I28
+	VC_UNDEFINED,		// 169 I29
+	VC_UNDEFINED,		// 170 I2A			<K5A>
+	VC_UNDEFINED,		// 171 I2B
+	VC_UNDEFINED,		// 172 I2C
+	VC_UNDEFINED,		// 173 I2D
+	VC_UNDEFINED,		// 174 I2E
+	VC_UNDEFINED,		// 175 I2F
+	VC_UNDEFINED,		// 176 I30
+	VC_UNDEFINED,		// 177 I31
+	VC_UNDEFINED,		// 178 I32
+	VC_UNDEFINED,		// 179 I33
+	VC_UNDEFINED,		// 180 I34
+	VC_UNDEFINED,		// 181 I35			<K5B>
+	VC_UNDEFINED,		// 182 I36			<K5D>
+	VC_UNDEFINED,		// 183 I37			<K5E>
+	VC_UNDEFINED,		// 184 I38			<K5F>
+	VC_UNDEFINED,		// 185 I39
+	VC_UNDEFINED,		// 186 I3A
+	VC_UNDEFINED,		// 187 I3B
+	VC_UNDEFINED,		// 188 I3C
+	VC_UNDEFINED,		// 189 I3D			<K62>
+	VC_UNDEFINED,		// 190 I3E			<K63>
+	VC_UNDEFINED,		// 191 I3F			<K64>
+	VC_UNDEFINED,		// 192 I40			<K65>
+	VC_UNDEFINED,		// 193 I41			<K66>
+	VC_UNDEFINED,		// 194 I42
+	VC_UNDEFINED,		// 195 I43
+	VC_UNDEFINED,		// 196 I44
+	VC_UNDEFINED,		// 197 I45
+	VC_UNDEFINED,		// 198 I46			<K67>
+	VC_UNDEFINED,		// 199 I47			<K68>
+	VC_UNDEFINED,		// 200 I48			<K69>
+	VC_UNDEFINED,		// 201 I49			<K6A>
+	VC_UNDEFINED,		// 202 I4A
+	VC_UNDEFINED,		// 203 I4B			<K6B>
+	VC_UNDEFINED,		// 204 I4C			<K6C>
+	VC_UNDEFINED,		// 205 I4D			<K6D>
+	VC_UNDEFINED,		// 206 I4E			<K6E>
+	VC_UNDEFINED,		// 207 I4F			<K6F>
+	VC_UNDEFINED,		// 208 I50			<K70>
+	VC_UNDEFINED,		// 209 I51			<K71>
+	VC_UNDEFINED,		// 210 I52			<K72>
+	VC_UNDEFINED,		// 211 I53			<K73>
+	VC_UNDEFINED,		// 212 I54
+	VC_UNDEFINED,		// 213 I55
+	VC_UNDEFINED,		// 214 I56
+	VC_UNDEFINED,		// 215 I57
+	VC_UNDEFINED,		// 216 I58
+	VC_UNDEFINED,		// 217 I59
+	VC_UNDEFINED,		// 218 I5A
+	VC_UNDEFINED,		// 219 I5B			<K74>
+	VC_UNDEFINED,		// 220 I5C			<K75>
+	VC_UNDEFINED,		// 221 I5D			<K76>
+	VC_UNDEFINED,		// 222 I5E
+	VC_UNDEFINED,		// 223 I5F
+	VC_UNDEFINED,		// 224 I60
+	VC_UNDEFINED,		// 225 I61
+	VC_UNDEFINED,		// 226 I62
+	VC_UNDEFINED,		// 227 I63
+	VC_UNDEFINED,		// 228 I64
+	VC_UNDEFINED,		// 229 I65
+	VC_UNDEFINED,		// 230 I66
+	VC_UNDEFINED,		// 231 I67
+	VC_UNDEFINED,		// 232 I68
+	VC_UNDEFINED,		// 233 I69
+	VC_UNDEFINED,		// 234 I6A
+	VC_UNDEFINED,		// 235 I6B
+	VC_UNDEFINED,		// 236 I6C
+	VC_UNDEFINED,		// 237 I6D
+	VC_UNDEFINED,		// 238 I6E
+	VC_UNDEFINED,		// 239 I6F
+	VC_UNDEFINED,		// 240 I70
+	VC_UNDEFINED,		// 241 I71
+	VC_UNDEFINED,		// 242 I72
+	VC_UNDEFINED,		// 243 I73
+	VC_UNDEFINED,		// 244 I74
+	VC_UNDEFINED,		// 245 I75
+	VC_UNDEFINED,		// 246 I76
+	VC_UNDEFINED,		// 247 I77;
+	VC_UNDEFINED,		// 248 I78
+	VC_UNDEFINED,		// 249 I79;
+	VC_UNDEFINED,		// 250 I7A
+	VC_UNDEFINED,		// 251 I7B
+	VC_UNDEFINED,		// 252 I7C
+	VC_UNDEFINED,		// 253 I7D
+	VC_UNDEFINED,		// 254 I7E
+	VC_UNDEFINED,		// 255 I7F
+ */
 };
 
 #ifdef USE_XKB
@@ -137,7 +237,7 @@ static const uint16_t xfree86_keycode_to_scancode_table[61] = {
  */
 // FIXME The size of this table should be increased to (255 - 97) to
 // accommodate for media controls and internet keyboards.
-static const uint16_t evdev_keycode_to_scancode_table[61] = {
+static const uint16_t evdev_keycode_to_scancode_table[147] = {
 	VC_UNDEFINED,		// 97 EVDEV - RO   ("Internet" Keyboards)
 	VC_KATAKANA,		// 98 EVDEV - KATA (Katakana)
 	VC_KATAKANA,		// 99 EVDEV - HIRA (Hiragana)
@@ -167,13 +267,13 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	VC_VOLUME_UP,		// 123 EVDEV - VOL+
 	VC_UNDEFINED,		// 124 EVDEV - POWR
 	VC_KP_EQUALS,		// 125 EVDEV - KPEQ
-	VC_UNDEFINED,		// 126 EVDEV - KPPLUSMINUS
+	VC_KP_SUBTRACT,		// 126 EVDEV - KPPLUSMINUS
 	VC_PAUSE,			// 127 EVDEV - PAUSE
 	VC_UNDEFINED,		// 128 EVDEV - ????
 	VC_UNDEFINED,		// 129 EVDEV - I129 ("Internet" Keyboards)
 	VC_UNDEFINED,		// 130 EVDEV - HNGL (Korean Hangul Latin toggle) (0xF1)
 	VC_UNDEFINED,		// 131 EVDEV - HJCV (Korean Hangul Hanja toggle) (0xF2)
-	VC_UNDEFINED,		// 132 AE13 (Yen) (0x7D)
+	VC_YEN,				// 132 AE13 (Yen) (0x7D)
 	VC_META_L,			// 133 EVDEV - LWIN
 	VC_META_R,			// 134 EVDEV - RWIN
 	VC_CONTEXT_MENU,	// 135 EVDEV - MENU
@@ -188,17 +288,118 @@ static const uint16_t evdev_keycode_to_scancode_table[61] = {
 	VC_UNDEFINED,		// 144 EVDEV - FIND
 	VC_CUT,				// 145 EVDEV - CUT
 	VC_HELP,			// 146 EVDEV - HELP
-	VC_UNDEFINED,		// 147 EVDEV - I147
-	VC_UNDEFINED,		// 148 EVDEV - I148
-	VC_UNDEFINED,		// 149 EVDEV - I149
-	VC_UNDEFINED,		// 150 EVDEV - I150
-	VC_UNDEFINED,		// 151 EVDEV - I151
-	VC_UNDEFINED,		// 152 EVDEV - I152
-	VC_UNDEFINED,		// 153 EVDEV - I153
-	VC_UNDEFINED,		// 154 EVDEV - I154
-	VC_UNDEFINED,		// 155 EVDEV - I156
-	VC_UNDEFINED,		// 156 EVDEV - I157
-	VC_UNDEFINED,		// 157 EVDEV - I158
+	VC_UNDEFINED,		// 147 EVDEV - XFER
+	VC_APP_CALCULATOR,	// 148 EVDEV - PROG1
+	VC_UNDEFINED,		// 149 EVDEV - PROG2
+	VC_UNDEFINED,		// 150 EVDEV - WWW
+	VC_UNDEFINED,		// 151 EVDEV - MSDOS
+	VC_UNDEFINED,		// 152 EVDEV - SCREENLOCK / COFFEE
+	VC_UNDEFINED,		// 153 EVDEV - DIRECTION
+	VC_UNDEFINED,		// 154 EVDEV - CYCLEWINDOWS
+	VC_UNDEFINED,		// 155 EVDEV - MAIL
+	VC_UNDEFINED,		// 156 EVDEV - BOOKMARKS
+	VC_UNDEFINED,		// 157 EVDEV - COMPUTER
+	VC_UNDEFINED,		// 158 BACK 
+	VC_UNDEFINED,		// 159 FORWARD
+
+	// TODO Testing needed below this point.
+	
+	VC_UNDEFINED,		// 160 CLOSECD
+	VC_UNDEFINED,		// 161 EJECTCD
+	VC_UNDEFINED,		// 162 EJECTCLOSECD
+	VC_APP_MAIL,		// 163 NEXTSONG
+	VC_UNDEFINED,		// 164 PLAYPAUSE
+	VC_UNDEFINED,		// 165 PREVIOUSSONG
+	
+	VC_UNDEFINED,		// 166 STOPCD
+	VC_UNDEFINED,		// 167 RECORD
+	VC_UNDEFINED,		// 168 REWIND
+	VC_UNDEFINED,		// 169 PHONE	Media Select Telephone
+	
+	VC_UNDEFINED,		// 170 ISO
+	VC_UNDEFINED,		// 171 CONFIG	Consumer Control Configuration
+	VC_UNDEFINED,		// 172 HOMEPAGE Home
+	VC_UNDEFINED,		// 173 REFRESH	AC Refresh
+	VC_UNDEFINED,		// 174 EXIT
+	VC_UNDEFINED,		// 175 MOVE
+	VC_UNDEFINED,		// 176 EDIT
+	VC_UNDEFINED,		// 177 SCROLLUP
+	VC_UNDEFINED,		// 178 SCROLLDOWN
+	VC_UNDEFINED,		// 179 KPLEFTPAREN
+	VC_BROWSER_HOME,	// 180 KPRIGHTPAREN
+	VC_UNDEFINED,		// 181 NEW
+	VC_UNDEFINED,		// 182 REDO		Redo/Repeat
+	
+	VC_F13,				// 183 F13
+	VC_F14,				// 184 F14
+	VC_F15,				// 185 F15
+	VC_F16,				// 186 F16
+	VC_F17,				// 187 F17
+	VC_F18,				// 188 F18
+	VC_F19,				// 189 F19
+	VC_F20,				// 190 F20
+	VC_F21,				// 191 F21
+	VC_F22,				// 192 F22
+	VC_F23,				// 193 F23
+	VC_F24,				// 194 F24
+
+	VC_UNDEFINED,		// 195 PLAYCD
+	VC_UNDEFINED,		// 196 PAUSECD
+	VC_UNDEFINED,		// 197 PROG3
+	VC_UNDEFINED,		// 198 PROG4
+	VC_UNDEFINED,		// 199 DASHBOARD
+	VC_UNDEFINED,		// 200 SUSPEND
+	VC_UNDEFINED,		// 201 CLOSE
+	VC_UNDEFINED,		// 202 PLAY
+	VC_UNDEFINED,		// 203 FASTFORWARD
+	VC_UNDEFINED,		// 204 BASSBOOST
+	VC_UNDEFINED,		// 205 PRINT
+	VC_UNDEFINED,		// 206 HP
+	VC_UNDEFINED,		// 207 CAMERA
+	VC_UNDEFINED,		// 208 SOUND
+	VC_UNDEFINED,		// 209 QUESTION
+	VC_UNDEFINED,		// 210 EMAIL
+	VC_UNDEFINED,		// 211 CHAT
+	VC_UNDEFINED,		// 212 SEARCH
+	VC_UNDEFINED,		// 213 CONNECT
+	VC_UNDEFINED,		// 214 FINANCE Checkbook/Finance
+	VC_UNDEFINED,		// 215 SPORT
+	VC_UNDEFINED,		// 216 SHOP
+	VC_UNDEFINED,		// 217 ALTERASE
+	VC_UNDEFINED,		// 218 CANCEL
+	VC_UNDEFINED,		// 219 BRIGHTNESSDOWN
+	VC_UNDEFINED,		// 220 BRIGHTNESSUP
+	VC_UNDEFINED,		// 221 MEDIA
+
+	VC_UNDEFINED,		// 222 SWITCHVIDEOMODE	Cycle between available video outputs (Monitor/LCD/TV-out/etc)
+	VC_UNDEFINED,		// 223 KBDILLUMTOGGLE
+	VC_UNDEFINED,		// 224 KBDILLUMDOWN
+	VC_BROWSER_SEARCH,	// 225 KBDILLUMUP
+
+	VC_UNDEFINED,		// 226 SEND
+	VC_UNDEFINED,		// 227 REPLY
+	VC_UNDEFINED,		// 228 FORWARDMAIL
+	VC_UNDEFINED,		// 229 SAVE
+	VC_UNDEFINED,		// 230 DOCUMENTS
+
+	VC_UNDEFINED,		// 231 BATTERY
+
+	VC_UNDEFINED,		// 232 BLUETOOTH
+	VC_UNDEFINED,		// 233 WLAN
+	VC_UNDEFINED,		// 234 UWB
+
+	VC_UNDEFINED,		// 235 UNKNOWN
+
+	VC_UNDEFINED,		// 236 VIDEO_NEXT  drive next video source
+	VC_UNDEFINED,		// 237 VIDEO_PREV  drive previous video source
+	VC_UNDEFINED,		// 238 BRIGHTNESS_CYCLE brightness up, after max is min
+	VC_UNDEFINED,		// 239 BRIGHTNESS_ZERO brightness off, use ambient
+	VC_UNDEFINED,		// 240 DISPLAY_OFF display device to off state
+
+	VC_UNDEFINED,		// 241 WIMAX/WWAN Wireless WAN (LTE, UMTS, GSM, etc.)
+	VC_UNDEFINED,		// 242 RFKILL  Key that controls all radios
+
+	VC_UNDEFINED		// 243 MICMUTE Mute / unmute the microphone
 };
 #endif
 
@@ -1133,25 +1334,16 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 			// Simple offset of 8
 			scancode = keycode - 8;
 		}
+		#ifdef USE_XKB
+		else if (is_evdev && keycode < 248) {
+			scancode = evdev_keycode_to_scancode_table[keycode - 97];
+		}
+		#endif
 		else if (keycode < 158) {
-			#ifdef USE_XKB
-			if (is_evdev) {
-				scancode = evdev_keycode_to_scancode_table[keycode - 97];
-			}
-			else {
-				scancode = xfree86_keycode_to_scancode_table[keycode - 97];
-			}
-			#else
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to xfree86.\n",
+					__FUNCTION__, __LINE__);
+			
 			scancode = xfree86_keycode_to_scancode_table[keycode - 97];
-			#endif
-		}
-		else if (keycode == 208) {
-			// Hiragana_Katakana
-			scancode = 0x70;
-		}
-		else if (keycode == 211) {
-			// Backslash
-			scancode = 0x73;
 		}
 	}
 

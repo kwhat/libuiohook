@@ -169,7 +169,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 						event.data.keyboard.keychar = keychar;
 
 						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-								__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 						dispatch_event(&event);
 					}
 				}

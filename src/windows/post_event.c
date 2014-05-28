@@ -118,7 +118,7 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 
 		case EVENT_KEY_TYPED:
 			// Need to convert a wchar_t to keysym!
-			snprintf(buffer, 4, "%lc", event->data.keyboard.keychar);
+			snprintf(buffer, 4, "%lc", (wint_t) event->data.keyboard.keychar);
 
 			event->type = EVENT_KEY_PRESSED;
 			event->data.keyboard.keycode = MapVirtualKey(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)), MAPVK_VK_TO_VSC_EX);

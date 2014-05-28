@@ -20,8 +20,9 @@
 #include <config.h>
 #endif
 #include <limits.h>
-#include <uiohook.h>
+#include <stdint.h>
 #include <time.h>
+#include <uiohook.h>
 #include <windows.h>
 
 #include "hook_callback.h"
@@ -132,8 +133,9 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	// Set the event time.
 	GetSystemTimeAsFileTime(&ft);
+
 	// Convert to milliseconds = 100-nanoseconds / 10000
-	__int64 system_time = (((__int64) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
 
 	// Convert Windows epoch to Unix epoch (1970 - 1601 in milliseconds)
 	event.time = system_time - 11644473600000;
@@ -186,7 +188,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				event.data.keyboard.keychar = keywchar;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.keychar);
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 				dispatch_event(&event);
 			}
 			break;

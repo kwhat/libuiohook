@@ -39,10 +39,10 @@ static bool running = false;
 // please do so on another thread with your own event dispatcher implementation.
 void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
-	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X", 
+	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X",
 			event->type, event->time, event->mask);
 	#else
-	logger(LOG_LEVEL_INFO, "id=%i,when=%llu,mask=0x%X", 
+	logger(LOG_LEVEL_INFO, "id=%i,when=%llu,mask=0x%X",
 			event->type, event->time, event->mask);
 	#endif
 
@@ -59,7 +59,7 @@ void dispatch_proc(virtual_event * const event) {
 
 		case EVENT_KEY_TYPED:
 			logger(LOG_LEVEL_INFO, ",keychar=%lc,rawcode=%u",
-					event->data.keyboard.keychar, event->data.keyboard.rawcode);
+					(wint_t) event->data.keyboard.keychar, event->data.keyboard.rawcode);
 			break;
 
 		case EVENT_MOUSE_PRESSED:

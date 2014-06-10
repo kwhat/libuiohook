@@ -137,18 +137,18 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_F11									0x0057
 #define VC_F12									0x0058
 
-#define VC_F13									0x0064
-#define VC_F14									0x0065
-#define VC_F15									0x0066
-#define VC_F16									0x0067
-#define VC_F17									0x0068
-#define VC_F18									0x0069
-#define VC_F19									0x006A
-#define VC_F20									0x006B
-#define VC_F21									0x006C
-#define VC_F22									0x006D
-#define VC_F23									0x006E
-#define VC_F24									0x0076
+#define VC_F13									0x005B
+#define VC_F14									0x005C
+#define VC_F15									0x005D
+#define VC_F16									0x0063
+#define VC_F17									0x0064
+#define VC_F18									0x0065
+#define VC_F19									0x0066
+#define VC_F20									0x0067
+#define VC_F21									0x0068
+#define VC_F22									0x0069
+#define VC_F23									0x006A
+#define VC_F24									0x006B
 // End Function Keys
 
 
@@ -285,20 +285,16 @@ typedef void (*dispatcher_t)(virtual_event *const);
 #define VC_MEDIA_PREVIOUS						0xE010
 #define VC_MEDIA_NEXT							0xE019
 #define VC_MEDIA_SELECT							0xE06D
+#define VC_MEDIA_EJECT							0xE02C
 
 #define VC_VOLUME_MUTE							0xE020
 #define VC_VOLUME_UP							0xE030
 #define VC_VOLUME_DOWN							0xE02E
 
-// FIXME Need to verify these codes.
-//#define VC_EJECT								0xE02C
-//#define VC_WEB								0xE032
-//#define VC_MUSIC								0xE03C
-//#define VC_PICTURES							0xE064
-//#define VC_VIDEO								0x????
-
 #define VC_APP_MAIL								0xE06C
 #define VC_APP_CALCULATOR						0xE021
+#define VC_APP_MUSIC							0xE03C
+#define VC_APP_PICTURES							0xE064
 
 #define VC_BROWSER_SEARCH						0xE065
 #define VC_BROWSER_HOME							0xE032

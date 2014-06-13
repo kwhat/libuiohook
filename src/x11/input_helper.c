@@ -235,8 +235,6 @@ static const uint16_t xfree86_keycode_to_scancode_table[61] = {
  *		/usr/share/X11/xkb/keycodes/evdev
  *		/usr/share/X11/xkb/keycodes/xfree86
  */
-// FIXME The size of this table should be increased to (255 - 97) to
-// accommodate for media controls and internet keyboards.
 static const uint16_t evdev_keycode_to_scancode_table[147] = {
 	VC_UNDEFINED,		// 97 EVDEV - RO   ("Internet" Keyboards)
 	VC_KATAKANA,		// 98 EVDEV - KATA (Katakana)
@@ -399,7 +397,7 @@ static const uint16_t evdev_keycode_to_scancode_table[147] = {
 	VC_UNDEFINED,		// 241 WIMAX/WWAN Wireless WAN (LTE, UMTS, GSM, etc.)
 	VC_UNDEFINED,		// 242 RFKILL  Key that controls all radios
 
-	VC_UNDEFINED		// 243 MICMUTE Mute / unmute the microphone
+	VC_VOLUME_MUTE		// 243 MICMUTE Mute / unmute the microphone
 };
 #endif
 

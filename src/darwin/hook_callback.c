@@ -431,47 +431,53 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			break;
 
 		case kCGEventScrollWheel:
-			event_point = CGEventGetLocation(event_ref);
+			// Check to see what axis was rotated, we only care about axis 1 for vertical rotation.
+			// TOOD Implement horizontal scrolling by examining axis 2.
+			// NOTE kCGScrollWheelEventDeltaAxis3 is currently unused.
+			if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
+				event_point = CGEventGetLocation(event_ref);
 
-			// Track the number of clicks.
-			if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
-				click_count++;
+				// Track the number of clicks.
+				if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
+					click_count++;
+				}
+				else {
+					click_count = 1;
+				}
+				click_time = event.time;
+
+
+				// Fire mouse wheel event.
+				event.type = EVENT_MOUSE_WHEEL;
+				event.mask = get_modifiers();
+
+				event.data.wheel.clicks = click_count;
+				event.data.wheel.x = event_point.x;
+				event.data.wheel.y = event_point.y;
+
+				// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
+				if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
+					// Scrolling data is line-based.
+					event.data.wheel.type = WHEEL_BLOCK_SCROLL;
+				}
+				else {
+					// Scrolling data is pixel-based.
+					event.data.wheel.type = WHEEL_UNIT_SCROLL;
+				}
+
+				// TODO The result of kCGScrollWheelEventIsContinuous may effect this value.
+				// Calculate the amount based on the Point Delta / Event Delta.  Integer sign should always be homogeneous resulting in a positive result.
+				// NOTE kCGScrollWheelEventFixedPtDeltaAxis1 a floating point value (+0.1/-0.1) that takes acceleration into account.
+				// NOTE kCGScrollWheelEventPointDeltaAxis1 will not build on OS X < 10.5
+				event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
+
+				// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
+				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n",
+						__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
+				dispatch_event(&event);
 			}
-			else {
-				click_count = 1;
-			}
-			click_time = event.time;
-
-
-			// Fire mouse wheel event.
-			event.type = EVENT_MOUSE_WHEEL;
-			event.mask = get_modifiers();
-
-			event.data.wheel.clicks = click_count;
-			event.data.wheel.x = event_point.x;
-			event.data.wheel.y = event_point.y;
-
-			// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
-			if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
-				// Scrolling data is line-based.
-				event.data.wheel.type = WHEEL_BLOCK_SCROLL;
-			}
-			else {
-				// Scrolling data is pixel-based.
-				event.data.wheel.type = WHEEL_UNIT_SCROLL;
-			}
-
-			// TODO The result of kCGScrollWheelEventIsContinuous may effect this value.
-			// Calculate the amount based on the Point Delta / Event Delta.  Integer sign should always be homogeneous resulting in a positive result.
-			// NOTE kCGScrollWheelEventFixedPtDeltaAxis1 a floating point value (+0.1/-0.1) that takes acceleration into account.
-			event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
-
-			// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
-			event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
-
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n",
-					__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
-			dispatch_event(&event);
 			break;
 
 		default:

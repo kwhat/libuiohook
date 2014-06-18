@@ -316,18 +316,18 @@ typedef void (*dispatcher_t)(virtual_event *const);
 // End Japanese Language Keys
 
 // Begin Sun keyboards
-#define VC_SUN_HELP								0xF075;
+#define VC_SUN_HELP								0xFF6A
 
-#define VC_SUN_STOP								0xF078;
-#define VC_SUN_PROPS							0xF076;
-#define VC_SUN_FRONT							0xF077;
-#define VC_SUN_OPEN								0xF074;
-#define VC_SUN_FIND								0xF07E;
-#define VC_SUN_AGAIN							0xF079;
-#define VC_SUN_UNDO								0xF07A;
-#define VC_SUN_COPY								0xF07C;
-#define VC_SUN_INSERT							0xF07D;
-#define VC_SUN_CUT								0xF07B;
+#define VC_SUN_STOP								0xFF69
+#define VC_SUN_PROPS							0xFF70
+#define VC_SUN_FRONT							0xFF71
+#define VC_SUN_OPEN								0xFF73
+#define VC_SUN_FIND								0xFF68
+#define VC_SUN_AGAIN							0xFF66
+#define VC_SUN_UNDO								0xFF65
+#define VC_SUN_COPY								0xFF72
+#define VC_SUN_INSERT							0xFF74
+#define VC_SUN_CUT								0xFF75
 // End Sun keyboards
 
 #define VC_UNDEFINED							0x0000	// KeyCode Unknown

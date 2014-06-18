@@ -304,7 +304,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_F12,						//	111 kVK_F12
 	VC_UNDEFINED,				//	112 unused
 	VC_F15,						//	113 kVK_F15
-	VC_HELP,					//	114 kVK_Help
+	VC_INSERT,					//	114 kVK_Help
 	VC_HOME,					//	115 kVK_Home
 	VC_PAGE_UP,					//	116 kVK_PageUp
 	VC_DELETE,					//	117 kVK_ForwardDelete

@@ -41,11 +41,10 @@ static bool is_caps_lock = false, is_shift_lock = false;
 
 
 #ifdef USE_XKB
-/* This table is generated based off the xfree86 -> scancode mapping above
+/* This table is generated based off the evdev -> scancode mapping above
  * and the keycode mappings in the following files:
  *		/usr/include/linux/input.h
  *		/usr/share/X11/xkb/keycodes/evdev
- *		/usr/share/X11/xkb/keycodes/xfree86
  */
 static const uint16_t evdev_keycode_to_scancode_table[157] = {
 	VC_UNDEFINED,		// 97 EVDEV - RO   ("Internet" Keyboards)
@@ -393,8 +392,14 @@ static const KeyCode evdev_scancode_to_keycode_table[150] = {
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-// TODO Everything after 157 needs to be populated with scancodes for media
-// controls and internet keyboards.
+
+/* This table is generated based off the xfree86 -> scancode mapping above
+ * and the keycode mappings in the following files:
+ *		/usr/share/X11/xkb/keycodes/xfree86
+ * 
+ * TODO Everything after 157 needs to be populated with scancodes for media
+ * controls and internet keyboards.
+ */
 static const uint16_t xfree86_keycode_to_scancode_table[61] = {
 	VC_HOME,			// 97  Home
 	VC_UP,				// 98  Up

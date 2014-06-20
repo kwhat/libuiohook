@@ -320,7 +320,7 @@ static const uint16_t keycode_to_scancode_table[128] = {
 	VC_UNDEFINED				//	127
 };
 
-static const UInt64 scancode_to_keycode_table[128] = {
+static const UInt64 scancode_to_keycode_table[207] = {
 //	value							idx key
 	kVK_Undefined,				//	  0 VC_UNDEFINED
 	kVK_Escape,					//	  1 VC_ESCAPE
@@ -450,41 +450,86 @@ static const UInt64 scancode_to_keycode_table[128] = {
 	kVK_JIS_Yen,				//	125 VC_YEN
 	kVK_JIS_KeypadComma,		//	126 VC_KP_COMMA
 	kVK_Undefined				//	127
+			
+	// Offset i & 0x00FF + (128 - 13)
 
-	/* FIXME Implement reverse lookups for the following keys:
-	VC_KP_EQUALS,	//79 kVK_ANSI_KeypadEquals
-	0x1C | 0x100,	//76 kVK_ANSI_KeypadEnter
-	0x1D | 0x100,	//62 kVK_RightControl
-	0x35 | 0x100,	//75 kVK_ANSI_KeypadDivide
-	0x38 | 0x100,	//54 kVK_RightCommand
-	0x47 | 0x100,	// 113 kVK_Home
-	0x48 | 0x100,	// 124 kVK_UpArrow
-	0x49 | 0x100,	// 114 kVK_PageUp
-	0x4B | 0x100,	// 121 kVK_LeftArrow
-	0x4D | 0x100,   // 122 kVK_RightArrow
-	0x4F | 0x100,	// 117 kVK_End
-	0x50 | 0x100,   // 123 kVK_DownArrow
-	0x51 | 0x100,	// 119 kVK_PageDown
-	0x52 | 0x100,	// 112 kVK_Help
-	0x53 | 0x100,	// 115 kVK_ForwardDelete
-
-	0x00,			//52 unused
-	0x00,			//58 kVK_Option
-	0x00,			//61 kVK_RightOption
-	0x00,			//63 kVK_Function
-	0x00,			//66 unused
-	0x00,			//68 unused
-	0x00,			//70 unused
-
-	0x00 | 0x100,	//72 kVK_VolumeUp
-	0x00 | 0x100,	//73 kVK_VolumeDown
-	0x00 | 0x100,	//74 kVK_Mute
-	0x00,			//75 unused
-
-	0x00,			// 106 unused
-	0x00,			// 108 unused
-	0x00,			// 110 unused
-	*/
+	kVK_ANSI_KeypadEquals,		//	 13 VC_KP_EQUALS
+	kVK_Undefined,				//	 14
+	kVK_Undefined,				//	 15
+	kVK_Undefined,				//	 16
+	kVK_Undefined,				//	 17
+	kVK_Undefined,				//	 18
+	kVK_Undefined,				//	 19
+	kVK_Undefined,				//	 20
+	kVK_Undefined,				//	 21
+	kVK_Undefined,				//	 22
+	kVK_Undefined,				//	 23
+	kVK_Undefined,				//	 24
+	kVK_Undefined,				//	 25
+	kVK_Undefined,				//	 26
+	kVK_Undefined,				//	 27
+	kVK_ANSI_KeypadEnter,		//	 28 VC_KP_ENTER
+	kVK_RightControl,			//	 29 VC_CONTROL_R
+	kVK_Undefined,				//	 30
+	kVK_Undefined,				//	 31
+	kVK_Mute,					//	 32 VC_VOLUME_MUTE
+	kVK_Undefined,				//	 33
+	kVK_Undefined,				//	 34
+	kVK_Undefined,				//	 35
+	kVK_Undefined,				//	 36
+	kVK_Undefined,				//	 37
+	kVK_Undefined,				//	 38
+	kVK_Undefined,				//	 39
+	kVK_Undefined,				//	 40
+	kVK_Undefined,				//	 41
+	kVK_Undefined,				//	 42
+	kVK_Undefined,				//	 43
+	kVK_Undefined,				//	 44
+	kVK_Undefined,				//	 45
+	kVK_VolumeDown,				//	 46 VC_VOLUME_DOWN
+	kVK_Home,					//	 47 VC_HOME
+	kVK_VolumeUp,				//	 48 VC_VOLUME_UP
+	kVK_Undefined,				//	 49
+	kVK_Undefined,				//	 50
+	kVK_Undefined,				//	 51
+	kVK_Undefined,				//	 52
+	kVK_ANSI_KeypadDivide,		//	 53 VC_KP_DIVIDE
+	kVK_Undefined,				//	 54
+	kVK_Undefined,				//	 55
+	kVK_RightOption,			//	 56 VC_ALT_R
+	kVK_Undefined,				//	 57
+	kVK_Undefined,				//	 58
+	kVK_Undefined,				//	 59
+	kVK_Undefined,				//	 60
+	kVK_Undefined,				//	 61
+	kVK_Undefined,				//	 62
+	kVK_Undefined,				//	 63
+	kVK_Undefined,				//	 64
+	kVK_Undefined,				//	 65
+	kVK_Undefined,				//	 66
+	kVK_Undefined,				//	 67
+	kVK_Undefined,				//	 68
+	kVK_Undefined,				//	 69
+	kVK_Undefined,				//	 70
+	kVK_Undefined,				//	 71
+	kVK_UpArrow,				//	 72	VC_UP
+	kVK_PageUp,					//	 73 VC_PAGE_UP
+	kVK_LeftArrow,				//	 75 VC_LEFT
+	kVK_RightArrow,				//	 77 VC_RIGHT
+	kVK_End,					//	 79 VC_END
+	kVK_DownArrow,				//	 80 VC_DOWN
+	kVK_PageDown,				//	 81 VC_PAGE_DOWN
+	kVK_Help,					//	 82 VC_INSERT
+	kVK_ForwardDelete,			//	 83 VC_DELETE
+	kVK_Undefined,				//	 84
+	kVK_Undefined,				//	 85
+	kVK_Undefined,				//	 86
+	kVK_Undefined,				//	 87
+	kVK_Undefined,				//	 88
+	kVK_Undefined,				//	 89
+	kVK_Undefined,				//	 90
+	kVK_Undefined,				//	 91
+	kVK_RightCommand,			//	 92 VC_META_R
 };
 
 uint16_t keycode_to_scancode(UInt64 keycode) {

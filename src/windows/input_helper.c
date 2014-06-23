@@ -160,9 +160,9 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 125 */	{ VC_F20,				VK_OEM_8		},	// 0x83 VK_F20					F20 key
 	/* 126 */	{ VC_F21,				0x0000			},	// 0x84 VK_F21					F21 key
 	/* 127 */	{ VC_F22,				0x0000			},	// 0x85 VK_F22					F22 key
-				
+
 	//			No Offset				Offset i & 0x00FF + (128 - 13)
-				
+
 	/* 128 */	{ VC_F23,				0x0000			},	// 0x86 VK_F23					F23 key
 	/* 129 */	{ VC_F24,				0x0000			},	// 0x87 VK_F24					F24 key
 	/* 130 */	{ VC_UNDEFINED,			0x0000			},	// 0x88							Unassigned
@@ -183,105 +183,105 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 145 */	{ VC_UNDEFINED,			0x0000			},	// 0x97							Unassigned
 	/* 146 */	{ VC_UNDEFINED,			0x0000			},	// 0x98							Unassigned
 	/* 147 */	{ VC_UNDEFINED,			VK_VOLUME_MUTE	},	// 0x99							Unassigned
-	/* 152 */	{ VC_UNDEFINED,			0x0000			},	// 0x9A							Unassigned
-	/* 153 */	{ VC_UNDEFINED,			0x0000			},	// 0x9B							Unassigned
-	/* 154 */	{ VC_UNDEFINED,			0x0000			},	// 0x9C							Unassigned
-	/* 155 */	{ VC_UNDEFINED,			0x0000			},	// 0x9D							Unassigned
-	/* 156 */	{ VC_UNDEFINED,			0x0000			},	// 0x9F							Unassigned
-	/* 157 */	{ VC_SHIFT_L,			0x0000			},	// 0xA0 VK_LSHIFT				Left SHIFT key
-	/* 158 */	{ VC_SHIFT_R,			0x0000			},	// 0xA1 VK_RSHIFT				Right SHIFT key
-	/* 159 */	{ VC_CONTROL_L,			0x0000			},	// 0xA2 VK_LCONTROL				Left CONTROL key
-	/* 160 */	{ VC_CONTROL_R,			0x0000			},	// 0xA3 VK_RCONTROL				Right CONTROL key
-	/* 161 */	{ VC_ALT_L,				VK_VOLUME_DOWN	},	// 0xA4 VK_LMENU				Left MENU key
-	/* 162 */	{ VC_ALT_R,				VK_HOME			},	// 0xA5 VK_RMENU				Right MENU key
-	/* 163 */	{ VC_BROWSER_BACK,		VK_VOLUME_UP	},	// 0xA6 VK_BROWSER_BACK			Browser Back key
-	/* 164 */	{ VC_BROWSER_FORWARD,	0x0000			},	// 0xA7 VK_BROWSER_FORWARD		Browser Forward key
-	/* 165 */	{ VC_BROWSER_REFRESH,	0x0000			},	// 0xA8 VK_BROWSER_REFRESH		Browser Refresh key
-	/* 166 */	{ VC_BROWSER_STOP,		0x0000			},	// 0xA9 VK_BROWSER_STOP			Browser Stop key
-	/* 167 */	{ VC_BROWSER_SEARCH,	0x0000			},	// 0xAA VK_BROWSER_SEARCH		Browser Search key
-	/* 168 */	{ VC_BROWSER_FAVORITES,	VK_DIVIDE		},	// 0xAB VK_BROWSER_FAVORITES	Browser Favorites key
-	/* 169 */	{ VC_BROWSER_HOME,		0x0000			},	// 0xAC VK_BROWSER_HOME			Browser Start and Home key
-	/* 170 */	{ VC_VOLUME_MUTE,		0x0000			},	// 0xAD VK_VOLUME_MUTE			Volume Mute key
-	/* 171 */	{ VC_VOLUME_UP,			VK_RMENU		},	// 0xAE VK_VOLUME_DOWN			Volume Down key
-	/* 172 */	{ VC_VOLUME_DOWN,		0x0000			},	// 0xAF VK_VOLUME_UP			Volume Up key
-	/* 173 */	{ VC_MEDIA_NEXT,		0x0000			},	// 0xB0 VK_MEDIA_NEXT_TRACK		Next Track key
-	/* 174 */	{ VC_MEDIA_PREVIOUS,	0x0000			},	// 0xB1 VK_MEDIA_PREV_TRACK		Previous Track key
-	/* 175 */	{ VC_MEDIA_STOP,		0x0000			},	// 0xB2 VK_MEDIA_STOP			Stop Media key
-	/* 176 */	{ VC_MEDIA_PLAY,		0x0000			},	// 0xB3 VK_MEDIA_PLAY_PAUSE		Play/Pause Media key
-	/* 177 */	{ VC_APP_MAIL,			0x0000			},	// 0xB4 VK_LAUNCH_MAIL			Start Mail key
-	/* 178 */	{ VC_MEDIA_SELECT,		0x0000			},	// 0xB5 VK_LAUNCH_MEDIA_SELECT	Select Media key
-	/* 179 */	{ VC_APP_MAIL,			0x0000			},	// 0xB6 VK_LAUNCH_APP1			Start Application 1 key
-	/* 180 */	{ VC_APP_CALCULATOR,	0x0000			},	// 0xB7 VK_LAUNCH_APP2			Start Application 2 key
-	/* 181 */	{ VC_UNDEFINED,			0x0000			},	// 0xB8							Reserved
-	/* 182 */	{ VC_UNDEFINED,			0x0000			},	// 0xB9							Reserved
-	/* 183 */	{ VC_SEMICOLON,			0x0000			},	// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
-	/* 184 */	{ VC_EQUALS,			0x0000			},	// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
-	/* 185 */	{ VC_COMMA,				0x0000			},	// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
-	/* 186 */	{ VC_MINUS,				0x0000			},	// 0xBD VK_OEM_MINUS			For any country/region, the '-' key
-	/* 187 */	{ VC_PERIOD,			VK_UP			},	// 0xBE VK_OEM_PERIOD			For any country/region, the '.' key
-	/* 188 */	{ VC_SLASH,				VK_PRIOR		},	// 0xBF VK_OEM_2				Varies by keyboard. For the US standard keyboard, the '/?' key
-	/* 189 */	{ VC_BACKQUOTE,			VK_LEFT			},	// 0xC0 VK_OEM_3				Varies by keyboard. For the US standard keyboard, the '`~' key
-	/* 190 */	{ VC_UNDEFINED,			VK_RIGHT		},	// 0xC1							Reserved
-	/* 191 */	{ VC_UNDEFINED,			VK_END			},	// 0xC2							Reserved
-	/* 192 */	{ VC_UNDEFINED,			VK_DOWN			},	// 0xC3							Reserved
-	/* 193 */	{ VC_UNDEFINED,			VK_NEXT			},	// 0xC4							Reserved
-	/* 194 */	{ VC_UNDEFINED,			VK_INSERT		},	// 0xC5							Reserved
-	/* 195 */	{ VC_UNDEFINED,			VK_DELETE		},	// 0xC6							Reserved
-	/* 196 */	{ VC_UNDEFINED,			0x0000			},	// 0xC7							Reserved
-	/* 197 */	{ VC_UNDEFINED,			0x0000			},	// 0xC8							Reserved
-	/* 198 */	{ VC_UNDEFINED,			0x0000			},	// 0xC9							Reserved
-	/* 199 */	{ VC_UNDEFINED,			0x0000			},	// 0xCA							Reserved
-	/* 200 */	{ VC_UNDEFINED,			0x0000			},	// 0xCB							Reserved
-	/* 201 */	{ VC_UNDEFINED,			0x0000			},	// 0xCC							Reserved
-	/* 202 */	{ VC_UNDEFINED,			0x0000			},	// 0xCD							Reserved
-	/* 203 */	{ VC_UNDEFINED,			0x0000			},	// 0xCE							Reserved
-	/* 204 */	{ VC_UNDEFINED,			VK_RWIN			},	// 0xCF							Reserved
-	/* 205 */	{ VC_UNDEFINED,			0x0000			},	// 0xD0							Reserved
-	/* 206 */	{ VC_UNDEFINED,			0x0000			},	// 0xD1							Reserved
-	/* 207 */	{ VC_UNDEFINED,			0x0000			},	// 0xD2							Reserved
-	/* 208 */	{ VC_UNDEFINED,			0x0000			},	// 0xD3							Reserved
-	/* 209 */	{ VC_UNDEFINED,			0x0000			},	// 0xD4							Reserved
-	/* 210 */	{ VC_UNDEFINED,			0x0000			},	// 0xD5							Reserved
-	/* 211 */	{ VC_UNDEFINED,			0x0000			},	// 0xD6							Reserved
-	/* 212 */	{ VC_UNDEFINED,			0x0000			},	// 0xD7							Reserved
-	/* 213 */	{ VC_UNDEFINED,			0x0000			},	// 0xD8							Unassigned
-	/* 214 */	{ VC_UNDEFINED,			0x0000			},	// 0xD9							Unassigned
-	/* 215 */	{ VC_UNDEFINED,			0x0000			},	// 0xDA							Unassigned
-	/* 216 */	{ VC_OPEN_BRACKET,		0x0000			},	// 0xDB VK_OEM_4				Varies by keyboard. For the US standard keyboard, the '[{' key
-	/* 217 */	{ VC_BACK_SLASH,		0x0000			},	// 0xDC VK_OEM_5				Varies by keyboard. For the US standard keyboard, the '\|' key
-	/* 218 */	{ VC_CLOSE_BRACKET,		0x0000			},	// 0xDD VK_OEM_6				Varies by keyboard. For the US standard keyboard, the ']}' key
-	/* 219 */	{ VC_QUOTE,				0x0000			},	// 0xDE VK_OEM_7				Varies by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
-	/* 220 */	{ VC_YEN,				0x0000			},	// 0xDF VK_OEM_8				Varies by keyboard.
-	/* 221 */	{ VC_UNDEFINED,			0x0000			},	// 0xE0							Reserved
-	/* 222 */	{ VC_UNDEFINED,			0x0000			},	// 0xE1							OEM specific
-	/* 223 */	{ VC_UNDEFINED,			0x0000			},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
-	/* 224 */	{ VC_UNDEFINED,			0x0000			},	// 0xE3							OEM specific
-	/* 225 */	{ VC_UNDEFINED,			0x0000			},	// 0xE4							OEM specific
-	/* 226 */	{ VC_UNDEFINED,			0x0000			},	// 0xE5 VK_PROCESSKEY			IME PROCESS key
-	/* 227 */	{ VC_UNDEFINED,			0x0000			},	// 0xE6							OEM specific
-	/* 228 */	{ VC_UNDEFINED,			0x0000			},	// 0xE7 VK_PACKET				Used to pass Unicode characters as if they were keystrokes. The VK_PACKET key is the low word of a 32-bit Virtual Key value used for non-keyboard input methods.
-	/* 229 */	{ VC_UNDEFINED,			0x0000			},	// 0xE8							Unassigned
-	/* 230 */	{ VC_UNDEFINED,			0x0000			},	// 0xE9							OEM specific
-	/* 231 */	{ VC_UNDEFINED,			0x0000			},	// 0xEA							OEM specific
-	/* 232 */	{ VC_UNDEFINED,			0x0000			},	// 0xEB							OEM specific
-	/* 233 */	{ VC_UNDEFINED,			0x0000			},	// 0xEC							OEM specific
-	/* 234 */	{ VC_UNDEFINED,			0x0000			},	// 0xED							OEM specific
-	/* 235 */	{ VC_UNDEFINED,			0x0000			},	// 0xEE							OEM specific
-	/* 236 */	{ VC_UNDEFINED,			0x0000			},	// 0xF0							OEM specific
-	/* 237 */	{ VC_UNDEFINED,			0x0000			},	// 0xF1							OEM specific
-	/* 238 */	{ VC_UNDEFINED,			0x0000			},	// 0xF2							OEM specific
-	/* 239 */	{ VC_UNDEFINED,			0x0000			},	// 0xF3							OEM specific
-	/* 240 */	{ VC_UNDEFINED,			0x0000			},	// 0xF4							OEM specific
-	/* 241 */	{ VC_UNDEFINED,			0x0000			},	// 0xF5							OEM specific
-	/* 242 */	{ VC_UNDEFINED,			0x0000			},	// 0xF6 VK_ATTN					Attn key
-	/* 243 */	{ VC_UNDEFINED,			0x0000			},	// 0xF7 VK_CRSEL				CrSel key
-	/* 244 */	{ VC_UNDEFINED,			0x0000			},	// 0xF8 VK_EXSEL				ExSel key
-	/* 245 */	{ VC_UNDEFINED,			0x0000			},	// 0xF9 VK_EREOF				Erase EOF key
-	/* 246 */	{ VC_UNDEFINED,			0x0000			},	// 0xFA VK_PLAY					Play key
-	/* 247 */	{ VC_UNDEFINED,			0x0000			},	// 0xFB VK_ZOOM					Zoom key
-	/* 249 */	{ VC_UNDEFINED,			0x0000			},	// 0xFC VK_NONAME				Reserved
-	/* 250 */	{ VC_UNDEFINED,			0x0000			},	// 0xFD VK_PA1					PA1 key
-	/* 251 */	{ VC_UNDEFINED,			0x0000			},	// 0xFE VK_OEM_CLEAR			Clear key
+	/* 148 */	{ VC_UNDEFINED,			0x0000			},	// 0x9A							Unassigned
+	/* 149 */	{ VC_UNDEFINED,			0x0000			},	// 0x9B							Unassigned
+	/* 150 */	{ VC_UNDEFINED,			0x0000			},	// 0x9C							Unassigned
+	/* 151 */	{ VC_UNDEFINED,			0x0000			},	// 0x9D							Unassigned
+	/* 152 */	{ VC_UNDEFINED,			0x0000			},	// 0x9F							Unassigned
+	/* 153 */	{ VC_SHIFT_L,			0x0000			},	// 0xA0 VK_LSHIFT				Left SHIFT key
+	/* 154 */	{ VC_SHIFT_R,			0x0000			},	// 0xA1 VK_RSHIFT				Right SHIFT key
+	/* 155 */	{ VC_CONTROL_L,			0x0000			},	// 0xA2 VK_LCONTROL				Left CONTROL key
+	/* 156 */	{ VC_CONTROL_R,			0x0000			},	// 0xA3 VK_RCONTROL				Right CONTROL key
+	/* 157 */	{ VC_ALT_L,				VK_VOLUME_DOWN	},	// 0xA4 VK_LMENU				Left MENU key
+	/* 158 */	{ VC_ALT_R,				VK_HOME			},	// 0xA5 VK_RMENU				Right MENU key
+	/* 159 */	{ VC_BROWSER_BACK,		VK_VOLUME_UP	},	// 0xA6 VK_BROWSER_BACK			Browser Back key
+	/* 160 */	{ VC_BROWSER_FORWARD,	0x0000			},	// 0xA7 VK_BROWSER_FORWARD		Browser Forward key
+	/* 161 */	{ VC_BROWSER_REFRESH,	0x0000			},	// 0xA8 VK_BROWSER_REFRESH		Browser Refresh key
+	/* 162 */	{ VC_BROWSER_STOP,		0x0000			},	// 0xA9 VK_BROWSER_STOP			Browser Stop key
+	/* 163 */	{ VC_BROWSER_SEARCH,	0x0000			},	// 0xAA VK_BROWSER_SEARCH		Browser Search key
+	/* 164 */	{ VC_BROWSER_FAVORITES,	VK_DIVIDE		},	// 0xAB VK_BROWSER_FAVORITES	Browser Favorites key
+	/* 165 */	{ VC_BROWSER_HOME,		0x0000			},	// 0xAC VK_BROWSER_HOME			Browser Start and Home key
+	/* 166 */	{ VC_VOLUME_MUTE,		0x0000			},	// 0xAD VK_VOLUME_MUTE			Volume Mute key
+	/* 167 */	{ VC_VOLUME_UP,			VK_RMENU		},	// 0xAE VK_VOLUME_DOWN			Volume Down key
+	/* 168 */	{ VC_VOLUME_DOWN,		0x0000			},	// 0xAF VK_VOLUME_UP			Volume Up key
+	/* 169 */	{ VC_MEDIA_NEXT,		0x0000			},	// 0xB0 VK_MEDIA_NEXT_TRACK		Next Track key
+	/* 170 */	{ VC_MEDIA_PREVIOUS,	0x0000			},	// 0xB1 VK_MEDIA_PREV_TRACK		Previous Track key
+	/* 171 */	{ VC_MEDIA_STOP,		0x0000			},	// 0xB2 VK_MEDIA_STOP			Stop Media key
+	/* 172 */	{ VC_MEDIA_PLAY,		0x0000			},	// 0xB3 VK_MEDIA_PLAY_PAUSE		Play/Pause Media key
+	/* 173 */	{ VC_APP_MAIL,			0x0000			},	// 0xB4 VK_LAUNCH_MAIL			Start Mail key
+	/* 174 */	{ VC_MEDIA_SELECT,		0x0000			},	// 0xB5 VK_LAUNCH_MEDIA_SELECT	Select Media key
+	/* 175 */	{ VC_APP_MAIL,			0x0000			},	// 0xB6 VK_LAUNCH_APP1			Start Application 1 key
+	/* 176 */	{ VC_APP_CALCULATOR,	0x0000			},	// 0xB7 VK_LAUNCH_APP2			Start Application 2 key
+	/* 177 */	{ VC_UNDEFINED,			0x0000			},	// 0xB8							Reserved
+	/* 178 */	{ VC_UNDEFINED,			0x0000			},	// 0xB9							Reserved
+	/* 179 */	{ VC_SEMICOLON,			0x0000			},	// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
+	/* 180 */	{ VC_EQUALS,			0x0000			},	// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
+	/* 181 */	{ VC_COMMA,				0x0000			},	// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
+	/* 182 */	{ VC_MINUS,				0x0000			},	// 0xBD VK_OEM_MINUS			For any country/region, the '-' key
+	/* 183 */	{ VC_PERIOD,			VK_UP			},	// 0xBE VK_OEM_PERIOD			For any country/region, the '.' key
+	/* 184 */	{ VC_SLASH,				VK_PRIOR		},	// 0xBF VK_OEM_2				Varies by keyboard. For the US standard keyboard, the '/?' key
+	/* 185 */	{ VC_BACKQUOTE,			VK_LEFT			},	// 0xC0 VK_OEM_3				Varies by keyboard. For the US standard keyboard, the '`~' key
+	/* 186 */	{ VC_UNDEFINED,			VK_RIGHT		},	// 0xC1							Reserved
+	/* 187 */	{ VC_UNDEFINED,			VK_END			},	// 0xC2							Reserved
+	/* 188 */	{ VC_UNDEFINED,			VK_DOWN			},	// 0xC3							Reserved
+	/* 189 */	{ VC_UNDEFINED,			VK_NEXT			},	// 0xC4							Reserved
+	/* 190 */	{ VC_UNDEFINED,			VK_INSERT		},	// 0xC5							Reserved
+	/* 191 */	{ VC_UNDEFINED,			VK_DELETE		},	// 0xC6							Reserved
+	/* 192 */	{ VC_UNDEFINED,			0x0000			},	// 0xC7							Reserved
+	/* 193 */	{ VC_UNDEFINED,			0x0000			},	// 0xC8							Reserved
+	/* 194 */	{ VC_UNDEFINED,			0x0000			},	// 0xC9							Reserved
+	/* 195 */	{ VC_UNDEFINED,			0x0000			},	// 0xCA							Reserved
+	/* 196 */	{ VC_UNDEFINED,			0x0000			},	// 0xCB							Reserved
+	/* 197 */	{ VC_UNDEFINED,			0x0000			},	// 0xCC							Reserved
+	/* 198 */	{ VC_UNDEFINED,			0x0000			},	// 0xCD							Reserved
+	/* 199 */	{ VC_UNDEFINED,			0x0000			},	// 0xCE							Reserved
+	/* 200 */	{ VC_UNDEFINED,			VK_RWIN			},	// 0xCF							Reserved
+	/* 201 */	{ VC_UNDEFINED,			0x0000			},	// 0xD0							Reserved
+	/* 202 */	{ VC_UNDEFINED,			0x0000			},	// 0xD1							Reserved
+	/* 203 */	{ VC_UNDEFINED,			0x0000			},	// 0xD2							Reserved
+	/* 204 */	{ VC_UNDEFINED,			0x0000			},	// 0xD3							Reserved
+	/* 205 */	{ VC_UNDEFINED,			0x0000			},	// 0xD4							Reserved
+	/* 206 */	{ VC_UNDEFINED,			0x0000			},	// 0xD5							Reserved
+	/* 207 */	{ VC_UNDEFINED,			0x0000			},	// 0xD6							Reserved
+	/* 208 */	{ VC_UNDEFINED,			0x0000			},	// 0xD7							Reserved
+	/* 209 */	{ VC_UNDEFINED,			0x0000			},	// 0xD8							Unassigned
+	/* 210 */	{ VC_UNDEFINED,			0x0000			},	// 0xD9							Unassigned
+	/* 211 */	{ VC_UNDEFINED,			0x0000			},	// 0xDA							Unassigned
+	/* 212 */	{ VC_OPEN_BRACKET,		0x0000			},	// 0xDB VK_OEM_4				Varies by keyboard. For the US standard keyboard, the '[{' key
+	/* 213 */	{ VC_BACK_SLASH,		0x0000			},	// 0xDC VK_OEM_5				Varies by keyboard. For the US standard keyboard, the '\|' key
+	/* 214 */	{ VC_CLOSE_BRACKET,		0x0000			},	// 0xDD VK_OEM_6				Varies by keyboard. For the US standard keyboard, the ']}' key
+	/* 215 */	{ VC_QUOTE,				0x0000			},	// 0xDE VK_OEM_7				Varies by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
+	/* 216 */	{ VC_YEN,				0x0000			},	// 0xDF VK_OEM_8				Varies by keyboard.
+	/* 217 */	{ VC_UNDEFINED,			0x0000			},	// 0xE0							Reserved
+	/* 218 */	{ VC_UNDEFINED,			0x0000			},	// 0xE1							OEM specific
+	/* 219 */	{ VC_UNDEFINED,			0x0000			},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
+	/* 220 */	{ VC_UNDEFINED,			0x0000			},	// 0xE3							OEM specific
+	/* 221 */	{ VC_UNDEFINED,			0x0000			},	// 0xE4							OEM specific
+	/* 222 */	{ VC_UNDEFINED,			0x0000			},	// 0xE5 VK_PROCESSKEY			IME PROCESS key
+	/* 223 */	{ VC_UNDEFINED,			0x0000			},	// 0xE6							OEM specific
+	/* 224 */	{ VC_UNDEFINED,			0x0000			},	// 0xE7 VK_PACKET				Used to pass Unicode characters as if they were keystrokes. The VK_PACKET key is the low word of a 32-bit Virtual Key value used for non-keyboard input methods.
+	/* 225 */	{ VC_UNDEFINED,			0x0000			},	// 0xE8							Unassigned
+	/* 226 */	{ VC_UNDEFINED,			0x0000			},	// 0xE9							OEM specific
+	/* 227 */	{ VC_UNDEFINED,			0x0000			},	// 0xEA							OEM specific
+	/* 228 */	{ VC_UNDEFINED,			0x0000			},	// 0xEB							OEM specific
+	/* 229 */	{ VC_UNDEFINED,			0x0000			},	// 0xEC							OEM specific
+	/* 230 */	{ VC_UNDEFINED,			0x0000			},	// 0xED							OEM specific
+	/* 231 */	{ VC_UNDEFINED,			0x0000			},	// 0xEE							OEM specific
+	/* 232 */	{ VC_UNDEFINED,			0x0000			},	// 0xF0							OEM specific
+	/* 233 */	{ VC_UNDEFINED,			0x0000			},	// 0xF1							OEM specific
+	/* 234 */	{ VC_UNDEFINED,			0x0000			},	// 0xF2							OEM specific
+	/* 235 */	{ VC_UNDEFINED,			0x0000			},	// 0xF3							OEM specific
+	/* 236 */	{ VC_UNDEFINED,			0x0000			},	// 0xF4							OEM specific
+	/* 237 */	{ VC_UNDEFINED,			0x0000			},	// 0xF5							OEM specific
+	/* 238 */	{ VC_UNDEFINED,			0x0000			},	// 0xF6 VK_ATTN					Attn key
+	/* 239 */	{ VC_UNDEFINED,			0x0000			},	// 0xF7 VK_CRSEL				CrSel key
+	/* 240 */	{ VC_UNDEFINED,			0x0000			},	// 0xF8 VK_EXSEL				ExSel key
+	/* 241 */	{ VC_UNDEFINED,			0x0000			},	// 0xF9 VK_EREOF				Erase EOF key
+	/* 242 */	{ VC_UNDEFINED,			0x0000			},	// 0xFA VK_PLAY					Play key
+	/* 243 */	{ VC_UNDEFINED,			0x0000			},	// 0xFB VK_ZOOM					Zoom key
+	/* 244 */	{ VC_UNDEFINED,			0x0000			},	// 0xFC VK_NONAME				Reserved
+	/* 245 */	{ VC_UNDEFINED,			0x0000			},	// 0xFD VK_PA1					PA1 key
+	/* 246 */	{ VC_UNDEFINED,			0x0000			},	// 0xFE VK_OEM_CLEAR			Clear key
 };
 
 unsigned short convert_vk_to_scancode(DWORD vk_code) {
@@ -307,7 +307,7 @@ DWORD convert_scancode_to_vk(unsigned short scancode) {
 	else {
 		// Calculate the upper offset.
 		unsigned short int i = (scancode & 0xFF) + (128 - 13);
-		
+
 		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 			vk_code = keycode_scancode_table[i][1];
 		}

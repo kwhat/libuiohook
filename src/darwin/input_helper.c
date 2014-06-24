@@ -454,7 +454,7 @@ UInt64 scancode_to_keycode(uint16_t scancode) {
 	}
 	else {
 		// Calculate the upper offset.
-		int i = (scancode & 0xFF) + (128 - 13);
+		unsigned short i = (scancode & 0xFF) + (128 - 13);
 
 		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 			keycode = keycode_scancode_table[scancode][1];

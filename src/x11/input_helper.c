@@ -26,12 +26,15 @@
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 
-#ifdef USE_XKB
-// FIXME BSD uses xf86 instead of evdev + linux/input.h
+// NOTE This assumes only linux has evdev.
+#ifdef USE_EVDEV
 #include <linux/input.h>
+static bool is_evdev = false;
+#endif
+
+#ifdef USE_XKB
 #include <X11/XKBlib.h>
 static XkbDescPtr keyboard_map;
-static bool is_evdev = false;
 #else
 #include <X11/Xutil.h>
 static KeySym *keyboard_map;
@@ -42,7 +45,7 @@ static bool is_caps_lock = false, is_shift_lock = false;
 #include "logger.h"
 
 
-#ifdef USE_XKB
+#if defined(USE_XKB) && defined(USE_EVDEV)
 /* This table is generated based off the evdev -> scancode mapping above
  * and the keycode mappings in the following files:
  *		/usr/include/linux/input.h
@@ -86,7 +89,6 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/*  31 */	{ VC_I,					KEY_S					},
 	/*  32 */	{ VC_O,					KEY_D					},
 	/*  33 */	{ VC_P,					KEY_F					},
-	/*  34 */	{ VC_Q,					KEY_G					},
 	/*  35 */	{ VC_OPEN_BRACKET,		KEY_H					},
 	/*  36 */	{ VC_CLOSE_BRACKET,		KEY_J					},
 	/*  37 */	{ VC_ENTER,				KEY_K					},
@@ -243,12 +245,12 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 184 */	{ VC_UNDEFINED,			KEY_WAKEUP				},	// 0xBF
 	/* 185 */	{ VC_BROWSER_HOME,		KEY_FILE				},	// 0xC0
 	/* 186 */	{ VC_UNDEFINED,			0						},	// 0xC1
-	/* 187 */	{ VC_UNDEFINED,			0					},	// 0xC2
-	/* 188 */	{ VC_UNDEFINED,			0			},	// 0xC3
-	/* 189 */	{ VC_UNDEFINED,			0			},	// 0xC4
-	/* 190 */	{ VC_UNDEFINED,			0				},	// 0xC5
-	/* 191 */	{ VC_F13,				0		},	// 0xC6
-	/* 192 */	{ VC_F14,				0			},	// 0xC7
+	/* 187 */	{ VC_UNDEFINED,			0						},	// 0xC2
+	/* 188 */	{ VC_UNDEFINED,			0						},	// 0xC3
+	/* 189 */	{ VC_UNDEFINED,			0						},	// 0xC4
+	/* 190 */	{ VC_UNDEFINED,			0						},	// 0xC5
+	/* 191 */	{ VC_F13,				0						},	// 0xC6
+	/* 192 */	{ VC_F14,				0						},	// 0xC7
 	/* 193 */	{ VC_F15,				0			},	// 0xC8
 	/* 194 */	{ VC_F16,				0			},	// 0xC9
 	/* 195 */	{ VC_F17,				0			},	// 0xCA
@@ -341,103 +343,102 @@ static const uint16_t evdev_scancode_table[][2] = {
 static const uint16_t xfree86_scancode_table[][2] = {
 	/* idx		{ keycode,				scancode				}, */
 	#ifndef __OPTIMIZE_SIZE__
-	/*   0 */	{ VC_UNDEFINED,			KEY_RESERVED			},
-	/*   1 */	{ VC_UNDEFINED,			KEY_ESC					},
-	/*   2 */	{ VC_UNDEFINED,			KEY_1					},
-	/*   3 */	{ VC_UNDEFINED,			KEY_2					},
-	/*   4 */	{ VC_UNDEFINED,			KEY_3					},
-	/*   5 */	{ VC_UNDEFINED,			KEY_4					},
-	/*   6 */	{ VC_UNDEFINED,			KEY_5					},
-	/*   7 */	{ VC_UNDEFINED,			KEY_6					},
-	/*   8 */	{ VC_UNDEFINED,			KEY_7					},
-	/*   9 */	{ VC_UNDEFINED,			KEY_8					},
-	/*  10 */	{ VC_UNDEFINED,			KEY_9					},
-	/*  11 */	{ VC_UNDEFINED,			KEY_0					},
-	/*  12 */	{ VC_UNDEFINED,			KEY_MINUS				},
-	/*  13 */	{ VC_UNDEFINED,			KEY_EQUAL				},
-	/*  14 */	{ VC_UNDEFINED,			KEY_BACKSPACE			},
-	/*  15 */	{ VC_UNDEFINED,			KEY_TAB					},
-	/*  16 */	{ VC_UNDEFINED,			KEY_Q					},
-	/*  17 */	{ VC_UNDEFINED,			KEY_W					},
-	/*  18 */	{ VC_UNDEFINED,			KEY_E					},
-	/*  19 */	{ VC_UNDEFINED,			KEY_R					},
-	/*  20 */	{ VC_UNDEFINED,			KEY_T					},
-	/*  21 */	{ VC_UNDEFINED,			KEY_Y					},
-	/*  22 */	{ VC_UNDEFINED,			KEY_U					},
-	/*  23 */	{ VC_UNDEFINED,			KEY_I					},
-	/*  24 */	{ VC_UNDEFINED,			KEY_O					},
-	/*  25 */	{ VC_UNDEFINED,			KEY_P					},
-	/*  26 */	{ VC_UNDEFINED,			KEY_LEFTBRACE			},
-	/*  27 */	{ VC_UNDEFINED,			KEY_RIGHTBRACE			},
-	/*  28 */	{ VC_UNDEFINED,			KEY_ENTER				},
-	/*  29 */	{ VC_UNDEFINED,			KEY_LEFTCTRL			},
-	/*  30 */	{ VC_UNDEFINED,			KEY_A					},
-	/*  31 */	{ VC_UNDEFINED,			KEY_S					},
-	/*  32 */	{ VC_UNDEFINED,			KEY_D					},
-	/*  33 */	{ VC_UNDEFINED,			KEY_F					},
-	/*  34 */	{ VC_UNDEFINED,			KEY_G					},
-	/*  35 */	{ VC_UNDEFINED,			KEY_H					},
-	/*  36 */	{ VC_UNDEFINED,			KEY_J					},
-	/*  37 */	{ VC_UNDEFINED,			KEY_K					},
-	/*  38 */	{ VC_UNDEFINED,			KEY_L					},
-	/*  39 */	{ VC_UNDEFINED,			KEY_SEMICOLON			},
-	/*  40 */	{ VC_UNDEFINED,			KEY_APOSTROPHE			},
-	/*  41 */	{ VC_UNDEFINED,			KEY_GRAVE				},
-	/*  42 */	{ VC_UNDEFINED,			KEY_LEFTSHIFT			},
-	/*  43 */	{ VC_UNDEFINED,			KEY_BACKSLASH			},
-	/*  44 */	{ VC_UNDEFINED,			KEY_Z					},
-	/*  45 */	{ VC_UNDEFINED,			KEY_X					},
-	/*  46 */	{ VC_UNDEFINED,			KEY_C					},
-	/*  47 */	{ VC_UNDEFINED,			KEY_V					},
-	/*  48 */	{ VC_UNDEFINED,			KEY_B					},
-	/*  49 */	{ VC_UNDEFINED,			KEY_N					},
-	/*  50 */	{ VC_UNDEFINED,			KEY_M					},
-	/*  51 */	{ VC_UNDEFINED,			KEY_COMMA				},
-	/*  52 */	{ VC_UNDEFINED,			KEY_DOT					},
-	/*  53 */	{ VC_UNDEFINED,			KEY_SLASH				},
-	/*  54 */	{ VC_UNDEFINED,			KEY_RIGHTSHIFT			},
-	/*  55 */	{ VC_UNDEFINED,			KEY_KPASTERISK			},
-	/*  56 */	{ VC_UNDEFINED,			KEY_LEFTALT				},
-	/*  57 */	{ VC_UNDEFINED,			KEY_SPACE				},
-	/*  58 */	{ VC_UNDEFINED,			KEY_CAPSLOCK			},
-	/*  59 */	{ VC_UNDEFINED,			KEY_F1					},
-	/*  60 */	{ VC_UNDEFINED,			KEY_F2					},
-	/*  61 */	{ VC_UNDEFINED,			KEY_F3					},
-	/*  62 */	{ VC_UNDEFINED,			KEY_F4					},
-	/*  63 */	{ VC_UNDEFINED,			KEY_F5					},
-	/*  64 */	{ VC_UNDEFINED,			KEY_F6					},
-	/*  65 */	{ VC_UNDEFINED,			KEY_F7					},
-	/*  66 */	{ VC_UNDEFINED,			KEY_F8					},
-	/*  67 */	{ VC_UNDEFINED,			KEY_F9					},
-	/*  68 */	{ VC_UNDEFINED,			KEY_F10					},
-	/*  69 */	{ VC_UNDEFINED,			KEY_NUMLOCK				},
-	/*  70 */	{ VC_UNDEFINED,			KEY_SCROLLLOCK			},
-	/*  71 */	{ VC_UNDEFINED,			KEY_KP7					},
-	/*  72 */	{ VC_UNDEFINED,			KEY_KP8					},
-	/*  73 */	{ VC_UNDEFINED,			KEY_KP9					},
-	/*  74 */	{ VC_UNDEFINED,			KEY_KPMINUS				},
-	/*  75 */	{ VC_UNDEFINED,			KEY_KP4					},
-	/*  76 */	{ VC_UNDEFINED,			KEY_KP5					},
-	/*  77 */	{ VC_UNDEFINED,			KEY_KP6					},
-	/*  78 */	{ VC_UNDEFINED,			KEY_KPPLUS				},
-	/*  79 */	{ VC_UNDEFINED,			KEY_KP1					},
-	/*  80 */	{ VC_UNDEFINED,			KEY_KP2					},
-	/*  81 */	{ VC_UNDEFINED,			KEY_KP3					},
-	/*  82 */	{ VC_UNDEFINED,			KEY_KP0					},
-	/*  83 */	{ VC_UNDEFINED,			KEY_KPDOT				},
-	/*  84 */	{ VC_UNDEFINED,			0						},
-	/*  85 */	{ VC_UNDEFINED,			KEY_ZENKAKUHANKAKU		},
-	/*  86 */	{ VC_UNDEFINED,			KEY_102ND				},
-	/*  87 */	{ VC_UNDEFINED,			KEY_F11					},
-	/*  88 */	{ VC_UNDEFINED,			KEY_F12					},
-	/*  89 */	{ VC_UNDEFINED,			KEY_RO					},
-	/*  90 */	{ VC_UNDEFINED,			KEY_KATAKANA			},
-	/*  91 */	{ VC_UNDEFINED,			KEY_HIRAGANA			},
-	/*  92 */	{ VC_UNDEFINED,			KEY_HENKAN				},
-	/*  93 */	{ VC_UNDEFINED,			KEY_KATAKANAHIRAGANA	},
-	/*  94 */	{ VC_UNDEFINED,			KEY_MUHENKAN			},
-	/*  95 */	{ VC_UNDEFINED,			KEY_KPJPCOMMA			},
-	/*  96 */	{ VC_UNDEFINED,			KEY_KPENTER				},
+	/*   0 */	{ VC_UNDEFINED,			  0						},
+	/*   1 */	{ VC_UNDEFINED,			  1						},
+	/*   2 */	{ VC_UNDEFINED,			  2						},
+	/*   3 */	{ VC_UNDEFINED,			  3						},
+	/*   4 */	{ VC_UNDEFINED,			  4						},
+	/*   5 */	{ VC_UNDEFINED,			  5						},
+	/*   6 */	{ VC_UNDEFINED,			  6						},
+	/*   7 */	{ VC_UNDEFINED,			  7						},
+	/*   8 */	{ VC_UNDEFINED,			  8						},
+	/*   9 */	{ VC_ESCAPE,			  9						},
+	/*  10 */	{ VC_1,					 10						},	// <AE01>
+	/*  11 */	{ VC_2,					 11						},	// <AE02>
+	/*  12 */	{ VC_3,					 12						},	// <AE03>
+	/*  13 */	{ VC_4,					 13						},	// <AE04>
+	/*  14 */	{ VC_5,					 14						},	// <AE05>
+	/*  15 */	{ VC_6,					 15						},	// <AE06>
+	/*  16 */	{ VC_7,					 16						},	// <AE07>
+	/*  17 */	{ VC_8,					 17						},	// <AE08>
+	/*  18 */	{ VC_9,					 18						},	// <AE09>
+	/*  19 */	{ VC_0,					 19						},	// <AE10>
+	/*  20 */	{ VC_MINUS,				 20						},	// <AE11>
+	/*  21 */	{ VC_EQUALS,			 21						},	// <AE12>
+	/*  22 */	{ VC_BACKSPACE,			 22						},	// <BKSP>
+	/*  23 */	{ VC_TAB,				 23						},	// <TAB>
+	/*  24 */	{ VC_Q,					 24						},	// <AD01>
+	/*  25 */	{ VC_W,					 25						},	// <AD02>
+	/*  26 */	{ VC_E,					 26						},	// <AD03>
+	/*  27 */	{ VC_R,					 27						},	// <AD04>
+	/*  28 */	{ VC_T,					 28						},	// <AD05>
+	/*  29 */	{ VC_Y,					 29						},	// <AD06>
+	/*  30 */	{ VC_U,					 30						},	// <AD07>
+	/*  31 */	{ VC_I,					 31						}	// <AD08>,
+	/*  32 */	{ VC_O,					 32						},	// <AD09>
+	/*  33 */	{ VC_P,					 33						},	// <AD10>
+	/*  34 */	{ VC_OPEN_BRACKET,		 34						},	// <AD11>
+	/*  35 */	{ VC_CLOSE_BRACKET,		 35						},	// <AD12>
+	/*  36 */	{ VC_ENTER,				 36						},	// <RTRN>
+	/*  37 */	{ VC_CONTROL_L,			 37						},	// <LCTL>
+	/*  38 */	{ VC_A,					 38						},  // <AC01>
+	/*  39 */	{ VC_S,					 39						},	// <AC02>
+	/*  40 */	{ VC_D,					 40						},	// <AC03>
+	/*  41 */	{ VC_F,					 41						},	// <AC04>
+	/*  42 */	{ VC_G,					 42						},	// <AC05>
+	/*  43 */	{ VC_H,					 43						},	// <AC06>
+	/*  44 */	{ VC_J,					 44						},	// <AC07>
+	/*  45 */	{ VC_K,					 45						},	// <AC08>
+	/*  46 */	{ VC_L,					 46						},	// <AC09>
+	/*  47 */	{ VC_SEMICOLON,			 47						},	// <AC10>
+	/*  48 */	{ VC_QUOTE,				 48						},	// <AC11>
+	/*  49 */	{ VC_BACKQUOTE,			 49						},	// <TLDE>
+	/*  50 */	{ VC_SHIFT_L,			 50						},	// <LFSH>
+	/*  51 */	{ VC_BACK_SLASH,		 51						},	// <BKSL>
+	/*  52 */	{ VC_Z,					 52						},	// <AB01>
+	/*  53 */	{ VC_X,					 53						},	// <AB02>
+	/*  54 */	{ VC_C,					 54						},	// <AB03>
+	/*  55 */	{ VC_V,					 55						},	// <AB04>
+	/*  56 */	{ VC_B,					 56						},	// <AB05>
+	/*  57 */	{ VC_N,					 57						},	// <AB06>
+	/*  58 */	{ VC_M,					 58						},	// <AB07>
+	/*  59 */	{ VC_COMMA,				 59						},	// <AB08>
+	/*  60 */	{ VC_PERIOD,			 60						},	// <AB09>
+	/*  61 */	{ VC_SLASH,				 61						},	// <AB10>
+	/*  62 */	{ VC_SHIFT_R,			 62						},	// <RTSH>
+	/*  63 */	{ VC_KP_MULTIPLY,		 63						},	// <KPMU>
+	/*  64 */	{ VC_ALT_L,				 64						},	// <LALT>
+	/*  65 */	{ VC_SPACE,				 65						},	// <SPCE>
+	/*  66 */	{ VC_CAPS_LOCK,			 66						},	// <CAPS>
+	/*  67 */	{ VC_F1,				 67						},	// <FK01>
+	/*  68 */	{ VC_F2,				 68						},	// <FK02>
+	/*  69 */	{ VC_F3,				 69						},	// <FK03>
+	/*  70 */	{ VC_F4,				 70						},	// <FK04>
+	/*  71 */	{ VC_F5,				 71						},	// <FK05>
+	/*  72 */	{ VC_F6,				 72						},	// <FK06>
+	/*  73 */	{ VC_F7,				 73						},	// <FK07>
+	/*  74 */	{ VC_F8,				 74						},	// <FK08>
+	/*  75 */	{ VC_F9,				 75						},	// <FK09>
+	/*  76 */	{ VC_F10,				 76						},	// <FK10>
+	/*  77 */	{ VC_NUM_LOCK,			 77						},	// <NMLK>
+	/*  78 */	{ VC_SCROLL_LOCK,		 78						},	// <SCLK>
+	/*  79 */	{ VC_KP_7,				 79						},	// <KP7>
+	/*  80 */	{ VC_KP_8,				 80						},	// <KP8>
+	/*  81 */	{ VC_KP_9,				 81						},	// <KP9>
+	/*  82 */	{ VC_KP_SUBTRACT,		 82						},	// <KPSU>
+	/*  83 */	{ VC_KP_4,				 83						},	// <KP4>
+	/*  84 */	{ VC_KP_5,				 84						},	// <KP5>
+	/*  85 */	{ VC_KP_6,				 85						},	// <KP6>
+	/*  86 */	{ VC_KP_ADD,			 86						},	// <KPAD>
+	/*  87 */	{ VC_KP_1,				 87						},	// <KP1>
+	/*  88 */	{ VC_KP_2,				 88						},	// <KP2>
+	/*  89 */	{ VC_KP_3,				 89						},	// <KP3>
+	/*  90 */	{ VC_KP_0,				 90						},	// <KP0>
+	/*  91 */	{ VC_KP_SEPARATOR,		 91						},	// <KPDL>
+	/*  92 */	{ VC_UNDEFINED,			  0						},	// <SYRQ>
+	/*  93 */	{ VC_UNDEFINED,			  0						},
+	/*  94 */	{ VC_UNDEFINED,			 94						},	// <LSGT>
+	/*  95 */	{ VC_F11,				 95						},	// <FK11>
 	#endif
 	/*  96 */	{ VC_HOME,				0						},
 	/*  97 */	{ VC_UP,				0						},
@@ -1530,17 +1531,27 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 
 	// NOTE The keycode == 8 produces scancode = VC_UNDEFINED.
 	if (keycode > 8) {
+		#ifdef __OPTIMIZE_SIZE__
 		if (keycode < 97) {
-			// Simple offset of 8
+			// Simple offset of 8.
 			scancode = keycode - 8;
 		}
-		#ifdef USE_XKB
-		else if (is_evdev && keycode < 254) {
+		#ifdef USE_EVDEV
+		else if (is_evdev && keycode < (sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0])) - 97) {
 			scancode = evdev_keycode_to_scancode_table[keycode - 97];
 		}
+		#endif
+		else if (keycode < (sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0])) - 96) {
+			scancode = xfree86_keycode_to_scancode_table[keycode - 96];
+		}
 		#else
-		else if (keycode < 158) {
-			scancode = xfree86_keycode_to_scancode_table[keycode - 97];
+		#ifdef USE_EVDEV
+		if (is_evdev && keycode < (sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0])) - 97) {
+			scancode = evdev_keycode_to_scancode_table[keycode];
+		} else 
+		#endif
+		if (keycode < sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0])) {
+			scancode = xfree86_keycode_to_scancode_table[keycode];
 		}
 		#endif
 	}
@@ -1551,26 +1562,43 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 KeyCode scancode_to_keycode(uint16_t scancode) {
 	KeyCode keycode = 0x0000;
 
-	if (scancode > 1) {
-		if (scancode < 89) {
-			// Simple offset of 8
-			keycode = scancode + 8;
-		}
-		#ifdef USE_XKB
-		else if (is_evdev && keycode < 150) {
-			// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
-			keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 0x0D)];
-		}
-		#else
-		else if (keycode < 150) {
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Xfree86 cannot produce extended scancodes at this time!\n",
-					__FUNCTION__, __LINE__);
-
-			// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
-			//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 0x0D)];
-		}
-		#endif
+	#ifdef __OPTIMIZE_SIZE__
+	if (scancode < 89) {
+		// Simple offset of 8.
+		keycode = scancode + 8;
 	}
+	#ifdef USE_EVDEV
+	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0])) {
+		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
+		keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 13)];
+	}
+	#endif
+	else if (scancode < sizeof(xfree86_scancode_to_keycode_table) / sizeof(xfree86_scancode_to_keycode_table[0])) {
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Xfree86 cannot produce extended scancodes at this time!\n",
+				__FUNCTION__, __LINE__);
+
+		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
+		//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 0x0D)];
+	}
+	#else
+	if (scancode < 89) {
+		// No translation needed.
+		keycode = scancode;
+	}
+	#ifdef USE_XKB
+	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < sizeof(evdev_scancode_to_keycode_table) / sizeof(evdev_scancode_to_keycode_table[0])) {
+		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
+		keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 13)];
+	}
+	#else
+	else if (scancode < sizeof(xfree86_scancode_to_keycode_table) / sizeof(xfree86_scancode_to_keycode_table[0])) {
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Xfree86 cannot produce extended scancodes at this time!\n",
+				__FUNCTION__, __LINE__);
+
+		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
+		//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 0x0D)];
+	}
+	#endif
 
 	return keycode;
 }

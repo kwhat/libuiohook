@@ -26,13 +26,11 @@
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 
-// NOTE This assumes only linux has evdev.
+#ifdef USE_XKB
 #ifdef USE_EVDEV
 #include <linux/input.h>
 static bool is_evdev = false;
 #endif
-
-#ifdef USE_XKB
 #include <X11/XKBlib.h>
 static XkbDescPtr keyboard_map;
 #else
@@ -44,14 +42,39 @@ static bool is_caps_lock = false, is_shift_lock = false;
 
 #include "logger.h"
 
+/* The follwoing two tables are based on QEMU's x_keymap.c, under the following 
+ * terms:
+ *
+ * Copyright (C) 2003 Fabrice Bellard <fabrice@bellard.org>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-#if defined(USE_XKB) && defined(USE_EVDEV)
+#if defined(USE_EVDEV) && defined(USE_XKB)
 /* This table is generated based off the evdev -> scancode mapping above
  * and the keycode mappings in the following files:
  *		/usr/include/linux/input.h
  *		/usr/share/X11/xkb/keycodes/evdev
+ * 
+ * NOTE This table only works for Linux.
+ * 
  */
-// FIXME This table only works for linux.  Add a second table for BSD!
 static const uint16_t evdev_scancode_table[][2] = {
 	/* idx		{ keycode,				scancode				}, */
 	#ifndef __OPTIMIZE_SIZE__
@@ -251,87 +274,63 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 190 */	{ VC_UNDEFINED,			0						},	// 0xC5
 	/* 191 */	{ VC_F13,				0						},	// 0xC6
 	/* 192 */	{ VC_F14,				0						},	// 0xC7
-	/* 193 */	{ VC_F15,				0			},	// 0xC8
-	/* 194 */	{ VC_F16,				0			},	// 0xC9
-	/* 195 */	{ VC_F17,				0			},	// 0xCA
-	/* 196 */	{ VC_F18,				0			},	// 0xCB
-	/* 197 */	{ VC_F19,				0			},	// 0xCC
-	/* 198 */	{ VC_F20,				0			},	// 0xCD
-	/* 199 */	{ VC_F21,				0			},	// 0xCE
-	/* 200 */	{ VC_F22,				0		},	// 0xCF
-	/* 201 */	{ VC_F23,				0			},	// 0xD0
-	/* 202 */	{ VC_F24,				0			},	// 0xD1
-	/* 203 */	{ VC_UNDEFINED,			0			},	// 0xD2
-	/* 204 */	{ VC_UNDEFINED,			0			},	// 0xD3
-	/* 205 */	{ VC_UNDEFINED,			0			},	// 0xD4
-	/* 206 */	{ VC_UNDEFINED,			0			},	// 0xD5
-	/* 207 */	{ VC_UNDEFINED,			0			},	// 0xD6
-	/* 208 */	{ VC_UNDEFINED,			0			},	// 0xD7
-	/* 209 */	{ VC_UNDEFINED,			0			},	// 0xD8
-	/* 200 */	{ VC_UNDEFINED,			0			},	// 0xD9
-	/* 211 */	{ VC_UNDEFINED,			0			},	// 0xDA
-	/* 212 */	{ VC_UNDEFINED,			0			},	// 0xDB
-	/* 213 */	{ VC_UNDEFINED,			0			},	// 0xDC
-	/* 214 */	{ VC_UNDEFINED,			0			},	// 0xDD
-	/* 215 */	{ VC_UNDEFINED,			0			},	// 0xDE
-	/* 216 */	{ VC_UNDEFINED,			0			},	// 0xDF
-	/* 217 */	{ VC_UNDEFINED,			0			},	// 0xE0
-	/* 218 */	{ VC_UNDEFINED,			0			},	// 0xE1
-	/* 219 */	{ VC_UNDEFINED,			0			},	// 0xE2
-	/* 220 */	{ VC_UNDEFINED,			0			},	// 0xE3
-	/* 221 */	{ VC_UNDEFINED,			0			},	// 0xE4
-	/* 222 */	{ VC_UNDEFINED,			0			},	// 0xE5
-	/* 223 */	{ VC_UNDEFINED,			0			},	// 0xE6
-	/* 224 */	{ VC_UNDEFINED,			0			},	// 0xE7
-	/* 225 */	{ VC_BROWSER_SEARCH,	0			},	// 0xE8
-	/* 226 */	{ VC_UNDEFINED,			0			},	// 0xE9
-	/* 227 */	{ VC_UNDEFINED,			0			},	// 0xEA
-	/* 228 */	{ VC_UNDEFINED,			0			},	// 0xEB
-	/* 229 */	{ VC_UNDEFINED,			0			},	// 0xEC
-	/* 230 */	{ VC_UNDEFINED,			0			},	// 0xED
-	/* 231 */	{ VC_UNDEFINED,			0			},	// 0xEE
-	/* 232 */	{ VC_UNDEFINED,			0			},	// 0xF0
-	/* 233 */	{ VC_UNDEFINED,			0			},	// 0xF1
-	/* 234 */	{ VC_UNDEFINED,			0			},	// 0xF2
-	/* 235 */	{ VC_UNDEFINED,			0			},	// 0xF3
-	/* 236 */	{ VC_UNDEFINED,			0			},	// 0xF4
-	/* 237 */	{ VC_UNDEFINED,			0			},	// 0xF5
-	/* 238 */	{ VC_UNDEFINED,			0			},	// 0xF6
-	/* 239 */	{ VC_UNDEFINED,			0			},	// 0xF7
-	/* 240 */	{ VC_UNDEFINED,			0			},	// 0xF8
-	/* 241 */	{ VC_UNDEFINED,			0			},	// 0xF9
-	/* 242 */	{ VC_UNDEFINED,			0			},	// 0xFA
-	/* 243 */	{ VC_UNDEFINED,			0			},	// 0xFB
-	/* 244 */	{ VC_UNDEFINED,			0			},	// 0xFC
-	/* 245 */	{ VC_UNDEFINED,			0			},	// 0xFD
-	/* 246 */	{ VC_UNDEFINED,			0			},	// 0xFE
+	/* 193 */	{ VC_F15,				0						},	// 0xC8
+	/* 194 */	{ VC_F16,				0						},	// 0xC9
+	/* 195 */	{ VC_F17,				0						},	// 0xCA
+	/* 196 */	{ VC_F18,				0						},	// 0xCB
+	/* 197 */	{ VC_F19,				0						},	// 0xCC
+	/* 198 */	{ VC_F20,				0						},	// 0xCD
+	/* 199 */	{ VC_F21,				0						},	// 0xCE
+	/* 200 */	{ VC_F22,				0						},	// 0xCF
+	/* 201 */	{ VC_F23,				0						},	// 0xD0
+	/* 202 */	{ VC_F24,				0						},	// 0xD1
+	/* 203 */	{ VC_UNDEFINED,			0						},	// 0xD2
+	/* 204 */	{ VC_UNDEFINED,			0						},	// 0xD3
+	/* 205 */	{ VC_UNDEFINED,			0						},	// 0xD4
+	/* 206 */	{ VC_UNDEFINED,			0						},	// 0xD5
+	/* 207 */	{ VC_UNDEFINED,			0						},	// 0xD6
+	/* 208 */	{ VC_UNDEFINED,			0						},	// 0xD7
+	/* 209 */	{ VC_UNDEFINED,			0						},	// 0xD8
+	/* 200 */	{ VC_UNDEFINED,			0						},	// 0xD9
+	/* 211 */	{ VC_UNDEFINED,			0						},	// 0xDA
+	/* 212 */	{ VC_UNDEFINED,			0						},	// 0xDB
+	/* 213 */	{ VC_UNDEFINED,			0						},	// 0xDC
+	/* 214 */	{ VC_UNDEFINED,			0						},	// 0xDD
+	/* 215 */	{ VC_UNDEFINED,			0						},	// 0xDE
+	/* 216 */	{ VC_UNDEFINED,			0						},	// 0xDF
+	/* 217 */	{ VC_UNDEFINED,			0						},	// 0xE0
+	/* 218 */	{ VC_UNDEFINED,			0						},	// 0xE1
+	/* 219 */	{ VC_UNDEFINED,			0						},	// 0xE2
+	/* 220 */	{ VC_UNDEFINED,			0						},	// 0xE3
+	/* 221 */	{ VC_UNDEFINED,			0						},	// 0xE4
+	/* 222 */	{ VC_UNDEFINED,			0						},	// 0xE5
+	/* 223 */	{ VC_UNDEFINED,			0						},	// 0xE6
+	/* 224 */	{ VC_UNDEFINED,			0						},	// 0xE7
+	/* 225 */	{ VC_BROWSER_SEARCH,	0						},	// 0xE8
+	/* 226 */	{ VC_UNDEFINED,			0						},	// 0xE9
+	/* 227 */	{ VC_UNDEFINED,			0						},	// 0xEA
+	/* 228 */	{ VC_UNDEFINED,			0						},	// 0xEB
+	/* 229 */	{ VC_UNDEFINED,			0						},	// 0xEC
+	/* 230 */	{ VC_UNDEFINED,			0						},	// 0xED
+	/* 231 */	{ VC_UNDEFINED,			0						},	// 0xEE
+	/* 232 */	{ VC_UNDEFINED,			0						},	// 0xF0
+	/* 233 */	{ VC_UNDEFINED,			0						},	// 0xF1
+	/* 234 */	{ VC_UNDEFINED,			0						},	// 0xF2
+	/* 235 */	{ VC_UNDEFINED,			0						},	// 0xF3
+	/* 236 */	{ VC_UNDEFINED,			0						},	// 0xF4
+	/* 237 */	{ VC_UNDEFINED,			0						},	// 0xF5
+	/* 238 */	{ VC_UNDEFINED,			0						},	// 0xF6
+	/* 239 */	{ VC_UNDEFINED,			0						},	// 0xF7
+	/* 240 */	{ VC_UNDEFINED,			0						},	// 0xF8
+	/* 241 */	{ VC_UNDEFINED,			0						},	// 0xF9
+	/* 242 */	{ VC_UNDEFINED,			0						},	// 0xFA
+	/* 243 */	{ VC_UNDEFINED,			0						},	// 0xFB
+	/* 244 */	{ VC_UNDEFINED,			0						},	// 0xFC
+	/* 245 */	{ VC_UNDEFINED,			0						},	// 0xFD
+	/* 246 */	{ VC_UNDEFINED,			0						},	// 0xFE
 };
+#endif
 
-#else
-
-/*
- * This table is taken from QEMU x_keymap.c, under the following terms:
- *
- * Copyright (C) 2003 Fabrice Bellard <fabrice@bellard.org>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 
 /* This table is generated based off the xfree86 -> scancode mapping above
  * and the keycode mappings in the following files:
@@ -602,7 +601,6 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* 255 */	{ VC_UNDEFINED,			0						},	// 255 I7F
 	#endif
  };
-#endif
 
 
 /***********************************************************************
@@ -1531,26 +1529,29 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 
 	// NOTE The keycode == 8 produces scancode = VC_UNDEFINED.
 	if (keycode > 8) {
+		unsigned char evdev_size = sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0]);
+		unsigned char xfree86_size = sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0]);
+		
 		#ifdef __OPTIMIZE_SIZE__
 		if (keycode < 97) {
 			// Simple offset of 8.
 			scancode = keycode - 8;
 		}
-		#ifdef USE_EVDEV
-		else if (is_evdev && keycode < (sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0])) - 97) {
+		#if defined(USE_EVDEV) && defined(USE_XKB)
+		else if (is_evdev && keycode - 97 < evdev_size) {
 			scancode = evdev_keycode_to_scancode_table[keycode - 97];
 		}
 		#endif
-		else if (keycode < (sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0])) - 96) {
+		else if (keycode - 96 < xfree86_size) {
 			scancode = xfree86_keycode_to_scancode_table[keycode - 96];
 		}
 		#else
 		#ifdef USE_EVDEV
-		if (is_evdev && keycode < (sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0])) - 97) {
+		if (is_evdev && keycode < evdev_size) {
 			scancode = evdev_keycode_to_scancode_table[keycode];
 		} else 
 		#endif
-		if (keycode < sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0])) {
+		if (keycode < xfree86_size) {
 			scancode = xfree86_keycode_to_scancode_table[keycode];
 		}
 		#endif
@@ -1562,18 +1563,21 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 KeyCode scancode_to_keycode(uint16_t scancode) {
 	KeyCode keycode = 0x0000;
 
+	unsigned char evdev_size = sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0]);
+	unsigned char xfree86_size = sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0]);
+		
 	#ifdef __OPTIMIZE_SIZE__
 	if (scancode < 89) {
 		// Simple offset of 8.
 		keycode = scancode + 8;
 	}
-	#ifdef USE_EVDEV
-	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0])) {
-		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
+	#if defined(USE_EVDEV) && defined(USE_XKB)
+	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < evdev_size) {
+		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0x00FF))
 		keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 13)];
 	}
 	#endif
-	else if (scancode < sizeof(xfree86_scancode_to_keycode_table) / sizeof(xfree86_scancode_to_keycode_table[0])) {
+	else if (scancode < xfree86_size) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: Xfree86 cannot produce extended scancodes at this time!\n",
 				__FUNCTION__, __LINE__);
 
@@ -1585,18 +1589,18 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 		// No translation needed.
 		keycode = scancode;
 	}
-	#ifdef USE_XKB
-	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < sizeof(evdev_scancode_to_keycode_table) / sizeof(evdev_scancode_to_keycode_table[0])) {
+	#if defined(USE_EVDEV) && defined(USE_XKB)
+	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < evdev_size) {
 		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
 		keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 13)];
 	}
 	#else
-	else if (scancode < sizeof(xfree86_scancode_to_keycode_table) / sizeof(xfree86_scancode_to_keycode_table[0])) {
+	else if (scancode < xfree86_size) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: Xfree86 cannot produce extended scancodes at this time!\n",
 				__FUNCTION__, __LINE__);
 
 		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
-		//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 0x0D)];
+		//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 13)];
 	}
 	#endif
 
@@ -1780,15 +1784,15 @@ void load_input_helper(Display *disp) {
 		if (strncmp(layout_name, prefix_evdev, strlen(prefix_evdev)) == 0) {
 			is_evdev = true;
 		}
-		else if (layout_name == NULL) {
-			logger(LOG_LEVEL_ERROR,
-					"%s [%u]: X atom name failure for desc->names->keycodes!\n",
-					__FUNCTION__, __LINE__);
-		}
 		else if (strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86)) != 0) {
 			logger(LOG_LEVEL_ERROR,
 					"%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
 					__FUNCTION__, __LINE__, layout_name);
+		}
+		else if (layout_name == NULL) {
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: X atom name failure for desc->names->keycodes!\n",
+					__FUNCTION__, __LINE__);
 		}
 
 		XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
@@ -1807,10 +1811,10 @@ void load_input_helper(Display *disp) {
 	#pragma message("... Assuming XFree86 keyboard layout.")
 
 	logger(LOG_LEVEL_WARN,
-				"%s [%u]: XKB support is required to accurately determine keyboard scancodes!\n",
+				"%s [%u]: Using XFree86 keyboard layout.\n",
 				__FUNCTION__, __LINE__);
 	logger(LOG_LEVEL_WARN,
-				"%s [%u]: Assuming XFree86 keyboard layout.\n",
+				"%s [%u]: XKB support is required to accurately determine keyboard characters!\n",
 				__FUNCTION__, __LINE__);
 
 	int minKeyCode, maxKeyCode;
@@ -1867,7 +1871,9 @@ void unload_input_helper() {
 	if (keyboard_map) {
 		#ifdef USE_XKB
 		XkbFreeClientMap(keyboard_map, XkbAllClientInfoMask, true);
+		#ifdef USE_EVDEV
 		is_evdev = false;
+		#endif
 		#else
 		XFree(keyboard_map);
 		#endif

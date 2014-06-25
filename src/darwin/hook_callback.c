@@ -204,7 +204,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			dispatch_event(&event);
 
 			// Make sure RunLoop main is currently running to avoid deadlock.
-			if (CFRunLoopCopyCurrentMode(CFRunLoopGetMain()) == NULL) {
+			CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
+			if (mode != NULL) {
+				CFRelease(mode);
+				
 				// If the pressed event was not consumed...
 				if (event.reserved ^ 0x01) {
 					// Lookup the Unicode representation for this event.

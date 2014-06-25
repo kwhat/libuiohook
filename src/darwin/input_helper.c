@@ -310,9 +310,9 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 125 */	{ VC_DOWN,				kVK_JIS_Yen				},	// 0x83
 	/* 126 */	{ VC_UP,				kVK_JIS_KeypadComma		},	// 0x84
 	/* 127 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x85
-				
+
 	//			No Offset				Offset i & 0x00FF + (128 - 13)
-				
+
 	/* 128 */	{ VC_F23,				kVK_ANSI_KeypadEquals	},	// 0x86
 	/* 129 */	{ VC_F24,				kVK_Undefined			},	// 0x87
 	/* 130 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x88
@@ -439,7 +439,7 @@ uint16_t keycode_to_scancode(UInt64 keycode) {
 
 	// Bound check 0 <= keycode < 128
 	if (keycode < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
-		scancode = keycode_scancode_table[vk_code][0];
+		scancode = keycode_scancode_table[keycode][0];
 	}
 
 	return scancode;
@@ -454,7 +454,7 @@ UInt64 scancode_to_keycode(uint16_t scancode) {
 	}
 	else {
 		// Calculate the upper offset.
-		int i = (scancode & 0xFF) + (128 - 13);
+		unsigned short i = (scancode & 0xFF) + (128 - 13);
 
 		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 			keycode = keycode_scancode_table[scancode][1];

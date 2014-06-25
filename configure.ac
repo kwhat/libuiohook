@@ -81,9 +81,13 @@ AS_CASE([$host],
 		AC_MSG_RESULT([$host (Mac OS X Compatible)])
 		backend="darwin"
 	],
+	[*-linux*], [
+		AC_MSG_RESULT([$host (Linux Compatible)])
+		backend="x11-evdev"
+	],
 	[*-freebsd* | *-openbsd* | *-linux* | *-solaris*], [
 		AC_MSG_RESULT([$host (Unix Compatible)])
-		backend="x11"
+		backend="x11-xfree86"
 	],
 	[*-mingw* | *-cygwin* | *-msys* ], [
 		AC_MSG_RESULT([$host (Windows Compatible)])
@@ -109,7 +113,13 @@ AC_ARG_ENABLE([quiet],
 	[enable_quiet=$enableval],
 	[enable_quiet="no"])
 
-# Unix Options
+# Linux Options
+AC_ARG_ENABLE([evdev],
+	AS_HELP_STRING([--disable-evdev], [Disable generic Linux input driver (default: enabled)]),
+	[enable_evdev="$enableval"],
+	[enable_evdev="yes"])
+
+# Linux & Unix Options
 AC_ARG_ENABLE([xkb],
 	AS_HELP_STRING([--disable-xkb], [Disable X Keyboard Extension (default: enabled)]),
 	[enable_xkb="$enableval"],
@@ -199,7 +209,7 @@ AS_IF(
 		#CFLAGS="$CFLAGS -I/usr/local/include"
 		#LDFLAGS="$LDFLAGS -Wl,-undefined,error"
 	],
-	[test "x$backend" = "xx11"], [
+	[test "x$backend" = "xx11-evdev" || test "x$backend" = "xx11-xfree86"], [
 		# Checks for libraries.
 		PKG_PROG_PKG_CONFIG
 
@@ -221,6 +231,12 @@ AS_IF(
 		AC_CHECK_HEADERS([X11/extensions/record.h], [],
 			[AC_MSG_ERROR([XRecord extention header could not be found!])],
 			[#include <X11/Xlib.h>])
+
+		AS_IF([test "x$backend" = "xx11-linux"], [
+			AS_IF([test "x$enable_evdev" = "xyes"], [
+				AC_DEFINE([USE_EVDEV], 1, [Enable generic Linux input driver])
+			])
+		])
 
 		AS_IF([test "x$enable_xkb" = "xyes"], [
 			AC_DEFINE([USE_XKB], 1, [Enable X Keyboard Extension])

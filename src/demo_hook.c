@@ -91,7 +91,11 @@ int main() {
 		#ifdef _WIN32
 		Sleep(100);
 		#else
+		#if defined(__APPLE__) && defined(__MACH__)
+		CFRunLoopRun();
+		#else
 		nanosleep((struct timespec[]) {{0, 100 * 1000000}}, NULL);
+		#endif
 		#endif
 	}
 

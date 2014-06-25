@@ -495,7 +495,6 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			// In theory this *should* never execute.
 			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Darwin event! (%#X)\n",
 					__FUNCTION__, __LINE__, (unsigned int) type_ref);
-				break;
 			break;
 	}
 
@@ -504,8 +503,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 		result_ref = event_ref;
 	}
 	else {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%#p)\n",
-				__FUNCTION__, __LINE__, result_ref);
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%#X) (%#p)\n",
+				__FUNCTION__, __LINE__, type_ref, event_ref);
 	}
 
 	return result_ref;

@@ -43,7 +43,6 @@ pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t hook_thread_id; // TODO = 0; ?
 static pthread_attr_t hook_thread_attr;
 
-// FIXME Move to osx_input_helper.h after testing.
 #ifdef USE_WEAK_IMPORT
 // Required to dynamically check for AXIsProcessTrustedWithOptions availability.
 extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribute__((weak_import));
@@ -59,7 +58,6 @@ static void *hook_thread_proc(void *arg) {
 
 	bool accessibilityEnabled = false;
 
-	// FIXME Move to osx_input_helper.h after testing.
 	#ifdef USE_WEAK_IMPORT
 	// Check and make sure assistive devices is enabled.
 	if (AXIsProcessTrustedWithOptions != NULL) {

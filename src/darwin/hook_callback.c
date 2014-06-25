@@ -58,6 +58,7 @@ static struct timeval system_time;
 // Virtual event pointer.
 static virtual_event event;
 
+static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
 
 // Event dispatch callback.
@@ -102,6 +103,9 @@ static inline uint16_t get_modifiers() {
 // Runloop to execute KeyCodeToString on the "Main" runloop due to an
 // undocumented thread safety requirement.
 static void message_port_proc(void *info) {
+	// Lock the control mutex as we enter the main run loop.
+	pthread_mutex_lock(&hook_control_mutex);
+					
 	TISMessage *data = (TISMessage *) info;
 
 	if (data->event != NULL) {
@@ -111,6 +115,7 @@ static void message_port_proc(void *info) {
 
 	// Unlock the control mutex to signal that we have finished on the main
 	// runloop.
+	pthread_cond_signal(&hook_control_cond);
 	pthread_mutex_unlock(&hook_control_mutex);
 }
 
@@ -199,7 +204,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			dispatch_event(&event);
 
 			// Make sure RunLoop main is currently running to avoid deadlock.
-			if (CFRunLoopCopyCurrentMode(RunLoopGetMain()) == NULL) {
+			if (CFRunLoopCopyCurrentMode(CFRunLoopGetMain()) == NULL) {
 				// If the pressed event was not consumed...
 				if (event.reserved ^ 0x01) {
 					// Lookup the Unicode representation for this event.
@@ -212,19 +217,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 					// Set the event pointer.
 					info->event = event_ref;
 
-					// Lock the control mutex as we enter the main run loop.
-					pthread_mutex_lock(&hook_control_mutex);
-
 					// Signal the custom source and wakeup the main run loop.
 					CFRunLoopSourceSignal(src_msg_port);
 					CFRunLoopWakeUp(CFRunLoopGetMain());
 
 					// Wait for a lock while the main run loop processes they key typed event.
-					// FIXME use  condition variable instead of mutex!
-					if (pthread_mutex_lock(&hook_control_mutex) == 0) {
-						pthread_mutex_unlock(&hook_control_mutex);
-					}
-
+					pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
+					pthread_mutex_unlock(&hook_control_mutex);
+					
 					if (info->length == 1) {
 						// Fire key typed event.
 						event.type = EVENT_KEY_TYPED;
@@ -236,14 +236,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 						dispatch_event(&event);
 					}
+					
+					info->event = NULL;
+					info->length = 0;
 				}
 				else {
 					logger(LOG_LEVEL_ERROR,	"%s [%u]: RunLoop main is not running! Did you forget to call CFRunLoopRun()?\n",
 							__FUNCTION__, __LINE__);
 				}
-
-				info->event = NULL;
-				info->length = 0;
 			}
 			break;
 

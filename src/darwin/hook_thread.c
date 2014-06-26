@@ -52,9 +52,8 @@ Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef);
 Boolean (*AXAPIEnabled_t)(void);
 #endif
 
-Boolean running = false;
-//CFMachPortRef event_port;
-//create_event_port();
+// Flag to restart the event tap incase of timeout.
+Boolean restart_tap = false;
 
 static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
@@ -62,9 +61,9 @@ static void *hook_thread_proc(void *arg) {
 
 	bool accessibilityEnabled = false;
 
-	while (running) {
-		running = false;
-		
+	do {
+		restart_tap = false;
+
 		#ifdef USE_WEAK_IMPORT
 		// Check and make sure assistive devices is enabled.
 		if (AXIsProcessTrustedWithOptions != NULL) {
@@ -228,7 +227,7 @@ static void *hook_thread_proc(void *arg) {
 							if (CFRunLoopContainsObserver(event_loop, observer, kCFRunLoopDefaultMode)) {
 								CFRunLoopRemoveObserver(event_loop, observer, kCFRunLoopDefaultMode);
 							}
-							
+
 							if (CFRunLoopContainsSource(event_loop, event_source, kCFRunLoopDefaultMode)) {
 								CFRunLoopRemoveSource(event_loop, event_source, kCFRunLoopDefaultMode);
 							}
@@ -289,7 +288,7 @@ static void *hook_thread_proc(void *arg) {
 			// Set the exit status.
 			*status = UIOHOOK_ERROR_AXAPI_DISABLED;
 		}
-	}
+	} while (restart_tap);
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
@@ -321,9 +320,6 @@ UIOHOOK_API int hook_enable() {
 		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
 		priority = sched_get_priority_max(policy);
 
-		// Activate the running flag enable the loop start.
-		running = true;
-		
 		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, malloc(sizeof(int))) == 0) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 					__FUNCTION__, __LINE__);
@@ -385,6 +381,9 @@ UIOHOOK_API int hook_disable() {
 	pthread_mutex_lock(&hook_control_mutex);
 
 	if (hook_is_enabled() == true) {
+		// Make sure the tap doesn't restart.
+		restart_tap = false;
+
 		// Stop the run loop.
 		CFRunLoopStop(event_loop);
 

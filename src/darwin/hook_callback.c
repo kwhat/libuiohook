@@ -60,7 +60,7 @@ static virtual_event event;
 
 static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
-extern Boolean running;
+extern Boolean restart_tap;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -106,7 +106,7 @@ static inline uint16_t get_modifiers() {
 static void message_port_proc(void *info) {
 	// Lock the control mutex as we enter the main run loop.
 	pthread_mutex_lock(&hook_control_mutex);
-					
+
 	TISMessage *data = (TISMessage *) info;
 
 	if (data->event != NULL) {
@@ -158,7 +158,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 		case kCFRunLoopEntry:
 			// Lock the running mutex to signal the runloop has started.
 			pthread_mutex_lock(&hook_running_mutex);
-			
+
 			 // Unlock the control mutex so hook_enable() can continue.
 			pthread_mutex_unlock(&hook_control_mutex);
 			break;
@@ -166,7 +166,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 		case kCFRunLoopExit:
 			// We do not need to touch the hook_control_mutex because
 			// hook_disable() is blocking on pthread_join().
-			
+
 			// Unlock the running mutex.
 			pthread_mutex_unlock(&hook_running_mutex);
 			break;
@@ -213,7 +213,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
 			if (mode != NULL) {
 				CFRelease(mode);
-				
+
 				// If the pressed event was not consumed...
 				if (event.reserved ^ 0x01) {
 					// Lookup the Unicode representation for this event.
@@ -233,7 +233,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 					// Wait for a lock while the main run loop processes they key typed event.
 					pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 					pthread_mutex_unlock(&hook_control_mutex);
-					
+
 					if (info->length == 1) {
 						// Fire key typed event.
 						event.type = EVENT_KEY_TYPED;
@@ -245,7 +245,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 						dispatch_event(&event);
 					}
-					
+
 					info->event = NULL;
 					info->length = 0;
 				}
@@ -500,12 +500,12 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 		default:
 			// Check for an old OS X bug where the tap seems to timeout for no reason.
 			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
-			if ((unsigned int) type == kCGEventTapDisabledByTimeout) {
+			if ((uint32_t) type == kCGEventTapDisabledByTimeout) {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: CGEventTap timeout!\n",
 					__FUNCTION__, __LINE__);
-				
-				// We need to reinsert the tap!
-				running = true;
+
+				// We need to restart the tap!
+				restart_tap = true;
 				CFRunLoopStop(CFRunLoopGetCurrent());
 			}
 			else {

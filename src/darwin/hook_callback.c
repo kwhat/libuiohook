@@ -60,6 +60,7 @@ static virtual_event event;
 
 static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
+extern Boolean running;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -155,13 +156,18 @@ void stop_message_port_runloop() {
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	switch (activity) {
 		case kCFRunLoopEntry:
+			// Lock the running mutex to signal the runloop has started.
 			pthread_mutex_lock(&hook_running_mutex);
+			
+			 // Unlock the control mutex so hook_enable() can continue.
 			pthread_mutex_unlock(&hook_control_mutex);
 			break;
 
 		case kCFRunLoopExit:
 			// We do not need to touch the hook_control_mutex because
 			// hook_disable() is blocking on pthread_join().
+			
+			// Unlock the running mutex.
 			pthread_mutex_unlock(&hook_running_mutex);
 			break;
 
@@ -172,7 +178,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 	}
 }
 
-CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEventRef event_ref, void *refcon) {
+CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
 	// Event data.
 	CGPoint event_point;
 
@@ -187,7 +193,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
 
 	// Get the event class.
-	switch (type_ref) {
+	switch (type) {
 		case kCGEventKeyDown:
 		EVENT_KEYDOWN:
 			// Fire key pressed event.
@@ -243,10 +249,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 					info->event = NULL;
 					info->length = 0;
 				}
-				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: RunLoop main is not running! Did you forget to call CFRunLoopRun()?\n",
+			}
+			else {
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Failed to signal RunLoop Main!\n",
 							__FUNCTION__, __LINE__);
-				}
 			}
 			break;
 
@@ -492,9 +498,21 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 			break;
 
 		default:
-			// In theory this *should* never execute.
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Darwin event! (%#X)\n",
-					__FUNCTION__, __LINE__, (unsigned int) type_ref);
+			// Check for an old OS X bug where the tap seems to timeout for no reason.
+			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
+			if ((unsigned int) type == kCGEventTapDisabledByTimeout) {
+				logger(LOG_LEVEL_WARN,	"%s [%u]: CGEventTap timeout!\n",
+					__FUNCTION__, __LINE__);
+				
+				// We need to reinsert the tap!
+				running = true;
+				CFRunLoopStop(CFRunLoopGetCurrent());
+			}
+			else {
+				// In theory this *should* never execute.
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Darwin event! (%#X)\n",
+						__FUNCTION__, __LINE__, (unsigned int) type);
+			}
 			break;
 	}
 
@@ -504,7 +522,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type_ref, CGEv
 	}
 	else {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%#X) (%#p)\n",
-				__FUNCTION__, __LINE__, type_ref, event_ref);
+				__FUNCTION__, __LINE__, type, event_ref);
 	}
 
 	return result_ref;

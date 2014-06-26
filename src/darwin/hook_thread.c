@@ -52,229 +52,243 @@ Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef);
 Boolean (*AXAPIEnabled_t)(void);
 #endif
 
+Boolean running = false;
+//CFMachPortRef event_port;
+//create_event_port();
+
 static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
 	bool accessibilityEnabled = false;
 
-	#ifdef USE_WEAK_IMPORT
-	// Check and make sure assistive devices is enabled.
-	if (AXIsProcessTrustedWithOptions != NULL) {
-		// New accessibility API 10.9 and later.
-		const void * keys[] = { kAXTrustedCheckOptionPrompt };
-		const void * values[] = { kCFBooleanTrue };
+	while (running) {
+		running = false;
+		
+		#ifdef USE_WEAK_IMPORT
+		// Check and make sure assistive devices is enabled.
+		if (AXIsProcessTrustedWithOptions != NULL) {
+			// New accessibility API 10.9 and later.
+			const void * keys[] = { kAXTrustedCheckOptionPrompt };
+			const void * values[] = { kCFBooleanTrue };
 
-		CFDictionaryRef options = CFDictionaryCreate(
-				kCFAllocatorDefault,
-				keys,
-				values,
-				sizeof(keys) / sizeof(*keys),
-				&kCFCopyStringDictionaryKeyCallBacks,
-				&kCFTypeDictionaryValueCallBacks);
+			CFDictionaryRef options = CFDictionaryCreate(
+					kCFAllocatorDefault,
+					keys,
+					values,
+					sizeof(keys) / sizeof(*keys),
+					&kCFCopyStringDictionaryKeyCallBacks,
+					&kCFTypeDictionaryValueCallBacks);
 
-		accessibilityEnabled = AXIsProcessTrustedWithOptions(options);
-	}
-	else {
-		// Old accessibility check 10.8 and older.
-		accessibilityEnabled = AXAPIEnabled();
-	}
-	#else
-	// Dynamically load the application services framework for examination.
-	const char *dlError = NULL;
-	void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
-	dlError = dlerror();
-	if (libApplicaitonServices != NULL && dlError == NULL) {
-		// Check for the new function AXIsProcessTrustedWithOptions().
-		*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
-		dlError = dlerror();
-		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
-			// Check for property CFStringRef kAXTrustedCheckOptionPrompt
-			void ** kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
-
-			dlError = dlerror();
-			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
-				// New accessibility API 10.9 and later.
-				const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
-				const void * values[] = { kCFBooleanTrue };
-
-				CFDictionaryRef options = CFDictionaryCreate(
-						kCFAllocatorDefault,
-						keys,
-						values,
-						sizeof(keys) / sizeof(*keys),
-						&kCFCopyStringDictionaryKeyCallBacks,
-						&kCFTypeDictionaryValueCallBacks);
-
-				accessibilityEnabled = (*AXIsProcessTrustedWithOptions_t)(options);
-			}
+			accessibilityEnabled = AXIsProcessTrustedWithOptions(options);
 		}
 		else {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled(). (%s)\n",
-					__FUNCTION__, __LINE__, dlError);
-
-			// Check for the fallback function AXAPIEnabled().
-			*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
+			// Old accessibility check 10.8 and older.
+			accessibilityEnabled = AXAPIEnabled();
+		}
+		#else
+		// Dynamically load the application services framework for examination.
+		const char *dlError = NULL;
+		void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
+		dlError = dlerror();
+		if (libApplicaitonServices != NULL && dlError == NULL) {
+			// Check for the new function AXIsProcessTrustedWithOptions().
+			*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
 			dlError = dlerror();
-			if (AXAPIEnabled_t != NULL && dlError == NULL) {
-				// Old accessibility check 10.8 and older.
-				accessibilityEnabled = (*AXAPIEnabled_t)();
+			if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
+				// Check for property CFStringRef kAXTrustedCheckOptionPrompt
+				void ** kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
+
+				dlError = dlerror();
+				if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
+					// New accessibility API 10.9 and later.
+					const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
+					const void * values[] = { kCFBooleanTrue };
+
+					CFDictionaryRef options = CFDictionaryCreate(
+							kCFAllocatorDefault,
+							keys,
+							values,
+							sizeof(keys) / sizeof(*keys),
+							&kCFCopyStringDictionaryKeyCallBacks,
+							&kCFTypeDictionaryValueCallBacks);
+
+					accessibilityEnabled = (*AXIsProcessTrustedWithOptions_t)(options);
+				}
 			}
 			else {
-				// Could not load the AXAPIEnabled function!
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()! (%s)\n",
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled(). (%s)\n",
 						__FUNCTION__, __LINE__, dlError);
+
+				// Check for the fallback function AXAPIEnabled().
+				*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
+				dlError = dlerror();
+				if (AXAPIEnabled_t != NULL && dlError == NULL) {
+					// Old accessibility check 10.8 and older.
+					accessibilityEnabled = (*AXAPIEnabled_t)();
+				}
+				else {
+					// Could not load the AXAPIEnabled function!
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()! (%s)\n",
+							__FUNCTION__, __LINE__, dlError);
+				}
 			}
+
+			dlclose(libApplicaitonServices);
 		}
-
-		dlclose(libApplicaitonServices);
-	}
-	else {
-		// Could not load the ApplicationServices framework!
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
-				__FUNCTION__, __LINE__, dlError);
-	}
-	#endif
-
-	if (accessibilityEnabled == true) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
-				__FUNCTION__, __LINE__);
-
-		// Setup the event mask to listen for.
-		#ifdef USE_DEBUG
-		CGEventMask event_mask =	kCGEventMaskForAllEvents;
-		#else
-		// This includes everything except:
-		//	kCGEventNull
-		//	kCGEventTapDisabledByTimeout
-		//	kCGEventTapDisabledByTimeout
-		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
-									CGEventMaskBit(kCGEventKeyUp) |
-									CGEventMaskBit(kCGEventFlagsChanged) |
-
-									CGEventMaskBit(kCGEventLeftMouseDown) |
-									CGEventMaskBit(kCGEventLeftMouseUp) |
-									CGEventMaskBit(kCGEventLeftMouseDragged) |
-
-									CGEventMaskBit(kCGEventRightMouseDown) |
-									CGEventMaskBit(kCGEventRightMouseUp) |
-									CGEventMaskBit(kCGEventRightMouseDragged) |
-
-									CGEventMaskBit(kCGEventOtherMouseDown) |
-									CGEventMaskBit(kCGEventOtherMouseUp) |
-									CGEventMaskBit(kCGEventOtherMouseDragged) |
-
-									CGEventMaskBit(kCGEventMouseMoved) |
-									CGEventMaskBit(kCGEventScrollWheel);
+		else {
+			// Could not load the ApplicationServices framework!
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
+					__FUNCTION__, __LINE__, dlError);
+		}
 		#endif
 
-		CFMachPortRef event_port = CGEventTapCreate(
-										kCGSessionEventTap,			// kCGHIDEventTap
-										kCGHeadInsertEventTap,		// kCGTailAppendEventTap
-										kCGEventTapOptionDefault,	// kCGEventTapOptionListenOnly See Bug #22
-										event_mask,
-										hook_event_proc,
-										NULL
-									);
-
-
-		if (event_port != NULL) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
+		if (accessibilityEnabled == true) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
 					__FUNCTION__, __LINE__);
 
-			event_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, event_port, 0);
-			if (event_source != NULL) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
+			// Setup the event mask to listen for.
+			#ifdef USE_DEBUG
+			CGEventMask event_mask =	kCGEventMaskForAllEvents;
+			#else
+			// This includes everything except:
+			//	kCGEventNull
+			//	kCGEventTapDisabledByTimeout
+			//	kCGEventTapDisabledByTimeout
+			CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
+										CGEventMaskBit(kCGEventKeyUp) |
+										CGEventMaskBit(kCGEventFlagsChanged) |
+
+										CGEventMaskBit(kCGEventLeftMouseDown) |
+										CGEventMaskBit(kCGEventLeftMouseUp) |
+										CGEventMaskBit(kCGEventLeftMouseDragged) |
+
+										CGEventMaskBit(kCGEventRightMouseDown) |
+										CGEventMaskBit(kCGEventRightMouseUp) |
+										CGEventMaskBit(kCGEventRightMouseDragged) |
+
+										CGEventMaskBit(kCGEventOtherMouseDown) |
+										CGEventMaskBit(kCGEventOtherMouseUp) |
+										CGEventMaskBit(kCGEventOtherMouseDragged) |
+
+										CGEventMaskBit(kCGEventMouseMoved) |
+										CGEventMaskBit(kCGEventScrollWheel) |
+										CGEventMaskBit(kCGEventTapDisabledByTimeout);
+			#endif
+
+			CFMachPortRef event_port = CGEventTapCreate(
+											kCGSessionEventTap,			// kCGHIDEventTap
+											kCGHeadInsertEventTap,		// kCGTailAppendEventTap
+											kCGEventTapOptionDefault,	// kCGEventTapOptionListenOnly See Bug #22
+											event_mask,
+											hook_event_proc,
+											NULL
+										);
+
+
+			if (event_port != NULL) {
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
 						__FUNCTION__, __LINE__);
 
-				event_loop = CFRunLoopGetCurrent();
-				if (event_loop != NULL) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
+				event_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, event_port, 0);
+				if (event_source != NULL) {
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
 							__FUNCTION__, __LINE__);
 
-					// Initialize Native Input Functions.
-					load_input_helper();
+					event_loop = CFRunLoopGetCurrent();
+					if (event_loop != NULL) {
+						logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
+								__FUNCTION__, __LINE__);
 
+						// Initialize Native Input Functions.
+						load_input_helper();
 
-					// Create run loop observers.
-					CFRunLoopObserverRef observer = CFRunLoopObserverCreate(
-														kCFAllocatorDefault,
-														kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
-														true,
-														0,
-														hook_status_proc,
-														NULL
-													);
+						// Create run loop observers.
+						CFRunLoopObserverRef observer = CFRunLoopObserverCreate(
+															kCFAllocatorDefault,
+															kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+															true,
+															0,
+															hook_status_proc,
+															NULL
+														);
 
-					if (observer != NULL) {
-						// Set the exit status.
-						*status = UIOHOOK_SUCCESS;
+						if (observer != NULL) {
+							// Set the exit status.
+							*status = UIOHOOK_SUCCESS;
 
-						start_message_port_runloop();
+							start_message_port_runloop();
 
-						CFRunLoopAddSource(event_loop, event_source, kCFRunLoopDefaultMode);
-						CFRunLoopAddObserver(event_loop, observer, kCFRunLoopDefaultMode);
+							CFRunLoopAddSource(event_loop, event_source, kCFRunLoopDefaultMode);
+							CFRunLoopAddObserver(event_loop, observer, kCFRunLoopDefaultMode);
 
-						CFRunLoopRun();
+							CFRunLoopRun();
 
-						// Lock back up until we are done processing the exit.
-						CFRunLoopRemoveObserver(event_loop, observer, kCFRunLoopDefaultMode);
-						CFRunLoopRemoveSource(event_loop, event_source, kCFRunLoopDefaultMode);
-						CFRunLoopObserverInvalidate(observer);
+							// Lock back up until we are done processing the exit.
+							if (CFRunLoopContainsObserver(event_loop, observer, kCFRunLoopDefaultMode)) {
+								CFRunLoopRemoveObserver(event_loop, observer, kCFRunLoopDefaultMode);
+							}
+							
+							if (CFRunLoopContainsSource(event_loop, event_source, kCFRunLoopDefaultMode)) {
+								CFRunLoopRemoveSource(event_loop, event_source, kCFRunLoopDefaultMode);
+							}
 
-						stop_message_port_runloop();
+							CFRunLoopObserverInvalidate(observer);
+
+							stop_message_port_runloop();
+						}
+						else {
+							// We cant do a whole lot of anything if we cant
+							// create run loop observer.
+
+							logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
+									__FUNCTION__, __LINE__);
+
+							// Set the exit status.
+							*status = UIOHOOK_ERROR_OBSERVER_CREATE;
+						}
+
+						// Cleanup Native Input Functions.
+						unload_input_helper();
 					}
 					else {
-						// We cant do a whole lot of anything if we cant
-						// create run loop observer.
-
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
 								__FUNCTION__, __LINE__);
 
 						// Set the exit status.
-						*status = UIOHOOK_ERROR_OBSERVER_CREATE;
+						*status = UIOHOOK_ERROR_GET_RUNLOOP;
 					}
 
-					// Cleanup Native Input Functions.
-					unload_input_helper();
+					// Clean up the event source.
+					CFRelease(event_source);
 				}
 				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
-							__FUNCTION__, __LINE__);
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
+						__FUNCTION__, __LINE__);
 
 					// Set the exit status.
-					*status = UIOHOOK_ERROR_GET_RUNLOOP;
+					*status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
 				}
 
-				// Clean up the event source.
-				CFRelease(event_source);
+				// Stop the CFMachPort from receiving any more messages.
+				CFMachPortInvalidate(event_port);
+				CFRelease(event_port);
 			}
 			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
-					__FUNCTION__, __LINE__);
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
+						__FUNCTION__, __LINE__);
 
 				// Set the exit status.
-				*status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+				*status = UIOHOOK_ERROR_EVENT_PORT;
 			}
-
-			// Stop the CFMachPort from receiving any more messages.
-			CFMachPortInvalidate(event_port);
-			CFRelease(event_port);
 		}
 		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
 					__FUNCTION__, __LINE__);
 
 			// Set the exit status.
-			*status = UIOHOOK_ERROR_EVENT_PORT;
+			*status = UIOHOOK_ERROR_AXAPI_DISABLED;
 		}
-	}
-	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
-				__FUNCTION__, __LINE__);
-
-		// Set the exit status.
-		*status = UIOHOOK_ERROR_AXAPI_DISABLED;
 	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
@@ -307,6 +321,9 @@ UIOHOOK_API int hook_enable() {
 		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
 		priority = sched_get_priority_max(policy);
 
+		// Activate the running flag enable the loop start.
+		running = true;
+		
 		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, malloc(sizeof(int))) == 0) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 					__FUNCTION__, __LINE__);

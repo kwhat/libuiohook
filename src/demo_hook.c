@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <uiohook.h>
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -92,7 +96,11 @@ int main() {
 		Sleep(100);
 		#else
 		#if defined(__APPLE__) && defined(__MACH__)
-		CFRunLoopRun();
+		//CFRunLoopRun();
+		SInt32 result = 0;
+		do {
+			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false);
+		} while (running && result != kCFRunLoopRunStopped);
 		#else
 		nanosleep((struct timespec[]) {{0, 100 * 1000000}}, NULL);
 		#endif

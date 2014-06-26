@@ -42,6 +42,7 @@ pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t hook_thread_id; // TODO = 0; ?
 static pthread_attr_t hook_thread_attr;
+static int hook_thread_status;
 
 #ifdef USE_WEAK_IMPORT
 // Required to dynamically check for AXIsProcessTrustedWithOptions availability.
@@ -320,7 +321,7 @@ UIOHOOK_API int hook_enable() {
 		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
 		priority = sched_get_priority_max(policy);
 
-		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, malloc(sizeof(int))) == 0) {
+		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, (void *) &hook_thread_status) == 0) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
 					__FUNCTION__, __LINE__);
 
@@ -353,7 +354,6 @@ UIOHOOK_API int hook_enable() {
 				void *thread_status;
 				pthread_join(hook_thread_id, (void *) &thread_status);
 				status = *(int *) thread_status;
-				free(thread_status);
 
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%i)!\n",
 						__FUNCTION__, __LINE__, status);
@@ -391,7 +391,6 @@ UIOHOOK_API int hook_disable() {
 		void *thread_status;
 		pthread_join(hook_thread_id, &thread_status);
 		status = *(int *) thread_status;
-		free(thread_status);
 
 		// Clean up the thread attribute.
 		pthread_attr_destroy(&hook_thread_attr);

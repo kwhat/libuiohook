@@ -42,7 +42,7 @@ static bool is_caps_lock = false, is_shift_lock = false;
 
 #include "logger.h"
 
-/* The follwoing two tables are based on QEMU's x_keymap.c, under the following 
+/* The follwoing two tables are based on QEMU's x_keymap.c, under the following
  * terms:
  *
  * Copyright (C) 2003 Fabrice Bellard <fabrice@bellard.org>
@@ -71,9 +71,9 @@ static bool is_caps_lock = false, is_shift_lock = false;
  * and the keycode mappings in the following files:
  *		/usr/include/linux/input.h
  *		/usr/share/X11/xkb/keycodes/evdev
- * 
+ *
  * NOTE This table only works for Linux.
- * 
+ *
  */
 static const uint16_t evdev_scancode_table[][2] = {
 	/* idx		{ keycode,				scancode				}, */
@@ -373,7 +373,7 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/*  28 */	{ VC_T,					 28						},	// <AD05>
 	/*  29 */	{ VC_Y,					 29						},	// <AD06>
 	/*  30 */	{ VC_U,					 30						},	// <AD07>
-	/*  31 */	{ VC_I,					 31						}	// <AD08>,
+	/*  31 */	{ VC_I,					 31						},	// <AD08>
 	/*  32 */	{ VC_O,					 32						},	// <AD09>
 	/*  33 */	{ VC_P,					 33						},	// <AD10>
 	/*  34 */	{ VC_OPEN_BRACKET,		 34						},	// <AD11>
@@ -1529,9 +1529,11 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 
 	// NOTE The keycode == 8 produces scancode = VC_UNDEFINED.
 	if (keycode > 8) {
-		unsigned char evdev_size = sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0]);
-		unsigned char xfree86_size = sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0]);
-		
+		#if defined(USE_EVDEV) && defined(USE_XKB)
+		unsigned char evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
+		#endif
+		unsigned char xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
+
 		#ifdef __OPTIMIZE_SIZE__
 		if (keycode < 97) {
 			// Simple offset of 8.
@@ -1539,20 +1541,20 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 		}
 		#if defined(USE_EVDEV) && defined(USE_XKB)
 		else if (is_evdev && keycode - 97 < evdev_size) {
-			scancode = evdev_keycode_to_scancode_table[keycode - 97];
+			scancode = evdev_scancode_table[keycode - 97][0];
 		}
 		#endif
 		else if (keycode - 96 < xfree86_size) {
-			scancode = xfree86_keycode_to_scancode_table[keycode - 96];
+			scancode = xfree86_scancode_table[keycode - 96][0];
 		}
 		#else
-		#ifdef USE_EVDEV
+		#if defined(USE_EVDEV) && defined(USE_XKB)
 		if (is_evdev && keycode < evdev_size) {
-			scancode = evdev_keycode_to_scancode_table[keycode];
-		} else 
+			scancode = evdev_scancode_table[keycode][0];
+		} else
 		#endif
 		if (keycode < xfree86_size) {
-			scancode = xfree86_keycode_to_scancode_table[keycode];
+			scancode = xfree86_scancode_table[keycode][0];
 		}
 		#endif
 	}
@@ -1563,9 +1565,11 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 KeyCode scancode_to_keycode(uint16_t scancode) {
 	KeyCode keycode = 0x0000;
 
-	unsigned char evdev_size = sizeof(evdev_keycode_to_scancode_table) / sizeof(evdev_keycode_to_scancode_table[0]);
-	unsigned char xfree86_size = sizeof(xfree86_keycode_to_scancode_table) / sizeof(xfree86_keycode_to_scancode_table[0]);
-		
+	#if defined(USE_EVDEV) && defined(USE_XKB)
+	unsigned char evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
+	#endif
+	unsigned char xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
+
 	#ifdef __OPTIMIZE_SIZE__
 	if (scancode < 89) {
 		// Simple offset of 8.
@@ -1574,7 +1578,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	#if defined(USE_EVDEV) && defined(USE_XKB)
 	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < evdev_size) {
 		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0x00FF))
-		keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 13)];
+		keycode = evdev_scancode_table[(scancode & 0x00FF) + (25 - 13)][1];
 	}
 	#endif
 	else if (scancode < xfree86_size) {
@@ -1582,7 +1586,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 				__FUNCTION__, __LINE__);
 
 		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
-		//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 0x0D)];
+		//keycode = xfree86_scancode_table[scancode & 0x00FF + (25 - 13)][1];
 	}
 	#else
 	if (scancode < 89) {
@@ -1592,15 +1596,15 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	#if defined(USE_EVDEV) && defined(USE_XKB)
 	else if (is_evdev && (scancode & 0x00FF) + (25 - 13) < evdev_size) {
 		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
-		keycode = evdev_scancode_to_keycode_table[(scancode & 0x00FF) + (25 - 13)];
+		keycode = evdev_scancode_table[(scancode & 0x00FF) + (25 - 13)][1];
 	}
-	#else
+	#endif
 	else if (scancode < xfree86_size) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: Xfree86 cannot produce extended scancodes at this time!\n",
 				__FUNCTION__, __LINE__);
 
 		// Offset is the lower order bits + (25 - (scancode value at index 25 & 0xFF))
-		//keycode = xfree86_scancode_to_keycode_table[scancode & 0x00FF + (25 - 13)];
+		//keycode = xfree86_scancode_table[scancode & 0x00FF + (25 - 13)][1];
 	}
 	#endif
 

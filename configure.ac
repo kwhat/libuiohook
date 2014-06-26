@@ -83,11 +83,13 @@ AS_CASE([$host],
 	],
 	[*-linux*], [
 		AC_MSG_RESULT([$host (Linux Compatible)])
-		backend="x11-evdev"
+		backend="x11"
+		has_evdev="1"
 	],
 	[*-freebsd* | *-openbsd* | *-linux* | *-solaris*], [
 		AC_MSG_RESULT([$host (Unix Compatible)])
-		backend="x11-xfree86"
+		backend="x11"
+		has_evdev="0"
 	],
 	[*-mingw* | *-cygwin* | *-msys* ], [
 		AC_MSG_RESULT([$host (Windows Compatible)])
@@ -209,7 +211,7 @@ AS_IF(
 		#CFLAGS="$CFLAGS -I/usr/local/include"
 		#LDFLAGS="$LDFLAGS -Wl,-undefined,error"
 	],
-	[test "x$backend" = "xx11-evdev" || test "x$backend" = "xx11-xfree86"], [
+	[test "x$backend" = "xx11"], [
 		# Checks for libraries.
 		PKG_PROG_PKG_CONFIG
 
@@ -232,7 +234,8 @@ AS_IF(
 			[AC_MSG_ERROR([XRecord extention header could not be found!])],
 			[#include <X11/Xlib.h>])
 
-		AS_IF([test "x$backend" = "xx11-linux"], [
+		# Evdev is only available on Linux.
+		AS_IF([test "x$has_evdev" = "x1"], [
 			AS_IF([test "x$enable_evdev" = "xyes"], [
 				AC_DEFINE([USE_EVDEV], 1, [Enable generic Linux input driver])
 			])

@@ -296,7 +296,7 @@ static void *hook_thread_proc(void *arg) {
 	// Make sure we signal that we have passed any exception throwing code.
 	pthread_mutex_unlock(&hook_control_mutex);
 
-	pthread_exit(status);
+	return status;
 }
 
 UIOHOOK_API int hook_enable() {

@@ -19,11 +19,6 @@
 #include <config.h>
 #endif
 
-// FIXME Move to osx_input_helper.h after testing.
-#ifndef USE_WEAK_IMPORT
-#include <dlfcn.h>
-#endif
-
 #include <ApplicationServices/ApplicationServices.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -43,15 +38,6 @@ pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t hook_thread_id; // TODO = 0; ?
 static pthread_attr_t hook_thread_attr;
 
-#ifdef USE_WEAK_IMPORT
-// Required to dynamically check for AXIsProcessTrustedWithOptions availability.
-extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribute__((weak_import));
-extern CFStringRef kAXTrustedCheckOptionPrompt __attribute__((weak_import));
-#else
-Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef);
-Boolean (*AXAPIEnabled_t)(void);
-#endif
-
 // Flag to restart the event tap incase of timeout.
 Boolean restart_tap = false;
 
@@ -59,90 +45,10 @@ static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
-	bool accessibilityEnabled = false;
-
 	do {
 		restart_tap = false;
 
-		#ifdef USE_WEAK_IMPORT
-		// Check and make sure assistive devices is enabled.
-		if (AXIsProcessTrustedWithOptions != NULL) {
-			// New accessibility API 10.9 and later.
-			const void * keys[] = { kAXTrustedCheckOptionPrompt };
-			const void * values[] = { kCFBooleanTrue };
-
-			CFDictionaryRef options = CFDictionaryCreate(
-					kCFAllocatorDefault,
-					keys,
-					values,
-					sizeof(keys) / sizeof(*keys),
-					&kCFCopyStringDictionaryKeyCallBacks,
-					&kCFTypeDictionaryValueCallBacks);
-
-			accessibilityEnabled = AXIsProcessTrustedWithOptions(options);
-		}
-		else {
-			// Old accessibility check 10.8 and older.
-			accessibilityEnabled = AXAPIEnabled();
-		}
-		#else
-		// Dynamically load the application services framework for examination.
-		const char *dlError = NULL;
-		void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
-		dlError = dlerror();
-		if (libApplicaitonServices != NULL && dlError == NULL) {
-			// Check for the new function AXIsProcessTrustedWithOptions().
-			*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
-			dlError = dlerror();
-			if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
-				// Check for property CFStringRef kAXTrustedCheckOptionPrompt
-				void ** kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
-
-				dlError = dlerror();
-				if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
-					// New accessibility API 10.9 and later.
-					const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
-					const void * values[] = { kCFBooleanTrue };
-
-					CFDictionaryRef options = CFDictionaryCreate(
-							kCFAllocatorDefault,
-							keys,
-							values,
-							sizeof(keys) / sizeof(*keys),
-							&kCFCopyStringDictionaryKeyCallBacks,
-							&kCFTypeDictionaryValueCallBacks);
-
-					accessibilityEnabled = (*AXIsProcessTrustedWithOptions_t)(options);
-				}
-			}
-			else {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled(). (%s)\n",
-						__FUNCTION__, __LINE__, dlError);
-
-				// Check for the fallback function AXAPIEnabled().
-				*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
-				dlError = dlerror();
-				if (AXAPIEnabled_t != NULL && dlError == NULL) {
-					// Old accessibility check 10.8 and older.
-					accessibilityEnabled = (*AXAPIEnabled_t)();
-				}
-				else {
-					// Could not load the AXAPIEnabled function!
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()! (%s)\n",
-							__FUNCTION__, __LINE__, dlError);
-				}
-			}
-
-			dlclose(libApplicaitonServices);
-		}
-		else {
-			// Could not load the ApplicationServices framework!
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
-					__FUNCTION__, __LINE__, dlError);
-		}
-		#endif
-
-		if (accessibilityEnabled == true) {
+		if (is_accessibility_enabled()) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
 					__FUNCTION__, __LINE__);
 

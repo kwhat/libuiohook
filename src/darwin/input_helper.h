@@ -46,8 +46,16 @@
 #define kCGEventFlagMaskXButton1		1 << 3
 #define kCGEventFlagMaskXButton2		1 << 4
 
+/* Check for access to Apples accessibility API.
+ */
+extern bool is_accessibility_enabled();
 
+/* Converts an OSX keycode to the appropriate UIOHook scancode constant.
+ */
 extern uint16_t keycode_to_scancode(UInt64 keycode);
+
+/* Converts a UIOHook scancode constant to the appropriate OSX keycode.
+ */
 extern UInt64 scancode_to_keycode(uint16_t keycode);
 
 /* Converts an OSX key code and event mask to the appropriate Unicode character

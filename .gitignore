@@ -29,3 +29,11 @@
 /.DS_Store
 /._.DS_Store
 /bin/
+/src/x11/.dirstamp
+/test/.dirstamp
+/demohook
+/demopost
+/test/.deps/
+/test/x11/.dirstamp
+/test/x11/.deps/
+/testhook

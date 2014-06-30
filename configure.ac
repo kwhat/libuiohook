@@ -110,6 +110,11 @@ AC_ARG_ENABLE([demo],
 	[enable_demo=$enableval],
 	[enable_demo="no"])
 
+AC_ARG_ENABLE([test],
+	AS_HELP_STRING([--enable-test], [Enable unit testing (default: disabled)]),
+	[enable_test=$enableval],
+	[enable_test="no"])
+
 AC_ARG_ENABLE([quiet],
 	AS_HELP_STRING([--enable-quiet], [Enable copyright suppression (default: disabled)]),
 	[enable_quiet=$enableval],
@@ -303,9 +308,13 @@ AC_SUBST([backend])
 AC_SUBST([REQUIRE])
 AC_SUBST([LIBS])
 AC_SUBST([DEMO_LIBS])
+AC_SUBST([TEST_LIBS])
 
 # Should the demo application be built?
 AM_CONDITIONAL([BUILD_DEMO], [test "x$enable_demo" = "xyes"])
+
+# Should the unit tests be built?
+AM_CONDITIONAL([BUILD_TEST], [test "x$enable_test" = "xyes"])
 
 # Department of redundancy department.  We have already checked the platform 3
 # times!  I am sure there is a technical reason for this...

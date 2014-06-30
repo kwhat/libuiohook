@@ -76,6 +76,7 @@ static bool is_caps_lock = false, is_shift_lock = false;
  *
  */
 static const uint16_t evdev_scancode_table[][2] = {
+	// FIXME The scancode column should be offset by 8, not the keycode column!
 	/* idx		{ keycode,				scancode				}, */
 	#ifndef __OPTIMIZE_SIZE__
 	/*   0 */	{ VC_UNDEFINED,			KEY_RESERVED			},

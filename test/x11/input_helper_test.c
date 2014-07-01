@@ -31,9 +31,14 @@ static char * test_bidirectional_scancodes() {
 		printf("Testing keycode %u...\n", i1);
 
 		uint16_t scancode = keycode_to_scancode(i1);
-		printf("\tproduced scancode %u\n", scancode);
+		if (scancode > 127) {
+			printf("\tproduced scancode offset %u %#X\n", (scancode & 0xFF) + 128, scancode);
+		}
+		else {
+			printf("\tproduced scancode %u %#X\n", scancode, scancode);
+		}
 
-		unsigned char i2 = (unsigned char) scancode_to_keycode(scancode);
+		KeyCode i2 = scancode_to_keycode(scancode);
 		printf("\treproduced keycode %u\n", i2);
 
 		if (scancode != VC_UNDEFINED) {

@@ -440,17 +440,16 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/*  85 */	{ VC_KP_6,				 0						},	//
 	/*  86 */	{ VC_KP_ADD,			 0						},	//
 	/*  87 */	{ VC_KP_1,				 95						},	//
-	// This Needs to be migrated up to line 407
-	#endif
 	/*  88 */	{ VC_KP_2,				 96						},
 	/*  89 */	{ VC_KP_3,				 0						},
 	/*  90 */	{ VC_KP_0,				 0						},
 	/*  91 */	{ VC_KP_SEPARATOR,		 118	/* <FK13>  */	},
 	/*  92 */	{ VC_UNDEFINED,			 119	/* <FK14>  */	},
 	/*  93 */	{ VC_UNDEFINED,			 120	/* <FK15>  */	},
-	/*  94 */	{ VC_UNDEFINED,			 0	},
-	/*  95 */	{ VC_F11,				 0	},
+	/*  94 */	{ VC_UNDEFINED,			 0						},
+	/*  95 */	{ VC_F11,				 0						},
 	/*  96 */	{ VC_F12,				 0						},
+	#endif
 	/*  97 */	{ VC_HOME,				 0						},
 	/*  98 */	{ VC_UP,				 0						},
 	/*  99 */	{ VC_PAGE_UP,			 121	/* <FK16>  */	},
@@ -1560,7 +1559,7 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
 		if (keycode > 8) {
-			if (keycode < 88) {
+			if (keycode < 97) {
 				#ifdef __OPTIMIZE_SIZE__
 				scancode = keycode - 8;
 				#else
@@ -1569,7 +1568,7 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 			}
 			else if (keycode < xfree86_size) {
 				#ifdef __OPTIMIZE_SIZE__
-				keycode -= 88;
+				keycode -= 97;
 				#endif
 
 				scancode = xfree86_scancode_table[keycode][0];
@@ -1621,7 +1620,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
 		if (scancode > 0) {
-			if (scancode < 88) {
+			if (scancode < 97) {
 				#ifdef __OPTIMIZE_SIZE__
 				keycode = scancode + 8;
 				#else
@@ -1630,7 +1629,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 			}
 			else if (scancode < 128) {
 				#ifdef __OPTIMIZE_SIZE__
-				scancode -= 88;
+				scancode -= 97;
 				#endif
 
 				keycode = xfree86_scancode_table[scancode][1];
@@ -1640,7 +1639,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 				scancode = (scancode & 0x00FF) + 128;
 
 				#ifdef __OPTIMIZE_SIZE__
-				scancode -= 88;
+				scancode -= 97;
 				#endif
 
 				if (scancode < xfree86_size) {

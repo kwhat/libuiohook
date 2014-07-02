@@ -353,93 +353,93 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* idx		{ keycode,				scancode				}, */
 	#ifndef __OPTIMIZE_SIZE__
 	/*   0 */	{ VC_UNDEFINED,			  0		/* <MDSW>  */	},	// Unused
-	/*   1 */	{ VC_UNDEFINED,			  9		/* <ESC>   */	},	// 
-	/*   2 */	{ VC_UNDEFINED,			 10		/* <AE01>  */	},	// 
-	/*   3 */	{ VC_UNDEFINED,			 11		/* <AE02>  */	},	// 
-	/*   4 */	{ VC_UNDEFINED,			 12		/* <AE03>  */	},	// 
-	/*   5 */	{ VC_UNDEFINED,			 13		/* <AE04>  */	},	// 
-	/*   6 */	{ VC_UNDEFINED,			 14		/* <AE05>  */	},	// 
-	/*   7 */	{ VC_UNDEFINED,			 15		/* <AE06>  */	},	// 
-	/*   8 */	{ VC_UNDEFINED,			 16		/* <AE07>  */	},	// 
-	/*   9 */	{ VC_ESCAPE,			 17		/* <AE08>  */	},	// 
-	/*  10 */	{ VC_1,					 18		/* <AE009> */	},	// 
-	/*  11 */	{ VC_2,					 19		/* <AE010> */	},	// 
-	/*  12 */	{ VC_3,					 20		/* <AE011> */	},	// 
-	/*  13 */	{ VC_4,					 21		/* <AE012> */	},	// 
-	/*  14 */	{ VC_5,					 22		/* <BKSP>  */	},	// 
-	/*  15 */	{ VC_6,					 23		/* <TAB>   */	},	// 
-	/*  16 */	{ VC_7,					 24		/* <AD01>  */	},	// 
-	/*  17 */	{ VC_8,					 25		/* <AD02>  */	},	// 
-	/*  18 */	{ VC_9,					 26		/* <AD03>  */	},	// 
-	/*  19 */	{ VC_0,					 27		/* <AD04>  */	},	// 
-	/*  20 */	{ VC_MINUS,				 28		/* <AD05>  */	},	// 
-	/*  21 */	{ VC_EQUALS,			 29		/* <AD06>  */	},	// 
-	/*  22 */	{ VC_BACKSPACE,			 30		/* <AD07>  */	},	// 
-	/*  23 */	{ VC_TAB,				 31		/* <AD08>  */	},	// 
-	/*  24 */	{ VC_Q,					 32		/* <AD09>  */	},	// 
-	/*  25 */	{ VC_W,					 33		/* <AD10>  */	},	// 
-	/*  26 */	{ VC_E,					 34		/* <AD11>  */	},	// 
-	/*  27 */	{ VC_R,					 35		/* <AD12>  */	},	// 
-	/*  28 */	{ VC_T,					 36		/* <RTRN>  */	},	// 
-	/*  29 */	{ VC_Y,					 37		/* <LCTL>  */	},	// 
-	/*  30 */	{ VC_U,					 38		/* <AC01>  */	},  // 
-	/*  31 */	{ VC_I,					 39		/* <AC02>  */	},	// 
-	/*  32 */	{ VC_O,					 40		/* <AC03>  */	},	// 
-	/*  33 */	{ VC_P,					 41		/* <AC04>  */	},	// 
-	/*  34 */	{ VC_OPEN_BRACKET,		 42		/* <AC05>  */	},	// 
-	/*  35 */	{ VC_CLOSE_BRACKET,		 43		/* <AC06>  */	},	// 
-	/*  36 */	{ VC_ENTER,				 44		/* <AC07>  */	},	// 
-	/*  37 */	{ VC_CONTROL_L,			 45		/* <AC08>  */	},	// 
-	/*  38 */	{ VC_A,					 46		/* <AC09>  */	},	// 
-	/*  39 */	{ VC_S,					 47		/* <AC10>  */	},	// 
-	/*  40 */	{ VC_D,					 48		/* <AC11>  */	},	// 
-	/*  41 */	{ VC_F,					 49		/* <TLDE>  */	},	// 
-	/*  42 */	{ VC_G,					 50		/* <LFSH>  */	},	// 
-	/*  43 */	{ VC_H,					 51		/* <BKSL>  */	},	// 
-	/*  44 */	{ VC_J,					 52		/* <AB01>  */	},	// 
-	/*  45 */	{ VC_K,					 53		/* <AB02>  */	},	// 
-	/*  46 */	{ VC_L,					 54		/* <AB03>  */	},	// 
-	/*  47 */	{ VC_SEMICOLON,			 55		/* <AB04>  */	},	// 
-	/*  48 */	{ VC_QUOTE,				 56		/* <AB05>  */	},	// 
-	/*  49 */	{ VC_BACKQUOTE,			 57		/* <AB06>  */	},	// 
-	/*  50 */	{ VC_SHIFT_L,			 58		/* <AB07>  */	},	// 
-	/*  51 */	{ VC_BACK_SLASH,		 59		/* <AB08>  */	},	// 
-	/*  52 */	{ VC_Z,					 60		/* <AB09>  */	},	// 
-	/*  53 */	{ VC_X,					 61		/* <AB10>  */	},	// 
-	/*  54 */	{ VC_C,					 62		/* <RTSH>  */	},	// 
-	/*  55 */	{ VC_V,					 63		/* <KPMU>  */	},	// 
-	/*  56 */	{ VC_B,					 64		/* <LALT>  */	},	// 
-	/*  57 */	{ VC_N,					 65		/* <SPCE>  */	},	// 
-	/*  58 */	{ VC_M,					 66		/* <CAPS>  */	},	// 
-	/*  59 */	{ VC_COMMA,				 67		/* <FK01>  */	},	// 
-	/*  60 */	{ VC_PERIOD,			 68		/* <FK02>  */	},	// 
-	/*  61 */	{ VC_SLASH,				 69		/* <FK03>  */	},	// 
-	/*  62 */	{ VC_SHIFT_R,			 70		/* <FK04>  */	},	// 
-	/*  63 */	{ VC_KP_MULTIPLY,		 71		/* <FK05>  */	},	// 
-	/*  64 */	{ VC_ALT_L,				 72		/* <FK06>  */	},	// 
-	/*  65 */	{ VC_SPACE,				 73		/* <FK07>  */	},	// 
-	/*  66 */	{ VC_CAPS_LOCK,			 74		/* <FK08>  */	},	// 
-	/*  67 */	{ VC_F1,				 75		/* <FK09>  */	},	// 
-	/*  68 */	{ VC_F2,				 76		/* <FK10>  */	},	// 
-	/*  69 */	{ VC_F3,				 77		/* <NMLK>  */	},	// 
-	/*  70 */	{ VC_F4,				 78		/* <SCLK>  */	},	// 
-	/*  71 */	{ VC_F5,				 79		/* <KP7>   */	},	// 
-	/*  72 */	{ VC_F6,				 80		/* <KP8>   */	},	// 
-	/*  73 */	{ VC_F7,				 81		/* <KP9>   */	},	// 
-	/*  74 */	{ VC_F8,				 82		/* <KPSU>  */	},	// 
-	/*  75 */	{ VC_F9,				 83		/* <KP4>   */	},	// 
-	/*  76 */	{ VC_F10,				 84		/* <KP5>   */	},	// 
-	/*  77 */	{ VC_NUM_LOCK,			 85		/* <KP6>   */	},	// 
-	/*  78 */	{ VC_SCROLL_LOCK,		 86		/* <KPAD>  */	},	// 
-	/*  79 */	{ VC_KP_7,				 87		/* <KP1>   */	},	// 
-	/*  80 */	{ VC_KP_8,				 88		/* <KP2>   */	},	// 
-	/*  81 */	{ VC_KP_9,				 89		/* <KP3>   */	},	// 
-	/*  82 */	{ VC_KP_SUBTRACT,		 90		/* <KP0>   */	},	// 
-	/*  83 */	{ VC_KP_4,				 91		/* <KPDL>  */	},	// 
-	/*  84 */	{ VC_KP_5,				 0						},	// 
+	/*   1 */	{ VC_UNDEFINED,			  9		/* <ESC>   */	},	//
+	/*   2 */	{ VC_UNDEFINED,			 10		/* <AE01>  */	},	//
+	/*   3 */	{ VC_UNDEFINED,			 11		/* <AE02>  */	},	//
+	/*   4 */	{ VC_UNDEFINED,			 12		/* <AE03>  */	},	//
+	/*   5 */	{ VC_UNDEFINED,			 13		/* <AE04>  */	},	//
+	/*   6 */	{ VC_UNDEFINED,			 14		/* <AE05>  */	},	//
+	/*   7 */	{ VC_UNDEFINED,			 15		/* <AE06>  */	},	//
+	/*   8 */	{ VC_UNDEFINED,			 16		/* <AE07>  */	},	//
+	/*   9 */	{ VC_ESCAPE,			 17		/* <AE08>  */	},	//
+	/*  10 */	{ VC_1,					 18		/* <AE009> */	},	//
+	/*  11 */	{ VC_2,					 19		/* <AE010> */	},	//
+	/*  12 */	{ VC_3,					 20		/* <AE011> */	},	//
+	/*  13 */	{ VC_4,					 21		/* <AE012> */	},	//
+	/*  14 */	{ VC_5,					 22		/* <BKSP>  */	},	//
+	/*  15 */	{ VC_6,					 23		/* <TAB>   */	},	//
+	/*  16 */	{ VC_7,					 24		/* <AD01>  */	},	//
+	/*  17 */	{ VC_8,					 25		/* <AD02>  */	},	//
+	/*  18 */	{ VC_9,					 26		/* <AD03>  */	},	//
+	/*  19 */	{ VC_0,					 27		/* <AD04>  */	},	//
+	/*  20 */	{ VC_MINUS,				 28		/* <AD05>  */	},	//
+	/*  21 */	{ VC_EQUALS,			 29		/* <AD06>  */	},	//
+	/*  22 */	{ VC_BACKSPACE,			 30		/* <AD07>  */	},	//
+	/*  23 */	{ VC_TAB,				 31		/* <AD08>  */	},	//
+	/*  24 */	{ VC_Q,					 32		/* <AD09>  */	},	//
+	/*  25 */	{ VC_W,					 33		/* <AD10>  */	},	//
+	/*  26 */	{ VC_E,					 34		/* <AD11>  */	},	//
+	/*  27 */	{ VC_R,					 35		/* <AD12>  */	},	//
+	/*  28 */	{ VC_T,					 36		/* <RTRN>  */	},	//
+	/*  29 */	{ VC_Y,					 37		/* <LCTL>  */	},	//
+	/*  30 */	{ VC_U,					 38		/* <AC01>  */	},  //
+	/*  31 */	{ VC_I,					 39		/* <AC02>  */	},	//
+	/*  32 */	{ VC_O,					 40		/* <AC03>  */	},	//
+	/*  33 */	{ VC_P,					 41		/* <AC04>  */	},	//
+	/*  34 */	{ VC_OPEN_BRACKET,		 42		/* <AC05>  */	},	//
+	/*  35 */	{ VC_CLOSE_BRACKET,		 43		/* <AC06>  */	},	//
+	/*  36 */	{ VC_ENTER,				 44		/* <AC07>  */	},	//
+	/*  37 */	{ VC_CONTROL_L,			 45		/* <AC08>  */	},	//
+	/*  38 */	{ VC_A,					 46		/* <AC09>  */	},	//
+	/*  39 */	{ VC_S,					 47		/* <AC10>  */	},	//
+	/*  40 */	{ VC_D,					 48		/* <AC11>  */	},	//
+	/*  41 */	{ VC_F,					 49		/* <TLDE>  */	},	//
+	/*  42 */	{ VC_G,					 50		/* <LFSH>  */	},	//
+	/*  43 */	{ VC_H,					 51		/* <BKSL>  */	},	//
+	/*  44 */	{ VC_J,					 52		/* <AB01>  */	},	//
+	/*  45 */	{ VC_K,					 53		/* <AB02>  */	},	//
+	/*  46 */	{ VC_L,					 54		/* <AB03>  */	},	//
+	/*  47 */	{ VC_SEMICOLON,			 55		/* <AB04>  */	},	//
+	/*  48 */	{ VC_QUOTE,				 56		/* <AB05>  */	},	//
+	/*  49 */	{ VC_BACKQUOTE,			 57		/* <AB06>  */	},	//
+	/*  50 */	{ VC_SHIFT_L,			 58		/* <AB07>  */	},	//
+	/*  51 */	{ VC_BACK_SLASH,		 59		/* <AB08>  */	},	//
+	/*  52 */	{ VC_Z,					 60		/* <AB09>  */	},	//
+	/*  53 */	{ VC_X,					 61		/* <AB10>  */	},	//
+	/*  54 */	{ VC_C,					 62		/* <RTSH>  */	},	//
+	/*  55 */	{ VC_V,					 63		/* <KPMU>  */	},	//
+	/*  56 */	{ VC_B,					 64		/* <LALT>  */	},	//
+	/*  57 */	{ VC_N,					 65		/* <SPCE>  */	},	//
+	/*  58 */	{ VC_M,					 66		/* <CAPS>  */	},	//
+	/*  59 */	{ VC_COMMA,				 67		/* <FK01>  */	},	//
+	/*  60 */	{ VC_PERIOD,			 68		/* <FK02>  */	},	//
+	/*  61 */	{ VC_SLASH,				 69		/* <FK03>  */	},	//
+	/*  62 */	{ VC_SHIFT_R,			 70		/* <FK04>  */	},	//
+	/*  63 */	{ VC_KP_MULTIPLY,		 71		/* <FK05>  */	},	//
+	/*  64 */	{ VC_ALT_L,				 72		/* <FK06>  */	},	//
+	/*  65 */	{ VC_SPACE,				 73		/* <FK07>  */	},	//
+	/*  66 */	{ VC_CAPS_LOCK,			 74		/* <FK08>  */	},	//
+	/*  67 */	{ VC_F1,				 75		/* <FK09>  */	},	//
+	/*  68 */	{ VC_F2,				 76		/* <FK10>  */	},	//
+	/*  69 */	{ VC_F3,				 77		/* <NMLK>  */	},	//
+	/*  70 */	{ VC_F4,				 78		/* <SCLK>  */	},	//
+	/*  71 */	{ VC_F5,				 79		/* <KP7>   */	},	//
+	/*  72 */	{ VC_F6,				 80		/* <KP8>   */	},	//
+	/*  73 */	{ VC_F7,				 81		/* <KP9>   */	},	//
+	/*  74 */	{ VC_F8,				 82		/* <KPSU>  */	},	//
+	/*  75 */	{ VC_F9,				 83		/* <KP4>   */	},	//
+	/*  76 */	{ VC_F10,				 84		/* <KP5>   */	},	//
+	/*  77 */	{ VC_NUM_LOCK,			 85		/* <KP6>   */	},	//
+	/*  78 */	{ VC_SCROLL_LOCK,		 86		/* <KPAD>  */	},	//
+	/*  79 */	{ VC_KP_7,				 87		/* <KP1>   */	},	//
+	/*  80 */	{ VC_KP_8,				 88		/* <KP2>   */	},	//
+	/*  81 */	{ VC_KP_9,				 89		/* <KP3>   */	},	//
+	/*  82 */	{ VC_KP_SUBTRACT,		 90		/* <KP0>   */	},	//
+	/*  83 */	{ VC_KP_4,				 91		/* <KPDL>  */	},	//
+	/*  84 */	{ VC_KP_5,				 0						},	//
 	/*  85 */	{ VC_KP_6,				 0						},	//
-	/*  86 */	{ VC_KP_ADD,			 0						},	// 
-	/*  87 */	{ VC_KP_1,				 95						},	// 
+	/*  86 */	{ VC_KP_ADD,			 0						},	//
+	/*  87 */	{ VC_KP_1,				 95						},	//
 	// This Needs to be migrated up to line 407
 	#endif
 	/*  88 */	{ VC_KP_2,				 96						},
@@ -1558,13 +1558,22 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 		// Evdev was disabled, fallback to XFree86.
 	#endif
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
-		
-		if (keycode < xfree86_size) {
-			#ifdef __OPTIMIZE_SIZE__
-			keycode -= 88;
-			#endif
 
-			scancode = xfree86_scancode_table[keycode][0];
+		if (keycode > 8) {
+			if (keycode < 88) {
+				#ifdef __OPTIMIZE_SIZE__
+				scancode = keycode - 8;
+				#else
+				scancode = xfree86_scancode_table[keycode][0];
+				#endif
+			}
+			else if (keycode < xfree86_size) {
+				#ifdef __OPTIMIZE_SIZE__
+				keycode -= 88;
+				#endif
+
+				scancode = xfree86_scancode_table[keycode][0];
+			}
 		}
 	#if defined(USE_EVDEV) && defined(USE_XKB)
 	}
@@ -1580,7 +1589,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	// Check to see if evdev is enabled.
 	if (is_evdev) {
 		unsigned short evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
-		
+
 		if (scancode < 89) {
 			// Toll free bridge.
 			// NOTE It doesn't matter if we optimized for size.
@@ -1605,29 +1614,38 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 				keycode = evdev_scancode_table[scancode][1];
 			}
 		}
-	} 
+	}
 	else {
 		// Evdev was disabled, fallback to XFree86.
 	#endif
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
-		
-		if (scancode < 128) {
-			#ifdef __OPTIMIZE_SIZE__
-			keycode = scancode - 8;
-			#else
-			keycode = xfree86_scancode_table[scancode][1];
-			#endif
-		}
-		else {
-			// Offset: lower order bits + 128 (If no size optimization!)
-			scancode = (scancode & 0x00FF);
-			
-			#ifndef __OPTIMIZE_SIZE__
-			scancode += 128;
-			#endif
 
-			if (scancode < xfree86_size) {
+		if (scancode > 0) {
+			if (scancode < 88) {
+				#ifdef __OPTIMIZE_SIZE__
+				keycode = scancode + 8;
+				#else
 				keycode = xfree86_scancode_table[scancode][1];
+				#endif
+			}
+			else if (scancode < 128) {
+				#ifdef __OPTIMIZE_SIZE__
+				scancode -= 88;
+				#endif
+
+				keycode = xfree86_scancode_table[scancode][1];
+			}
+			else {
+				// Offset: lower order bits + 128 (If no size optimization!)
+				scancode = (scancode & 0x00FF) + 128;
+
+				#ifdef __OPTIMIZE_SIZE__
+				scancode -= 88;
+				#endif
+
+				if (scancode < xfree86_size) {
+					keycode = xfree86_scancode_table[scancode][1];
+				}
 			}
 		}
 	#if defined(USE_EVDEV) && defined(USE_XKB)

@@ -19,7 +19,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 HOOK_SRC = src/logger.c
-
+TEST_SRC = 
 if BUILD_DARWIN
 HOOK_SRC += src/darwin/hook_callback.c \
 	 src/darwin/hook_thread.c \
@@ -34,7 +34,7 @@ HOOK_SRC += src/x11/hook_callback.c \
 	 src/x11/input_helper.c \
 	 src/x11/post_event.c \
 	 src/x11/system_properties.c
-TEST_SRC = test/x11/input_helper_test.c
+TEST_SRC += test/x11/input_helper_test.c
 endif
 
 if BUILD_WINDOWS
@@ -43,6 +43,7 @@ HOOK_SRC += src/windows/hook_callback.c \
 	 src/windows/input_helper.c \
 	 src/windows/post_event.c \
 	 src/windows/system_properties.c
+TEST_SRC += test/windows/input_helper_test.c
 endif
 
 pkgconfigdir = $(libdir)/pc
@@ -79,7 +80,7 @@ bin_PROGRAMS += testhook
 
 testhook_SOURCES = $(TEST_SRC)
 testhook_LDADD = $(top_builddir)/libuiohook.la
-testhook_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(TEST_CFLAGS) -I$(top_srcdir)/include -I$(top_srcdir)/src/$(backend)
+testhook_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(TEST_CFLAGS) -I$(top_srcdir)/include -I$(top_srcdir)/test -I$(top_srcdir)/src/$(backend) -I$(top_srcdir)/src
 testhook_LDFLAGS = $(LTLDFLAGS) $(TEST_LIBS)
 endif
 

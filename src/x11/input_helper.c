@@ -511,104 +511,104 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* 155 */	{ VC_UNDEFINED,			 0						},	// <I1B>
 	/* 156 */	{ VC_UNDEFINED,			 108	/* <KPEN>  */	},	// <I1C>	Never Generated
 	/* 157 */	{ VC_UNDEFINED,			 109	/* <RCTL>  */	},	// <I1D>
-	/* 158 */	{ VC_UNDEFINED,			 0						},	// 158 I1E
-	/* 159 */	{ VC_UNDEFINED,			 0						},	// 159 I1F
-	/* 160 */	{ VC_UNDEFINED,			 0						},	// 160 I20
-	/* 161 */	{ VC_UNDEFINED,			 0						},	// 161 I21
-	/* 162 */	{ VC_UNDEFINED,			 0						},	// 162 I22
-	/* 163 */	{ VC_UNDEFINED,			 0						},	// 163 I23
-	/* 164 */	{ VC_UNDEFINED,			 0						},	// 164 I24
-	/* 165 */	{ VC_UNDEFINED,			 0						},	// 165 I25
-	/* 166 */	{ VC_UNDEFINED,			 0						},	// 166 I26
-	/* 167 */	{ VC_UNDEFINED,			 0						},	// 167 I27
-	/* 168 */	{ VC_UNDEFINED,			 0						},	// 168 I28
-	/* 169 */	{ VC_UNDEFINED,			 0						},	// 169 I29
-	/* 170 */	{ VC_UNDEFINED,			 0						},	// 170 I2A			<K5A>
-	/* 171 */	{ VC_UNDEFINED,			 0						},	// 171 I2B
-	/* 172 */	{ VC_UNDEFINED,			 0						},	// 172 I2C
-	/* 173 */	{ VC_UNDEFINED,			 0						},	// 173 I2D
-	/* 174 */	{ VC_UNDEFINED,			 0						},	// 174 I2E
-	/* 175 */	{ VC_UNDEFINED,			 0						},	// 175 I2F
-	/* 176 */	{ VC_UNDEFINED,			 0						},	// 176 I30
-	/* 177 */	{ VC_UNDEFINED,			 0						},	// 177 I31
-	/* 178 */	{ VC_UNDEFINED,			 0						},	// 178 I32
-	/* 179 */	{ VC_UNDEFINED,			 0						},	// 179 I33
-	/* 180 */	{ VC_UNDEFINED,			 0						},	// 180 I34
-	/* 181 */	{ VC_UNDEFINED,			 112					},	// 181 I35			<K5B>
-	/* 182 */	{ VC_UNDEFINED,			 0						},	// 182 I36			<K5D>
-	/* 183 */	{ VC_UNDEFINED,			 111					},	// 183 I37			<K5E>
-	/* 184 */	{ VC_UNDEFINED,			 113					},	// 184 I38			<K5F>
-	/* 185 */	{ VC_UNDEFINED,			 0						},	// 185 I39
-	/* 186 */	{ VC_UNDEFINED,			 0						},	// 186 I3A
-	/* 187 */	{ VC_UNDEFINED,			 0						},	// 187 I3B
-	/* 188 */	{ VC_UNDEFINED,			 0						},	// 188 I3C
-	/* 189 */	{ VC_UNDEFINED,			 0						},	// 189 I3D			<K62>
-	/* 190 */	{ VC_UNDEFINED,			 0						},	// 190 I3E			<K63>
-	/* 191 */	{ VC_UNDEFINED,			 0						},	// 191 I3F			<K64>
-	/* 192 */	{ VC_UNDEFINED,			 0						},	// 192 I40			<K65>
-	/* 193 */	{ VC_UNDEFINED,			 0						},	// 193 I41			<K66>
-	/* 194 */	{ VC_UNDEFINED,			 0						},	// 194 I42
-	/* 195 */	{ VC_UNDEFINED,			 0						},	// 195 I43
-	/* 196 */	{ VC_UNDEFINED,			 114					},	// 196 I44
-	/* 197 */	{ VC_UNDEFINED,			 110					},	// 197 I45
-	/* 198 */	{ VC_UNDEFINED,			 0						},	// 198 I46			<K67>
-	/* 199 */	{ VC_UNDEFINED,			 97						},	// 199 I47			<K68>
-	/* 200 */	{ VC_UNDEFINED,			 98						},	// 200 I48			<K69>
-	/* 201 */	{ VC_UNDEFINED,			 99						},	// 201 I49			<K6A>
-	/* 202 */	{ VC_UNDEFINED,			 0						},	// 202 I4A
-	/* 203 */	{ VC_UNDEFINED,			 100					},	// 203 I4B			<K6B>
-	/* 204 */	{ VC_UNDEFINED,			 0						},	// 204 I4C			<K6C>
-	/* 205 */	{ VC_UNDEFINED,			 102					},	// 205 I4D			<K6D>
-	/* 206 */	{ VC_UNDEFINED,			 0						},	// 206 I4E			<K6E>
-	/* 207 */	{ VC_UNDEFINED,			 103					},	// 207 I4F			<K6F>
-	/* 208 */	{ VC_UNDEFINED,			 104					},	// 208 I50			<K70>
-	/* 209 */	{ VC_UNDEFINED,			 105					},	// 209 I51			<K71>
-	/* 210 */	{ VC_UNDEFINED,			 106					},	// 210 I52			<K72>
-	/* 211 */	{ VC_UNDEFINED,			 107					},	// 211 I53			<K73>
-	/* 212 */	{ VC_UNDEFINED,			 0						},	// 212 I54
-	/* 213 */	{ VC_UNDEFINED,			 0						},	// 213 I55
-	/* 214 */	{ VC_UNDEFINED,			 0						},	// 214 I56
-	/* 215 */	{ VC_UNDEFINED,			 0						},	// 215 I57
-	/* 216 */	{ VC_UNDEFINED,			 0						},	// 216 I58
-	/* 217 */	{ VC_UNDEFINED,			 0						},	// 217 I59
-	/* 218 */	{ VC_UNDEFINED,			 0						},	// 218 I5A
-	/* 219 */	{ VC_UNDEFINED,			 115	/* <LWIN>   */	},	// 219 I5B			<K74>
-	/* 220 */	{ VC_UNDEFINED,			 116	/* <RWIN>   */	},	// 220 I5C			<K75>
-	/* 221 */	{ VC_UNDEFINED,			 117	/* <MENU>   */	},	// 221 I5D			<K76>
-	/* 222 */	{ VC_UNDEFINED,			 0						},	// 222 I5E
-	/* 223 */	{ VC_UNDEFINED,			 0						},	// 223 I5F
-	/* 224 */	{ VC_UNDEFINED,			 0						},	// 224 I60
-	/* 225 */	{ VC_UNDEFINED,			 0						},	// 225 I61
-	/* 226 */	{ VC_UNDEFINED,			 0						},	// 226 I62
-	/* 227 */	{ VC_UNDEFINED,			 0						},	// 227 I63
-	/* 228 */	{ VC_UNDEFINED,			 0						},	// 228 I64
-	/* 229 */	{ VC_UNDEFINED,			 0						},	// 229 I65
-	/* 230 */	{ VC_UNDEFINED,			 0						},	// 230 I66
-	/* 231 */	{ VC_UNDEFINED,			 0						},	// 231 I67
-	/* 232 */	{ VC_UNDEFINED,			 0						},	// 232 I68
-	/* 233 */	{ VC_UNDEFINED,			 0						},	// 233 I69
-	/* 234 */	{ VC_UNDEFINED,			 0						},	// 234 I6A
-	/* 235 */	{ VC_UNDEFINED,			 0						},	// 235 I6B
-	/* 236 */	{ VC_UNDEFINED,			 0						},	// 236 I6C
-	/* 237 */	{ VC_UNDEFINED,			 0						},	// 237 I6D
-	/* 238 */	{ VC_UNDEFINED,			 0						},	// 238 I6E
-	/* 239 */	{ VC_UNDEFINED,			 0						},	// 239 I6F
-	/* 240 */	{ VC_UNDEFINED,			 0						},	// 240 I70
-	/* 241 */	{ VC_UNDEFINED,			 0						},	// 241 I71
-	/* 242 */	{ VC_UNDEFINED,			 0						},	// 242 I72
-	/* 243 */	{ VC_UNDEFINED,			 0						},	// 243 I73
-	/* 244 */	{ VC_UNDEFINED,			 0						},	// 244 I74
-	/* 245 */	{ VC_UNDEFINED,			 0						},	// 245 I75
-	/* 246 */	{ VC_UNDEFINED,			 0						},	// 246 I76
-	/* 247 */	{ VC_UNDEFINED,			 0						},	// 247 I77
-	/* 248 */	{ VC_UNDEFINED,			 0						},	// 248 I78
-	/* 249 */	{ VC_UNDEFINED,			 0						},	// 249 I79
-	/* 250 */	{ VC_UNDEFINED,			 0						},	// 250 I7A
-	/* 251 */	{ VC_UNDEFINED,			 0						},	// 251 I7B
-	/* 252 */	{ VC_UNDEFINED,			 0						},	// 252 I7C
-	/* 253 */	{ VC_UNDEFINED,			 0						},	// 253 I7D
-	/* 254 */	{ VC_UNDEFINED,			 0						},	// 254 I7E
-	/* 255 */	{ VC_UNDEFINED,			 0						},	// 255 I7F
+	/* 158 */	{ VC_UNDEFINED,			 0						},	// <I1E>
+	/* 159 */	{ VC_UNDEFINED,			 0						},	// <I1F>
+	/* 160 */	{ VC_UNDEFINED,			 0						},	// <I20>
+	/* 161 */	{ VC_UNDEFINED,			 0						},	// <I21>
+	/* 162 */	{ VC_UNDEFINED,			 0						},	// <I22>
+	/* 163 */	{ VC_UNDEFINED,			 0						},	// <I23>
+	/* 164 */	{ VC_UNDEFINED,			 0						},	// <I24>
+	/* 165 */	{ VC_UNDEFINED,			 0						},	// <I25>
+	/* 166 */	{ VC_UNDEFINED,			 0						},	// <I26>
+	/* 167 */	{ VC_UNDEFINED,			 0						},	// <I27>
+	/* 168 */	{ VC_UNDEFINED,			 0						},	// <I28>
+	/* 169 */	{ VC_UNDEFINED,			 0						},	// <I29>
+	/* 170 */	{ VC_UNDEFINED,			 0						},	// <I2A>	<K5A>
+	/* 171 */	{ VC_UNDEFINED,			 0						},	// <I2B>
+	/* 172 */	{ VC_UNDEFINED,			 0						},	// <I2C>
+	/* 173 */	{ VC_UNDEFINED,			 0						},	// <I2D>
+	/* 174 */	{ VC_UNDEFINED,			 0						},	// <I2E>
+	/* 175 */	{ VC_UNDEFINED,			 0						},	// <I2F>
+	/* 176 */	{ VC_UNDEFINED,			 0						},	// <I30>
+	/* 177 */	{ VC_UNDEFINED,			 0						},	// <I31>
+	/* 178 */	{ VC_UNDEFINED,			 0						},	// <I32>
+	/* 179 */	{ VC_UNDEFINED,			 0						},	// <I33>
+	/* 180 */	{ VC_UNDEFINED,			 0						},	// <I34>
+	/* 181 */	{ VC_UNDEFINED,			 112					},	// <I35>	<K5B>
+	/* 182 */	{ VC_UNDEFINED,			 0						},	// <I36>	<K5D>
+	/* 183 */	{ VC_UNDEFINED,			 111					},	// <I37>	<K5E>
+	/* 184 */	{ VC_UNDEFINED,			 113					},	// <I38>	<K5F>
+	/* 185 */	{ VC_UNDEFINED,			 0						},	// <I39>
+	/* 186 */	{ VC_UNDEFINED,			 0						},	// <I3A>
+	/* 187 */	{ VC_UNDEFINED,			 0						},	// <I3B>
+	/* 188 */	{ VC_UNDEFINED,			 0						},	// <I3C>
+	/* 189 */	{ VC_UNDEFINED,			 0						},	// <I3D>	<K62>
+	/* 190 */	{ VC_UNDEFINED,			 0						},	// <I3E>	<K63>
+	/* 191 */	{ VC_UNDEFINED,			 0						},	// <I3F>	<K64>
+	/* 192 */	{ VC_UNDEFINED,			 0						},	// <I40>	<K65>
+	/* 193 */	{ VC_UNDEFINED,			 0						},	// <I41>	<K66>
+	/* 194 */	{ VC_UNDEFINED,			 0						},	// <I42>
+	/* 195 */	{ VC_UNDEFINED,			 0						},	// <I43>
+	/* 196 */	{ VC_UNDEFINED,			 114					},	// <I44>
+	/* 197 */	{ VC_UNDEFINED,			 110					},	// <I45>
+	/* 198 */	{ VC_UNDEFINED,			 0						},	// <I46>	<K67>
+	/* 199 */	{ VC_UNDEFINED,			 97						},	// <I47>	<K68>
+	/* 200 */	{ VC_UNDEFINED,			 98						},	// <I48>	<K69>
+	/* 201 */	{ VC_UNDEFINED,			 99						},	// <I49>	<K6A>
+	/* 202 */	{ VC_UNDEFINED,			 0						},	// <I4A
+	/* 203 */	{ VC_UNDEFINED,			 100					},	// <I4B>	<K6B>
+	/* 204 */	{ VC_UNDEFINED,			 0						},	// <I4C>	<K6C>
+	/* 205 */	{ VC_UNDEFINED,			 102					},	// <I4D>	<K6D>
+	/* 206 */	{ VC_UNDEFINED,			 0						},	// <I4E>	<K6E>
+	/* 207 */	{ VC_UNDEFINED,			 103					},	// <I4F>	<K6F>
+	/* 208 */	{ VC_UNDEFINED,			 104					},	// <I50>	<K70>
+	/* 209 */	{ VC_UNDEFINED,			 105					},	// <I51>	<K71>
+	/* 210 */	{ VC_UNDEFINED,			 106					},	// <I52>	<K72>
+	/* 211 */	{ VC_UNDEFINED,			 107					},	// <I53>	<K73>
+	/* 212 */	{ VC_UNDEFINED,			 0						},	// <I54>
+	/* 213 */	{ VC_UNDEFINED,			 0						},	// <I55>
+	/* 214 */	{ VC_UNDEFINED,			 0						},	// <I56>
+	/* 215 */	{ VC_UNDEFINED,			 0						},	// <I57>
+	/* 216 */	{ VC_UNDEFINED,			 0						},	// <I58>
+	/* 217 */	{ VC_UNDEFINED,			 0						},	// <I59>
+	/* 218 */	{ VC_UNDEFINED,			 0						},	// <I5A>
+	/* 219 */	{ VC_UNDEFINED,			 115	/* <LWIN>   */	},	// <I5B>	<K74>
+	/* 220 */	{ VC_UNDEFINED,			 116	/* <RWIN>   */	},	// <I5C>	<K75>
+	/* 221 */	{ VC_UNDEFINED,			 117	/* <MENU>   */	},	// <I5D>	<K76>
+	/* 222 */	{ VC_UNDEFINED,			 0						},	// <I5E>
+	/* 223 */	{ VC_UNDEFINED,			 0						},	// <I5F>
+	/* 224 */	{ VC_UNDEFINED,			 0						},	// <I60>
+	/* 225 */	{ VC_UNDEFINED,			 0						},	// <I61>
+	/* 226 */	{ VC_UNDEFINED,			 0						},	// <I62>
+	/* 227 */	{ VC_UNDEFINED,			 0						},	// <I63>
+	/* 228 */	{ VC_UNDEFINED,			 0						},	// <I64>
+	/* 229 */	{ VC_UNDEFINED,			 0						},	// <I65>
+	/* 230 */	{ VC_UNDEFINED,			 0						},	// <I66>
+	/* 231 */	{ VC_UNDEFINED,			 0						},	// <I67>
+	/* 232 */	{ VC_UNDEFINED,			 0						},	// <I68>
+	/* 233 */	{ VC_UNDEFINED,			 0						},	// <I69>
+	/* 234 */	{ VC_UNDEFINED,			 0						},	// <I6A>
+	/* 235 */	{ VC_UNDEFINED,			 0						},	// <I6B>
+	/* 236 */	{ VC_UNDEFINED,			 0						},	// <I6C>
+	/* 237 */	{ VC_UNDEFINED,			 0						},	// <I6D>
+	/* 238 */	{ VC_UNDEFINED,			 0						},	// <I6E>
+	/* 239 */	{ VC_UNDEFINED,			 0						},	// <I6F>
+	/* 240 */	{ VC_UNDEFINED,			 0						},	// <I70>
+	/* 241 */	{ VC_UNDEFINED,			 0						},	// <I71>
+	/* 242 */	{ VC_UNDEFINED,			 0						},	// <I72>
+	/* 243 */	{ VC_UNDEFINED,			 0						},	// <I73>
+	/* 244 */	{ VC_UNDEFINED,			 0						},	// <I74>
+	/* 245 */	{ VC_UNDEFINED,			 0						},	// <I75>
+	/* 246 */	{ VC_UNDEFINED,			 0						},	// <I76>
+	/* 247 */	{ VC_UNDEFINED,			 0						},	// <I77>
+	/* 248 */	{ VC_UNDEFINED,			 0						},	// <I78>
+	/* 249 */	{ VC_UNDEFINED,			 0						},	// <I79>
+	/* 250 */	{ VC_UNDEFINED,			 0						},	// <I7A>
+	/* 251 */	{ VC_UNDEFINED,			 0						},	// <I7B>
+	/* 252 */	{ VC_UNDEFINED,			 0						},	// <I7C>
+	/* 253 */	{ VC_UNDEFINED,			 0						},	// <I7D>
+	/* 254 */	{ VC_UNDEFINED,			 0						},	// <I7E>
+	/* 255 */	{ VC_UNDEFINED,			 0						},	// <I7F>
  };
 
 

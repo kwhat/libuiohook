@@ -27,22 +27,24 @@ int tests_run = 0;
 
 static char * test_bidirectional_scancodes() {
 
-	for (unsigned short i1 = 0; i1 < 256; i1++) {
-		printf("Testing keycode %u...\n", i1);
+	for (unsigned short i1 = 7; i1 < 256; i1++) {
+		printf("Testing keycode %u (%#X)...\n", i1, i1);
 
-		uint16_t scancode = vk_to_scancode(i1);
-		if (scancode > 127) {
-			printf("\tproduced scancode offset %u %#X\n", (scancode & 0xFF) + 128, scancode);
-		}
-		else {
-			printf("\tproduced scancode %u %#X\n", scancode, scancode);
-		}
+		uint16_t scancode = convert_vk_to_scancode(i1);
+		if (i1 < 16 || i1 > 18) {
+			if (scancode > 127) {
+				printf("\tproduced scancode offset %u %#X\n", (scancode & 0xFF) + 128, scancode);
+			}
+			else {
+				printf("\tproduced scancode %u %#X\n", scancode, scancode);
+			}
 
-		KeyCode i2 = scancode_to_vk(scancode);
-		printf("\treproduced keycode %u\n", i2);
+			DWORD i2 = convert_scancode_to_vk(scancode);
+			printf("\treproduced keycode %u\n", i2);
 
-		if (scancode != VC_UNDEFINED) {
-			mu_assert("error, scancode to keycode failed to convert back", i1 == i2);
+			if (scancode != VC_UNDEFINED) {
+				mu_assert("error, scancode to keycode failed to convert back", i1 == i2);
+			}
 		}
 	}
 
@@ -56,6 +58,8 @@ static char * test_bidirectional_scancodes() {
  }
 
 int main() {
+	int status = 1;
+	
 	load_input_helper();
 
 	char *result = all_tests();

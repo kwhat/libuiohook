@@ -16,6 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #ifdef USE_COREFOUNDATION
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -26,8 +30,7 @@
 #include <uiohook.h>
 
 #include "input_helper.h"
-// FIXME 
-//#include "logger.h"
+#include "logger.h"
 
 // Current dead key state.
 #if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
@@ -105,10 +108,9 @@ bool is_accessibility_enabled() {
 			}
 		}
 		else {
-			/* FIXME Logger
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled(). (%s)\n",
 					__FUNCTION__, __LINE__, dlError);
-			*/
+
 			// Check for the fallback function AXAPIEnabled().
 			*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
 			dlError = dlerror();
@@ -117,11 +119,9 @@ bool is_accessibility_enabled() {
 				is_enabled = (*AXAPIEnabled_t)();
 			}
 			else {
-				/* FIXME Logger
 				// Could not load the AXAPIEnabled function!
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()! (%s)\n",
 						__FUNCTION__, __LINE__, dlError);
-				 */
 			}
 		}
 
@@ -129,10 +129,8 @@ bool is_accessibility_enabled() {
 	}
 	else {
 		// Could not load the ApplicationServices framework!
-		/* FIXME Logger
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
 				__FUNCTION__, __LINE__, dlError);
-		*/
 	}
 	#endif
 
@@ -187,8 +185,8 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 
 		if (keyboard_layout != NULL) {
 			//Extract keycode and modifier information.
-			CGKeyCode keycode = CGEventGetIntegerValueField(event, kCGKeyboardEventKeycode);
-			CGEventFlags modifiers = CGEventGetFlags(event);
+			CGKeyCode keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+			CGEventFlags modifiers = CGEventGetFlags(event_ref);
 
 			// Disable all command modifiers for translation.  This is required
 			// so UCKeyTranslate will provide a keysym for the separate event.

@@ -20,6 +20,7 @@
 #include <config.h>
 #endif
 
+#include <ApplicationServices/ApplicationServices.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include <uiohook.h>
@@ -500,7 +501,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 		default:
 			// Check for an old OS X bug where the tap seems to timeout for no reason.
 			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
-			if ((uint32_t) type == kCGEventTapDisabledByTimeout) {
+			if (type == (CGEventType) kCGEventTapDisabledByTimeout) {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: CGEventTap timeout!\n",
 					__FUNCTION__, __LINE__);
 

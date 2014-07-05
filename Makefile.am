@@ -26,6 +26,7 @@ HOOK_SRC += src/darwin/hook_callback.c \
 	 src/darwin/input_helper.c \
 	 src/darwin/post_event.c \
 	 src/darwin/system_properties.c
+TEST_SRC += test/darwin/input_helper_test.c
 endif
 
 if BUILD_X11

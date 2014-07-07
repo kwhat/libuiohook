@@ -372,7 +372,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/*  86 */	{ VC_KP_4,				kVK_Undefined			},	// 0x56
 	/*  87 */	{ VC_KP_5,				kVK_F11					},	// 0x57
 	/*  88 */	{ VC_KP_6,				kVK_F12					},	// 0x58
-	/*  89 */	{ VC_KP_7,				kVK_ANSI_KeypadClear	},	// 0x59
+	/*  89 */	{ VC_KP_7,				kVK_Undefined			},	// 0x59
 	/*  90 */	{ VC_F20,				kVK_Undefined			},	// 0x5A
 	/*  91 */	{ VC_KP_8,				kVK_F13					},	// 0x5B
 	/*  92 */	{ VC_KP_9,				kVK_F14					},	// 0x5C

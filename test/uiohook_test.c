@@ -22,18 +22,52 @@
 #include <X11/Xlib.h>
 #endif
 
-// FIXME This should move to a platform dependent sub function.
 #include "input_helper.h"
 #include "minunit.h"
 
 extern char * system_properties_tests();
 extern char * input_helper_tests();
 
+#if !defined(__APPLE__) && !defined(__MACH__) && !defined(_WIN32)
+static Display *disp;
+#endif
+
 int tests_run = 0;
 
+static char * init_tests() {
+	#if !defined(__APPLE__) && !defined(__MACH__) && !defined(_WIN32)
+	// TODO Create our own AC_DEFINE for this value.  Currently defaults to X11 platforms.
+	Display *disp = XOpenDisplay(XDisplayName(NULL));
+	mu_assert("error, could not open X display", disp != NULL);
+	
+	load_input_helper(disp);
+	#else
+	load_input_helper();
+	#endif
+
+	return NULL;
+}
+
+static char * cleanup_tests() {
+	#if !defined(__APPLE__) && !defined(__MACH__) && !defined(_WIN32)
+	if (disp != NULL) {
+		XCloseDisplay(disp);
+		disp = NULL;
+	}
+	#else
+	unload_input_helper();
+	#endif
+
+	return NULL;
+}
+
 static char * all_tests() {
+	mu_run_test(init_tests);
+	
 	mu_run_test(system_properties_tests);
 	mu_run_test(input_helper_tests);
+	
+	mu_run_test(cleanup_tests);
 
 	return NULL;
 }
@@ -41,17 +75,6 @@ static char * all_tests() {
 int main() {
 	int status = 1;
 	
-	#if (defined(__APPLE__) && defined(__MACH__)) || defined(_WIN32)
-	load_input_helper();
-	#else
-	Display *disp = XOpenDisplay(XDisplayName(NULL));
-	
-	// FIXME This should move to a platform dependent sub function.
-	//mu_assert("error, could not open X display", disp != NULL);
-	
-	load_input_helper(disp);
-	#endif
-
 	char *result = all_tests();
 	if (result != NULL) {
 		status = 0;
@@ -61,13 +84,6 @@ int main() {
 		printf("ALL TESTS PASSED\n");
 	}
 	printf("Tests run: %d\n", tests_run);
-
-	#if (defined(__APPLE__) && defined(__MACH__)) || defined(_WIN32)
-	unload_input_helper();
-	#else
-	XCloseDisplay(disp);
-	disp = NULL;
-	#endif
 
 	return status;
 }

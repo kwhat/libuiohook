@@ -60,7 +60,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/*  25 */	{ VC_KANJI,				0x0050					},	// 0x19 VK_KANJI / VK_HANJA		IME Kanji / Hanja mode
 	/*  26 */	{ VC_UNDEFINED,			0x00DB					},	// 0x1A Undefined
 	/*  27 */	{ VC_ESCAPE,			0x00DD					},	// 0x1B	VK_ESCAPE				ESC key
-	/*  28 */	{ VC_UNDEFINED,			VK_RETURN				},	// 0x1C VK_CONVERT				IME convert// 0x1C 
+	/*  28 */	{ VC_UNDEFINED,			VK_RETURN				},	// 0x1C VK_CONVERT				IME convert// 0x1C
 	/*  29 */	{ VC_UNDEFINED,			VK_LCONTROL				},	// 0x1D VK_NONCONVERT			IME nonconvert
 	/*  30 */	{ VC_UNDEFINED,			0x0041					},	// 0x1E VK_ACCEPT				IME accept
 	/*  31 */	{ VC_UNDEFINED,			0x0053					},	// 0x1F VK_MODECHANGE			IME mode change request
@@ -161,7 +161,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 126 */	{ VC_F15,				0x0000					},	// 0x7E VK_F15					F15 key
 	/* 127 */	{ VC_F16,				0x0000					},	// 0x7F VK_F16					F16 key
 
-	//			No Offset				Offset (i & 0x007F) + 128
+	//			No Offset				Offset (i & 0x007F) | 0x80
 
 	/* 128 */	{ VC_F17,				0x0000					},	// 0x80 VK_F17					F17 key
 	/* 129 */	{ VC_F18,				0x0000					},	// 0x81 VK_F18					F18 key
@@ -222,7 +222,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 184 */	{ VC_UNDEFINED,			VK_RMENU				},	// 0xB8							Reserved
 	/* 185 */	{ VC_UNDEFINED,			0x0000					},	// 0xB9							Reserved
 	/* 186 */	{ VC_UNDEFINED,			0x0000					},	// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
-	/* 187 */	{ VC_UNDEFINED,			0x0000					},	// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
+	/* 187 */	{ VC_EQUALS,			0x0000					},	// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
 	/* 188 */	{ VC_COMMA,				0x0000					},	// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
 	/* 189 */	{ VC_MINUS,				0x0000					},	// 0xBD VK_OEM_MINUS			For any country/region, the '-' key
 	/* 190 */	{ VC_PERIOD,			0x0000					},	// 0xBE VK_OEM_PERIOD			For any country/region, the '.' key
@@ -306,23 +306,24 @@ unsigned short keycode_to_scancode(DWORD vk_code) {
 }
 
 DWORD scancode_to_keycode(unsigned short scancode) {
-	unsigned short vk_code = 0x00;
+	unsigned short keycode = 0x0000;
 
 	// Check the vk_code is in range.
 	// NOTE vk_code >= 0 is assumed because the scancode is unsigned.
 	if (scancode < 128) {
-		vk_code = keycode_scancode_table[scancode][1];
+		keycode = keycode_scancode_table[scancode][1];
 	}
 	else {
-		// Calculate the upper offset.
-		unsigned short int i = (scancode & 0x007F) + 128;
+		// Calculate the upper offset based on the lower half of the scancode + 128.
+		// NOTE Bit-mask should be faster than adding.
+		unsigned short int i = (scancode & 0x007F) | 0x80;
 
-		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
-			vk_code = keycode_scancode_table[i][1];
+		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[1])) {
+			keycode = keycode_scancode_table[i][1];
 		}
 	}
 
-	return vk_code;
+	return keycode;
 }
 
 

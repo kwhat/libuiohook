@@ -121,7 +121,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/*  86 */	{ VC_V,					0x0000					},	// 0x56							V key
 	/*  87 */	{ VC_W,					VK_F11					},	// 0x57							W key
 	/*  88 */	{ VC_X,					VK_F12					},	// 0x58							X key
-	/*  89 */	{ VC_Y,					VK_NUMLOCK				},	// 0x59							Y key
+	/*  89 */	{ VC_Y,					0x0000					},	// 0x59							Y key
 	/*  90 */	{ VC_Z,					0x0000					},	// 0x5A							Z key
 	/*  91 */	{ VC_META_L,			VK_F13					},	// 0x5B VK_LWIN 				Left Windows key (Natural keyboard)
 	/*  92 */	{ VC_META_R,			VK_F14					},	// 0x5C VK_RWIN					Right Windows key (Natural keyboard)
@@ -178,11 +178,11 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 140 */	{ VC_UNDEFINED,			0x0000					},	// 0x8C							Unassigned
 	/* 141 */	{ VC_UNDEFINED,			0x0000					},	// 0x8D							Unassigned
 	/* 142 */	{ VC_UNDEFINED,			0x0000					},	// 0x8E							Unassigned
-	/* 143 */	{ VC_UNDEFINED,			VK_RETURN				},	// 0x8F							Unassigned
+	/* 143 */	{ VC_UNDEFINED,			0x0000					},	// 0x8F							Unassigned
 	/* 144 */	{ VC_NUM_LOCK,			VK_MEDIA_PREV_TRACK		},	// 0x90 VK_NUMLOCK				NUM LOCK key
 	/* 145 */	{ VC_SCROLL_LOCK,		0x0000					},	// 0x91 VK_SCROLL				SCROLL LOCK key
 	/* 146 */	{ VC_UNDEFINED,			0x0000					},	// 0x92							OEM specific
-	/* 147 */	{ VC_UNDEFINED,			VK_VOLUME_MUTE			},	// 0x93							OEM specific
+	/* 147 */	{ VC_UNDEFINED,			0x0000					},	// 0x93							OEM specific
 	/* 148 */	{ VC_UNDEFINED,			0x0000					},	// 0x94							OEM specific
 	/* 149 */	{ VC_UNDEFINED,			0x0000					},	// 0x95							OEM specific
 	/* 150 */	{ VC_UNDEFINED,			0x0000					},	// 0x96							OEM specific
@@ -193,16 +193,16 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 155 */	{ VC_UNDEFINED,			0x0000					},	// 0x9B							Unassigned
 	/* 156 */	{ VC_UNDEFINED,			0x0000					},	// 0x9C							Unassigned
 	/* 157 */	{ VC_UNDEFINED,			VK_RCONTROL				},	// 0x9D							Unassigned
-	/* 158 */	{ VC_UNDEFINED,			VK_HOME					},	// 0x9E							Unassigned
+	/* 158 */	{ VC_UNDEFINED,			0x0000					},	// 0x9E							Unassigned
 	/* 159 */	{ VC_UNDEFINED,			0x0000					},	// 0x9F							Unassigned
 	/* 160 */	{ VC_SHIFT_L,			VK_VOLUME_MUTE			},	// 0xA0 VK_LSHIFT				Left SHIFT key
 	/* 161 */	{ VC_SHIFT_R,			VK_LAUNCH_APP2			},	// 0xA1 VK_RSHIFT				Right SHIFT key
 	/* 162 */	{ VC_CONTROL_L,			VK_MEDIA_PLAY_PAUSE		},	// 0xA2 VK_LCONTROL				Left CONTROL key
-	/* 163 */	{ VC_CONTROL_R,			VC_MEDIA_PREVIOUS		},	// 0xA3 VK_RCONTROL				Right CONTROL key
+	/* 163 */	{ VC_CONTROL_R,			0x0000					},	// 0xA3 VK_RCONTROL				Right CONTROL key
 	/* 164 */	{ VC_ALT_L,				VK_MEDIA_STOP			},	// 0xA4 VK_LMENU				Left MENU key
 	/* 165 */	{ VC_ALT_R,				0x0000					},	// 0xA5 VK_RMENU				Right MENU key
 	/* 166 */	{ VC_BROWSER_BACK,		0x0000					},	// 0xA6 VK_BROWSER_BACK			Browser Back key
-	/* 167 */	{ VC_BROWSER_FORWARD,	VK_RMENU				},	// 0xA7 VK_BROWSER_FORWARD		Browser Forward key
+	/* 167 */	{ VC_BROWSER_FORWARD,	0x0000					},	// 0xA7 VK_BROWSER_FORWARD		Browser Forward key
 	/* 168 */	{ VC_BROWSER_REFRESH,	0x0000					},	// 0xA8 VK_BROWSER_REFRESH		Browser Refresh key
 	/* 169 */	{ VC_BROWSER_STOP,		0x0000					},	// 0xA9 VK_BROWSER_STOP			Browser Stop key
 	/* 170 */	{ VC_BROWSER_SEARCH,	0x0000					},	// 0xAA VK_BROWSER_SEARCH		Browser Search key
@@ -221,7 +221,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 183 */	{ VC_APP_CALCULATOR,	VK_SNAPSHOT				},	// 0xB7 VK_LAUNCH_APP2			Start Application 2 key
 	/* 184 */	{ VC_UNDEFINED,			VK_RMENU				},	// 0xB8							Reserved
 	/* 185 */	{ VC_UNDEFINED,			0x0000					},	// 0xB9							Reserved
-	/* 186 */	{ VC_UNDEFINED,			0x0000					},	// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
+	/* 186 */	{ VC_SEMICOLON,			0x0000					},	// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
 	/* 187 */	{ VC_EQUALS,			0x0000					},	// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
 	/* 188 */	{ VC_COMMA,				0x0000					},	// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
 	/* 189 */	{ VC_MINUS,				0x0000					},	// 0xBD VK_OEM_MINUS			For any country/region, the '-' key

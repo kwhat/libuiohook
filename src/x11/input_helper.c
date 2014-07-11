@@ -224,7 +224,7 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 139 */	{ VC_UNDEFINED,			0						},	// 0x91
 	/* 140 */	{ VC_APP_CALCULATOR,	0						},	// 0x92
 	/* 141 */	{ VC_UNDEFINED,			KEY_KPEQUAL				},	// 0x93
-	/* 142 */	{ VC_UNDEFINED,			0						},	// 0x94
+	/* 142 */	{ VC_SLEEP,				0						},	// 0x94
 	/* 143 */	{ VC_UNDEFINED,			0						},	// 0x95
 	/* 144 */	{ VC_UNDEFINED,			0						},	// 0x96
 	/* 145 */	{ VC_UNDEFINED,			0						},	// 0x97
@@ -257,7 +257,7 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 172 */	{ VC_UNDEFINED,			0						},	// 0xB3
 	/* 173 */	{ VC_UNDEFINED,			0						},	// 0xB4
 	/* 174 */	{ VC_UNDEFINED,			KEY_VOLUMEDOWN			},	// 0xB5
-	/* 175 */	{ VC_UNDEFINED,			KEY_SLEEP				},	// 0xB6
+	/* 175 */	{ VC_UNDEFINED,			0						},	// 0xB6
 	/* 176 */	{ VC_UNDEFINED,			KEY_VOLUMEUP			},	// 0xB7
 	/* 177 */	{ VC_BROWSER_HOME,		0x00					},	// 0xB8
 	/* 178 */	{ VC_UNDEFINED,			KEY_SCROLLUP 			},	// 0xB9
@@ -305,7 +305,7 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 220 */	{ VC_UNDEFINED,			KEY_RIGHTMETA 			},	// 0xE3
 	/* 221 */	{ VC_UNDEFINED,			KEY_COMPOSE				},	// 0xE4
 	/* 222 */	{ VC_UNDEFINED,			KEY_POWER 				},	// 0xE5
-	/* 223 */	{ VC_UNDEFINED,			0x00					},	// 0xE6
+	/* 223 */	{ VC_UNDEFINED,			KEY_SLEEP				},	// 0xE6
 	/* 224 */	{ VC_UNDEFINED,			0x00					},	// 0xE7
 	/* 225 */	{ VC_UNDEFINED,			0x00					},	// 0xE8
 	/* 226 */	{ VC_UNDEFINED,			0x00					},	// 0xE9
@@ -549,7 +549,7 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* 193 */	{ VC_UNDEFINED,			 0						},	// <I41>	<K66>
 	/* 194 */	{ VC_UNDEFINED,			 0						},	// <I42>
 	/* 195 */	{ VC_UNDEFINED,			 0						},	// <I43>
-	/* 196 */	{ VC_UNDEFINED,			 114					},	// <I44>
+	/* 196 */	{ VC_UNDEFINED,			 0						},	// <I44>	// 114 <BRK>?
 	/* 197 */	{ VC_UNDEFINED,			 110					},	// <I45>
 	/* 198 */	{ VC_UNDEFINED,			 0						},	// <I46>	<K67>
 	/* 199 */	{ VC_UNDEFINED,			 97						},	// <I47>	<K68>
@@ -1606,7 +1606,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 			scancode = (scancode & 0x007F) + 128;
 
 			#ifdef __OPTIMIZE_SIZE__
-			scancode -= 89;
+			scancode -= 97;
 			#endif
 
 			if (scancode < evdev_size) {

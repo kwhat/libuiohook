@@ -126,11 +126,15 @@ typedef struct tagKbdLayer {
 	DWORD dwSubType;
 } KBDTABLES, *PKBDTABLES;				// __ptr64
 
-// FIXME Where are the other methods?  The Unicode to VK stuff?  Consistent Naming?!
-extern unsigned short convert_vk_to_scancode(DWORD vk_code);
-extern DWORD convert_scancode_to_vk(unsigned short scancode);
 
-extern int convert_vk_to_wchar(int virtualKey, PWCHAR out);
+extern int keysym_to_unicode(int virtualKey, PWCHAR out);
+
+// FIXME Implement!
+//extern KeySym unicode_to_keysym(wchar_t unicode);
+
+extern unsigned short keycode_to_scancode(DWORD vk_code);
+
+extern DWORD scancode_to_keycode(unsigned short scancode);
 
 // Initialize the locale list and wow64 pointer size.
 extern int load_input_helper();

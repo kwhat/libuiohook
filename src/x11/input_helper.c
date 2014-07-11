@@ -208,7 +208,7 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 126 */	{ VC_META_R,			KEY_KPJPCOMMA			},	// 0x7E
 	/* 127 */	{ VC_CONTEXT_MENU,		0x00					},	// 0x7F
 
-	//			No Offset				Offset (i & 0x00FF) + 128
+	//			No Offset				Offset (i & 0x007F) + 128
 
 	/* 128 */	{ VC_SUN_STOP,			0						},	// 0x86
 	/* 129 */	{ VC_SUN_AGAIN,			0						},	// 0x87
@@ -1604,7 +1604,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 		}
 		else {
 			// Offset is the lower order bits + 128
-			scancode = (scancode & 0x00FF) + 128;
+			scancode = (scancode & 0x007F) + 128;
 
 			#ifdef __OPTIMIZE_SIZE__
 			scancode -= 89;
@@ -1637,7 +1637,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 			}
 			else {
 				// Offset: lower order bits + 128 (If no size optimization!)
-				scancode = (scancode & 0x00FF) + 128;
+				scancode = (scancode & 0x007F) + 128;
 
 				#ifdef __OPTIMIZE_SIZE__
 				scancode -= 88;

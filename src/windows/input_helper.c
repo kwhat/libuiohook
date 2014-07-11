@@ -161,7 +161,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 126 */	{ VC_F15,				0x0000					},	// 0x7E VK_F15					F15 key
 	/* 127 */	{ VC_F16,				0x0000					},	// 0x7F VK_F16					F16 key
 
-	//			No Offset				Offset (i & 0x00FF) + 128
+	//			No Offset				Offset (i & 0x007F) + 128
 
 	/* 128 */	{ VC_F17,				0x0000					},	// 0x80 VK_F17					F17 key
 	/* 129 */	{ VC_F18,				0x0000					},	// 0x81 VK_F18					F18 key
@@ -293,7 +293,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 255 */	{ VC_UNDEFINED,			0x0000					}	// 0xFE							Unassigned
 };
 
-unsigned short convert_vk_to_scancode(DWORD vk_code) {
+unsigned short keycode_to_scancode(DWORD vk_code) {
 	unsigned short scancode = VC_UNDEFINED;
 
 	// Check the vk_code is in range.
@@ -305,17 +305,17 @@ unsigned short convert_vk_to_scancode(DWORD vk_code) {
 	return scancode;
 }
 
-DWORD convert_scancode_to_vk(unsigned short scancode) {
+DWORD scancode_to_keycode(unsigned short scancode) {
 	unsigned short vk_code = 0x00;
 
 	// Check the vk_code is in range.
 	// NOTE vk_code >= 0 is assumed because the scancode is unsigned.
-	if (scancode < 127) {
+	if (scancode < 128) {
 		vk_code = keycode_scancode_table[scancode][1];
 	}
 	else {
 		// Calculate the upper offset.
-		unsigned short int i = (scancode & 0xFF) + 128;
+		unsigned short int i = (scancode & 0x007F) + 128;
 
 		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 			vk_code = keycode_scancode_table[i][1];
@@ -599,7 +599,7 @@ static int refresh_locale_list() {
 	return count;
 }
 
-int convert_vk_to_wchar(int virtualKey, PWCHAR outputChar) {
+int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 	// Get the thread id that currently has focus and
 	DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
 	HKL locale_id = GetKeyboardLayout(focus_pid);

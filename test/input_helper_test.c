@@ -74,17 +74,16 @@ static char * test_bidirectional_scancode() {
 		// If the returned virtual scancode > 127, we used an offset to
 		// calculate the keycode index used above.
 		if (scancode > 127) {
-			printf("\t\tusing offset\t%3u\t[0x%04X]\n", (scancode & 0x7F) | 0x80, (scancode & 0x7F) | 0x80);
+			// Fix the scancode for upper offsets.
+			scancode = (scancode & 0x7F) | 0x80;
+			printf("\t\tusing offset\t%3u\t[0x%04X]\n", scancode, scancode);
 		}
 
 		printf("\n");
 
-		//0xFF00 | (i1 % 128)
-
-
-		//if (keycode != VC_UNDEFINED) {
+		if (keycode != 0x0000) {
 			mu_assert("error, scancode to keycode failed to convert back", i == scancode);
-		//}
+		}
 	}
 
 	return NULL;

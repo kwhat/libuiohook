@@ -19,7 +19,8 @@
 ACLOCAL_AMFLAGS = -I m4
 
 HOOK_SRC = src/logger.c
-TEST_SRC = 
+TEST_SRC = test/input_helper_test.c test/system_properties_test.c test/uiohook_test.c 
+
 if BUILD_DARWIN
 HOOK_SRC += src/darwin/hook_callback.c \
 	 src/darwin/hook_thread.c \
@@ -34,7 +35,6 @@ HOOK_SRC += src/x11/hook_callback.c \
 	 src/x11/input_helper.c \
 	 src/x11/post_event.c \
 	 src/x11/system_properties.c
-TEST_SRC += test/x11/input_helper_test.c
 endif
 
 if BUILD_WINDOWS
@@ -43,7 +43,6 @@ HOOK_SRC += src/windows/hook_callback.c \
 	 src/windows/input_helper.c \
 	 src/windows/post_event.c \
 	 src/windows/system_properties.c
-TEST_SRC += test/windows/input_helper_test.c
 endif
 
 pkgconfigdir = $(libdir)/pc

@@ -160,14 +160,14 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
 
-			/* Replaced by convert_vk_to_scancode
+			/* Replaced by keycode_to_scancode
 			event.data.keyboard.keycode = kbhook->scanCode;
 			if (kbhook->flags & 0x03) {
 				// This is a bit of a hack, but it seems to work and it is fast.
 				event.data.keyboard.keycode |= (UINT8) ((kbhook->flags ^ 0x0F) & 0x0F) << 8;
 			}
 			*/
-			event.data.keyboard.keycode = convert_vk_to_scancode(kbhook->vkCode);
+			event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
 
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
@@ -177,7 +177,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			dispatch_event(&event);
 
 			// If the pressed event was not consumed and a wchar exists...
-			int type_count = convert_vk_to_wchar(kbhook->vkCode, &keywchar);
+			int type_count = keysym_to_unicode(kbhook->vkCode, &keywchar);
 			for (int i = 0; event.reserved ^ 0x01 && i < type_count; i++) {
 				// Fire key typed event.
 				event.type = EVENT_KEY_TYPED;
@@ -209,14 +209,14 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
-			/* Replaced by convert_vk_to_scancode
+			/* Replaced by keycode_to_scancode
 			event.data.keyboard.keycode = kbhook->scanCode;
 			if (kbhook->flags & 0x03) {
 				// This is a bit of a hack, but it seems to work and it is fast.
 				event.data.keyboard.keycode |= (UINT8) ((kbhook->flags ^ 0x0F) & 0x0F) << 8;
 			}
 			*/
-			event.data.keyboard.keycode = convert_vk_to_scancode(kbhook->vkCode);
+			event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
 
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;

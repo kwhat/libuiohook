@@ -25,45 +25,45 @@
 
 int tests_run = 0;
 
-static char * test_bidirectional_keycode() {
+char * test_bidirectional_keycodes() {
 
-	for (unsigned short i1 = 7; i1 < 256; i1++) {
+	for (unsigned short i1 = 0; i1 < 256; i1++) {
 		printf("Testing keycode %u (%#X)...\n", i1, i1);
 
-		uint16_t scancode = convert_vk_to_scancode(i1);
-		if (i1 < 16 || i1 > 18) {
-			if (scancode > 127) {
-				printf("\tproduced scancode offset %u %#X\n", (scancode & 0xFF) + 128, scancode);
-			}
-			else {
-				printf("\tproduced scancode %u %#X\n", scancode, scancode);
-			}
+		uint16_t scancode = keycode_to_scancode(i1);
+		if (scancode > 127) {
+			printf("\tproduced scancode offset %u %#X\n", (scancode & 0xFF) + 128, scancode);
+		}
+		else {
+			printf("\tproduced scancode %u %#X\n", scancode, scancode);
+		}
 
-			DWORD i2 = convert_scancode_to_vk(scancode);
-			printf("\treproduced keycode %u\n", i2);
+		UInt64 i2 = scancode_to_keycode(scancode);
+		printf("\treproduced keycode %lu\n", (long unsigned int) i2);
 
-			if (scancode != VC_UNDEFINED) {
-				mu_assert("error, scancode to keycode failed to convert back", i1 == i2);
-			}
+		if (scancode != VC_UNDEFINED) {
+			mu_assert("error, keycode to scancode failed to convert back", i1 == i2);
 		}
 	}
 
 	return 0;
 }
 
-static char * test_bidirectional_scancode() {
+char * test_bidirectional_scancodes() {
 
 	for (unsigned short i1 = 0; i1 < 256; i1++) {
-		printf("Testing keycode %u...\n", i1);
+		printf("Testing scancode %u...\n", i1);
 
-		KeyCode keycode = scancode_to_keycode(i1);
-		printf("\tproduced scancode %u %#X\n", keycode, keycode);
+		UInt64 keycode = scancode_to_keycode(i1);
+		printf("\tproduced keycode %lu %#lX\n", (long unsigned int) keycode, (long unsigned int) keycode);
 
 		uint16_t i2 = keycode_to_scancode(keycode);
-		i2 = (i2 & 0x00FF) + 128;
-		printf("\treproduced keycode %u\n", i2);
+		if (i2 > 127) {
+			i2 = (i2 & 0x00FF) + 128;
+		}
+		printf("\treproduced scancode %u\n", i2);
 
-		if (scancode != VC_UNDEFINED) {
+		if (keycode != kVK_Undefined) {
 			mu_assert("error, scancode to keycode failed to convert back", i1 == i2);
 		}
 	}
@@ -71,8 +71,10 @@ static char * test_bidirectional_scancode() {
 	return 0;
 }
 
+
  static char * all_tests() {
-     mu_run_test(test_bidirectional_keycode test_bidirectional_scancodes);
+     mu_run_test(test_bidirectional_keycodes);
+	 mu_run_test(test_bidirectional_scancodes);
 
      return NULL;
  }

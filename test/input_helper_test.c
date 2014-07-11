@@ -23,15 +23,14 @@
 #include "minunit.h"
 #include "uiohook.h"
 
-int tests_run = 0;
-
 static char * test_bidirectional_keycode() {
+	for (unsigned short i1 = 0; i1 < 256; i1++) {
+		printf("Testing keycode %u...\n", i1);
 
-	for (unsigned short i1 = 7; i1 < 256; i1++) {
-		printf("Testing keycode %u (%#X)...\n", i1, i1);
-
-		uint16_t scancode = convert_vk_to_scancode(i1);
-		if (i1 < 16 || i1 > 18) {
+		#ifdef _WIN32
+		if ((i1 > 6 && i1 < 16) || i1 > 18) {
+		#endif
+			uint16_t scancode = keycode_to_scancode(i1);
 			if (scancode > 127) {
 				printf("\tproduced scancode offset %u %#X\n", (scancode & 0xFF) + 128, scancode);
 			}
@@ -39,60 +38,55 @@ static char * test_bidirectional_keycode() {
 				printf("\tproduced scancode %u %#X\n", scancode, scancode);
 			}
 
-			DWORD i2 = convert_scancode_to_vk(scancode);
+			uint16_t i2 = (uint16_t) scancode_to_keycode(scancode);
 			printf("\treproduced keycode %u\n", i2);
 
 			if (scancode != VC_UNDEFINED) {
 				mu_assert("error, scancode to keycode failed to convert back", i1 == i2);
 			}
+		#ifdef _WIN32
 		}
+		#endif
 	}
 
-	return 0;
+	return NULL;
 }
 
 static char * test_bidirectional_scancode() {
-
 	for (unsigned short i1 = 0; i1 < 256; i1++) {
-		printf("Testing keycode %u...\n", i1);
+		printf("Testing scancode %u...\n", i1);
+		
+		uint16_t keycode;
+		if (i1 < 128) {
+			// Lower 0-127
+			keycode = (uint16_t) scancode_to_keycode(i1);
+		}
+		else {
+			// Upper 128-255
+			keycode = (uint16_t) scancode_to_keycode(0xFF00 | (i1 % 128));
+		}
+		printf("\tproduced keycode %u %#X\n", keycode, keycode);
 
-		KeyCode keycode = scancode_to_keycode(i1);
-		printf("\tproduced scancode %u %#X\n", keycode, keycode);
-
+		// Convert native keycode back to a virtual scancode.
 		uint16_t i2 = keycode_to_scancode(keycode);
-		i2 = (i2 & 0x00FF) + 128;
-		printf("\treproduced keycode %u\n", i2);
+		// Pull the scancode back into range.
+		if (i2 > 127) {
+			i2 = (i2 & 0x007F) + 128;
+		}
 
-		if (scancode != VC_UNDEFINED) {
+		printf("\treproduced scancode %u\n", i2);
+
+		if (keycode != VC_UNDEFINED) {
 			mu_assert("error, scancode to keycode failed to convert back", i1 == i2);
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
- static char * all_tests() {
-     mu_run_test(test_bidirectional_keycode test_bidirectional_scancodes);
+char * input_helper_tests() {
+	mu_run_test(test_bidirectional_keycode);
+	mu_run_test(test_bidirectional_scancode);
 
-     return NULL;
- }
-
-int main() {
-	int status = 1;
-	
-	load_input_helper();
-
-	char *result = all_tests();
-	if (result != NULL) {
-		status = 0;
-		printf("%s\n", result);
-	}
-	else {
-		printf("ALL TESTS PASSED\n");
-	}
-	printf("Tests run: %d\n", tests_run);
-
-	unload_input_helper();
-
-	return status;
+	return NULL;
 }

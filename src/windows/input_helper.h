@@ -20,8 +20,8 @@
  * The following code is based on code provided by Marc-André Moreau
  * to work around a failure to support dead keys in the ToUnicode() API.
  * According to the author some parts were taken directly from
- * Microsoft's  kbd.h header file that is shipped with the Windows
- * Driver Development Kit.
+ * Microsoft's kbd.h header file that is shipped with the Windows Driver
+ * Development Kit.
  *
  * The original code was substantially modified to provide the following:
  *   1) More dynamic code structure.
@@ -32,8 +32,8 @@
  * I have contacted Marc-André Moreau who has granted permission for
  * his original source code to be used under the Public Domain.  Although
  * the libUIOHook library as a whole is currently covered under the LGPLv3,
- * please feel free to use and learn from the source code contained in this
- * file under the terms of the Public Domain.
+ * please feel free to use and learn from the source code contained in the
+ * following functions under the terms of the Public Domain.
  *
  * For further reading and the original code, please visit:
  *   http://legacy.docdroppers.org/wiki/index.php?title=Writing_Keyloggers
@@ -41,8 +41,8 @@
  *
  ***********************************************************************/
 
-#ifndef _included_win_unicode_helper
-#define _included_win_unicode_helper
+#ifndef _included_input_helper
+#define _included_input_helper
 
 #include <windows.h>
 #include <limits.h>
@@ -80,7 +80,7 @@ typedef struct _VK_TO_BIT {
 } VK_TO_BIT, *PVK_TO_BIT;
 
 typedef struct _MODIFIERS {
-	PVK_TO_BIT pVkToBit; // __ptr64
+	PVK_TO_BIT pVkToBit;				// __ptr64
 	WORD wMaxModBits;
 	BYTE ModNumber[];
 } MODIFIERS, *PMODIFIERS;
@@ -91,8 +91,7 @@ typedef struct _VSC_VK {
 } VSC_VK, *PVSC_VK;
 
 typedef struct _VK_TO_WCHAR_TABLE {
-	//PVK_TO_WCHARS1 pVkToWchars; // __ptr64
-	PVK_TO_WCHARS pVkToWchars; // __ptr64
+	PVK_TO_WCHARS pVkToWchars;			// __ptr64
 	BYTE nModifications;
 	BYTE cbSize;
 } VK_TO_WCHAR_TABLE, *PVK_TO_WCHAR_TABLE;
@@ -105,32 +104,42 @@ typedef struct _DEADKEY {
 
 typedef struct _VSC_LPWSTR {
 	BYTE vsc;
-	WCHAR *pwsz; // __ptr64
+	WCHAR *pwsz;						// __ptr64
 } VSC_LPWSTR, *PVSC_LPWSTR;
 
 typedef struct tagKbdLayer {
-	PMODIFIERS pCharModifiers; // __ptr64
-	PVK_TO_WCHAR_TABLE pVkToWcharTable; // __ptr64
-	PDEADKEY pDeadKey; // __ptr64
-	PVSC_LPWSTR pKeyNames; // __ptr64
-	PVSC_LPWSTR pKeyNamesExt; // __ptr64
-	WCHAR **pKeyNamesDead; // __ptr64
-	USHORT *pusVSCtoVK; // __ptr64
+	PMODIFIERS pCharModifiers;			// __ptr64
+	PVK_TO_WCHAR_TABLE pVkToWcharTable;	// __ptr64
+	PDEADKEY pDeadKey;					// __ptr64
+	PVSC_LPWSTR pKeyNames;				// __ptr64
+	PVSC_LPWSTR pKeyNamesExt;			// __ptr64
+	WCHAR **pKeyNamesDead;				// __ptr64
+	USHORT *pusVSCtoVK;					// __ptr64
 	BYTE bMaxVSCtoVK;
-	PVSC_VK pVSCtoVK_E0; // __ptr64
-	PVSC_VK pVSCtoVK_E1; // __ptr64
+	PVSC_VK pVSCtoVK_E0;				// __ptr64
+	PVSC_VK pVSCtoVK_E1;				// __ptr64
 	DWORD fLocaleFlags;
 	BYTE nLgMax;
 	BYTE cbLgEntry;
-	//PLIGATURE1 pLigature; // __ptr64
-	PLIGATURE pLigature; // __ptr64
+	PLIGATURE pLigature;				// __ptr64
 	DWORD dwType;
 	DWORD dwSubType;
-} KBDTABLES, *PKBDTABLES; // __ptr64
+} KBDTABLES, *PKBDTABLES;				// __ptr64
 
-int load_input_helper();
-int unload_input_helper();
-int convert_vk_to_wchar(int virtualKey, PWCHAR out);
-unsigned short convert_vk_to_scancode(DWORD vk_code);
+
+extern int keysym_to_unicode(int virtualKey, PWCHAR out);
+
+// FIXME Implement!
+//extern KeySym unicode_to_keysym(wchar_t unicode);
+
+extern unsigned short keycode_to_scancode(DWORD vk_code);
+
+extern DWORD scancode_to_keycode(unsigned short scancode);
+
+// Initialize the locale list and wow64 pointer size.
+extern int load_input_helper();
+
+// Cleanup the initialized locales.
+extern int unload_input_helper();
 
 #endif

@@ -80,8 +80,12 @@ static char * test_bidirectional_scancode() {
 		}
 
 		printf("\n");
-
+		
+		#if defined(__APPLE__) && defined(__MACH__)
+		if (keycode != 255) {
+		#else
 		if (keycode != 0x0000) {
+		#endif	
 			mu_assert("error, scancode to keycode failed to convert back", i == scancode);
 		}
 	}

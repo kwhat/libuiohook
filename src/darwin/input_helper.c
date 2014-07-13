@@ -507,7 +507,6 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 218 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDA
 	/* 219 */	{ VC_UNDEFINED,			kVK_Command				},	// 0xDB
 	/* 220 */	{ VC_UNDEFINED,			kVK_RightCommand		},	// 0xDC
-	#ifndef __OPTIMIZE_SIZE__
 	/* 221 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDD
 	/* 222 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDE
 	/* 223 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDF
@@ -543,7 +542,6 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 253 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xFD
 	/* 254 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xFE
 	/* 255 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xFF
-	#endif
 };
 
 uint16_t keycode_to_scancode(UInt64 keycode) {

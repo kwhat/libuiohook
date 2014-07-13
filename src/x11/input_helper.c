@@ -439,8 +439,8 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/*  84 */	{ VC_KP_5,				 0						},	//
 	/*  85 */	{ VC_KP_6,				 0						},	//
 	/*  86 */	{ VC_KP_ADD,			 0						},	//
-	/*  87 */	{ VC_KP_1,				 95						},	//
-	/*  88 */	{ VC_KP_2,				 96						},
+	/*  87 */	{ VC_KP_1,				 95		/* <FK11>  */	},	//
+	/*  88 */	{ VC_KP_2,				 96		/* <FK12>  */	},
 	/*  89 */	{ VC_KP_3,				 0						},
 	/*  90 */	{ VC_KP_0,				 0						},
 	/*  91 */	{ VC_KP_SEPARATOR,		 118	/* <FK13>  */	},
@@ -449,6 +449,16 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/*  94 */	{ VC_UNDEFINED,			 0						},
 	/*  95 */	{ VC_F11,				 0						},
 	/*  96 */	{ VC_F12,				 0						},
+	#else
+	// Add extra padding for F13-15 because scancode lookups are out of range.
+	/*  89 */	{ VC_UNDEFINED,			 0						},
+	/*  90 */	{ VC_UNDEFINED,			 0						},
+	/*  91 */	{ VC_UNDEFINED,			 118	/* <FK13>  */	},
+	/*  92 */	{ VC_UNDEFINED,			 119	/* <FK14>  */	},
+	/*  93 */	{ VC_UNDEFINED,			 120	/* <FK15>  */	},
+	/*  94 */	{ VC_UNDEFINED,			 0						},
+	/*  95 */	{ VC_UNDEFINED,			 0						},
+	/*  96 */	{ VC_UNDEFINED,			 0						},
 	#endif
 	/*  97 */	{ VC_HOME,				 0						},
 	/*  98 */	{ VC_UP,				 0						},
@@ -552,7 +562,7 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* 196 */	{ VC_UNDEFINED,			 0						},	// <I44>	// 114 <BRK>?
 	/* 197 */	{ VC_UNDEFINED,			 110					},	// <I45>
 	/* 198 */	{ VC_UNDEFINED,			 0						},	// <I46>	<K67>
-	/* 199 */	{ VC_UNDEFINED,			 97						},	// <I47>	<K68>
+	/* 199 */	{ VC_UNDEFINED,			 97		/* <HOME>   */	},	// <I47>	<K68>
 	/* 200 */	{ VC_UNDEFINED,			 98						},	// <I48>	<K69>
 	/* 201 */	{ VC_UNDEFINED,			 99						},	// <I49>	<K6A>
 	/* 202 */	{ VC_UNDEFINED,			 0						},	// <I4A
@@ -575,6 +585,7 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* 219 */	{ VC_UNDEFINED,			 115	/* <LWIN>   */	},	// <I5B>	<K74>
 	/* 220 */	{ VC_UNDEFINED,			 116	/* <RWIN>   */	},	// <I5C>	<K75>
 	/* 221 */	{ VC_UNDEFINED,			 117	/* <MENU>   */	},	// <I5D>	<K76>
+	#ifndef __OPTIMIZE_SIZE__
 	/* 222 */	{ VC_UNDEFINED,			 0						},	// <I5E>
 	/* 223 */	{ VC_UNDEFINED,			 0						},	// <I5F>
 	/* 224 */	{ VC_UNDEFINED,			 0						},	// <I60>
@@ -609,6 +620,7 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/* 253 */	{ VC_UNDEFINED,			 0						},	// <I7D>
 	/* 254 */	{ VC_UNDEFINED,			 0						},	// <I7E>
 	/* 255 */	{ VC_UNDEFINED,			 0						},	// <I7F>
+	#endif
  };
 
 
@@ -1545,13 +1557,16 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 			// No conversion required.
 			scancode = keycode;
 		}
-		else if (keycode < evdev_size) {
-			#ifdef __OPTIMIZE_SIZE__
+		#ifdef __OPTIMIZE_SIZE__
+		else if (keycode - 89 < evdev_size) {
 			keycode -= 89;
-			#endif
-
 			scancode = evdev_scancode_table[keycode][0];
 		}
+		#else
+		else if (keycode < evdev_size) {
+			scancode = evdev_scancode_table[keycode][0];
+		}
+		#endif
 	}
 	else {
 		// Evdev was disabled, fallback to XFree86.
@@ -1566,13 +1581,16 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 				scancode = xfree86_scancode_table[keycode][0];
 				#endif
 			}
-			else if (keycode < xfree86_size) {
-				#ifdef __OPTIMIZE_SIZE__
-				keycode -= 97;
-				#endif
-
+			#ifdef __OPTIMIZE_SIZE__
+			else if (keycode - (97 - 8) > 0 && keycode - (97 - 8) < xfree86_size) {
+				keycode -= (97 - 8);
 				scancode = xfree86_scancode_table[keycode][0];
 			}
+			#else
+			else if (keycode < xfree86_size) {
+				scancode = xfree86_scancode_table[keycode][0];
+			}
+			#endif
 		}
 	#if defined(USE_EVDEV) && defined(USE_XKB)
 	}
@@ -1598,17 +1616,15 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 			#ifdef __OPTIMIZE_SIZE__
 			scancode -= 89;
 			#endif
-
 			keycode = evdev_scancode_table[scancode][1];
 		}
 		else {
 			// Offset is the lower order bits + 128
-			scancode = (scancode & 0x007F) + 128;
+			scancode = (scancode & 0x007F) | 0x80;
 
 			#ifdef __OPTIMIZE_SIZE__
-			scancode -= 97;
+			scancode -= 89;
 			#endif
-
 			if (scancode < evdev_size) {
 				keycode = evdev_scancode_table[scancode][1];
 			}
@@ -1620,7 +1636,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
 		if (scancode > 0) {
-			if (scancode < 97) {
+			if (scancode < 97 - 8) {
 				#ifdef __OPTIMIZE_SIZE__
 				keycode = scancode + 8;
 				#else
@@ -1629,18 +1645,19 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 			}
 			else if (scancode < 128) {
 				#ifdef __OPTIMIZE_SIZE__
-				scancode -= 97;
+				scancode -= (97 - 8);
 				#endif
 
 				keycode = xfree86_scancode_table[scancode][1];
 			}
 			else {
 				// Offset: lower order bits + 128 (If no size optimization!)
-				scancode = (scancode & 0x007F) + 128;
+				scancode = (scancode & 0x007F) | 0x80;
 
 				#ifdef __OPTIMIZE_SIZE__
-				scancode -= 97;
+				scancode -= 97 - 8;
 				#endif
+				printf("Test %u\n", scancode);
 
 				if (scancode < xfree86_size) {
 					keycode = xfree86_scancode_table[scancode][1];

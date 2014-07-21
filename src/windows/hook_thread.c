@@ -37,6 +37,21 @@ HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
+	
+	// TODO This is a small experimental conditional to try and figure out why
+	// SetWindowsHookEx() is failing in rare instances.  Please see:
+	// https://code.google.com/p/jnativehook/issues/detail?id=43
+	if (hInst == NULL) {
+		logger(LOG_LEVEL_WARNING,	"%s [%u]: hInst was not set by DllMain()!\n",
+				__FUNCTION__, __LINE__);
+		
+		hInst = GetModuleHandle(NULL);
+		
+		if (hInst == NULL) {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
+					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
+		}
+	}
 
 	// Create the native hooks.
 	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, hook_event_proc, hInst, 0);

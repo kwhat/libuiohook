@@ -117,11 +117,17 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 }
 
 // DLL Entry point.
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
+BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
+	// FIXME This should be removed after we figure out issue #43.
+	// https://code.google.com/p/jnativehook/issues/detail?id=43
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: DLL Entry... %#X %#X %#X.\n", 
+			__FUNCTION__, __LINE__, hInstDLL, fdwReason, lpReserved);
+	
+	
 	switch (fdwReason) {
 		case DLL_PROCESS_ATTACH:
-			hInst = hinstDLL;
-			// hInst = GetModuleHandle(NULL);
+			hInst = hInstDLL;
+			
 			load_input_helper();
 			break;
 		case DLL_PROCESS_DETACH:

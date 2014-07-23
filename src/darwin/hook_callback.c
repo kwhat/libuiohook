@@ -135,16 +135,20 @@ void start_message_port_runloop() {
 		.perform			= message_port_proc
 	};
 
+	CFRunLoopRef main_loop = CFRunLoopGetMain();
+	
 	src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
-	CFRunLoopAddSource(CFRunLoopGetMain(), src_msg_port, kCFRunLoopDefaultMode);
+	CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
 			__FUNCTION__, __LINE__);
 }
 
 void stop_message_port_runloop() {
-	if (CFRunLoopContainsSource(CFRunLoopGetMain(), src_msg_port, kCFRunLoopDefaultMode)) {
-		CFRunLoopRemoveSource(CFRunLoopGetMain(), src_msg_port, kCFRunLoopDefaultMode);
+	CFRunLoopRef main_loop = CFRunLoopGetMain();
+	
+	if (CFRunLoopContainsSource(main_loop, src_msg_port, kCFRunLoopDefaultMode)) {
+		CFRunLoopRemoveSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
 		CFRelease(src_msg_port);
 	}
 

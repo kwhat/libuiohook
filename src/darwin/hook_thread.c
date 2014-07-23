@@ -81,6 +81,7 @@ static void *hook_thread_proc(void *arg) {
 										CGEventMaskBit(kCGEventTapDisabledByTimeout);
 			#endif
 
+			// Create the event tap.
 			CFMachPortRef event_port = CGEventTapCreate(
 											kCGSessionEventTap,			// kCGHIDEventTap
 											kCGHeadInsertEventTap,		// kCGTailAppendEventTap
@@ -95,6 +96,7 @@ static void *hook_thread_proc(void *arg) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
 						__FUNCTION__, __LINE__);
 
+				// Create the runloop event source from the event tap.
 				event_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, event_port, 0);
 				if (event_source != NULL) {
 					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
@@ -124,6 +126,7 @@ static void *hook_thread_proc(void *arg) {
 
 							start_message_port_runloop();
 
+							// Add the event source and observer to the runloop mode.
 							CFRunLoopAddSource(event_loop, event_source, kCFRunLoopDefaultMode);
 							CFRunLoopAddObserver(event_loop, observer, kCFRunLoopDefaultMode);
 

@@ -111,7 +111,7 @@ UIOHOOK_API int hook_enable() {
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
 		// Create event handles for the thread hook.
-		hook_control_handle = CreateEvent(NULL, TRUE, FALSE, "hook_control_handle");
+		hook_control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_control_handle"));
 
 		LPTHREAD_START_ROUTINE lpStartAddress = &hook_thread_proc;
 		hook_thread_handle = CreateThread(NULL, 0, lpStartAddress, NULL, 0, &hook_thread_id);

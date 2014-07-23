@@ -27,7 +27,7 @@
 #ifdef _WIN32
 #include <windows.h>
 
-static HANDLE hook_control_handle = NULL;
+static HANDLE control_handle = NULL;
 #else
 #if defined(__APPLE__) && defined(__MACH__)
 #include <CoreFoundation/CoreFoundation.h>
@@ -61,7 +61,7 @@ void dispatch_proc(virtual_event * const event) {
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
 				#ifdef _WIN32
 				running = false;
-				SetEvent(hook_control_handle);
+				SetEvent(control_handle);
 				#else
 				#if defined(__APPLE__) && defined(__MACH__)
 				running = false;
@@ -108,21 +108,20 @@ int main() {
 	hook_set_dispatch_proc(&dispatch_proc);
 
 	#ifdef _WIN32
-	hook_control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_control_handle"));
+	control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("control_handle"));
 	#endif
 
 	int status = hook_enable();
 	running = (status == UIOHOOK_SUCCESS);
 	while (running) {
 		#ifdef _WIN32
-		WaitForSingleObject(hook_control_handle, INFINITE);
+		WaitForSingleObject(control_handle, INFINITE);
 		#else
 		#if defined(__APPLE__) && defined(__MACH__)
-		//CFRunLoopRun();
 		SInt32 result = 0;
 		do {
 			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
-		} while (running && result != kCFRunLoopRunStopped);
+		} while (result != kCFRunLoopRunStopped);
 		#else
 		pthread_mutex_lock(&hook_control_mutex);
 		pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
@@ -136,7 +135,7 @@ int main() {
 	}
 
 	#ifdef _WIN32
-	CloseHandle(hook_control_handle);
+	CloseHandle(control_handle);
 	#endif
 
 	return status;

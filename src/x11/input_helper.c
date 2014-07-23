@@ -31,6 +31,7 @@
 #include <linux/input.h>
 static bool is_evdev = false;
 #endif
+
 #include <X11/XKBlib.h>
 static XkbDescPtr keyboard_map;
 #else
@@ -77,265 +78,268 @@ static bool is_caps_lock = false, is_shift_lock = false;
  */
 static const uint16_t evdev_scancode_table[][2] = {
 	/* idx		{ keycode,				scancode				}, */
-	/*   0 */	{ VC_UNDEFINED,			KEY_RESERVED			},
-	/*   1 */	{ VC_ESCAPE,			KEY_ESC					},
-	/*   2 */	{ VC_1,					KEY_1					},
-	/*   3 */	{ VC_2,					KEY_2					},
-	/*   4 */	{ VC_3,					KEY_3					},
-	/*   5 */	{ VC_4,					KEY_4					},
-	/*   6 */	{ VC_5,					KEY_5					},
-	/*   7 */	{ VC_6,					KEY_6					},
-	/*   8 */	{ VC_7,					KEY_7					},
-	/*   9 */	{ VC_8,					KEY_8					},
-	/*  10 */	{ VC_9,					KEY_9					},
-	/*  11 */	{ VC_0,					KEY_0					},
-	/*  12 */	{ VC_MINUS,				KEY_MINUS				},
-	/*  13 */	{ VC_EQUALS,			KEY_EQUAL				},
-	/*  14 */	{ VC_BACKSPACE,			KEY_BACKSPACE			},
-	/*  15 */	{ VC_TAB,				KEY_TAB					},
-	/*  16 */	{ VC_Q,					KEY_Q					},
-	/*  17 */	{ VC_W,					KEY_W					},
-	/*  18 */	{ VC_E,					KEY_E					},
-	/*  19 */	{ VC_R,					KEY_T					},
-	/*  20 */	{ VC_T,					KEY_R					},
-	/*  21 */	{ VC_Y,					KEY_Y					},
-	/*  22 */	{ VC_U,					KEY_U					},
-	/*  23 */	{ VC_I,					KEY_I					},
-	/*  24 */	{ VC_O,					KEY_O					},
-	/*  25 */	{ VC_P,					KEY_P					},
-	/*  26 */	{ VC_OPEN_BRACKET,		KEY_LEFTBRACE			},
-	/*  27 */	{ VC_CLOSE_BRACKET,		KEY_RIGHTBRACE			},
-	/*  28 */	{ VC_ENTER,				KEY_ENTER				},
-	/*  29 */	{ VC_CONTROL_L,			KEY_LEFTCTRL			},
-	/*  30 */	{ VC_A,					KEY_A					},
-	/*  31 */	{ VC_S,					KEY_S					},
-	/*  32 */	{ VC_D,					KEY_D					},
-	/*  33 */	{ VC_F,					KEY_F					},
-	/*  34 */	{ VC_G,					KEY_G					},
-	/*  35 */	{ VC_H,					KEY_H					},
-	/*  36 */	{ VC_J,					KEY_J					},
-	/*  37 */	{ VC_K,					KEY_K					},
-	/*  38 */	{ VC_L,					KEY_L					},
-	/*  39 */	{ VC_SEMICOLON,			KEY_SEMICOLON			},
-	/*  40 */	{ VC_QUOTE,				KEY_APOSTROPHE			},
-	/*  41 */	{ VC_BACKQUOTE,			KEY_GRAVE				},
-	/*  42 */	{ VC_SHIFT_L,			KEY_LEFTSHIFT			},
-	/*  43 */	{ VC_BACK_SLASH,		KEY_BACKSLASH			},
-	/*  44 */	{ VC_Z,					KEY_Z					},
-	/*  45 */	{ VC_X,					KEY_X					},
-	/*  46 */	{ VC_C,					KEY_C					},
-	/*  47 */	{ VC_V,					KEY_V					},
-	/*  48 */	{ VC_B,					KEY_B					},
-	/*  49 */	{ VC_N,					KEY_N					},
-	/*  50 */	{ VC_M,					KEY_M					},
-	/*  51 */	{ VC_COMMA,				KEY_COMMA				},
-	/*  52 */	{ VC_PERIOD,			KEY_DOT					},
-	/*  53 */	{ VC_SLASH,				KEY_SLASH				},
-	/*  54 */	{ VC_SHIFT_R,			KEY_RIGHTSHIFT 			},
-	/*  55 */	{ VC_KP_MULTIPLY,		KEY_KPASTERISK			},
-	/*  56 */	{ VC_ALT_L,				KEY_LEFTALT				},
-	/*  57 */	{ VC_SPACE,				KEY_SPACE				},
-	/*  58 */	{ VC_CAPS_LOCK,			KEY_CAPSLOCK			},
-	/*  59 */	{ VC_F1,				KEY_F1					},
-	/*  60 */	{ VC_F2,				KEY_F2					},
-	/*  61 */	{ VC_F3,				KEY_F3					},
-	/*  62 */	{ VC_F4,				KEY_F4					},
-	/*  63 */	{ VC_F5,				KEY_F5					},
-	/*  64 */	{ VC_F6,				KEY_F6					},
-	/*  65 */	{ VC_F7,				KEY_F7					},
-	/*  66 */	{ VC_F8,				KEY_F8					},
-	/*  67 */	{ VC_F9,				KEY_F9					},
-	/*  68 */	{ VC_F10,				KEY_F10					},
-	/*  69 */	{ VC_NUM_LOCK,			KEY_NUMLOCK				},
-	/*  70 */	{ VC_SCROLL_LOCK,		KEY_SCROLLLOCK			},
-	/*  71 */	{ VC_KP_7,				KEY_KP7					},
-	/*  72 */	{ VC_KP_8,				KEY_KP8					},
-	/*  73 */	{ VC_KP_9,				KEY_KP9					},
-	/*  74 */	{ VC_KP_SUBTRACT,		KEY_KPMINUS				},
-	/*  75 */	{ VC_KP_4,				KEY_KP4					},
-	/*  76 */	{ VC_KP_5,				KEY_KP5					},
-	/*  77 */	{ VC_KP_6,				KEY_KP6					},
-	/*  78 */	{ VC_KP_ADD,			KEY_KPPLUS				},
-	/*  79 */	{ VC_KP_1,				KEY_KP1					},
-	/*  80 */	{ VC_KP_2,				KEY_KP2					},
-	/*  81 */	{ VC_KP_3,				KEY_KP3					},
-	/*  82 */	{ VC_KP_0,				KEY_KP0					},
-	/*  83 */	{ VC_KP_SEPARATOR,		KEY_KPDOT				},
-	/*  84 */	{ VC_UNDEFINED,			0x00					},
-	/*  85 */	{ VC_UNDEFINED,			0x00					},	// TODO [KEY_ZENKAKUHANKAKU][0] == [?][1]
-	/*  86 */	{ VC_UNDEFINED,			0x00					},	// TODO [KEY_102ND][0] == [?][1]
-	/*  87 */	{ VC_F11,				KEY_F11					},
-	/*  88 */	{ VC_F12,				KEY_F12					},
-	/*  89 */	{ VC_UNDEFINED,			0x00					},	// 0x59	//	[KEY_RO][0] == VC_?
-	/*  90 */	{ VC_KATAKANA,			0x00					},	// 0x5A
-	/*  91 */	{ VC_HIRAGANA,			KEY_F13					},	// 0x5B
-	/*  92 */	{ VC_KANJI,				KEY_F14					},	// 0x5C
-	/*  93 */	{ VC_UNDEFINED,			KEY_F15					},	// 0x5D	// TODO [KEY_KATAKANAHIRAGANA][0] == [?][1]
-	/*  94 */	{ VC_UNDEFINED,			0x00					},	// 0x5E	// TODO [KEY_MUHENKAN][0] == [?][1]
-	/*  95 */	{ VC_KP_COMMA,			0x00					},	// 0x5F
-	/*  96 */	{ VC_KP_ENTER,			0x00					},	// 0x60
-	/*  97 */	{ VC_CONTROL_R,			0x00					},	// 0x61
-	/*  98 */	{ VC_KP_DIVIDE,			0x00					},	// 0x62
-	/*  99 */	{ VC_PRINTSCREEN,		KEY_F16					},	// 0x63
-	/* 100 */	{ VC_ALT_R,				KEY_F17					},	// 0x64
-	/* 101 */	{ VC_UNDEFINED,			KEY_F18					},	// 0x65	TODO [KEY_LINEFEED][0] == [?][1]
-	/* 102 */	{ VC_HOME,				KEY_F19					},	// 0x66
-	/* 103 */	{ VC_UP,				KEY_F20					},	// 0x67
-	/* 104 */	{ VC_PAGE_UP,			KEY_F21					},	// 0x68
-	/* 105 */	{ VC_LEFT,				KEY_F22					},	// 0x69
-	/* 106 */	{ VC_RIGHT,				KEY_F23					},	// 0x6A
-	/* 107 */	{ VC_END,				KEY_F24					},	// 0x6B
-	/* 108 */	{ VC_DOWN,				0x00					},	// 0x6C
-	/* 109 */	{ VC_PAGE_DOWN,			0x00					},	// 0x6D
-	/* 110 */	{ VC_INSERT,			0x00					},	// 0x6E
-	/* 111 */	{ VC_DELETE,			0x00					},	// 0x6F
-	/* 112 */	{ VC_UNDEFINED,			KEY_KATAKANA  			},	// 0x70	TODO [KEY_MACRO][0] == VC_?
-	/* 113 */	{ VC_VOLUME_MUTE,		0x00					},	// 0x71
-	/* 114 */	{ VC_VOLUME_DOWN,		0x00					},	// 0x72
-	/* 115 */	{ VC_VOLUME_UP,			0x00					},	// 0x73	TODO KEY_? = [VC_UNDERSCORE][1]
-	/* 116 */	{ VC_POWER,				0x00					},	// 0x74	TODO KEY_? = [VC_FURIGANA][1]
-	/* 117 */	{ VC_KP_EQUALS,			0x00					},	// 0x75
-	/* 118 */	{ VC_UNDEFINED,			0x00					},	// 0x76	TODO [KEY_KPPLUSMINUS][0] = VC_?
-	/* 119 */	{ VC_PAUSE,				0x00					},	// 0x77
-	/* 120 */	{ VC_UNDEFINED,			0x00					},	// 0x78	TODO [KEY_SCALE][0] = VC_?
-	/* 121 */	{ VC_UNDEFINED,			KEY_HENKAN				},	// 0x79	TODO [KEY_KPCOMMA][0] = VC_KP_COMMA?
-	/* 122 */	{ VC_UNDEFINED,			0x00					},	// 0x7A
-	/* 123 */	{ VC_UNDEFINED,			KEY_HIRAGANA			},	// 0x7B	FIXME [KEY_HANJA][0] = VC_HIRAGANA
-	/* 124 */	{ VC_YEN,				0x00					},	// 0x7C
-	/* 125 */	{ VC_META_L,			KEY_YEN					},	// 0x7D
-	/* 126 */	{ VC_META_R,			KEY_KPJPCOMMA			},	// 0x7E
-	/* 127 */	{ VC_CONTEXT_MENU,		0x00					},	// 0x7F
+	/*   0 */	{ VC_UNDEFINED,			0x00					}, /* 0x00	KEY_RESERVED */
+	/*   1 */	{ VC_UNDEFINED,			0x09					}, /* 0x01	KEY_ESC */
+	/*   2 */	{ VC_UNDEFINED,			0x0A					}, /* 0x02	KEY_1 */
+	/*   3 */	{ VC_UNDEFINED,			0x0B					}, /* 0x03	KEY_2 */
+	/*   4 */	{ VC_UNDEFINED,			0x0C					}, /* 0x04	KEY_3 */
+	/*   5 */	{ VC_UNDEFINED,			0x0D					}, /* 0x05	KEY_4 */
+	/*   6 */	{ VC_UNDEFINED,			0x0E					}, /* 0x06	KEY_5 */
+	/*   7 */	{ VC_UNDEFINED,			0x0F					}, /* 0x07	KEY_6 */
+	/*   8 */	{ VC_UNDEFINED,			0x10					}, /* 0x08	KEY_7 */
+	/*   9 */	{ VC_ESCAPE,			0x11					}, /* 0x09	KEY_8 */
+	/*  10 */	{ VC_1,					0x12					}, /* 0x0A	KEY_9 */
+	/*  11 */	{ VC_2,					0x13					}, /* 0x0B	KEY_0 */
+	/*  12 */	{ VC_3,					0x14					}, /* 0x0C	KEY_MINUS */
+	/*  13 */	{ VC_4,					0x15					}, /* 0x0D	KEY_EQUAL */
+	/*  14 */	{ VC_5,					0x16					}, /* 0x0E	KEY_BACKSPACE */
+	/*  15 */	{ VC_6,					0x17					}, /* 0x0F	KEY_TAB */
+	/*  16 */	{ VC_7,					0x18					}, /* 0x10	KEY_Q */
+	/*  17 */	{ VC_8,					0x19					}, /* 0x11	KEY_W */
+	/*  18 */	{ VC_9,					0x1A					}, /* 0x12	KEY_E */
+	/*  19 */	{ VC_0,					0x1B					}, /* 0x13	KEY_T */
+	/*  20 */	{ VC_MINUS,				0x1C					}, /* 0x14	KEY_R */
+	/*  21 */	{ VC_EQUALS,			0x1D					}, /* 0x15	KEY_Y */
+	/*  22 */	{ VC_BACKSPACE,			0x1E					}, /* 0x16	KEY_U */
+	/*  23 */	{ VC_TAB,				0x1F					}, /* 0x17	KEY_I */
+	/*  24 */	{ VC_Q,					0x20					}, /* 0x18	KEY_O */
+	/*  25 */	{ VC_W,					0x21					}, /* 0x19	KEY_P */
+	/*  26 */	{ VC_E,					0x22					}, /* 0x1A	KEY_LEFTBRACE */
+	/*  27 */	{ VC_R,					0x23					}, /* 0x1B	KEY_RIGHTBRACE */
+	/*  28 */	{ VC_T,					0x24					}, /* 0x1C	KEY_ENTER */
+	/*  29 */	{ VC_Y,					0x25					}, /* 0x1D	KEY_LEFTCTRL */
+	/*  30 */	{ VC_U,					0x26					}, /* 0x1E	KEY_A */
+	/*  31 */	{ VC_I,					0x27					}, /* 0x1F	KEY_S */
+	/*  32 */	{ VC_O,					0x28					}, /* 0x20	KEY_D */
+	/*  33 */	{ VC_P,					0x29					}, /* 0x21	KEY_F */
+	/*  34 */	{ VC_OPEN_BRACKET,		0x2A					}, /* 0x22	KEY_G */
+	/*  35 */	{ VC_CLOSE_BRACKET,		0x2B					}, /* 0x23	KEY_H */
+	/*  36 */	{ VC_ENTER,				0x2C					}, /* 0x24	KEY_J */
+	/*  37 */	{ VC_CONTROL_L,			0x2D					}, /* 0x25	KEY_K */
+	/*  38 */	{ VC_A,					0x2E					}, /* 0x26	KEY_L */
+	/*  39 */	{ VC_S,					0x2F					}, /* 0x27	KEY_SEMICOLON */
+	/*  40 */	{ VC_D,					0x30					}, /* 0x28	KEY_APOSTROPHE */
+	/*  41 */	{ VC_F,					0x31					}, /* 0x29	KEY_GRAVE */
+	/*  42 */	{ VC_G,					0x32					}, /* 0x2A	KEY_LEFTSHIFT */
+	/*  43 */	{ VC_H,					0x33					}, /* 0x2B	KEY_BACKSLASH */
+	/*  44 */	{ VC_J,					0x34					}, /* 0x2C	KEY_Z */
+	/*  45 */	{ VC_K,					0x35					}, /* 0x2D	KEY_X */
+	/*  46 */	{ VC_L,					0x36					}, /* 0x2E	KEY_C */
+	/*  47 */	{ VC_SEMICOLON,			0x37					}, /* 0x2F	KEY_V */
+	/*  48 */	{ VC_QUOTE,				0x38					}, /* 0x30	KEY_B */
+	/*  49 */	{ VC_BACKQUOTE,			0x39					}, /* 0x31	KEY_N */
+	/*  50 */	{ VC_SHIFT_L,			0x3A					}, /* 0x32	KEY_M */
+	/*  51 */	{ VC_BACK_SLASH,		0x3B					}, /* 0x33	KEY_COMMA */
+	/*  52 */	{ VC_Z,					0x3C					}, /* 0x34	KEY_DOT */
+	/*  53 */	{ VC_X,					0x3D					}, /* 0x35	KEY_SLASH */
+	/*  54 */	{ VC_C,					0x3E		 			}, /* 0x36	KEY_RIGHTSHIFT */
+	/*  55 */	{ VC_V,					0x3F					}, /* 0x37	KEY_KPASTERISK */
+	/*  56 */	{ VC_B,					0x40					}, /* 0x38	KEY_LEFTALT */
+	/*  57 */	{ VC_N,					0x41					}, /* 0x39	KEY_SPACE */
+	/*  58 */	{ VC_M,					0x42					}, /* 0x3A	KEY_CAPSLOCK */
+	/*  59 */	{ VC_COMMA,				0x43					}, /* 0x3B	KEY_F1 */
+	/*  60 */	{ VC_PERIOD,			0x44					}, /* 0x3C	KEY_F2 */
+	/*  61 */	{ VC_SLASH,				0x45					}, /* 0x3D	KEY_F3 */
+	/*  62 */	{ VC_SHIFT_R,			0x46					}, /* 0x3E	KEY_F4 */
+	/*  63 */	{ VC_KP_MULTIPLY,		0x47					}, /* 0x3F	KEY_F5 */
+	/*  64 */	{ VC_ALT_L,				0x48					}, /* 0x40	KEY_F6 */
+	/*  65 */	{ VC_SPACE,				0x49					}, /* 0x41	KEY_F7 */
+	/*  66 */	{ VC_CAPS_LOCK,			0x4A					}, /* 0x42	KEY_F8 */
+	/*  67 */	{ VC_F1,				0x4B					}, /* 0x43	KEY_F9 */
+	/*  68 */	{ VC_F2,				0x4C					}, /* 0x44	KEY_F10 */
+	/*  69 */	{ VC_F3,				0x4D					}, /* 0x45	KEY_NUMLOCK */
+	/*  70 */	{ VC_F4,				0x4E					}, /* 0x46	KEY_SCROLLLOCK */
+	/*  71 */	{ VC_F5,				0x4F					}, /* 0x47	KEY_KP7 */
+	/*  72 */	{ VC_F6,				0x50					}, /* 0x48	KEY_KP8 */
+	/*  73 */	{ VC_F7,				0x51					}, /* 0x49	KEY_KP9 */
+	/*  74 */	{ VC_F8,				0x52					}, /* 0x4A	KEY_KPMINUS */
+	/*  75 */	{ VC_F9,				0x53					}, /* 0x4B	KEY_KP4 */
+	/*  76 */	{ VC_F10,				0x54					}, /* 0x4C	KEY_KP5 */
+	/*  77 */	{ VC_NUM_LOCK,			0x55					}, /* 0x4D	KEY_KP6 */
+	/*  78 */	{ VC_SCROLL_LOCK,		0x56					}, /* 0x4E	KEY_KPPLUS */
+	/*  79 */	{ VC_KP_7,				0x57					}, /* 0x4F	KEY_KP1 */
+	/*  80 */	{ VC_KP_8,				0x58					}, /* 0x50	KEY_KP2 */
+	/*  81 */	{ VC_KP_9,				0x59					}, /* 0x51	KEY_KP3 */
+	/*  82 */	{ VC_KP_SUBTRACT,		0x5A					}, /* 0x52	KEY_KP0 */
+	/*  83 */	{ VC_KP_4,				0x5B					}, /* 0x53	KEY_KPDOT */
+	/*  84 */	{ VC_KP_5,				0x00					}, /* 0x54	*/
+	/*  85 */	{ VC_KP_6,				0x00					}, /* 0x55	TODO [KEY_ZENKAKUHANKAKU][0] == [VC_?][1] */
+	/*  86 */	{ VC_KP_ADD,			0x00					}, /* 0x56	TODO [KEY_102ND][0] == [VC_?][1] */
+	/*  87 */	{ VC_KP_1,				0x5F					}, /* 0x57	KEY_F11 */
+	/*  88 */	{ VC_KP_2,				0x60					}, /* 0x58	KEY_F12 */
+	/*  89 */	{ VC_KP_3,				0x00					}, /* 0x59	TODO [KEY_RO][0] == [VC_?][1] */
+	/*  90 */	{ VC_KP_0,				0x00					}, /* 0x5A */
+	/*  91 */	{ VC_KP_SEPARATOR,		0xBF					}, /* 0x5B	KEY_F13 */
+	/*  92 */	{ VC_UNDEFINED,			0xC0					}, /* 0x5C	KEY_F14 */
+	/*  93 */	{ VC_UNDEFINED,			0xC1					}, /* 0x5D	KEY_F15 */
+	/*  94 */	{ VC_UNDEFINED,			0x00					}, /* 0x5E	TODO [KEY_MUHENKAN][0] == [VC_?][1] */
+	/*  95 */	{ VC_F11,				0x00					}, /* 0x5F */
+	/*  96 */	{ VC_F12,				0x00					}, /* 0x60 */
 
-	//			No Offset				Offset (i & 0x007F) + 128
+	/* First 97 chars are identical to XFree86!								*/
 
-	/* 128 */	{ VC_SUN_STOP,			0						},	// 0x86
-	/* 129 */	{ VC_SUN_AGAIN,			0						},	// 0x87
-	/* 130 */	{ VC_SUN_PROPS,			0						},	// 0x88
-	/* 131 */	{ VC_SUN_UNDO,			0						},	// 0x89
-	/* 132 */	{ VC_SUN_FRONT,			0						},	// 0x8A
-	/* 133 */	{ VC_SUN_COPY,			0						},	// 0x8B
-	/* 134 */	{ VC_SUN_OPEN,			0						},	// 0x8C
-	/* 135 */	{ VC_SUN_INSERT,		0						},	// 0x8D
-	/* 136 */	{ VC_SUN_FIND,			0						},	// 0x8E
-	/* 137 */	{ VC_SUN_CUT,			0						},	// 0x8F
-	/* 138 */	{ VC_SUN_HELP,			0						},	// 0x90
-	/* 139 */	{ VC_UNDEFINED,			0						},	// 0x91
-	/* 140 */	{ VC_APP_CALCULATOR,	0						},	// 0x92
-	/* 141 */	{ VC_UNDEFINED,			KEY_KPEQUAL				},	// 0x93
-	/* 142 */	{ VC_SLEEP,				0						},	// 0x94
-	/* 143 */	{ VC_UNDEFINED,			0						},	// 0x95
-	/* 144 */	{ VC_UNDEFINED,			0						},	// 0x96
-	/* 145 */	{ VC_UNDEFINED,			0						},	// 0x97
-	/* 146 */	{ VC_UNDEFINED,			0						},	// 0x98
-	/* 147 */	{ VC_UNDEFINED,			0						},	// 0x99
-	/* 148 */	{ VC_UNDEFINED,			0						},	// 0x9A
-	/* 149 */	{ VC_UNDEFINED,			0						},	// 0x9B
-	/* 150 */	{ VC_UNDEFINED,			0						},	// 0x9C
-	/* 151 */	{ VC_UNDEFINED,			0						},	// 0x9D
-	/* 152 */	{ VC_UNDEFINED,			0						},	// 0x9F
-	/* 153 */	{ VC_UNDEFINED,			0						},	// 0xA0
-	/* 154 */	{ VC_UNDEFINED,			0						},	// 0xA1
-	/* 155 */	{ VC_UNDEFINED,			0						},	// 0xA2
-	/* 156 */	{ VC_UNDEFINED,			KEY_KPENTER				},	// 0xA3
-	/* 157 */	{ VC_UNDEFINED,			KEY_RIGHTCTRL			},	// 0xA4
-	/* 158 */	{ VC_APP_MAIL,			0						},	// 0xA5
-	/* 159 */	{ VC_MEDIA_PLAY,		0						},	// 0xA6
-	/* 160 */	{ VC_UNDEFINED,			KEY_MUTE				},	// 0xA7
-	/* 161 */	{ VC_UNDEFINED,			KEY_CALC				},	// 0xA8
-	/* 162 */	{ VC_UNDEFINED,			KEY_FORWARD				},	// 0xA9
-	/* 163 */	{ VC_UNDEFINED,			0						},	// 0xAA
-	/* 164 */	{ VC_UNDEFINED,			0						},	// 0xAB
-	/* 165 */	{ VC_UNDEFINED,			0						},	// 0xAC
-	/* 166 */	{ VC_UNDEFINED,			0						},	// 0xAD
-	/* 167 */	{ VC_UNDEFINED,			0						},	// 0xAE
-	/* 168 */	{ VC_UNDEFINED,			0						},	// 0xAF
-	/* 169 */	{ VC_UNDEFINED,			0						},	// 0xB0
-	/* 170 */	{ VC_UNDEFINED,			0						},	// 0xB1
-	/* 171 */	{ VC_UNDEFINED,			0						},	// 0xB2
-	/* 172 */	{ VC_UNDEFINED,			0						},	// 0xB3
-	/* 173 */	{ VC_UNDEFINED,			0						},	// 0xB4
-	/* 174 */	{ VC_UNDEFINED,			KEY_VOLUMEDOWN			},	// 0xB5
-	/* 175 */	{ VC_UNDEFINED,			0						},	// 0xB6
-	/* 176 */	{ VC_UNDEFINED,			KEY_VOLUMEUP			},	// 0xB7
-	/* 177 */	{ VC_BROWSER_HOME,		0x00					},	// 0xB8
-	/* 178 */	{ VC_UNDEFINED,			KEY_SCROLLUP 			},	// 0xB9
-	/* 179 */	{ VC_UNDEFINED,			0x00					},	// 0xBA
-	/* 180 */	{ VC_UNDEFINED,			0x00					},	// 0xBB
-	/* 181 */	{ VC_UNDEFINED,			KEY_KPSLASH 			},	// 0xBC
-	/* 182 */	{ VC_UNDEFINED,			0x00					},	// 0xBD
-	/* 183 */	{ VC_F13,				KEY_SYSRQ				},	// 0xBE
-	/* 184 */	{ VC_F14,				KEY_RIGHTALT			},	// 0xBF
-	/* 185 */	{ VC_F15,				0x00					},	// 0xC0
-	/* 186 */	{ VC_F16,				0x00					},	// 0xC1
-	/* 187 */	{ VC_F17,				0x00					},	// 0xC2
-	/* 188 */	{ VC_F18,				0x00					},	// 0xC3
-	/* 189 */	{ VC_F19,				0x00					},	// 0xC4
-	/* 190 */	{ VC_F20,				0x00					},	// 0xC5
-	/* 191 */	{ VC_F21,				0x00					},	// 0xC6
-	/* 192 */	{ VC_F22,				0x00					},	// 0xC7
-	/* 193 */	{ VC_F23,				0x00					},	// 0xC8
-	/* 194 */	{ VC_F24,				0x00					},	// 0xC9
-	/* 195 */	{ VC_UNDEFINED,			0x00					},	// 0xCA
-	/* 196 */	{ VC_UNDEFINED,			0x00					},	// 0xCB
-	/* 197 */	{ VC_UNDEFINED,			KEY_PAUSE				},	// 0xCC
-	/* 198 */	{ VC_UNDEFINED,			0x00					},	// 0xCD
-	/* 199 */	{ VC_UNDEFINED,			KEY_HOME				},	// 0xCE
-	/* 200 */	{ VC_UNDEFINED,			KEY_UP					},	// 0xCF
-	/* 201 */	{ VC_UNDEFINED,			KEY_PAGEUP 				},	// 0xD0
-	/* 202 */	{ VC_UNDEFINED,			0x00					},	// 0xD1
-	/* 203 */	{ VC_UNDEFINED,			KEY_LEFT				},	// 0xD2
-	/* 204 */	{ VC_UNDEFINED,			0x00					},	// 0xD3
-	/* 205 */	{ VC_UNDEFINED,			KEY_RIGHT				},	// 0xD4
-	/* 206 */	{ VC_UNDEFINED,			0x00					},	// 0xD5
-	/* 207 */	{ VC_UNDEFINED,			KEY_END					},	// 0xD6
-	/* 208 */	{ VC_UNDEFINED,			KEY_DOWN				},	// 0xD7
-	/* 209 */	{ VC_UNDEFINED,			KEY_PAGEDOWN			},	// 0xD8
-	/* 210 */	{ VC_UNDEFINED,			KEY_INSERT				},	// 0xD9
-	/* 211 */	{ VC_UNDEFINED,			KEY_DELETE 				},	// 0xDA
-	/* 212 */	{ VC_UNDEFINED,			0x00					},	// 0xDB
-	/* 213 */	{ VC_UNDEFINED,			0x00					},	// 0xDC
-	/* 214 */	{ VC_UNDEFINED,			0x00					},	// 0xDD
-	/* 215 */	{ VC_UNDEFINED,			0x00					},	// 0xDE
-	/* 216 */	{ VC_UNDEFINED,			0x00					},	// 0xDF
-	/* 217 */	{ VC_BROWSER_SEARCH,	0x00					},	// 0xE0
-	/* 218 */	{ VC_UNDEFINED,			0x00					},	// 0xE1
-	/* 219 */	{ VC_UNDEFINED,			KEY_LEFTMETA			},	// 0xE2
-	/* 220 */	{ VC_UNDEFINED,			KEY_RIGHTMETA 			},	// 0xE3
-	/* 221 */	{ VC_UNDEFINED,			KEY_COMPOSE				},	// 0xE4
-	/* 222 */	{ VC_UNDEFINED,			KEY_POWER 				},	// 0xE5
-	/* 223 */	{ VC_UNDEFINED,			KEY_SLEEP				},	// 0xE6
-	/* 224 */	{ VC_UNDEFINED,			0x00					},	// 0xE7
-	/* 225 */	{ VC_UNDEFINED,			0x00					},	// 0xE8
-	/* 226 */	{ VC_UNDEFINED,			0x00					},	// 0xE9
-	/* 227 */	{ VC_UNDEFINED,			0x00					},	// 0xEA
-	/* 228 */	{ VC_UNDEFINED,			0x00					},	// 0xEB
-	/* 229 */	{ VC_UNDEFINED,			KEY_SEARCH				},	// 0xEC
-	/* 230 */	{ VC_UNDEFINED,			0x00					},	// 0xED
-	/* 231 */	{ VC_UNDEFINED,			0x00					},	// 0xEE
-	/* 232 */	{ VC_UNDEFINED,			0x00					},	// 0xF0
-	/* 233 */	{ VC_UNDEFINED,			0x00					},	// 0xF1
-	/* 234 */	{ VC_UNDEFINED,			0x00					},	// 0xF2
-	/* 235 */	{ VC_UNDEFINED,			0x00					},	// 0xF3
-	/* 236 */	{ VC_UNDEFINED,			KEY_BACK 				},	// 0xF4
-	/* 237 */	{ VC_UNDEFINED,			0x00					},	// 0xF5
-	/* 238 */	{ VC_UNDEFINED,			0x00					},	// 0xF6
-	/* 239 */	{ VC_UNDEFINED,			0x00					},	// 0xF7
-	/* 240 */	{ VC_UNDEFINED,			0x00					},	// 0xF8
-	/* 241 */	{ VC_UNDEFINED,			0x00					},	// 0xF8
-	/* 242 */	{ VC_UNDEFINED,			0x00					},	// 0xF9
-	/* 243 */	{ VC_UNDEFINED,			0x00					},	// 0xFA
-	/* 244 */	{ VC_UNDEFINED,			KEY_OPEN 				},	// 0xFB
-	/* 245 */	{ VC_UNDEFINED,			KEY_HELP				},	// 0xFC
-	/* 246 */	{ VC_UNDEFINED,			KEY_PROPS				},	// 0xFD
-	/* 247 */	{ VC_UNDEFINED,			KEY_FRONT				},	// 0xFE
-	/* 248 */	{ VC_UNDEFINED,			KEY_STOP 				},	// 0xFF
-	/* 249 */	{ VC_UNDEFINED,			KEY_AGAIN 				},	// 0xF8
-	/* 250 */	{ VC_UNDEFINED,			KEY_UNDO				},	// 0xF8
-	/* 251 */	{ VC_UNDEFINED,			KEY_CUT					},	// 0xF8
-	/* 252 */	{ VC_UNDEFINED,			KEY_COPY				},	// 0xF8
-	/* 253 */	{ VC_UNDEFINED,			KEY_PASTE				},	// 0xF8
-	/* 254 */	{ VC_UNDEFINED,			KEY_FIND				},	// 0xF8
-	/* 255 */	{ VC_UNDEFINED,			0x00					},	// 0xF8
+	/*  97 */	{ VC_UNDEFINED,			0x00					}, /* 0x61 */
+	/*  98 */	{ VC_KATAKANA,			0x00					}, /* 0x62 */
+	/*  99 */	{ VC_HIRAGANA,			0xC2					}, /* 0x63	KEY_F16 */
+	/* 100 */	{ VC_KANJI,				0xC3					}, /* 0x64	KEY_F17 */
+	/* 101 */	{ VC_UNDEFINED,			0xC4					}, /* 0x65	KEY_F18 */
+	/* 102 */	{ VC_UNDEFINED,			0xC5					}, /* 0x66	KEY_F19 */
+	/* 103 */	{ VC_KP_COMMA,			0xC6					}, /* 0x67	KEY_F20 */
+	/* 104 */	{ VC_KP_ENTER,			0xC7					}, /* 0x68	KEY_F21 */
+	/* 105 */	{ VC_CONTROL_R,			0xC8					}, /* 0x69	KEY_F22 */
+	/* 106 */	{ VC_KP_DIVIDE,			0xC9					}, /* 0x6A	KEY_F23 */
+	/* 107 */	{ VC_PRINTSCREEN,		0xCA					}, /* 0x6B	KEY_F24 */
+	/* 108 */	{ VC_ALT_R,				0x00					}, /* 0x6C */
+	/* 109 */	{ VC_UNDEFINED,			0x00					}, /* 0x6D */
+	/* 110 */	{ VC_HOME,				0x00					}, /* 0x6E */
+	/* 111 */	{ VC_UP,				0x00					}, /* 0x6F */
+	/* 112 */	{ VC_PAGE_UP,			0x62					}, /* 0x70	KEY_KATAKANA */
+	/* 113 */	{ VC_LEFT,				0x00					}, /* 0x71 */
+	/* 114 */	{ VC_RIGHT,				0x00					}, /* 0x72 */
+	/* 115 */	{ VC_END,				0x00					}, /* 0x73	TODO KEY_? = [VC_UNDERSCORE][1] */
+	/* 116 */	{ VC_DOWN,				0x00					}, /* 0x74	TODO KEY_? = [VC_FURIGANA][1] */
+	/* 117 */	{ VC_PAGE_DOWN,			0x00					}, /* 0x75 */
+	/* 118 */	{ VC_INSERT,			0x00					}, /* 0x76	TODO [KEY_KPPLUSMINUS][0] = [VC_?][1] */
+	/* 119 */	{ VC_DELETE,			0x00					}, /* 0x77 */
+	/* 120 */	{ VC_UNDEFINED,			0x00					}, /* 0x78	TODO [KEY_SCALE][0] = [VC_?][1] */
+	/* 121 */	{ VC_VOLUME_MUTE,		0x64					}, /* 0x79	KEY_HENKAN */
+	/* 122 */	{ VC_VOLUME_DOWN,		0x00					}, /* 0x7A */
+	/* 123 */	{ VC_VOLUME_UP,			0x63					}, /* 0x7B	KEY_HIRAGANA */
+	/* 124 */	{ VC_POWER,				0x00					}, /* 0x7C */
+	/* 125 */	{ VC_KP_EQUALS,			0x84					}, /* 0x7D	KEY_YEN */
+	/* 126 */	{ VC_UNDEFINED,			0x67					}, /* 0x7E	KEY_KPJPCOMMA */
+	/* 127 */	{ VC_PAUSE,				0x00					}, /* 0x7F */
+
+	/*			No Offset				Offset (i & 0x007F) + 128			*/
+
+	/* 128 */	{ VC_UNDEFINED,			0						}, /* 0x80 */
+	/* 129 */	{ VC_UNDEFINED,			0						}, /* 0x81 */
+	/* 130 */	{ VC_UNDEFINED,			0						}, /* 0x82 */
+	/* 131 */	{ VC_UNDEFINED,			0						}, /* 0x83 */
+	/* 132 */	{ VC_YEN,				0						}, /* 0x84 */
+	/* 133 */	{ VC_META_L,			0						}, /* 0x85 */
+	/* 134 */	{ VC_META_R,			0						}, /* 0x86 */
+	/* 135 */	{ VC_CONTEXT_MENU,		0						}, /* 0x87 */
+	/* 136 */	{ VC_SUN_STOP,			0						}, /* 0x88 */
+	/* 137 */	{ VC_SUN_AGAIN,			0						}, /* 0x89 */
+	/* 138 */	{ VC_SUN_PROPS,			0						}, /* 0x8A */
+	/* 139 */	{ VC_SUN_UNDO,			0						}, /* 0x8B */
+	/* 140 */	{ VC_SUN_FRONT,			0						}, /* 0x8C */
+	/* 141 */	{ VC_SUN_COPY,			0x7D					}, /* 0x8D	KEY_KPEQUAL */
+	/* 142 */	{ VC_SUN_OPEN,			0						}, /* 0x8E */
+	/* 143 */	{ VC_SUN_INSERT,		0						}, /* 0x8F */
+	/* 144 */	{ VC_SUN_FIND,			0						}, /* 0x90 */
+	/* 145 */	{ VC_SUN_CUT,			0						}, /* 0x91 */
+	/* 146 */	{ VC_SUN_HELP,			0						}, /* 0x92 */
+	/* 147 */	{ VC_UNDEFINED,			0						}, /* 0x93 */
+	/* 148 */	{ VC_APP_CALCULATOR,	0						}, /* 0x94 */
+	/* 149 */	{ VC_UNDEFINED,			0						}, /* 0x95 */
+	/* 150 */	{ VC_SLEEP,				0						}, /* 0x96 */
+	/* 151 */	{ VC_UNDEFINED,			0						}, /* 0x97 */
+	/* 152 */	{ VC_UNDEFINED,			0						}, /* 0x98 */
+	/* 153 */	{ VC_UNDEFINED,			0						}, /* 0x99 */
+	/* 154 */	{ VC_UNDEFINED,			0						}, /* 0x9A */
+	/* 155 */	{ VC_UNDEFINED,			0						}, /* 0x9B */
+	/* 156 */	{ VC_UNDEFINED,			0x68					}, /* 0x9C	KEY_KPENTER */
+	/* 157 */	{ VC_UNDEFINED,			0x69					}, /* 0x9D	KEY_RIGHTCTRL */
+	/* 158 */	{ VC_UNDEFINED,			0						}, /* 0x9E */
+	/* 159 */	{ VC_UNDEFINED,			0						}, /* 0x9F */
+	/* 160 */	{ VC_UNDEFINED,			0x79					}, /* 0xA0	KEY_MUTE */
+	/* 161 */	{ VC_UNDEFINED,			0x94					}, /* 0xA1	KEY_CALC */
+	/* 162 */	{ VC_UNDEFINED,			0xA7					}, /* 0xA2	KEY_FORWARD */
+	/* 163 */	{ VC_UNDEFINED,			0						}, /* 0xA3 */
+	/* 164 */	{ VC_UNDEFINED,			0						}, /* 0xA4 */
+	/* 165 */	{ VC_UNDEFINED,			0						}, /* 0xA5 */
+	/* 166 */	{ VC_APP_MAIL,			0						}, /* 0xA6 */
+	/* 167 */	{ VC_MEDIA_PLAY,		0						}, /* 0xA7 */
+	/* 168 */	{ VC_UNDEFINED,			0						}, /* 0xA8 */
+	/* 169 */	{ VC_UNDEFINED,			0						}, /* 0xA9 */
+	/* 170 */	{ VC_UNDEFINED,			0						}, /* 0xAA */
+	/* 171 */	{ VC_UNDEFINED,			0						}, /* 0xAB */
+	/* 172 */	{ VC_UNDEFINED,			0						}, /* 0xAC */
+	/* 173 */	{ VC_UNDEFINED,			0						}, /* 0xAD */
+	/* 174 */	{ VC_UNDEFINED,			0x7A					}, /* 0xAE	KEY_VOLUMEDOWN */
+	/* 175 */	{ VC_UNDEFINED,			0						}, /* 0xAF */
+	/* 176 */	{ VC_UNDEFINED,			0x7B					}, /* 0xB0	KEY_VOLUMEUP */
+	/* 177 */	{ VC_UNDEFINED,			0x00					}, /* 0xB1 */
+	/* 178 */	{ VC_UNDEFINED,			0xBA		 			}, /* 0xB2	KEY_SCROLLUP */
+	/* 179 */	{ VC_UNDEFINED,			0x00					}, /* 0xB3 */
+	/* 180 */	{ VC_UNDEFINED,			0x00					}, /* 0xB4 */
+	/* 181 */	{ VC_UNDEFINED,			0x6A		 			}, /* 0xB5	KEY_KPSLASH */
+	/* 182 */	{ VC_UNDEFINED,			0x00					}, /* 0xB6 */
+	/* 183 */	{ VC_UNDEFINED,			0x6B					}, /* 0xB7	KEY_SYSRQ */
+	/* 184 */	{ VC_UNDEFINED,			0x6C					}, /* 0xB8	KEY_RIGHTALT */
+	/* 185 */	{ VC_UNDEFINED,			0x00					}, /* 0xB9 */
+	/* 186 */	{ VC_BROWSER_HOME,		0x00					}, /* 0xBA */
+	/* 187 */	{ VC_UNDEFINED,			0x00					}, /* 0xBB */
+	/* 188 */	{ VC_UNDEFINED,			0x00					}, /* 0xBC */
+	/* 189 */	{ VC_UNDEFINED,			0x00					}, /* 0xBD */
+	/* 190 */	{ VC_UNDEFINED,			0x00					}, /* 0xBE */
+	/* 191 */	{ VC_F13,				0x00					}, /* 0xBF */
+	/* 192 */	{ VC_F14,				0x00					}, /* 0xC0 */
+	/* 193 */	{ VC_F15,				0x00					}, /* 0xC1 */
+	/* 194 */	{ VC_F16,				0x00					}, /* 0xC2 */
+	/* 195 */	{ VC_F17,				0x00					}, /* 0xC3 */
+	/* 196 */	{ VC_F18,				0x00					}, /* 0xC4 */
+	/* 197 */	{ VC_F19,				0x7F					}, /* 0xC5	KEY_PAUSE */
+	/* 198 */	{ VC_F20,				0x00					}, /* 0xC6 */
+	/* 199 */	{ VC_F21,				0x6E					}, /* 0xC7	KEY_HOME */
+	/* 200 */	{ VC_F22,				0x6F					}, /* 0xC8	KEY_UP */
+	/* 201 */	{ VC_F23,				0x70	 				}, /* 0xC9	KEY_PAGEUP */
+	/* 202 */	{ VC_F24,				0x00					}, /* 0xCA */
+	/* 203 */	{ VC_UNDEFINED,			0x71					}, /* 0xCB	KEY_LEFT */
+	/* 204 */	{ VC_UNDEFINED,			0x00					}, /* 0xCC */
+	/* 205 */	{ VC_UNDEFINED,			0x72					}, /* 0xCD	KEY_RIGHT */
+	/* 206 */	{ VC_UNDEFINED,			0x00					}, /* 0xCE */
+	/* 207 */	{ VC_UNDEFINED,			0x73					}, /* 0xCF	KEY_END */
+	/* 208 */	{ VC_UNDEFINED,			0x74					}, /* 0xD0	KEY_DOWN */
+	/* 209 */	{ VC_UNDEFINED,			0x75					}, /* 0xD1	KEY_PAGEDOWN */
+	/* 210 */	{ VC_UNDEFINED,			0x76					}, /* 0xD2	KEY_INSERT */
+	/* 211 */	{ VC_UNDEFINED,			0x77	 				}, /* 0xD3	KEY_DELETE */
+	/* 212 */	{ VC_UNDEFINED,			0x00					}, /* 0xD4 */
+	/* 213 */	{ VC_UNDEFINED,			0x00					}, /* 0xD5 */
+	/* 214 */	{ VC_UNDEFINED,			0x00					}, /* 0xD6 */
+	/* 215 */	{ VC_UNDEFINED,			0x00					}, /* 0xD7 */
+	/* 216 */	{ VC_UNDEFINED,			0x00					}, /* 0xD8 */
+	/* 217 */	{ VC_UNDEFINED,			0x00					}, /* 0xD9 */
+	/* 218 */	{ VC_UNDEFINED,			0x00					}, /* 0xDA */
+	/* 219 */	{ VC_UNDEFINED,			0x85					}, /* 0xDB	KEY_LEFTMETA */
+	/* 220 */	{ VC_UNDEFINED,			0x86		 			}, /* 0xDC	KEY_RIGHTMETA */
+	/* 221 */	{ VC_UNDEFINED,			0x87					}, /* 0xDD	KEY_COMPOSE */
+	/* 222 */	{ VC_UNDEFINED,			0x7C	 				}, /* 0xDE	KEY_POWER */
+	/* 223 */	{ VC_UNDEFINED,			0x96					}, /* 0xDF	KEY_SLEEP */
+	/* 224 */	{ VC_UNDEFINED,			0x00					}, /* 0xE0 */
+	/* 225 */	{ VC_BROWSER_SEARCH,	0x00					}, /* 0xE1 */
+	/* 226 */	{ VC_UNDEFINED,			0x00					}, /* 0xE2 */
+	/* 227 */	{ VC_UNDEFINED,			0x00					}, /* 0xE3 */
+	/* 228 */	{ VC_UNDEFINED,			0x00					}, /* 0xE4 */
+	/* 229 */	{ VC_UNDEFINED,			0xE1					}, /* 0xE5	KEY_SEARCH */
+	/* 230 */	{ VC_UNDEFINED,			0x00					}, /* 0xE6 */
+	/* 231 */	{ VC_UNDEFINED,			0x00					}, /* 0xE7 */
+	/* 232 */	{ VC_UNDEFINED,			0x00					}, /* 0xE8 */
+	/* 233 */	{ VC_UNDEFINED,			0x00					}, /* 0xE9 */
+	/* 234 */	{ VC_UNDEFINED,			0x00					}, /* 0xEA */
+	/* 235 */	{ VC_UNDEFINED,			0x00					}, /* 0xEB */
+	/* 236 */	{ VC_UNDEFINED,			0xA6	 				}, /* 0xEC	KEY_BACK */
+	/* 237 */	{ VC_UNDEFINED,			0x00					}, /* 0xED */
+	/* 238 */	{ VC_UNDEFINED,			0x00					}, /* 0xEE */
+	/* 239 */	{ VC_UNDEFINED,			0x00					}, /* 0xEF */
+	/* 240 */	{ VC_UNDEFINED,			0x00					}, /* 0xF0 */
+	/* 241 */	{ VC_UNDEFINED,			0x00					}, /* 0xF1 */
+	/* 242 */	{ VC_UNDEFINED,			0x00					}, /* 0xF2 */
+	/* 243 */	{ VC_UNDEFINED,			0x00					}, /* 0xF3 */
+	/* 244 */	{ VC_UNDEFINED,			0x8E	 				}, /* 0xF4	KEY_OPEN */
+	/* 245 */	{ VC_UNDEFINED,			0x92					}, /* 0xF5	KEY_HELP */
+	/* 246 */	{ VC_UNDEFINED,			0x8A					}, /* 0xF6	KEY_PROPS */
+	/* 247 */	{ VC_UNDEFINED,			0x8C					}, /* 0xF7	KEY_FRONT */
+	/* 248 */	{ VC_UNDEFINED,			0x88					}, /* 0xF8	KEY_STOP */
+	/* 249 */	{ VC_UNDEFINED,			0x89					}, /* 0xF9	KEY_AGAIN */
+	/* 250 */	{ VC_UNDEFINED,			0x8B					}, /* 0xFA	KEY_UNDO */
+	/* 251 */	{ VC_UNDEFINED,			0x91					}, /* 0xFB	KEY_CUT */
+	/* 252 */	{ VC_UNDEFINED,			0x8D					}, /* 0xFC	KEY_COPY */
+	/* 253 */	{ VC_UNDEFINED,			0x8F					}, /* 0xFD	KEY_PASTE */
+	/* 254 */	{ VC_UNDEFINED,			0x90					}, /* 0xFE	KEY_FIND */
+	/* 255 */	{ VC_UNDEFINED,			0x00					}, /* 0xFF */
 };
 #endif
 
@@ -446,6 +450,9 @@ static const uint16_t xfree86_scancode_table[][2] = {
 	/*  94 */	{ VC_UNDEFINED,			 0						},
 	/*  95 */	{ VC_F11,				 0						},
 	/*  96 */	{ VC_F12,				 0						},
+
+	/* First 97 chars are identical to XFree86!								*/
+
 	/*  97 */	{ VC_HOME,				 0						},
 	/*  98 */	{ VC_UP,				 0						},
 	/*  99 */	{ VC_PAGE_UP,			 121	/* <FK16>  */	},
@@ -1537,11 +1544,11 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 	if (is_evdev) {
 		unsigned short evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
 
-		if (keycode < 89) {
-			// No conversion required.
-			scancode = keycode;
-		}
-		else if (keycode < evdev_size) {
+		// NOTE scancodes < 97 appear to be identical between Evdev and XFree86.
+		if (keycode < evdev_size) {
+			// For scancode < 97, a simple scancode - 8 offest could be applied,
+			// but math is generally slower than memory and we cannot save any
+			// extra space in the lookup table due to binary padding.
 			scancode = evdev_scancode_table[keycode][0];
 		}
 	}
@@ -1550,13 +1557,12 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 	#endif
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
-		if (keycode > 8) {
-			if (keycode < 97) {
-				scancode = xfree86_scancode_table[keycode][0];
-			}
-			else if (keycode < xfree86_size) {
-				scancode = xfree86_scancode_table[keycode][0];
-			}
+		// NOTE scancodes < 97 appear to be identical between Evdev and XFree86.
+		if (keycode < xfree86_size) {
+			// For scancode < 97, a simple scancode - 8 offest could be applied,
+			// but math is generally slower than memory and we cannot save any
+			// extra space in the lookup table due to binary padding.
+			scancode = xfree86_scancode_table[keycode][0];
 		}
 	#if defined(USE_EVDEV) && defined(USE_XKB)
 	}
@@ -1569,16 +1575,15 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	KeyCode keycode = 0x0000;
 
 	#if defined(USE_EVDEV) && defined(USE_XKB)
-	// Check to see if evdev is enabled.
+	// Check to see if Evdev is enabled.
 	if (is_evdev) {
 		unsigned short evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
 
-		if (scancode < 89) {
-			// Toll free bridge.
-			// NOTE It doesn't matter if we optimized for size.
-			keycode = scancode;
-		}
-		else if (scancode < 128) {
+		// NOTE scancodes < 97 appear to be identical between Evdev and XFree86.
+		if (scancode < 128) {
+			// For scancode < 97, a simple scancode + 8 offest could be applied,
+			// but math is generally slower than memory and we cannot save any
+			// extra space in the lookup table due to binary padding.
 			keycode = evdev_scancode_table[scancode][1];
 		}
 		else {
@@ -1595,20 +1600,19 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	#endif
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
-		if (scancode > 0) {
-			if (scancode < 97 - 8) {
-				keycode = xfree86_scancode_table[scancode][1];
-			}
-			else if (scancode < 128) {
-				keycode = xfree86_scancode_table[scancode][1];
-			}
-			else {
-				// Offset: lower order bits + 128 (If no size optimization!)
-				scancode = (scancode & 0x007F) | 0x80;
+		// NOTE scancodes < 97 appear to be identical between Evdev and XFree86.
+		if (scancode < 128) {
+			// For scancode < 97, a simple scancode + 8 offest could be applied,
+			// but math is generally slower than memory and we cannot save any
+			// extra space in the lookup table due to binary padding.
+			keycode = xfree86_scancode_table[scancode][1];
+		}
+		else {
+			// Offset: lower order bits + 128 (If no size optimization!)
+			scancode = (scancode & 0x007F) | 0x80;
 
-				if (scancode < xfree86_size) {
-					keycode = xfree86_scancode_table[scancode][1];
-				}
+			if (scancode < xfree86_size) {
+				keycode = xfree86_scancode_table[scancode][1];
 			}
 		}
 	#if defined(USE_EVDEV) && defined(USE_XKB)

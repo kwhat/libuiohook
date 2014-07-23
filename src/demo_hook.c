@@ -34,8 +34,8 @@ static HANDLE control_handle = NULL;
 #else
 #include <pthread.h>
 
-static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 #endif
 
@@ -67,10 +67,10 @@ void dispatch_proc(virtual_event * const event) {
 				running = false;
 				CFRunLoopStop(CFRunLoopGetMain());
 				#else
-				pthread_mutex_lock(&hook_control_mutex);
+				pthread_mutex_lock(&control_mutex);
 				running = false;
-				pthread_cond_signal(&hook_control_cond);
-				pthread_mutex_unlock(&hook_control_mutex);
+				pthread_cond_signal(&control_cond);
+				pthread_mutex_unlock(&control_mutex);
 				#endif
 				#endif
 			}
@@ -120,12 +120,12 @@ int main() {
 		#if defined(__APPLE__) && defined(__MACH__)
 		SInt32 result = 0;
 		do {
-			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
+			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 30, false);
 		} while (result != kCFRunLoopRunStopped);
 		#else
-		pthread_mutex_lock(&hook_control_mutex);
-		pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
-		pthread_mutex_unlock(&hook_control_mutex);
+		pthread_mutex_lock(&control_mutex);
+		pthread_cond_wait(&control_cond, &control_mutex);
+		pthread_mutex_unlock(&control_mutex);
 		#endif
 		#endif
 	}

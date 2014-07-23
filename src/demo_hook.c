@@ -24,14 +24,19 @@
 #include <stdio.h>
 #include <uiohook.h>
 
-#if defined(__APPLE__) && defined(__MACH__)
-#include <CoreFoundation/CoreFoundation.h>
-#endif
-
 #ifdef _WIN32
 #include <windows.h>
+
+static HANDLE hook_control_handle = NULL;
 #else
-#include <time.h>
+#if defined(__APPLE__) && defined(__MACH__)
+#include <CoreFoundation/CoreFoundation.h>
+#else
+#include <pthread.h>
+
+static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
 #endif
 
 #include "logger.h"
@@ -54,7 +59,20 @@ void dispatch_proc(virtual_event * const event) {
 		case EVENT_KEY_PRESSED:
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
+				#ifdef _WIN32
 				running = false;
+				SetEvent(hook_control_handle);
+				#else
+				#if defined(__APPLE__) && defined(__MACH__)
+				running = false;
+				CFRunLoopStop(CFRunLoopGetMain());
+				#else
+				pthread_mutex_lock(&hook_control_mutex);
+				running = false;
+				pthread_cond_signal(&hook_control_cond);
+				pthread_mutex_unlock(&hook_control_mutex);
+				#endif
+				#endif
 			}
 		case EVENT_KEY_RELEASED:
 			logger(LOG_LEVEL_INFO, ",keycode=%u,rawcode=0x%X",
@@ -89,20 +107,26 @@ void dispatch_proc(virtual_event * const event) {
 int main() {
 	hook_set_dispatch_proc(&dispatch_proc);
 
+	#ifdef _WIN32
+	hook_control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_control_handle"));
+	#endif
+
 	int status = hook_enable();
 	running = (status == UIOHOOK_SUCCESS);
 	while (running) {
 		#ifdef _WIN32
-		Sleep(100);
+		WaitForSingleObject(hook_control_handle, INFINITE);
 		#else
 		#if defined(__APPLE__) && defined(__MACH__)
 		//CFRunLoopRun();
 		SInt32 result = 0;
 		do {
-			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false);
+			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
 		} while (running && result != kCFRunLoopRunStopped);
 		#else
-		nanosleep((struct timespec[]) {{0, 100 * 1000000}}, NULL);
+		pthread_mutex_lock(&hook_control_mutex);
+		pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
+		pthread_mutex_unlock(&hook_control_mutex);
 		#endif
 		#endif
 	}
@@ -110,6 +134,10 @@ int main() {
 	if (hook_is_enabled()) {
 		hook_disable();
 	}
+
+	#ifdef _WIN32
+	CloseHandle(hook_control_handle);
+	#endif
 
 	return status;
 }

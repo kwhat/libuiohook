@@ -66,6 +66,11 @@ void dispatch_proc(virtual_event * const event) {
 				#if defined(__APPLE__) && defined(__MACH__)
 				running = false;
 				CFRunLoopStop(CFRunLoopGetMain());
+				
+				// FIXME If you do not consume the event on OS X, it causes a 
+				// race condition at CFRunLoopCopyCurrentMode in the hook 
+				// callback.
+				event->reserved = 0x01;
 				#else
 				pthread_mutex_lock(&hook_control_mutex);
 				running = false;
@@ -120,7 +125,7 @@ int main() {
 		#if defined(__APPLE__) && defined(__MACH__)
 		SInt32 result = 0;
 		do {
-			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
+			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 1, false);
 		} while (result != kCFRunLoopRunStopped);
 		#else
 		pthread_mutex_lock(&hook_control_mutex);

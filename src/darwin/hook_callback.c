@@ -215,6 +215,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			dispatch_event(&event);
 
 			// Make sure RunLoop main is currently running to avoid deadlock.
+			// FIXME This is still a race condition!
 			CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
 			if (mode != NULL) {
 				CFRelease(mode);

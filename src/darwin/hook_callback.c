@@ -25,8 +25,8 @@
 #include <sys/time.h>
 #include <uiohook.h>
 
-#include "logger.h"
 #include "input_helper.h"
+#include "logger.h"
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x00000000;
@@ -142,7 +142,7 @@ void start_message_port_runloop() {
 	// Create a runloop observer for the main runloop.
 	observer = CFRunLoopObserverCreate(
 			kCFAllocatorDefault,
-			kCFRunLoopAllActivities, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+			kCFRunLoopExit, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
 			true,
 			0,
 			message_port_status_proc,
@@ -278,37 +278,49 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				// Lock for code dealing with the main runloop.
 				pthread_mutex_lock(&msg_port_mutex);
 
-				// Lookup the Unicode representation for this event.
-				CFRunLoopSourceContext context = { .version = 0 };
-				CFRunLoopSourceGetContext(src_msg_port, &context);
+				// Check to see if the main runloop is still running.
+				// TOOD I would rather this be a check on hook_enable(),
+				// but it makes the demo to complicated with all the runloop
+				CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
+				if (mode != NULL) {
+					CFRelease(mode);
 
-				// Get the run loop context info pointer.
-				TISMessage *info = (TISMessage *) context.info;
+					// Lookup the Unicode representation for this event.
+					CFRunLoopSourceContext context = { .version = 0 };
+					CFRunLoopSourceGetContext(src_msg_port, &context);
 
-				// Set the event pointer.
-				info->event = event_ref;
+					// Get the run loop context info pointer.
+					TISMessage *info = (TISMessage *) context.info;
 
-				// Signal the custom source and wakeup the main run loop.
-				CFRunLoopSourceSignal(src_msg_port);
-				CFRunLoopWakeUp(CFRunLoopGetMain());
+					// Set the event pointer.
+					info->event = event_ref;
 
-				// Wait for a lock while the main run loop processes they key typed event.
-				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
+					// Signal the custom source and wakeup the main run loop.
+					CFRunLoopSourceSignal(src_msg_port);
+					CFRunLoopWakeUp(CFRunLoopGetMain());
 
-				if (info->length == 1) {
-					// Fire key typed event.
-					event.type = EVENT_KEY_TYPED;
+					// Wait for a lock while the main run loop processes they key typed event.
+					pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 
-					event.data.keyboard.keycode = VC_UNDEFINED;
-					event.data.keyboard.keychar = info->buffer[0];
+					if (info->length == 1) {
+						// Fire key typed event.
+						event.type = EVENT_KEY_TYPED;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
-					dispatch_event(&event);
+						event.data.keyboard.keycode = VC_UNDEFINED;
+						event.data.keyboard.keychar = info->buffer[0];
+
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+						dispatch_event(&event);
+					}
+
+					info->event = NULL;
+					info->length = 0;
 				}
-
-				info->event = NULL;
-				info->length = 0;
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: Failed to signal RunLoop main!\n",
+							__FUNCTION__, __LINE__);
+				}
 
 				// Maintain a lock until we pass all code dealing with
 				// TISMessage *info.
@@ -340,35 +352,16 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			 * events, any changes to the modifier keys will require a key state
 			 * change to be fired manually.
 			 */
-
 			keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
-			if (keycode == kVK_Shift) {
-				modifier_flag = MASK_SHIFT_L;
-			}
-			else if (keycode == kVK_Control) {
-				modifier_flag = MASK_CTRL_L;
-			}
-			else if (keycode == kVK_Command) {
-				modifier_flag = MASK_META_L;
-			}
-			else if (keycode == kVK_Option) {
-				modifier_flag = MASK_ALT_L;
-			}
-			else if (keycode == kVK_RightShift) {
-				modifier_flag = MASK_SHIFT_R;
-			}
-			else if (keycode == kVK_RightControl) {
-				modifier_flag = MASK_CTRL_R;
-			}
-			else if (keycode == kVK_RightCommand) {
-				modifier_flag = MASK_META_R;
-			}
-			else if (keycode == kVK_RightOption) {
-				modifier_flag = MASK_ALT_R;
-			}
-			else {
-				modifier_flag = 0x0000;
-			}
+			if (keycode == kVK_Shift)				modifier_flag = MASK_SHIFT_L;
+			else if (keycode == kVK_Control)		modifier_flag = MASK_CTRL_L;
+			else if (keycode == kVK_Command)		modifier_flag = MASK_META_L;
+			else if (keycode == kVK_Option)			modifier_flag = MASK_ALT_L;
+			else if (keycode == kVK_RightShift)		modifier_flag = MASK_SHIFT_R;
+			else if (keycode == kVK_RightControl)	modifier_flag = MASK_CTRL_R;
+			else if (keycode == kVK_RightCommand)	modifier_flag = MASK_META_R;
+			else if (keycode == kVK_RightOption)	modifier_flag = MASK_ALT_R;
+			else									modifier_flag = 0x0000;
 
 			// First check to see if a modifier we care about changed.
 			if (modifier_flag != 0x0000) {

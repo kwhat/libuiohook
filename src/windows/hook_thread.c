@@ -172,23 +172,30 @@ UIOHOOK_API int hook_enable() {
 UIOHOOK_API int hook_disable() {
 	int status = UIOHOOK_FAILURE;
 
-	if (hook_is_enabled() == true) {
-		// Try to exit the thread naturally.
-		PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
-		WaitForSingleObject(hook_thread_handle,  INFINITE);
 
-		DWORD thread_status;
-		GetExitCodeThread(hook_thread_handle, &thread_status);
-		status = (int) thread_status;
+	if (GetCurrentThreadId() != hook_thread_id) {
+		if (hook_is_enabled() == true) {
+			// Try to exit the thread naturally.
+			PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
+			WaitForSingleObject(hook_thread_handle,  INFINITE);
 
-		CloseHandle(hook_thread_handle);
-		hook_thread_handle = NULL;
+			DWORD thread_status;
+			GetExitCodeThread(hook_thread_handle, &thread_status);
+			status = (int) thread_status;
 
-		CloseHandle(hook_control_handle);
-		hook_control_handle = NULL;
+			CloseHandle(hook_thread_handle);
+			hook_thread_handle = NULL;
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result: %#X.\n",
-				__FUNCTION__, __LINE__, status);
+			CloseHandle(hook_control_handle);
+			hook_control_handle = NULL;
+
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result: %#X.\n",
+					__FUNCTION__, __LINE__, status);
+		}
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: Cannot disable hook from hook callback!\n",
+				__FUNCTION__, __LINE__);
 	}
 
 	return status;

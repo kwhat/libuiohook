@@ -319,45 +319,51 @@ UIOHOOK_API int hook_enable() {
 UIOHOOK_API int hook_disable() {
 	int status = UIOHOOK_FAILURE;
 
-	// Lock the thread control mutex.  This will be unlocked when the
-	// thread has fully stopped.
-	pthread_mutex_lock(&hook_control_mutex);
+	if (!pthread_equal(pthread_self(), hook_thread_id)) {
+		// Lock the thread control mutex.  This will be unlocked when the
+		// thread has fully stopped.
+		pthread_mutex_lock(&hook_control_mutex);
 
-	if (hook_is_enabled() == true) {
-		// Try to exit the thread naturally.
-		if (XRecordDisableContext(disp_ctrl, context) != 0) {
-			#ifdef USE_XRECORD_ASYNC
-			running = false;
-			#endif
+		if (hook_is_enabled() == true) {
+			// Try to exit the thread naturally.
+			if (XRecordDisableContext(disp_ctrl, context) != 0) {
+				#ifdef USE_XRECORD_ASYNC
+				running = false;
+				#endif
 
-			// See Bug 42356 for more information.
-			// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-			XFlush(disp_ctrl);
-			//XSync(disp_ctrl, True);
+				// See Bug 42356 for more information.
+				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+				XFlush(disp_ctrl);
+				//XSync(disp_ctrl, True);
 
-			// Wait for the thread to die.
-			void *hook_thread_status;
-			pthread_join(hook_thread_id, &hook_thread_status);
-			status = *(int *) hook_thread_status;
-			free(hook_thread_status);
+				// Wait for the thread to die.
+				void *hook_thread_status;
+				pthread_join(hook_thread_id, &hook_thread_status);
+				status = *(int *) hook_thread_status;
+				free(hook_thread_status);
 
-			// Clean up the thread attribute.
-			pthread_attr_destroy(&hook_thread_attr);
+				// Clean up the thread attribute.
+				pthread_attr_destroy(&hook_thread_attr);
 
-			// Close down any open displays.
-			XCloseDisplay(disp_ctrl);
-			disp_ctrl = NULL;
+				// Close down any open displays.
+				XCloseDisplay(disp_ctrl);
+				disp_ctrl = NULL;
+			}
+
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%#X).\n",
+					__FUNCTION__, __LINE__, status);
 		}
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%#X).\n",
-				__FUNCTION__, __LINE__, status);
+		// Clean up the mutex.
+		//pthread_mutex_destroy(&hook_control_mutex);
+
+		// Make sure the mutex gets unlocked.
+		pthread_mutex_unlock(&hook_control_mutex);
 	}
-
-	// Clean up the mutex.
-	//pthread_mutex_destroy(&hook_control_mutex);
-
-	// Make sure the mutex gets unlocked.
-	pthread_mutex_unlock(&hook_control_mutex);
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: Cannot disable hook from hook callback!\n",
+				__FUNCTION__, __LINE__);
+	}
 
 	return status;
 }

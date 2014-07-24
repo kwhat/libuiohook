@@ -41,11 +41,9 @@ static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include "logger.h"
 
-// Program's is running sentinel.
-static bool running = false;
-
-// NOTE: This function executes on the hook thread!  If you need to block
-// please do so on another thread with your own event dispatcher implementation.
+// NOTE: This function executes on the hook thread!  If you need to block or
+// call hook_disable(), please do so on another thread with your own event
+// dispatcher implementation.
 void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
 	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X",
@@ -60,20 +58,12 @@ void dispatch_proc(virtual_event * const event) {
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
 				#ifdef _WIN32
-				running = false;
 				SetEvent(control_handle);
 				#else
 				#if defined(__APPLE__) && defined(__MACH__)
-				running = false;
 				CFRunLoopStop(CFRunLoopGetMain());
-
-				// FIXME If you do not consume the event on OS X, it causes a
-				// race condition at CFRunLoopCopyCurrentMode in the hook
-				// callback.
-				event->reserved = 0x01;
 				#else
 				pthread_mutex_lock(&control_mutex);
-				running = false;
 				pthread_cond_signal(&control_cond);
 				pthread_mutex_unlock(&control_mutex);
 				#endif
@@ -117,25 +107,20 @@ int main() {
 	#endif
 
 	int status = hook_enable();
-	running = (status == UIOHOOK_SUCCESS);
-	while (running) {
+	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
 		#ifdef _WIN32
 		WaitForSingleObject(control_handle, INFINITE);
 		#else
 		#if defined(__APPLE__) && defined(__MACH__)
-		SInt32 result = 0;
-		do {
-			result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 30, false);
-		} while (result != kCFRunLoopRunStopped);
+		// CFRunLoopRun();
+		while(1){sleep(1);}
 		#else
 		pthread_mutex_lock(&control_mutex);
 		pthread_cond_wait(&control_cond, &control_mutex);
 		pthread_mutex_unlock(&control_mutex);
 		#endif
 		#endif
-	}
 
-	if (hook_is_enabled()) {
 		hook_disable();
 	}
 

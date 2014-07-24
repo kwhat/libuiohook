@@ -139,7 +139,7 @@ bool is_accessibility_enabled() {
 
 // This method must be executed from the main runloop to avoid the seemingly random
 // Exception detected while handling key input.  TSMProcessRawKeyCode failed (-192) errors.
-// CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())
+// TODO CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())
 void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *length, UniChar *buffer) {
 	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 	#if defined(USE_CARBON_LEGACY)

@@ -40,12 +40,6 @@ typedef struct {
 	UniCharCount length;
 } TISMessage;
 
-static TISMessage data = {
-	.event = NULL,
-	.buffer = { 0x00 },
-	.length = 0
-};
-
 // Click count globals.
 static unsigned short click_count = 0;
 static CGEventTimestamp click_time = 0;
@@ -58,6 +52,7 @@ static struct timeval system_time;
 
 // Virtual event pointer.
 static virtual_event event;
+
 
 static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
@@ -102,56 +97,120 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+
+static pthread_cond_t msg_port_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t msg_port_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void message_port_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+	switch (activity) {
+		case kCFRunLoopExit:
+			// Aquire a lock on the msg_port and signal that anyone waiting
+			// should continue.
+			pthread_mutex_lock(&msg_port_mutex);
+			pthread_cond_broadcast(&msg_port_cond);
+			pthread_mutex_unlock(&msg_port_mutex);
+			break;
+
+		default:
+			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled RunLoop activity! (%#X)\n",
+					__FUNCTION__, __LINE__, (unsigned int) activity);
+			break;
+	}
+}
+
 // Runloop to execute KeyCodeToString on the "Main" runloop due to an
 // undocumented thread safety requirement.
 static void message_port_proc(void *info) {
-	// Lock the control mutex as we enter the main run loop.
-	pthread_mutex_lock(&hook_control_mutex);
+	// Lock the msg_port mutex as we enter the main run loop.
+	pthread_mutex_lock(&msg_port_mutex);
 
 	TISMessage *data = (TISMessage *) info;
 
-	if (data->event != NULL) {
+	if (data != NULL && data->event != NULL) {
 		// Preform Unicode lookup.
 		keycode_to_string(data->event, sizeof(data->buffer), &(data->length), data->buffer);
 	}
 
-	// Unlock the control mutex to signal that we have finished on the main
-	// runloop.
-	pthread_cond_signal(&hook_control_cond);
-	pthread_mutex_unlock(&hook_control_mutex);
+	// Unlock the msg_port mutex to signal to the hook_thread that we have
+	// finished on the main runloop.
+	pthread_cond_broadcast(&msg_port_cond);
+	pthread_mutex_unlock(&msg_port_mutex);
 }
 
+static CFRunLoopObserverRef observer = NULL;
 void start_message_port_runloop() {
-	CFRunLoopSourceContext context = {
-		.version			= 0,
-		.info				= &data,
-		.retain				= NULL,
-		.release			= NULL,
-		.copyDescription	= NULL,
-		.equal				= NULL,
-		.hash				= NULL,
-		.schedule			= NULL,
-		.cancel				= NULL,
-		.perform			= message_port_proc
-	};
+	// Create a runloop observer for the main runloop.
+	observer = CFRunLoopObserverCreate(
+			kCFAllocatorDefault,
+			kCFRunLoopAllActivities, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+			true,
+			0,
+			message_port_status_proc,
+			NULL
+		);
 
-	CFRunLoopRef main_loop = CFRunLoopGetMain();
-	
-	src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
-	CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
+	if (observer != NULL) {
+		pthread_mutex_lock(&msg_port_mutex);
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
-			__FUNCTION__, __LINE__);
+		// Initialize the TISMessage struct.
+		TISMessage *data = (TISMessage *) malloc(sizeof(TISMessage));
+		data->event = NULL;
+		//data->buffer = { 0x00 };
+		//data->length = 0;
+
+		CFRunLoopSourceContext context = {
+			.version			= 0,
+			.info				= data,
+			.retain				= NULL,
+			.release			= NULL,
+			.copyDescription	= NULL,
+			.equal				= NULL,
+			.hash				= NULL,
+			.schedule			= NULL,
+			.cancel				= NULL,
+			.perform			= message_port_proc
+		};
+
+		CFRunLoopRef main_loop = CFRunLoopGetMain();
+
+		// FIXME Need to null check the src_msg_port!
+		src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
+
+		CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
+
+		CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
+
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
+				__FUNCTION__, __LINE__);
+		pthread_mutex_unlock(&msg_port_mutex);
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
+				__FUNCTION__, __LINE__);
+	}
 }
 
 void stop_message_port_runloop() {
 	CFRunLoopRef main_loop = CFRunLoopGetMain();
-	
+
+	if (CFRunLoopContainsObserver(main_loop, observer, kCFRunLoopDefaultMode)) {
+		CFRunLoopRemoveObserver(main_loop, observer, kCFRunLoopDefaultMode);
+		CFRunLoopObserverInvalidate(observer);
+	}
+
 	if (CFRunLoopContainsSource(main_loop, src_msg_port, kCFRunLoopDefaultMode)) {
 		CFRunLoopRemoveSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
+
+		CFRunLoopSourceContext context = { .version = 0 };
+		CFRunLoopSourceGetContext(src_msg_port, &context);
+		if (context.info != NULL) {
+			free(context.info);
+		}
+
 		CFRelease(src_msg_port);
 	}
 
+	observer = NULL;
 	src_msg_port = NULL;
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
@@ -214,51 +273,46 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 			dispatch_event(&event);
 
-			// Make sure RunLoop main is currently running to avoid deadlock.
-			// FIXME This is still a race condition!
-			CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
-			if (mode != NULL) {
-				CFRelease(mode);
+			// If the pressed event was not consumed...
+			if (event.reserved ^ 0x01) {
+				// Lock for code dealing with the main runloop.
+				pthread_mutex_lock(&msg_port_mutex);
 
-				// If the pressed event was not consumed...
-				if (event.reserved ^ 0x01) {
-					// Lookup the Unicode representation for this event.
-					CFRunLoopSourceContext context = { .version = 0 };
-					CFRunLoopSourceGetContext(src_msg_port, &context);
+				// Lookup the Unicode representation for this event.
+				CFRunLoopSourceContext context = { .version = 0 };
+				CFRunLoopSourceGetContext(src_msg_port, &context);
 
-					// Get the run loop context info pointer.
-					TISMessage *info = (TISMessage *) context.info;
+				// Get the run loop context info pointer.
+				TISMessage *info = (TISMessage *) context.info;
 
-					// Set the event pointer.
-					info->event = event_ref;
+				// Set the event pointer.
+				info->event = event_ref;
 
-					// Signal the custom source and wakeup the main run loop.
-					CFRunLoopSourceSignal(src_msg_port);
-					CFRunLoopWakeUp(CFRunLoopGetMain());
+				// Signal the custom source and wakeup the main run loop.
+				CFRunLoopSourceSignal(src_msg_port);
+				CFRunLoopWakeUp(CFRunLoopGetMain());
 
-					// Wait for a lock while the main run loop processes they key typed event.
-					pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
-					pthread_mutex_unlock(&hook_control_mutex);
+				// Wait for a lock while the main run loop processes they key typed event.
+				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 
-					if (info->length == 1) {
-						// Fire key typed event.
-						event.type = EVENT_KEY_TYPED;
+				if (info->length == 1) {
+					// Fire key typed event.
+					event.type = EVENT_KEY_TYPED;
 
-						event.data.keyboard.keycode = VC_UNDEFINED;
-						event.data.keyboard.keychar = info->buffer[0];
+					event.data.keyboard.keycode = VC_UNDEFINED;
+					event.data.keyboard.keychar = info->buffer[0];
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
-						dispatch_event(&event);
-					}
-
-					info->event = NULL;
-					info->length = 0;
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+					dispatch_event(&event);
 				}
-			}
-			else {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: Failed to signal RunLoop Main!\n",
-							__FUNCTION__, __LINE__);
+
+				info->event = NULL;
+				info->length = 0;
+
+				// Maintain a lock until we pass all code dealing with
+				// TISMessage *info.
+				pthread_mutex_unlock(&msg_port_mutex);
 			}
 			break;
 
@@ -508,7 +562,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
 			if (type == (CGEventType) kCGEventTapDisabledByTimeout) {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: CGEventTap timeout!\n",
-					__FUNCTION__, __LINE__);
+						__FUNCTION__, __LINE__);
 
 				// We need to restart the tap!
 				restart_tap = true;

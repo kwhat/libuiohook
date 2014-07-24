@@ -275,7 +275,7 @@ UIOHOOK_API int hook_enable() {
 						status = *(int *) hook_thread_status;
 						free(hook_thread_status);
 
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%i)!\n",
+						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%#X)!\n",
 								__FUNCTION__, __LINE__, status);
 					}
 				}
@@ -349,7 +349,7 @@ UIOHOOK_API int hook_disable() {
 			disp_ctrl = NULL;
 		}
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%i).\n",
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%#X).\n",
 				__FUNCTION__, __LINE__, status);
 	}
 

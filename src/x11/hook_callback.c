@@ -100,7 +100,7 @@ static inline uint16_t get_modifiers() {
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		pthread_mutex_lock(&hook_running_mutex);
-		
+
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
 	}

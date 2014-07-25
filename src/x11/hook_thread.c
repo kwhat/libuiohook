@@ -20,16 +20,11 @@
 #include <config.h>
 #endif
 
-#ifdef USE_XRECORD_ASYNC
-#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE  >= 199309L
-#include <time.h>
-#else
-#include <sys/time.h>
-#endif
-#endif
-
 #include <pthread.h>
 #include <stdlib.h>
+#ifdef USE_XRECORD_ASYNC
+#include <sys/time.h>
+#endif
 #include <uiohook.h>
 #ifdef USE_XKB
 #include <X11/XKBlib.h>
@@ -48,7 +43,7 @@ static XRecordContext context;
 
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
-static volatile bool running;
+static bool running;
 
 static pthread_cond_t hook_xrecord_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t hook_xrecord_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -104,9 +99,6 @@ static void *hook_thread_proc(void *arg) {
 				load_input_helper(disp_ctrl);
 
 				#ifdef USE_XRECORD_ASYNC
-				// Allow the thread loop to block.
-				running = true;
-
 				// Async requires that we loop so that our thread does not return.
 				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, NULL) != 0) {
 					// Set the exit status.
@@ -114,19 +106,22 @@ static void *hook_thread_proc(void *arg) {
 
 					// Time in MS to sleep the runloop.
 					int timesleep = 100;
-					#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE  < 199309L
-					timeval tv;
-					timespec ts;
-					#endif
+
+					// Allow the thread loop to block.
+					pthread_mutex_lock(&hook_xrecord_mutex);
+					running = true;
 
 					do {
+						// Unlock the mutex from the previous iteration.
+						pthread_mutex_unlock(&hook_xrecord_mutex);
+
 						XRecordProcessReplies(disp_data);
 
 						// Prevent 100% CPU utilization.
-						#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE  >= 199309L
-						nanosleep((struct timespec[]) {{0, timesleep * 1000000}}, NULL);
-						#else
+						struct timeval tv;
 						gettimeofday(&tv, NULL);
+
+						struct timespec ts;
 						ts.tv_sec = time(NULL) + timesleep / 1000;
 						ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (timesleep % 1000);
 						ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
@@ -134,9 +129,10 @@ static void *hook_thread_proc(void *arg) {
 
 						pthread_mutex_lock(&hook_xrecord_mutex);
 						pthread_cond_timedwait(&hook_xrecord_cond, &hook_xrecord_mutex, &ts);
-						pthread_mutex_unlock(&hook_xrecord_mutex);
-						#endif
 					} while (running);
+
+					// Unlock after loop exit.
+					pthread_mutex_unlock(&hook_xrecord_mutex);
 				}
 				#else
 				// Sync blocks until XRecordDisableContext() is called.
@@ -151,7 +147,10 @@ static void *hook_thread_proc(void *arg) {
 
 					#ifdef USE_XRECORD_ASYNC
 					// Reset the running state.
+					pthread_mutex_lock(&hook_xrecord_mutex);
 					running = false;
+					pthread_cond_signal(&hook_xrecord_cond);
+					pthread_mutex_unlock(&hook_xrecord_mutex);
 					#endif
 
 					// Set the exit status.
@@ -359,7 +358,10 @@ UIOHOOK_API int hook_disable() {
 		// Try to exit the thread naturally.
 		if (XRecordDisableContext(disp_ctrl, context) != 0) {
 			#ifdef USE_XRECORD_ASYNC
+			pthread_mutex_lock(&hook_xrecord_mutex);
 			running = false;
+			pthread_cond_signal(&hook_xrecord_cond);
+			pthread_mutex_unlock(&hook_xrecord_mutex);
 			#endif
 
 			// See Bug 42356 for more information.

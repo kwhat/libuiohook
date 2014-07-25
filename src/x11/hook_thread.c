@@ -137,12 +137,6 @@ static void *hook_thread_proc(void *arg) {
 
 				// Free up the context after the run loop terminates.
 				XRecordFreeContext(disp_data, context);
-
-				// Cleanup Native Input Functions.
-				//unload_input_helper();
-				
-				//XCloseDisplay(disp_ctrl);
-			disp_ctrl = NULL;
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
@@ -186,10 +180,6 @@ static void *hook_thread_proc(void *arg) {
 
 UIOHOOK_API int hook_enable() {
 	int status = UIOHOOK_FAILURE;
-
-	// We shall use the default pthread attributes: thread is joinable
-	// (not detached) and has default (non real-time) scheduling policy.
-	//pthread_mutex_init(&hook_control_mutex, NULL);
 
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has fully stopped.
@@ -329,6 +319,9 @@ UIOHOOK_API int hook_enable() {
 	// Make sure the control mutex is unlocked.
 	pthread_mutex_unlock(&hook_control_mutex);
 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
+	
 	return status;
 }
 
@@ -362,14 +355,14 @@ UIOHOOK_API int hook_disable() {
 			
 			status = UIOHOOK_SUCCESS;
 		}
-
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%#X).\n",
-				__FUNCTION__, __LINE__, status);
 	}
 
 	// Make sure the mutex gets unlocked.
 	pthread_mutex_unlock(&hook_control_mutex);
 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
+	
 	return status;
 }
 

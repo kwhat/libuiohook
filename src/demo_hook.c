@@ -112,8 +112,7 @@ int main() {
 		WaitForSingleObject(control_handle, INFINITE);
 		#else
 		#if defined(__APPLE__) && defined(__MACH__)
-		// CFRunLoopRun();
-		while(1){sleep(1);}
+		CFRunLoopRun();
 		#else
 		pthread_mutex_lock(&control_mutex);
 		pthread_cond_wait(&control_cond, &control_mutex);

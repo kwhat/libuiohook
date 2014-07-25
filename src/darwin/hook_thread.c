@@ -270,10 +270,6 @@ UIOHOOK_API int hook_enable() {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%#X)!\n",
 						__FUNCTION__, __LINE__, status);
 			}
-
-			// Make sure the control mutex is unlocked after we handle
-			// the possible exception.
-			pthread_mutex_unlock(&hook_control_mutex);
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
@@ -320,7 +316,7 @@ UIOHOOK_API int hook_disable() {
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
-	
+
 	return status;
 }
 

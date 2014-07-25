@@ -101,9 +101,6 @@ static void *hook_thread_proc(void *arg) {
 				#ifdef USE_XRECORD_ASYNC
 				// Async requires that we loop so that our thread does not return.
 				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, NULL) != 0) {
-					// Set the exit status.
-					status = NULL;
-
 					// Time in MS to sleep the runloop.
 					int timesleep = 100;
 
@@ -133,6 +130,9 @@ static void *hook_thread_proc(void *arg) {
 
 					// Unlock after loop exit.
 					pthread_mutex_unlock(&hook_xrecord_mutex);
+
+					// Set the exit status.
+					status = NULL;
 				}
 				#else
 				// Sync blocks until XRecordDisableContext() is called.
@@ -149,7 +149,6 @@ static void *hook_thread_proc(void *arg) {
 					// Reset the running state.
 					pthread_mutex_lock(&hook_xrecord_mutex);
 					running = false;
-					pthread_cond_signal(&hook_xrecord_cond);
 					pthread_mutex_unlock(&hook_xrecord_mutex);
 					#endif
 
@@ -299,10 +298,6 @@ UIOHOOK_API int hook_enable() {
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%#X)!\n",
 								__FUNCTION__, __LINE__, status);
 					}
-
-					// Make sure the control mutex is unlocked after we handle
-					// the possible exception.
-					pthread_mutex_unlock(&hook_control_mutex);
 				}
 				else {
 					logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",

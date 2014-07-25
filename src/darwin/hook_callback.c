@@ -219,7 +219,7 @@ void stop_message_port_runloop() {
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	switch (activity) {
 		case kCFRunLoopEntry:
-			// Lock the running mutex to signal the runloop has started.
+			// Lock the running mutex to signal the hook has started.
 			pthread_mutex_lock(&hook_running_mutex);
 
 			 // Unlock the control mutex so hook_enable() can continue.
@@ -228,8 +228,10 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			break;
 
 		case kCFRunLoopExit:
-			// We do not need to touch the hook_control_mutex because hook_disable()
-			// is blocking on pthread_join().
+			// Lock the control mutex until we exit.
+			pthread_mutex_lock(&hook_control_mutex);
+
+			// Unlock the running mutex to signal the hook has stopped.
 			pthread_mutex_unlock(&hook_running_mutex);
 			break;
 

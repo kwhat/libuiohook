@@ -99,14 +99,17 @@ static inline uint16_t get_modifiers() {
 
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
+		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
 
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
 	}
 	else if (hook->category == XRecordEndOfData) {
-		// We do not need to touch the hook_control_mutex because hook_disable()
-		// is blocking on pthread_join().
+		// Lock the control mutex until we exit.
+		pthread_mutex_lock(&hook_control_mutex);
+
+		// Unlock the running mutex to signal the hook has stopped.
 		pthread_mutex_unlock(&hook_running_mutex);
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {

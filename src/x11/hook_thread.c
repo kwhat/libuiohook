@@ -112,9 +112,12 @@ static void *hook_thread_proc(void *arg) {
 					// Set the exit status.
 					status = NULL;
 
+					// Time in MS to sleep the runloop.
 					int timesleep = 100;
-					struct timeval tv;
-					struct timespec ts;
+					#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE  < 199309L
+					timeval tv;
+					timespec ts;
+					#endif
 
 					do {
 						XRecordProcessReplies(disp_data);

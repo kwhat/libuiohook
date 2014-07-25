@@ -53,13 +53,12 @@ static struct timeval system_time;
 // Virtual event pointer.
 static virtual_event event;
 
-
-static pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
-extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
-extern Boolean restart_tap;
-
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
+
+extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
+extern pthread_cond_t hook_control_cond;
+extern Boolean restart_tap;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n",

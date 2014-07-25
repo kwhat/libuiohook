@@ -21,7 +21,11 @@
 #endif
 
 #ifdef USE_XRECORD_ASYNC
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE  >= 199309L
 #include <time.h>
+#else
+#include <sys/time.h>
+#endif
 #endif
 
 #include <pthread.h>
@@ -45,9 +49,14 @@ static XRecordContext context;
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
 static volatile bool running;
+
+static pthread_cond_t hook_xrecord_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t hook_xrecord_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
+
 pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static pthread_t hook_thread_id;
 static pthread_attr_t hook_thread_attr;
 
@@ -100,16 +109,28 @@ static void *hook_thread_proc(void *arg) {
 					// Set the exit status.
 					*status = UIOHOOK_SUCCESS;
 
-					while (running) {
+					int timesleep = 100;
+					struct timeval tv;
+					struct timespec ts;
+
+					do {
 						XRecordProcessReplies(disp_data);
 
 						// Prevent 100% CPU utilization.
 						#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE  >= 199309L
-						nanosleep((struct timespec[]) {{0, 100 * 1000000}}, NULL);
+						nanosleep((struct timespec[]) {{0, timesleep * 1000000}}, NULL);
 						#else
-						#pragma message "You should define _POSIX_C_SOURCE  >= 199309L with USE_XRECORD_ASYNC to prevent 100% CPU utilization!"
+						gettimeofday(&tv, NULL);
+						ts.tv_sec = time(NULL) + timesleep / 1000;
+						ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (timesleep % 1000);
+						ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
+						ts.tv_nsec %= (1000 * 1000 * 1000);
+
+						pthread_mutex_lock(&hook_xrecord_mutex);
+						pthread_cond_timedwait(&hook_xrecord_cond, &hook_xrecord_mutex, &ts);
+						pthread_mutex_unlock(&hook_xrecord_mutex);
 						#endif
-					}
+					} while (running);
 				}
 				#else
 				// Sync blocks until XRecordDisableContext() is called.

@@ -224,14 +224,13 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			pthread_mutex_lock(&hook_running_mutex);
 
 			 // Unlock the control mutex so hook_enable() can continue.
+			pthread_cond_signal(&hook_control_cond);
 			pthread_mutex_unlock(&hook_control_mutex);
 			break;
 
 		case kCFRunLoopExit:
-			// We do not need to touch the hook_control_mutex because
-			// hook_disable() is blocking on pthread_join().
-
-			// Unlock the running mutex.
+			// We do not need to touch the hook_control_mutex because hook_disable()
+			// is blocking on pthread_join().
 			pthread_mutex_unlock(&hook_running_mutex);
 			break;
 

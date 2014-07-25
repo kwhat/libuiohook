@@ -35,13 +35,17 @@ static CFRunLoopSourceRef event_source;
 
 pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_t hook_thread_id; // TODO = 0; ?
-static pthread_attr_t hook_thread_attr;
+pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 
 // Flag to restart the event tap incase of timeout.
 Boolean restart_tap = false;
 
 static void *hook_thread_proc(void *arg) {
+	// Lock the thread control mutex.  This will be unlocked when the
+	// thread has started the runloop, or when it has terminated due to error.
+	// This is unlocked in the hook_callback.c hook_status_proc().
+	pthread_mutex_lock(&hook_control_mutex);
+
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
@@ -205,6 +209,7 @@ static void *hook_thread_proc(void *arg) {
 			__FUNCTION__, __LINE__);
 
 	// Make sure we signal that we have passed any exception throwing code.
+	pthread_cond_signal(&hook_control_cond);
 	pthread_mutex_unlock(&hook_control_mutex);
 
 	return status;
@@ -213,10 +218,6 @@ static void *hook_thread_proc(void *arg) {
 UIOHOOK_API int hook_enable() {
 	int status = UIOHOOK_FAILURE;
 
-	// We shall use the default pthread attributes: thread is joinable
-	// (not detached) and has default (non real-time) scheduling policy.
-	//pthread_mutex_init(&hook_control_mutex, NULL);
-
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has fully stopped.
 	pthread_mutex_lock(&hook_control_mutex);
@@ -224,13 +225,15 @@ UIOHOOK_API int hook_enable() {
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
 		// Create the thread attribute.
-		int policy = 0;
-		int priority = 0;
-
+		pthread_attr_t hook_thread_attr;
 		pthread_attr_init(&hook_thread_attr);
-		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
-		priority = sched_get_priority_max(policy);
 
+		// Get the policy and priority for the thread attr.
+		int policy = 0;
+		pthread_attr_getschedpolicy(&hook_thread_attr, &policy);
+		int priority = sched_get_priority_max(policy);
+
+		pthread_t hook_thread_id;
 		void *hook_thread_status = malloc(sizeof(int));
 		if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, hook_thread_status) == 0) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
@@ -244,11 +247,9 @@ UIOHOOK_API int hook_enable() {
 						__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);
 			}
 
-			// Wait for the thread to unlock the control mutex indicating
-			// that it has started or failed.
-			if (pthread_mutex_lock(&hook_control_mutex) == 0) {
-				pthread_mutex_unlock(&hook_control_mutex);
-			}
+			// Wait for the thread to indicate that it has passed
+			// the initialization portion.
+			pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 
 			// Handle any possible JNI issue that may have occurred.
 			if (hook_is_enabled()) {
@@ -265,21 +266,27 @@ UIOHOOK_API int hook_enable() {
 				void *hook_thread_status;
 				pthread_join(hook_thread_id, (void *) &hook_thread_status);
 				status = *(int *) hook_thread_status;
-				free(hook_thread_status);
 
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%#X)!\n",
 						__FUNCTION__, __LINE__, status);
 			}
+
+			// Make sure the control mutex is unlocked after we handle
+			// the possible exception.
+			pthread_mutex_unlock(&hook_control_mutex);
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
 					__FUNCTION__, __LINE__);
 
-			// Free the memory even if the thread didn't start.
-			free(hook_thread_status);
-
 			status = UIOHOOK_ERROR_THREAD_CREATE;
 		}
+
+		// Make sure the thread attribute is removed.
+		pthread_attr_destroy(&hook_thread_attr);
+
+		// At this point we have either copied the error or success.
+		free(hook_thread_status);
 	}
 
 	// Make sure the control mutex is unlocked.
@@ -291,42 +298,29 @@ UIOHOOK_API int hook_enable() {
 UIOHOOK_API int hook_disable() {
 	int status = UIOHOOK_FAILURE;
 
-	if (!pthread_equal(pthread_self(), hook_thread_id)) {
-		// Lock the thread control mutex.  This will be unlocked when the
-		// thread has fully stopped.
-		pthread_mutex_lock(&hook_control_mutex);
+	// Lock the thread control mutex.  This will be unlocked when the
+	// thread has fully stopped.
+	pthread_mutex_lock(&hook_control_mutex);
 
-		if (hook_is_enabled() == true) {
-			// Make sure the tap doesn't restart.
-			restart_tap = false;
+	if (hook_is_enabled() == true) {
+		// Make sure the tap doesn't restart.
+		restart_tap = false;
 
-			// Stop the run loop.
-			CFRunLoopStop(event_loop);
+		// Stop the run loop.
+		CFRunLoopStop(event_loop);
 
-			// Wait for the thread to die.
-			void *hook_thread_status;
-			pthread_join(hook_thread_id, &hook_thread_status);
-			status = *(int *) hook_thread_status;
-			free(hook_thread_status);
+		// Wait for the thread to die.
+		pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 
-			// Clean up the thread attribute.
-			pthread_attr_destroy(&hook_thread_attr);
-
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result (%#X).\n",
-					__FUNCTION__, __LINE__, status);
-		}
-
-		// Clean up the mutex.
-		//pthread_mutex_destroy(&hook_control_mutex);
-
-		// Make sure the mutex gets unlocked.
-		pthread_mutex_unlock(&hook_control_mutex);
-	}
-	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Cannot disable hook from hook callback!\n",
-				__FUNCTION__, __LINE__);
+		status = UIOHOOK_SUCCESS;
 	}
 
+	// Make sure the mutex gets unlocked.
+	pthread_mutex_unlock(&hook_control_mutex);
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
+	
 	return status;
 }
 

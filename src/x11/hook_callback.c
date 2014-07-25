@@ -59,6 +59,7 @@ static virtual_event event;
 static dispatcher_t dispatcher = NULL;
 
 extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
+extern pthread_cond_t hook_control_cond;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n",
@@ -99,6 +100,8 @@ static inline uint16_t get_modifiers() {
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		pthread_mutex_lock(&hook_running_mutex);
+		
+		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
 	}
 	else if (hook->category == XRecordEndOfData) {

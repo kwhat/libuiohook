@@ -32,7 +32,10 @@ extern HINSTANCE hInst;
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HANDLE hook_thread_handle = NULL;
-static HANDLE hook_control_handle = NULL;
+
+static HANDLE hook_running_mutex = NULL;
+static HANDLE hook_control_mutex = NULL;
+
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
@@ -69,8 +72,9 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		status = UIOHOOK_SUCCESS;
 
 		// Signal that we have passed the thread initialization.
-		SetEvent(hook_control_handle);
-
+		SetEvent(hook_running_mutex);
+		SetEvent(hook_control_mutex);
+		
 		// Block until the thread receives an WM_QUIT request.
 		MSG message;
 		while (GetMessage(&message, (HWND) -1, 0, 0) > 0) {
@@ -95,14 +99,28 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		UnhookWindowsHookEx(mouse_event_hhook);
 		mouse_event_hhook = NULL;
 	}
+	
+	// TODO We really need some startup and shutdown methods.
+	// Windows doesn't provide a good way to clean this up asynchronously.
+	if (hook_thread_handle != NULL) {
+		CloseHandle(hook_thread_handle);
+		hook_thread_handle = NULL;
+	}
+	
+	if (hook_control_mutex != NULL) {
+		CloseHandle(hook_control_mutex);
+		hook_control_mutex = NULL;
+	}
+	
+	if (hook_running_mutex != NULL) {
+		CloseHandle(hook_running_mutex);
+		hook_running_mutex = NULL;
+	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
-	// Reset the control event to signal that the thread is no longer running.
-	ResetEvent(hook_control_handle);
-
-	ExitThread(status);
+	return status;
 }
 
 UIOHOOK_API int hook_enable() {
@@ -111,8 +129,9 @@ UIOHOOK_API int hook_enable() {
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
 		// Create event handles for the thread hook.
-		hook_control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_control_handle"));
-
+		hook_running_mutex = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_running_mutex"));
+		hook_control_mutex = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_control_mutex"));
+		
 		LPTHREAD_START_ROUTINE lpStartAddress = &hook_thread_proc;
 		hook_thread_handle = CreateThread(NULL, 0, lpStartAddress, NULL, 0, &hook_thread_id);
 		if (hook_thread_handle != INVALID_HANDLE_VALUE) {
@@ -134,7 +153,7 @@ UIOHOOK_API int hook_enable() {
 
 			// Wait for any possible thread exceptions to get thrown into
 			// the queue
-			WaitForSingleObject(hook_control_handle, INFINITE);
+			WaitForSingleObject(hook_control_mutex, INFINITE);
 
 			// TODO Set the return status to the thread exit code.
 			if (hook_is_enabled()) {
@@ -172,31 +191,25 @@ UIOHOOK_API int hook_enable() {
 UIOHOOK_API int hook_disable() {
 	int status = UIOHOOK_FAILURE;
 
+	if (hook_is_enabled() == true) {
+		// Try to exit the thread naturally.
+		PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
 
-	if (GetCurrentThreadId() != hook_thread_id) {
-		if (hook_is_enabled() == true) {
-			// Try to exit the thread naturally.
-			PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
-			WaitForSingleObject(hook_thread_handle,  INFINITE);
+		/*
+		// We dont need to wait.
+		WaitForSingleObject(hook_thread_handle,  INFINITE);
 
-			DWORD thread_status;
-			GetExitCodeThread(hook_thread_handle, &thread_status);
-			status = (int) thread_status;
+		// FIXME both the handles need to be closed!
 
-			CloseHandle(hook_thread_handle);
-			hook_thread_handle = NULL;
 
-			CloseHandle(hook_control_handle);
-			hook_control_handle = NULL;
-
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result: %#X.\n",
-					__FUNCTION__, __LINE__, status);
-		}
+		CloseHandle(hook_control_mutex);
+		hook_control_mutex = NULL;
+		*/
 	}
-	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Cannot disable hook from hook callback!\n",
-				__FUNCTION__, __LINE__);
-	}
+	
+	
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
 
 	return status;
 }
@@ -204,8 +217,8 @@ UIOHOOK_API int hook_disable() {
 UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
-	if (hook_control_handle != NULL) {
-		DWORD status = WaitForSingleObject(hook_control_handle, 100);
+	if (hook_running_mutex != NULL) {
+		DWORD status = WaitForSingleObject(hook_running_mutex, 100);
 		switch (status)	{
 			case WAIT_OBJECT_0:
 				is_running = true;

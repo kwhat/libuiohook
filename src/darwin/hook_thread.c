@@ -305,9 +305,6 @@ UIOHOOK_API int hook_disable() {
 		// Stop the run loop.
 		CFRunLoopStop(event_loop);
 
-		// Wait for the thread to die.
-		pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
-
 		status = UIOHOOK_SUCCESS;
 	}
 

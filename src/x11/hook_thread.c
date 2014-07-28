@@ -178,8 +178,15 @@ static void *hook_thread_proc(void *arg) {
 			*status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
 		}
 
+		// FIXME Cleanup!
 		XCloseDisplay(disp_data);
 		disp_data = NULL;
+		
+		// Close down any open displays.
+		if (disp_ctrl != NULL) {
+			XCloseDisplay(disp_ctrl);
+			disp_ctrl = NULL;
+		}
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
@@ -363,15 +370,6 @@ UIOHOOK_API int hook_disable() {
 			// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
 			XFlush(disp_ctrl);
 			//XSync(disp_ctrl, True);
-
-			// Wait for the thread to die.
-			pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
-
-			// Close down any open displays.
-			if (disp_ctrl != NULL) {
-				XCloseDisplay(disp_ctrl);
-				disp_ctrl = NULL;
-			}
 
 			status = UIOHOOK_SUCCESS;
 		}

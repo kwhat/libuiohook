@@ -57,6 +57,8 @@ void dispatch_proc(virtual_event * const event) {
 		case EVENT_KEY_PRESSED:
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
+				hook_disable();
+				
 				#ifdef _WIN32
 				SetEvent(control_handle);
 				#else
@@ -120,7 +122,11 @@ int main() {
 		#endif
 		#endif
 
-		hook_disable();
+		/*
+		while(hook_is_enabled()) {
+			printf("Deadlock***\n");
+		};
+		*/
 	}
 
 	#ifdef _WIN32

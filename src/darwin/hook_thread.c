@@ -243,7 +243,7 @@ UIOHOOK_API int hook_enable() {
 			// always use pthread_setschedparam instead.
 			struct sched_param param = { .sched_priority = priority };
 			if (pthread_setschedparam(hook_thread_id, SCHED_OTHER, &param) != 0) {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Could not set thread priority %i for thread 0x%lX!\n",
 						__FUNCTION__, __LINE__, priority, (unsigned long) hook_thread_id);
 			}
 

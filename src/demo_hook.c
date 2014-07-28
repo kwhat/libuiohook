@@ -29,11 +29,11 @@
 
 static HANDLE control_handle = NULL;
 #else
+#include <pthread.h>
+
 #if defined(__APPLE__) && defined(__MACH__)
 #include <CoreFoundation/CoreFoundation.h>
 #else
-#include <pthread.h>
-
 static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -58,7 +58,7 @@ void dispatch_proc(virtual_event * const event) {
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
 				hook_disable();
-				
+
 				#ifdef _WIN32
 				SetEvent(control_handle);
 				#else
@@ -102,13 +102,14 @@ void dispatch_proc(virtual_event * const event) {
 }
 
 int main() {
-	hook_set_dispatch_proc(&dispatch_proc);
+	//hook_set_dispatch_proc(&dispatch_proc);
 
 	#ifdef _WIN32
 	control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("control_handle"));
 	#endif
 
-	int status = hook_enable();
+	int status = UIOHOOK_FAILURE; //hook_enable();
+	/*
 	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
 		#ifdef _WIN32
 		WaitForSingleObject(control_handle, INFINITE);
@@ -121,17 +122,23 @@ int main() {
 		pthread_mutex_unlock(&control_mutex);
 		#endif
 		#endif
-
-		/*
-		while(hook_is_enabled()) {
-			printf("Deadlock***\n");
-		};
-		*/
 	}
 
+	while(hook_is_enabled()) {
+		printf("*** Check Hook\n");
+		hook_disable();
+		printf("*** Waiting\n");
+	};
+*/
+	// Wait for all currently running threads to finish.
 	#ifdef _WIN32
+	ExitThread(0);
 	CloseHandle(control_handle);
+	#else
+	CFRunLoopStop(CFRunLoopGetMain());
+	printf("Test %p\n", CFRunLoopGetMain());
+	pthread_exit(0);
 	#endif
 
-	return status;
+	return 0;
 }

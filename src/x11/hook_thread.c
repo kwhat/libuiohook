@@ -34,8 +34,8 @@
 #include <X11/extensions/record.h>
 
 #include "hook_callback.h"
-#include "logger.h"
 #include "input_helper.h"
+#include "logger.h"
 
 // The pointer to the X11 display accessed by the callback.
 static Display *disp_ctrl;
@@ -156,6 +156,8 @@ static void *hook_thread_proc(void *arg) {
 					*status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 				}
 
+				// FIXME context is in critical section... lock control mutex?
+
 				// Free up the context after the run loop terminates.
 				XRecordFreeContext(disp_data, context);
 			}
@@ -181,7 +183,7 @@ static void *hook_thread_proc(void *arg) {
 		// FIXME Cleanup!
 		XCloseDisplay(disp_data);
 		disp_data = NULL;
-		
+
 		// Close down any open displays.
 		if (disp_ctrl != NULL) {
 			XCloseDisplay(disp_ctrl);
@@ -357,22 +359,28 @@ UIOHOOK_API int hook_disable() {
 	pthread_mutex_lock(&hook_control_mutex);
 
 	if (hook_is_enabled() == true) {
-		// Try to exit the thread naturally.
-		if (XRecordDisableContext(disp_ctrl, context) != 0) {
-			#ifdef USE_XRECORD_ASYNC
-			pthread_mutex_lock(&hook_xrecord_mutex);
-			running = false;
-			pthread_cond_signal(&hook_xrecord_cond);
-			pthread_mutex_unlock(&hook_xrecord_mutex);
-			#endif
+		// We need to make sure the context is still valid.
+		XRecordState *state = malloc(sizeof(XRecordState));
+		if (XRecordGetContext(disp_ctrl, context, &state) != 0) {
+			// Try to exit the thread naturally.
+			if (state->enabled && XRecordDisableContext(disp_ctrl, context) != 0) {
+				#ifdef USE_XRECORD_ASYNC
+				pthread_mutex_lock(&hook_xrecord_mutex);
+				running = false;
+				pthread_cond_signal(&hook_xrecord_cond);
+				pthread_mutex_unlock(&hook_xrecord_mutex);
+				#endif
 
-			// See Bug 42356 for more information.
-			// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-			XFlush(disp_ctrl);
-			//XSync(disp_ctrl, True);
+				// See Bug 42356 for more information.
+				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+				XFlush(disp_ctrl);
+				//XSync(disp_ctrl, True);
 
-			status = UIOHOOK_SUCCESS;
+				status = UIOHOOK_SUCCESS;
+			}
 		}
+
+		free(state);
 	}
 
 	// Make sure the mutex gets unlocked.

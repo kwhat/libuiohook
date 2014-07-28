@@ -74,7 +74,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		// Signal that we have passed the thread initialization.
 		SetEvent(hook_running_mutex);
 		SetEvent(hook_control_mutex);
-		
+
 		// Block until the thread receives an WM_QUIT request.
 		MSG message;
 		while (GetMessage(&message, (HWND) -1, 0, 0) > 0) {
@@ -99,19 +99,19 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		UnhookWindowsHookEx(mouse_event_hhook);
 		mouse_event_hhook = NULL;
 	}
-	
+
 	// TODO We really need some startup and shutdown methods.
 	// Windows doesn't provide a good way to clean this up asynchronously.
 	if (hook_thread_handle != NULL) {
 		CloseHandle(hook_thread_handle);
 		hook_thread_handle = NULL;
 	}
-	
+
 	if (hook_control_mutex != NULL) {
 		CloseHandle(hook_control_mutex);
 		hook_control_mutex = NULL;
 	}
-	
+
 	if (hook_running_mutex != NULL) {
 		CloseHandle(hook_running_mutex);
 		hook_running_mutex = NULL;
@@ -131,7 +131,7 @@ UIOHOOK_API int hook_enable() {
 		// Create event handles for the thread hook.
 		hook_running_mutex = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_running_mutex"));
 		hook_control_mutex = CreateEvent(NULL, TRUE, FALSE, TEXT("hook_control_mutex"));
-		
+
 		LPTHREAD_START_ROUTINE lpStartAddress = &hook_thread_proc;
 		hook_thread_handle = CreateThread(NULL, 0, lpStartAddress, NULL, 0, &hook_thread_id);
 		if (hook_thread_handle != INVALID_HANDLE_VALUE) {
@@ -140,15 +140,10 @@ UIOHOOK_API int hook_enable() {
 
 			// Attempt to set the thread priority to time critical.
 			// TODO This maybe a little overkill, re-evaluate.
-			BOOL status_priority =
-					SetThreadPriority(hook_thread_handle, THREAD_PRIORITY_TIME_CRITICAL);
-			if (!status_priority) {
-				logger(LOG_LEVEL_WARN,
-						"%s [%u]: Could not set thread priority %li for thread %#p! (%#lX)\n",
-						__FUNCTION__, __LINE__,
-						(long) THREAD_PRIORITY_TIME_CRITICAL,
-						hook_thread_handle,
-						(unsigned long) GetLastError());
+			if (SetThreadPriority(hook_thread_handle, THREAD_PRIORITY_TIME_CRITICAL) == 0) {
+				logger(LOG_LEVEL_WARN, "%s [%u]: Could not set thread priority %li for thread %#p! (%#lX)\n",
+						__FUNCTION__, __LINE__, (long) THREAD_PRIORITY_TIME_CRITICAL,
+						hook_thread_handle, (unsigned long) GetLastError());
 			}
 
 			// Wait for any possible thread exceptions to get thrown into
@@ -198,16 +193,12 @@ UIOHOOK_API int hook_disable() {
 		/*
 		// We dont need to wait.
 		WaitForSingleObject(hook_thread_handle,  INFINITE);
-
-		// FIXME both the handles need to be closed!
-
-
-		CloseHandle(hook_control_mutex);
-		hook_control_mutex = NULL;
 		*/
+
+		status = UIOHOOK_SUCCESS;
 	}
-	
-	
+
+
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
 

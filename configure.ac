@@ -210,6 +210,9 @@ AS_IF(
 		LIBS="$PTHREAD_LIBS $LIBS"
 		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
 
+		# Always add Carbon due to non-deprecated #define's
+		LIBS="${LIBS} -framework Carbon"
+
 		#CFLAGS="$CFLAGS -I/usr/local/include"
 		#LDFLAGS="$LDFLAGS -Wl,-undefined,error"
 	],

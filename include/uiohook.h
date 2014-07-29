@@ -34,6 +34,7 @@
 #define UIOHOOK_ERROR_THREAD_CREATE				0x10
 #define UIOHOOK_ERROR_THREAD_INIT				0x11
 #define UIOHOOK_ERROR_THREAD_START				0x12
+// FIXME This error is not currently possible
 #define UIOHOOK_ERROR_THREAD_STOP				0x13
 
 // Unix specific errors.

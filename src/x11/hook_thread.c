@@ -34,8 +34,8 @@
 #include <X11/extensions/record.h>
 
 #include "hook_callback.h"
-#include "logger.h"
 #include "input_helper.h"
+#include "logger.h"
 
 // The pointer to the X11 display accessed by the callback.
 static Display *disp_ctrl;
@@ -156,6 +156,12 @@ static void *hook_thread_proc(void *arg) {
 					*status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 				}
 
+				// I believe that the end data callback fires before the 
+				// enable context function exits.  Because it locks the control 
+				// mutex on end data, the free context below should be thread 
+				// safe.
+				// TODO Check to see if the order is guaranteed.
+
 				// Free up the context after the run loop terminates.
 				XRecordFreeContext(disp_data, context);
 			}
@@ -178,8 +184,15 @@ static void *hook_thread_proc(void *arg) {
 			*status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
 		}
 
+		// FIXME Cleanup!
 		XCloseDisplay(disp_data);
 		disp_data = NULL;
+
+		// Close down any open displays.
+		if (disp_ctrl != NULL) {
+			XCloseDisplay(disp_ctrl);
+			disp_ctrl = NULL;
+		}
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
@@ -291,9 +304,9 @@ UIOHOOK_API int hook_enable() {
 								__FUNCTION__, __LINE__);
 
 						// Wait for the thread to die.
-						void *hook_thread_status;
-						pthread_join(hook_thread_id, (void *) &hook_thread_status);
-						status = *(int *) hook_thread_status;
+						int *hook_thread_status;
+						pthread_join(hook_thread_id, (void **) &hook_thread_status);
+						status = *hook_thread_status;
 
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%#X)!\n",
 								__FUNCTION__, __LINE__, status);
@@ -350,31 +363,31 @@ UIOHOOK_API int hook_disable() {
 	pthread_mutex_lock(&hook_control_mutex);
 
 	if (hook_is_enabled() == true) {
-		// Try to exit the thread naturally.
-		if (XRecordDisableContext(disp_ctrl, context) != 0) {
-			#ifdef USE_XRECORD_ASYNC
-			pthread_mutex_lock(&hook_xrecord_mutex);
-			running = false;
-			pthread_cond_signal(&hook_xrecord_cond);
-			pthread_mutex_unlock(&hook_xrecord_mutex);
-			#endif
+		// We need to make sure the context is still valid.
+		XRecordState *state = malloc(sizeof(XRecordState));
+		if (XRecordGetContext(disp_ctrl, context, &state) != 0) {
+			// Try to exit the thread naturally.
+			if (state->enabled && XRecordDisableContext(disp_ctrl, context) != 0) {
+				#ifdef USE_XRECORD_ASYNC
+				pthread_mutex_lock(&hook_xrecord_mutex);
+				running = false;
+				pthread_cond_signal(&hook_xrecord_cond);
+				pthread_mutex_unlock(&hook_xrecord_mutex);
+				#endif
 
-			// See Bug 42356 for more information.
-			// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-			XFlush(disp_ctrl);
-			//XSync(disp_ctrl, True);
+				// See Bug 42356 for more information.
+				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+				XFlush(disp_ctrl);
+				//XSync(disp_ctrl, True);
+				
+				// Wait for the thread to die.
+				// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 
-			// Wait for the thread to die.
-			pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
-
-			// Close down any open displays.
-			if (disp_ctrl != NULL) {
-				XCloseDisplay(disp_ctrl);
-				disp_ctrl = NULL;
+				status = UIOHOOK_SUCCESS;
 			}
-
-			status = UIOHOOK_SUCCESS;
 		}
+
+		free(state);
 	}
 
 	// Make sure the mutex gets unlocked.

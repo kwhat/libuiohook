@@ -29,11 +29,11 @@
 
 static HANDLE control_handle = NULL;
 #else
+#include <pthread.h>
+
 #if defined(__APPLE__) && defined(__MACH__)
 #include <CoreFoundation/CoreFoundation.h>
 #else
-#include <pthread.h>
-
 static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
@@ -41,9 +41,8 @@ static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include "logger.h"
 
-// NOTE: This function executes on the hook thread!  If you need to block or
-// call hook_disable(), please do so on another thread with your own event
-// dispatcher implementation.
+// NOTE: This function executes on the hook thread!  If you need to block, 
+// please do so on another thread with your own event dispatcher implementation.
 void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
 	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X",
@@ -57,6 +56,8 @@ void dispatch_proc(virtual_event * const event) {
 		case EVENT_KEY_PRESSED:
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
+				hook_disable();
+
 				#ifdef _WIN32
 				SetEvent(control_handle);
 				#else
@@ -119,8 +120,6 @@ int main() {
 		pthread_mutex_unlock(&control_mutex);
 		#endif
 		#endif
-
-		hook_disable();
 	}
 
 	#ifdef _WIN32

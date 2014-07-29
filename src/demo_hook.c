@@ -41,9 +41,8 @@ static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include "logger.h"
 
-// NOTE: This function executes on the hook thread!  If you need to block or
-// call hook_disable(), please do so on another thread with your own event
-// dispatcher implementation.
+// NOTE: This function executes on the hook thread!  If you need to block, 
+// please do so on another thread with your own event dispatcher implementation.
 void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
 	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X",
@@ -102,14 +101,13 @@ void dispatch_proc(virtual_event * const event) {
 }
 
 int main() {
-	//hook_set_dispatch_proc(&dispatch_proc);
+	hook_set_dispatch_proc(&dispatch_proc);
 
 	#ifdef _WIN32
 	control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("control_handle"));
 	#endif
 
-	int status = UIOHOOK_FAILURE; //hook_enable();
-	/*
+	int status = hook_enable();
 	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
 		#ifdef _WIN32
 		WaitForSingleObject(control_handle, INFINITE);
@@ -124,21 +122,9 @@ int main() {
 		#endif
 	}
 
-	while(hook_is_enabled()) {
-		printf("*** Check Hook\n");
-		hook_disable();
-		printf("*** Waiting\n");
-	};
-*/
-	// Wait for all currently running threads to finish.
 	#ifdef _WIN32
-	ExitThread(0);
 	CloseHandle(control_handle);
-	#else
-	CFRunLoopStop(CFRunLoopGetMain());
-	printf("Test %p\n", CFRunLoopGetMain());
-	pthread_exit(0);
 	#endif
 
-	return 0;
+	return status;
 }

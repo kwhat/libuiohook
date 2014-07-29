@@ -379,6 +379,9 @@ UIOHOOK_API int hook_disable() {
 				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
 				XFlush(disp_ctrl);
 				//XSync(disp_ctrl, True);
+				
+				// Wait for the thread to die.
+				// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 
 				status = UIOHOOK_SUCCESS;
 			}

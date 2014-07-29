@@ -190,10 +190,8 @@ UIOHOOK_API int hook_disable() {
 		// Try to exit the thread naturally.
 		PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
 
-		/*
-		// We dont need to wait.
-		WaitForSingleObject(hook_thread_handle,  INFINITE);
-		*/
+		// Wait for the thread to die.
+		// WaitForSingleObject(hook_thread_handle,  INFINITE);
 
 		status = UIOHOOK_SUCCESS;
 	}

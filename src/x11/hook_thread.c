@@ -156,7 +156,11 @@ static void *hook_thread_proc(void *arg) {
 					*status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 				}
 
-				// FIXME context is in critical section... lock control mutex?
+				// I believe that the end data callback fires before the 
+				// enable context function exits.  Because it locks the control 
+				// mutex on end data, the free context below should be thread 
+				// safe.
+				// TODO Check to see if the order is guaranteed.
 
 				// Free up the context after the run loop terminates.
 				XRecordFreeContext(disp_data, context);
@@ -300,9 +304,9 @@ UIOHOOK_API int hook_enable() {
 								__FUNCTION__, __LINE__);
 
 						// Wait for the thread to die.
-						void *hook_thread_status;
-						pthread_join(hook_thread_id, (void *) &hook_thread_status);
-						status = *(int *) hook_thread_status;
+						int *hook_thread_status;
+						pthread_join(hook_thread_id, (void **) &hook_thread_status);
+						status = *hook_thread_status;
 
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread Result: (%#X)!\n",
 								__FUNCTION__, __LINE__, status);

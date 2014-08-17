@@ -45,7 +45,7 @@ HOOK_SRC += src/windows/hook_callback.c \
 	 src/windows/system_properties.c
 endif
 
-pkgconfigdir = $(libdir)/pc
+pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = $(top_builddir)/pc/uiohook.pc
 
 include_HEADERS = include/uiohook.h

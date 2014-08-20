@@ -65,6 +65,9 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
 				__FUNCTION__, __LINE__);
 
+		// Initialize native input helper functions.
+		load_input_helper();
+
 		// Check and setup modifiers.
 		initialize_modifiers();
 
@@ -81,6 +84,9 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 			TranslateMessage(&message);
 			DispatchMessage(&message);
 		}
+
+		// Deinitialize native input helper functions.
+		unload_input_helper();
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
@@ -190,7 +196,9 @@ UIOHOOK_API int hook_disable() {
 		// Try to exit the thread naturally.
 		PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
 
-		// Wait for the thread to die.
+		// If we want method to behave synchronically, we must wait 
+		// for the thread to die.
+		// NOTE This will prevent function calls from the callback!
 		// WaitForSingleObject(hook_thread_handle,  INFINITE);
 
 		status = UIOHOOK_SUCCESS;

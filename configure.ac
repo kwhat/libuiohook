@@ -69,7 +69,8 @@ m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 # Checks for header files
 AC_C_CONST
 AC_HEADER_STDBOOL
-#AC_CHECK_HEADERS([inttypes.h stdint.h])
+AC_CHECK_HEADERS([stdint.h])
+AC_TYPE_UINT64_T
 
 # Initialize libtool.
 AC_PROG_LIBTOOL

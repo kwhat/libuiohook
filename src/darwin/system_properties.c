@@ -449,12 +449,10 @@ __attribute__ ((constructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
-
-	load_input_helper();
 }
 
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
-	unload_input_helper();
+	// Do Nothing.
 }

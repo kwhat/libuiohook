@@ -95,7 +95,7 @@ static void *hook_thread_proc(void *arg) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 						__FUNCTION__, __LINE__);
 
-				// Initialize Native Input Functions.
+				// Initialize native input helper functions.
 				load_input_helper(disp_ctrl);
 
 				#ifdef USE_XRECORD_ASYNC
@@ -156,11 +156,13 @@ static void *hook_thread_proc(void *arg) {
 					*status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 				}
 
-				// I believe that the end data callback fires before the 
-				// enable context function exits.  Because it locks the control 
-				// mutex on end data, the free context below should be thread 
-				// safe.
-				// TODO Check to see if the order is guaranteed.
+				// Deinitialize native input helper functions.
+				unload_input_helper();
+
+				// FIXME context is in critical section... lock control mutex?
+				// The end data callback may fire before the enable context 
+				// function exits.  Because it locks the control mutex on end 
+				// data, the free context below may not be thread safe!
 
 				// Free up the context after the run loop terminates.
 				XRecordFreeContext(disp_data, context);
@@ -380,7 +382,9 @@ UIOHOOK_API int hook_disable() {
 				XFlush(disp_ctrl);
 				//XSync(disp_ctrl, True);
 				
-				// Wait for the thread to die.
+				// If we want method to behave synchronically, we must wait 
+				// for the thread to die.
+				// NOTE This will prevent function calls from the callback!
 				// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 
 				status = UIOHOOK_SUCCESS;

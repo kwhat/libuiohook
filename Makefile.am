@@ -19,7 +19,17 @@
 ACLOCAL_AMFLAGS = -I m4
 
 HOOK_SRC = src/logger.c
-TEST_SRC = test/input_helper_test.c test/system_properties_test.c test/uiohook_test.c 
+TEST_SRC = test/input_helper_test.c test/system_properties_test.c test/uiohook_test.c
+MAN3_SRC = man/hook_disable.man \
+	   man/hook_enable.man \
+	   man/hook_get_auto_repeat_delay.man \
+	   man/hook_get_multi_click_time.man \
+	   man/hook_get_pointer_acceleration_threshold.man \
+	   man/hook_set_dispatch_proc.man \
+	   man/hook_get_auto_repeat_rate.man \
+	   man/hook_get_pointer_acceleration_multiplier.man \
+	   man/hook_get_pointer_sensitivity.man \
+	   man/hook_set_logger_proc.man
 
 if BUILD_DARWIN
 HOOK_SRC += src/darwin/hook_callback.c \
@@ -83,5 +93,6 @@ testhook_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(TEST_CFLAGS) -I$(top_sr
 testhook_LDFLAGS = $(LTLDFLAGS) $(TEST_LIBS)
 endif
 
+man3_MANS = $(MAN3_SRC)
 
 EXTRA_DIST = COPYING.md COPYING.LESSER.md README.md

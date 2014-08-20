@@ -89,7 +89,7 @@ static inline unsigned short int get_modifiers() {
 }
 
 /* Retrieves the mouse wheel scroll type. This function cannot be included as
- * part of the NativeHelpers.h due to platform specific calling restrictions.
+ * part of the input_helper.h due to platform specific calling restrictions.
  */
 static inline unsigned short int get_scroll_wheel_type() {
 	unsigned short int value;
@@ -107,7 +107,7 @@ static inline unsigned short int get_scroll_wheel_type() {
 }
 
 /* Retrieves the mouse wheel scroll amount. This function cannot be included as
- * part of the NativeHelpers.h due to platform specific calling restrictions.
+ * part of the input_helper.h due to platform specific calling restrictions.
  */
 static inline unsigned short int get_scroll_wheel_amount() {
 	unsigned short int value;

@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <wchar.h>
 
 /* Begin Error Codes */
@@ -78,8 +79,8 @@ typedef enum _event_type {
 } event_type;
 
 typedef struct _keyboard_event_data {
-	unsigned short keycode;
-	unsigned short rawcode;
+	uint16_t keycode;
+	uint16_t rawcode;
 	wchar_t keychar;
 } keyboard_event_data,
 		key_pressed_event_data,
@@ -87,29 +88,29 @@ typedef struct _keyboard_event_data {
 		key_typed_event_data;
 
 typedef struct _mouse_event_data {
-	unsigned short button;
-	unsigned short clicks;
-	unsigned short x;
-	unsigned short y;
+	uint16_t button;
+	uint16_t clicks;
+	uint16_t x;
+	uint16_t y;
 } mouse_event_data,
 		mouse_pressed_event_data,
 		mouse_released_event_data,
 		mouse_clicked_event_data;
 
 typedef struct _mouse_wheel_event_data {
-	unsigned short clicks;
-	unsigned short x;
-	unsigned short y;
-	unsigned short type;
-	unsigned short amount;
-	signed short rotation;
+	uint16_t clicks;
+	uint16_t x;
+	uint16_t y;
+	uint16_t type;
+	uint16_t amount;
+	int16_t rotation;
 } mouse_wheel_event_data;
 
 typedef struct _virtual_event {
 	event_type type;
-	unsigned long long time;
-	unsigned short mask;
-	unsigned short reserved;
+	uint64_t time;
+	uint16_t mask;
+	uint16_t reserved;
 	union {
 		keyboard_event_data keyboard;
 		mouse_event_data mouse;

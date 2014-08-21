@@ -24,6 +24,7 @@
 #include <windows.h>
 
 #include "hook_callback.h"
+#include "input_helper.h"
 #include "logger.h"
 
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.

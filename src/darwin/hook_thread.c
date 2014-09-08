@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -304,8 +305,8 @@ UIOHOOK_API int hook_disable() {
 
 		// Stop the run loop.
 		CFRunLoopStop(event_loop);
-		
-		// If we want method to behave synchronically, we must wait 
+
+		// If we want method to behave synchronically, we must wait
 		// for the thread to die.
 		// NOTE This will prevent function calls from the callback!
 		// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);

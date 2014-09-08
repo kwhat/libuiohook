@@ -41,7 +41,7 @@ static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include "logger.h"
 
-// NOTE: This function executes on the hook thread!  If you need to block, 
+// NOTE: This function executes on the hook thread!  If you need to block,
 // please do so on another thread with your own event dispatcher implementation.
 void dispatch_proc(virtual_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)

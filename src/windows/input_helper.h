@@ -44,8 +44,8 @@
 #ifndef _included_input_helper
 #define _included_input_helper
 
-#include <windows.h>
 #include <limits.h>
+#include <windows.h>
 
 /* Assume that any compiler defining _MSC_VER knows about LPFN_ISWOW64PROCESS.
  * This assertion has not been tested.  If you are using a compiler that

@@ -45,7 +45,7 @@ int main() {
 	hook_post_event(event);
 
 	event->type = EVENT_KEY_RELEASED;
-	
+
 	hook_post_event(event);
 
 	free(event);

@@ -16,9 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#ifndef _included_copyright
+#define _included_copyright
 
 #ifdef USE_QUIET
 #define COPYRIGHT() (void) 0;
@@ -41,4 +40,6 @@
 		"\n" \
 		"You should have received a copy of the GNU Lesser General Public License\n" \
 		"along with this program.  If not, see <http://www.gnu.org/licenses/>.\n\n");
+#endif
+
 #endif

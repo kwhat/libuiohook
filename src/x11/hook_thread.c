@@ -160,8 +160,8 @@ static void *hook_thread_proc(void *arg) {
 				unload_input_helper();
 
 				// FIXME context is in critical section... lock control mutex?
-				// The end data callback may fire before the enable context 
-				// function exits.  Because it locks the control mutex on end 
+				// The end data callback may fire before the enable context
+				// function exits.  Because it locks the control mutex on end
 				// data, the free context below may not be thread safe!
 
 				// Free up the context after the run loop terminates.
@@ -381,8 +381,8 @@ UIOHOOK_API int hook_disable() {
 				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
 				XFlush(disp_ctrl);
 				//XSync(disp_ctrl, True);
-				
-				// If we want method to behave synchronically, we must wait 
+
+				// If we want method to behave synchronically, we must wait
 				// for the thread to die.
 				// NOTE This will prevent function calls from the callback!
 				// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);

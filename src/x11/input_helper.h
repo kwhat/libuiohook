@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _included_x_input_helpers
-#define _included_x_input_helpers
+#ifndef _included_input_helper
+#define _included_input_helper
 
 #include <stdint.h>
 #include <X11/Xlib.h>

@@ -197,7 +197,7 @@ UIOHOOK_API int hook_disable() {
 		// Try to exit the thread naturally.
 		PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
 
-		// If we want method to behave synchronically, we must wait 
+		// If we want method to behave synchronically, we must wait
 		// for the thread to die.
 		// NOTE This will prevent function calls from the callback!
 		// WaitForSingleObject(hook_thread_handle,  INFINITE);

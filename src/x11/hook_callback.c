@@ -97,10 +97,30 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+void hook_thread_cleanup(void *arg) {
+		event.type = EVENT_HOOK_STOP;
+
+		// Set the event.time.
+		gettimeofday(&system_time, NULL);
+		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		event.mask = 0x00;
+
+		// Make sure reserved bits are zeroed out.
+		event.reserved = 0x00;
+
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Hook thread terminated. (%#X)\n",
+				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+
+		dispatch_event(&event);
+}
+
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
+
+		// TODO hook event start of data
 
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
@@ -111,6 +131,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		// Unlock the running mutex to signal the hook has stopped.
 		pthread_mutex_unlock(&hook_running_mutex);
+
+		// TODO hook event end of data
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {
 		// Get XRecord data.

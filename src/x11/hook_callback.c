@@ -53,7 +53,7 @@ static bool mouse_dragged = false;
 static struct timeval system_time;
 
 // Virtual event pointer.
-static virtual_event event;
+static uiohook_event event;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -69,7 +69,7 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(virtual_event *const event) {
+static inline void dispatch_event(uiohook_event *const event) {
 	if (dispatcher != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n",
 				__FUNCTION__, __LINE__, event->type);

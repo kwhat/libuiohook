@@ -211,16 +211,17 @@ static void *hook_thread_proc(void *arg) {
 
 	// Execute the cleanup handlers only under cancellation and other abnormal
 	// termination scenarios.
-	pthread_cleanup_pop(0);
-
-	// Make sure we signal that we have passed any exception throwing code.
+	pthread_cleanup_pop(1);
+	
+	// Make sure we signal that we have passed any exception throwing code for 
+	// the waiting hook_enable().
 	pthread_cond_signal(&hook_control_cond);
 	pthread_mutex_unlock(&hook_control_mutex);
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
-	return status;
+	return arg;
 }
 
 UIOHOOK_API int hook_enable() {
@@ -254,8 +255,8 @@ UIOHOOK_API int hook_enable() {
 			#endif
 
 			if (is_auto_repeat == False) {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: %s\n",
-						__FUNCTION__, __LINE__, "Could not enable detectable auto-repeat!\n");
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
+						__FUNCTION__, __LINE__);
 			}
 			else {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",

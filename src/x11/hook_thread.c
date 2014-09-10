@@ -209,7 +209,9 @@ static void *hook_thread_proc(void *arg) {
 		*status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
 	}
 
-	pthread_cleanup_pop(1);
+	// Execute the cleanup handlers only under cancellation and other abnormal
+	// termination scenarios.
+	pthread_cleanup_pop(0);
 
 	// Make sure we signal that we have passed any exception throwing code.
 	pthread_cond_signal(&hook_control_cond);

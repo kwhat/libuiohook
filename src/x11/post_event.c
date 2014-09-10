@@ -145,12 +145,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_MOVED:
 			XTestFakeMotionEvent(disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
 			break;
-		
+
 		case EVENT_HOOK_START:
 		case EVENT_HOOK_STOP:
 			// TODO Figure out if we should start / stop the event hook
 			// or fall thru to a warning.
-			
+
 		default:
 			// FIXME Produce a warning.
 			break;
@@ -309,6 +309,15 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);;
 			((XMotionEvent *) x_event)->is_hint = NotifyNormal;
 			((XMotionEvent *) x_event)->same_screen = True;
+			break;
+
+		case EVENT_HOOK_START:
+		case EVENT_HOOK_STOP:
+			// TODO Figure out if we should start / stop the event hook
+			// or fall thru to a warning.
+
+		default:
+			// FIXME Produce a warning.
 			break;
 	}
 

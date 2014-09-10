@@ -153,9 +153,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		event.mask = 0x00;
 		event.reserved = 0x00;
 
-		logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
-				__FUNCTION__, __LINE__);
-
 		dispatch_event(&event);
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {

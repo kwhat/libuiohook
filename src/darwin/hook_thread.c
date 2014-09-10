@@ -41,11 +41,16 @@ pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 // Flag to restart the event tap incase of timeout.
 Boolean restart_tap = false;
 
+// FIXME Move to header or move function here...
+extern void hook_thread_cleanup(void *arg);
+
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has started the runloop, or when it has terminated due to error.
 	// This is unlocked in the hook_callback.c hook_status_proc().
 	pthread_mutex_lock(&hook_control_mutex);
+
+	pthread_cleanup_push(hook_thread_cleanup, arg);
 
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
@@ -206,14 +211,19 @@ static void *hook_thread_proc(void *arg) {
 		}
 	} while (restart_tap);
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-			__FUNCTION__, __LINE__);
+	// Execute the cleanup handlers only under cancellation and other abnormal
+	// termination scenarios.
+	pthread_cleanup_pop(1);
 
-	// Make sure we signal that we have passed any exception throwing code.
+	// Make sure we signal that we have passed any exception throwing code for
+	// the waiting hook_enable().
 	pthread_cond_signal(&hook_control_cond);
 	pthread_mutex_unlock(&hook_control_mutex);
 
-	return status;
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+
+	return arg;
 }
 
 UIOHOOK_API int hook_enable() {

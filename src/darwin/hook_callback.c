@@ -51,7 +51,7 @@ static CFRunLoopSourceRef src_msg_port;
 static struct timeval system_time;
 
 // Virtual event pointer.
-static virtual_event event;
+static uiohook_event event;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -68,7 +68,7 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(virtual_event *const event) {
+static inline void dispatch_event(uiohook_event *const event) {
 	if (dispatcher != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n",
 				__FUNCTION__, __LINE__, event->type);
@@ -222,6 +222,18 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			// Lock the running mutex to signal the hook has started.
 			pthread_mutex_lock(&hook_running_mutex);
 
+			event.type = EVENT_HOOK_START;
+
+			// Set the event.time.
+			// FIXME See if we can do something lighter with the event_time instead of more division.
+			gettimeofday(&system_time, NULL);
+			event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+			event.mask = 0x00;
+			event.reserved = 0x00;
+
+			dispatch_event(&event);
+
 			 // Unlock the control mutex so hook_enable() can continue.
 			pthread_cond_signal(&hook_control_cond);
 			pthread_mutex_unlock(&hook_control_mutex);
@@ -233,6 +245,19 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 
 			// Unlock the running mutex to signal the hook has stopped.
 			pthread_mutex_unlock(&hook_running_mutex);
+
+			// Send the  hook event end of data
+			event.type = EVENT_HOOK_STOP;
+
+			// Set the event.time.
+			// FIXME See if we can do something lighter with the event_time instead of more division.
+			gettimeofday(&system_time, NULL);
+			event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+			event.mask = 0x00;
+			event.reserved = 0x00;
+
+			dispatch_event(&event);
 			break;
 
 		default:
@@ -240,6 +265,24 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 					__FUNCTION__, __LINE__, (unsigned int) activity);
 			break;
 	}
+}
+
+void hook_thread_cleanup(void *arg) {
+		// TODO Testing should be done to see if we can terminate xrecord from here...
+		event.type = EVENT_HOOK_STOP;
+
+		// Set the event.time.
+		// FIXME See if we can do something lighter with the event_time instead of more division.
+		gettimeofday(&system_time, NULL);
+		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		event.mask = 0x00;
+		event.reserved = 0x00;
+
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
+				__FUNCTION__, __LINE__);
+
+		dispatch_event(&event);
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {

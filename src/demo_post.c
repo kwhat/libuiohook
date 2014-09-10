@@ -29,12 +29,12 @@
 #endif
 
 // Virtual event pointers
-static virtual_event *event = NULL;
+static uiohook_event *event = NULL;
 
 //int main(int argc, char *argv[]) {
 int main() {
 	// Allocate memory for the virtual events only once.
-	event = (virtual_event *) malloc(sizeof(virtual_event));
+	event = (uiohook_event *) malloc(sizeof(uiohook_event));
 
 	event->type = EVENT_KEY_PRESSED;
 	event->mask = 0x00;

@@ -39,6 +39,10 @@ static HANDLE hook_control_mutex = NULL;
 
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
+// FIXME Move to header or move function here...
+extern void hook_thread_init();
+extern void hook_thread_cleanup(void *arg);
+
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
 
@@ -75,6 +79,10 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		// Set the exit status.
 		status = UIOHOOK_SUCCESS;
 
+		// Windows does not have a hook start event or callback so we need to
+		// manually fake it.
+		hook_thread_init();
+
 		// Signal that we have passed the thread initialization.
 		SetEvent(hook_running_mutex);
 		SetEvent(hook_control_mutex);
@@ -107,8 +115,14 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		mouse_event_hhook = NULL;
 	}
 
-	// TODO We really need some startup and shutdown methods.
-	// Windows doesn't provide a good way to clean this up asynchronously.
+	// We must explicitly call the cleanup handler because Windows does not
+	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
+	// NOTE If the developer calls ExitThread, TerminateThread or causes the
+	// thread to terminate in any way other than hook_disable, the behavior is
+	// undefined.
+	hook_thread_cleanup(NULL);
+
+	// Close any handle that is still open.
 	if (hook_thread_handle != NULL) {
 		CloseHandle(hook_thread_handle);
 		hook_thread_handle = NULL;
@@ -214,6 +228,14 @@ UIOHOOK_API int hook_disable() {
 
 UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
+
+	/* FIXME We need to move back to some kind of hybrid approach because
+	 * Microsoft didn't think thread cleanup routines were necessary when
+	 * including calls like ExitThread() and TerminateThread() in their API...
+	DWORD status;
+	GetExitCodeThread(hookThreadHandle, &status);
+	bool isRunning = status == STILL_ACTIVE;
+	*/
 
 	if (hook_running_mutex != NULL) {
 		DWORD status = WaitForSingleObject(hook_running_mutex, 100);

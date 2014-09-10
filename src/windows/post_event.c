@@ -62,7 +62,7 @@ static UINT keymask_lookup[8] = {
 	VK_RMENU
 };
 
-UIOHOOK_API void hook_post_event(virtual_event * const event) {
+UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
 
@@ -176,6 +176,15 @@ UIOHOOK_API void hook_post_event(virtual_event * const event) {
 			events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE & MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
+			break;
+
+		case EVENT_HOOK_START:
+		case EVENT_HOOK_STOP:
+			// TODO Figure out if we should start / stop the event hook
+			// or fall thru to a warning.
+
+		default:
+			// FIXME Produce a warning.
 			break;
 	}
 

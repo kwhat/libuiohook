@@ -125,7 +125,6 @@ static inline unsigned short int get_scroll_wheel_amount() {
 }
 
 void hook_thread_init() {
-		// TODO Testing should be done to see if we can terminate xrecord from here...
 		event.type = EVENT_HOOK_START;
 
 		// Set the event.time.
@@ -140,8 +139,7 @@ void hook_thread_init() {
 		dispatch_event(&event);
 }
 
-void hook_thread_cleanup(void *arg) {
-		// TODO Testing should be done to see if we can terminate xrecord from here...
+void hook_thread_cleanup() {
 		event.type = EVENT_HOOK_STOP;
 
 		// Set the event.time.

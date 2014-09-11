@@ -128,6 +128,9 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 			break;
 
 		case DLL_PROCESS_DETACH:
+
+		case DLL_THREAD_ATTACH:
+		case DLL_THREAD_DETACH:
 			// Do Nothing.
 			break;
     }

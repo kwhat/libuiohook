@@ -21,6 +21,9 @@
 
 #include <windows.h>
 
+extern void hook_thread_cleanup();
+extern void hook_thread_init();
+
 // Callback used by hook_thead for all events.
 extern LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam);
 

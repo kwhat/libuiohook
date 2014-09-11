@@ -39,10 +39,6 @@ static HANDLE hook_control_mutex = NULL;
 
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
-// FIXME Move to header or move function here...
-extern void hook_thread_init();
-extern void hook_thread_cleanup(void *arg);
-
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
 
@@ -117,10 +113,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 
 	// We must explicitly call the cleanup handler because Windows does not
 	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
-	// NOTE If the developer calls ExitThread, TerminateThread or causes the
-	// thread to terminate in any way other than hook_disable, the behavior is
-	// undefined.
-	hook_thread_cleanup(NULL);
+	hook_thread_cleanup();
 
 	// Close any handle that is still open.
 	if (hook_thread_handle != NULL) {
@@ -219,7 +212,6 @@ UIOHOOK_API int hook_disable() {
 		status = UIOHOOK_SUCCESS;
 	}
 
-
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
 
@@ -229,23 +221,44 @@ UIOHOOK_API int hook_disable() {
 UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
-	/* FIXME We need to move back to some kind of hybrid approach because
-	 * Microsoft didn't think thread cleanup routines were necessary when
-	 * including calls like ExitThread() and TerminateThread() in their API...
-	DWORD status;
-	GetExitCodeThread(hookThreadHandle, &status);
-	bool isRunning = status == STILL_ACTIVE;
-	*/
-
 	if (hook_running_mutex != NULL) {
-		DWORD status = WaitForSingleObject(hook_running_mutex, 100);
+		DWORD status = WaitForSingleObject(hook_running_mutex, 0);
 		switch (status)	{
 			case WAIT_OBJECT_0:
-				is_running = true;
-
 				logger(LOG_LEVEL_DEBUG,
 						"%s [%u]: Running event signaled.\n",
 						__FUNCTION__, __LINE__);
+
+				GetExitCodeThread(hook_thread_handle, &status);
+				if (status == STILL_ACTIVE) {
+					is_running = true;
+				}
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: Late thread cleanup detected!\n",
+							__FUNCTION__, __LINE__);
+
+					// NOTE Windows does not provide reliable thread cleanup!
+					// Instead we rely on auto-magic cleanup from the OS for
+					// thread resources and we need to detect and cleanup the
+					// leftovers so we can restart the hook in the event a
+					// developer calls ExitThread or TerminateThread from the
+					// uiohook event dispatch callback.
+					if (hook_thread_handle != NULL) {
+						CloseHandle(hook_thread_handle);
+						hook_thread_handle = NULL;
+					}
+
+					if (hook_control_mutex != NULL) {
+						CloseHandle(hook_control_mutex);
+						hook_control_mutex = NULL;
+					}
+
+					if (hook_running_mutex != NULL) {
+						CloseHandle(hook_running_mutex);
+						hook_running_mutex = NULL;
+					}
+				}
+
 				break;
 
 			case WAIT_TIMEOUT:

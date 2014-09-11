@@ -69,7 +69,6 @@ void dispatch_proc(uiohook_event * const event) {
 				pthread_mutex_unlock(&control_mutex);
 				#endif
 				#endif
-				TerminateThread(0);
 			}
 		case EVENT_KEY_RELEASED:
 			logger(LOG_LEVEL_INFO, ",keycode=%u,rawcode=0x%X",
@@ -125,8 +124,6 @@ int main() {
 		#endif
 		#endif
 	}
-
-	while (hook_is_enabled());
 
 	#ifdef _WIN32
 	CloseHandle(control_handle);

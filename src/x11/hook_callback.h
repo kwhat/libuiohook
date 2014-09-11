@@ -22,6 +22,8 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
 
+extern void hook_cleanup_proc(void *arg);
+
 // Callback used by hook_thead for all events.
 extern void hook_event_proc(XPointer pointer, XRecordInterceptData *hook);
 

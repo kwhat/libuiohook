@@ -53,8 +53,6 @@ pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 
-// FIXME Move to header or move function here...
-extern void hook_thread_cleanup(void *arg);
 
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the
@@ -62,7 +60,7 @@ static void *hook_thread_proc(void *arg) {
 	// This is unlocked in the hook_callback.c hook_event_proc().
 	pthread_mutex_lock(&hook_control_mutex);
 
-	pthread_cleanup_push(hook_thread_cleanup, arg);
+	pthread_cleanup_push(hook_cleanup_proc, arg);
 
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
@@ -212,8 +210,8 @@ static void *hook_thread_proc(void *arg) {
 	// Execute the cleanup handlers only under cancellation and other abnormal
 	// termination scenarios.
 	pthread_cleanup_pop(1);
-	
-	// Make sure we signal that we have passed any exception throwing code for 
+
+	// Make sure we signal that we have passed any exception throwing code for
 	// the waiting hook_enable().
 	pthread_cond_signal(&hook_control_cond);
 	pthread_mutex_unlock(&hook_control_mutex);

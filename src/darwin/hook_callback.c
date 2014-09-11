@@ -267,22 +267,24 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 	}
 }
 
-void hook_thread_cleanup(void *arg) {
-		// TODO Testing should be done to see if we can terminate xrecord from here...
-		event.type = EVENT_HOOK_STOP;
+void hook_cleanup_proc(void *arg) {
+	event.type = EVENT_HOOK_STOP;
 
-		// Set the event.time.
-		// FIXME See if we can do something lighter with the event_time instead of more division.
-		gettimeofday(&system_time, NULL);
-		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	// Set the event.time.
+	// FIXME See if we can do something lighter with the event_time instead of more division.
+	gettimeofday(&system_time, NULL);
+	event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 
-		event.mask = 0x00;
-		event.reserved = 0x00;
+	event.mask = 0x00;
+	event.reserved = 0x00;
 
-		logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
-				__FUNCTION__, __LINE__);
+	logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
+			__FUNCTION__, __LINE__);
 
-		dispatch_event(&event);
+	dispatch_event(&event);
+
+	// Make sure we signal that the thread has terminated.
+	pthread_mutex_unlock(&hook_running_mutex);
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {

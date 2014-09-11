@@ -124,7 +124,7 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
-void hook_thread_init() {
+void hook_startup_proc() {
 		event.type = EVENT_HOOK_START;
 
 		// Set the event.time.
@@ -139,7 +139,7 @@ void hook_thread_init() {
 		dispatch_event(&event);
 }
 
-void hook_thread_cleanup() {
+void hook_cleanup_proc() {
 		event.type = EVENT_HOOK_STOP;
 
 		// Set the event.time.

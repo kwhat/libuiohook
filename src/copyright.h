@@ -19,6 +19,10 @@
 #ifndef _included_copyright
 #define _included_copyright
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #ifdef USE_QUIET
 #define COPYRIGHT() (void) 0;
 #else

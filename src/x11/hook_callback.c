@@ -97,31 +97,37 @@ static inline void unset_modifier_mask(uint16_t mask) {
 static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
-	
+
 void hook_cleanup_proc(void *arg) {
+	pthread_mutex_lock(&hook_control_mutex);
 	hook_data *data = (hook_data *) arg;
-	
+
+	// Free the XRecord range if it was set.
 	if (data->range != NULL) {
-		// Free the xrecord range.
 		XFree(data->range);
 	}
-	
+
 	if (data->display != NULL) {
+		// Free up the context if it was set.
 		if (context != 0) {
-			// Free up the context after the run loop terminates.
 			XRecordFreeContext(data->display, context);
 			context = 0;
 		}
-		
-		// Close down any open displays.
+
+		// Close down the XRecord data display.
 		XCloseDisplay(data->display);
 	}
-	
+
 	// Cleanup the structure.
 	free(arg);
-	
+
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
+
+	// Make sure we signal that we have passed any exception throwing code for
+	// the waiting hook_enable().
+	pthread_cond_signal(&hook_control_cond);
+	pthread_mutex_unlock(&hook_control_mutex);
 }
 
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
@@ -147,10 +153,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	else if (hook->category == XRecordEndOfData) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
-
-		// Move to the cleanup callback, TODO Is Needed?
-		// Unlock the running mutex to signal the hook has stopped.
-		//pthread_mutex_unlock(&hook_running_mutex);
 
 		// Send the  hook event end of data
 		event.type = EVENT_HOOK_STOP;

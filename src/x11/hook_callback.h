@@ -28,7 +28,7 @@ typedef struct _hook_data {
 	Display *display;
 	XRecordRange *range;
 } hook_data;
-		
+
 extern void hook_cleanup_proc(void *arg);
 
 // Callback used by hook_thead for all events.

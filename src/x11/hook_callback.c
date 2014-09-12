@@ -30,6 +30,7 @@
 
 #include "logger.h"
 #include "input_helper.h"
+#include "hook_callback.h"
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -96,23 +97,29 @@ static inline void unset_modifier_mask(uint16_t mask) {
 static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
-
+	
 void hook_cleanup_proc(void *arg) {
-	event.type = EVENT_HOOK_STOP;
-
-	// Set the event.time.
-	// FIXME See if we can do something lighter with the event_time instead of more division.
-	gettimeofday(&system_time, NULL);
-	event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-	event.mask = 0x00;
-	event.reserved = 0x00;
-
-	logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
-			__FUNCTION__, __LINE__);
-
-	dispatch_event(&event);
-
+	hook_data *data = (hook_data *) arg;
+	
+	if (data->range != NULL) {
+		// Free the xrecord range.
+		XFree(data->range);
+	}
+	
+	if (data->display != NULL) {
+		if (context != 0) {
+			// Free up the context after the run loop terminates.
+			XRecordFreeContext(data->display, context);
+			context = 0;
+		}
+		
+		// Close down any open displays.
+		XCloseDisplay(data->display);
+	}
+	
+	// Cleanup the structure.
+	free(arg);
+	
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
 }
@@ -141,8 +148,9 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
 
+		// Move to the cleanup callback, TODO Is Needed?
 		// Unlock the running mutex to signal the hook has stopped.
-		pthread_mutex_unlock(&hook_running_mutex);
+		//pthread_mutex_unlock(&hook_running_mutex);
 
 		// Send the  hook event end of data
 		event.type = EVENT_HOOK_STOP;

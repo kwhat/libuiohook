@@ -39,7 +39,7 @@
 
 // The pointer to the X11 display accessed by the callback.
 static Display *disp_ctrl;
-static XRecordContext context;
+XRecordContext context;
 
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
@@ -60,40 +60,44 @@ static void *hook_thread_proc(void *arg) {
 	// This is unlocked in the hook_callback.c hook_event_proc().
 	pthread_mutex_lock(&hook_control_mutex);
 
-	pthread_cleanup_push(hook_cleanup_proc, arg);
-
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
 	// XRecord context for use later.
+	hook_data *data = malloc(sizeof(hook_data));
+	pthread_cleanup_push(hook_cleanup_proc, data);
+	
+	// Set the context to an invalid value (zero).
 	context = 0;
 
-	Display *disp_data = XOpenDisplay(NULL);
-	if (disp_data != NULL) {
+	// Try and open a data display for XRecord.
+	// NOTE This display must be opened on the same thread as XRecord.
+	data->display = XOpenDisplay(NULL);
+	if (data->display != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
 				__FUNCTION__, __LINE__);
 
 		// Make sure the data display is synchronized to prevent late event delivery!
 		// See Bug 42356 for more information.
 		// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-		XSynchronize(disp_data, True);
+		XSynchronize(data->display, True);
 
 		// Setup XRecord range.
 		XRecordClientSpec clients = XRecordAllClients;
-		XRecordRange *range = XRecordAllocRange();
-		if (range != NULL) {
+		data->range = XRecordAllocRange();
+		if (data->range != NULL) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n",
 					__FUNCTION__, __LINE__);
 
 			// Create XRecord Context.
-			range->device_events.first = KeyPress;
-			range->device_events.last = MotionNotify;
-
+			data->range->device_events.first = KeyPress;
+			data->range->device_events.last = MotionNotify;
+			
 			/* Note that the documentation for this function is incorrect,
 			 * disp_data should be used!
 			 * See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
 			 */
-			context = XRecordCreateContext(disp_data, 0, &clients, 1, &range, 1);
+			context = XRecordCreateContext(data->display, 0, &clients, 1, data->range, 1);
 			if (context != 0) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 						__FUNCTION__, __LINE__);
@@ -139,7 +143,7 @@ static void *hook_thread_proc(void *arg) {
 				}
 				#else
 				// Sync blocks until XRecordDisableContext() is called.
-				if (XRecordEnableContext(disp_data, context, hook_event_proc, NULL) != 0) {
+				if (XRecordEnableContext(data->display, context, hook_event_proc, NULL) != 0) {
 					// Set the exit status.
 					status = NULL;
 				}
@@ -161,14 +165,6 @@ static void *hook_thread_proc(void *arg) {
 
 				// Deinitialize native input helper functions.
 				unload_input_helper();
-
-				// FIXME context is in critical section... lock control mutex?
-				// The end data callback may fire before the enable context
-				// function exits.  Because it locks the control mutex on end
-				// data, the free context below may not be thread safe!
-
-				// Free up the context after the run loop terminates.
-				XRecordFreeContext(disp_data, context);
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
@@ -177,9 +173,6 @@ static void *hook_thread_proc(void *arg) {
 				// Set the exit status.
 				*status = UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
 			}
-
-			// Free the XRecordRange.
-			XFree(range);
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordAllocRange failure!\n",
@@ -188,10 +181,6 @@ static void *hook_thread_proc(void *arg) {
 			// Set the exit status.
 			*status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
 		}
-
-		// FIXME Cleanup!
-		XCloseDisplay(disp_data);
-		disp_data = NULL;
 
 		// Close down any open displays.
 		if (disp_ctrl != NULL) {
@@ -207,8 +196,7 @@ static void *hook_thread_proc(void *arg) {
 		*status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
 	}
 
-	// Execute the cleanup handlers only under cancellation and other abnormal
-	// termination scenarios.
+	// Execute the thread cleanup handler.
 	pthread_cleanup_pop(1);
 
 	// Make sure we signal that we have passed any exception throwing code for

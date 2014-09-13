@@ -102,7 +102,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 					value = (long) (900.0 * ((double) rate) / 1000.0 / 1000.0 / 1000.0 + 0.5);
 					successful = true;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %l.\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %li.\n",
 							__FUNCTION__, __LINE__, value);
 				}
 			}
@@ -119,7 +119,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 				value = (long) rate * 15;
 				successful = true;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %li.\n",
 						__FUNCTION__, __LINE__, value);
 			}
 		}
@@ -138,7 +138,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 			value = (long) rate * 15;
 			successful = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: LMGetKeyRepThresh: %l.\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: LMGetKeyRepThresh: %li.\n",
 					__FUNCTION__, __LINE__, value);
 		}
 	}
@@ -184,7 +184,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 					value = (long) (900.0 * ((double) delay) / 1000.0 / 1000.0 / 1000.0 + 0.5);
 					successful = true;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %l.\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %li.\n",
 							__FUNCTION__, __LINE__, value);
 				}
 			}
@@ -202,7 +202,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 				value = (long) delay * 15;
 				successful = true;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %li.\n",
 						__FUNCTION__, __LINE__, value);
 			}
 		}
@@ -220,7 +220,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 			value = (long) delay * 15;
 			successful = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: LMGetKeyThresh: %l.\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: LMGetKeyThresh: %li.\n",
 					__FUNCTION__, __LINE__, value);
 		}
 	}
@@ -265,7 +265,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 					value = denominator / gcf;
 					successful = true;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetAccelerationWithKey: %l.\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetAccelerationWithKey: %li.\n",
 							__FUNCTION__, __LINE__, value);
 				}
 			}
@@ -280,7 +280,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 			if (CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &multiplier)) {
 				value = (long) multiplier;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %li.\n",
 						__FUNCTION__, __LINE__, value);
 			}
 		}
@@ -305,7 +305,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 			if (CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &threshold)) {
 				value = (long) threshold;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %li.\n",
 						__FUNCTION__, __LINE__, value);
 			}
 		}
@@ -351,7 +351,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 					value = numerator / gcf;
 					successful = true;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetAccelerationWithKey: %l.\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetAccelerationWithKey: %li.\n",
 							__FUNCTION__, __LINE__, value);
 				}
 			}
@@ -394,7 +394,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 					value = (long) (900.0 * ((double) time) / 1000.0 / 1000.0 / 1000.0 + 0.5);
 					successful = true;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %l.\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %li.\n",
 							__FUNCTION__, __LINE__, value);
 				}
 			}
@@ -417,7 +417,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 				 */
 				value = (long) (clicktime * 900);
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %l.\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: CFPreferencesCopyValue: %li.\n",
 						__FUNCTION__, __LINE__, value);
 			}
 		}
@@ -435,7 +435,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 			value = (long) time * 15;
 			successful = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: GetDblTime: %l.\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: GetDblTime: %li.\n",
 					__FUNCTION__, __LINE__, value);
 		}
 	}

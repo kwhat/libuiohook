@@ -63,7 +63,7 @@ static void *hook_thread_proc(void *arg) {
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
-	// XRecord context for use later.
+	// Hook data for future cleanup.
 	hook_data *data = malloc(sizeof(hook_data));
 	pthread_cleanup_push(hook_cleanup_proc, data);
 

@@ -147,6 +147,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		dispatch_event(&event);
 
+		// Unlock the control mutex so hook_enable() can continue.
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
 	}

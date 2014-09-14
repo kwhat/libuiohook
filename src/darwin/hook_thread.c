@@ -31,8 +31,7 @@
 #include "logger.h"
 
 // Thread and hook handles.
-static CFRunLoopRef event_loop;
-static CFRunLoopSourceRef event_source;
+CFRunLoopRef event_loop;
 
 pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -48,15 +47,22 @@ static void *hook_thread_proc(void *arg) {
 	// This is unlocked in the hook_callback.c hook_status_proc().
 	pthread_mutex_lock(&hook_control_mutex);
 
-	pthread_cleanup_push(hook_cleanup_proc, arg);
-
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 
+	// Push hook cancel proc on the thread stack.
+	pthread_cleanup_push(hook_cancel_proc, NULL);
+	
 	do {
+		// Reset the restart flag...
 		restart_tap = false;
 
+		// Check for accessibility each time we start the loop.
 		if (is_accessibility_enabled()) {
+			// Push hook cleanup proc on the thread stack.
+			hook_data *data = malloc(sizeof(hook_data));
+			pthread_cleanup_push(hook_cleanup_proc, data);
+			
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
 					__FUNCTION__, __LINE__);
 
@@ -91,7 +97,7 @@ static void *hook_thread_proc(void *arg) {
 			#endif
 
 			// Create the event tap.
-			CFMachPortRef event_port = CGEventTapCreate(
+			data->port = CGEventTapCreate(
 											kCGSessionEventTap,			// kCGHIDEventTap
 											kCGHeadInsertEventTap,		// kCGTailAppendEventTap
 											kCGEventTapOptionDefault,	// kCGEventTapOptionListenOnly See Bug #22
@@ -101,13 +107,13 @@ static void *hook_thread_proc(void *arg) {
 										);
 
 
-			if (event_port != NULL) {
+			if (data->port != NULL) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
 						__FUNCTION__, __LINE__);
 
 				// Create the runloop event source from the event tap.
-				event_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, event_port, 0);
-				if (event_source != NULL) {
+				data->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, data->port, 0);
+				if (data->source != NULL) {
 					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
 							__FUNCTION__, __LINE__);
 
@@ -120,7 +126,7 @@ static void *hook_thread_proc(void *arg) {
 						load_input_helper();
 
 						// Create run loop observers.
-						CFRunLoopObserverRef observer = CFRunLoopObserverCreate(
+						data->observer = CFRunLoopObserverCreate(
 															kCFAllocatorDefault,
 															kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
 															true,
@@ -129,31 +135,18 @@ static void *hook_thread_proc(void *arg) {
 															NULL
 														);
 
-						if (observer != NULL) {
+						if (data->observer != NULL) {
 							// Set the exit status.
 							*status = UIOHOOK_SUCCESS;
 
 							start_message_port_runloop();
 
 							// Add the event source and observer to the runloop mode.
-							CFRunLoopAddSource(event_loop, event_source, kCFRunLoopDefaultMode);
-							CFRunLoopAddObserver(event_loop, observer, kCFRunLoopDefaultMode);
+							CFRunLoopAddSource(event_loop, data->source, kCFRunLoopDefaultMode);
+							CFRunLoopAddObserver(event_loop, data->observer, kCFRunLoopDefaultMode);
 
 							// Start the hook thread runloop.
 							CFRunLoopRun();
-
-							// Lock back up until we are done processing the exit.
-							if (CFRunLoopContainsObserver(event_loop, observer, kCFRunLoopDefaultMode)) {
-								CFRunLoopRemoveObserver(event_loop, observer, kCFRunLoopDefaultMode);
-							}
-
-							if (CFRunLoopContainsSource(event_loop, event_source, kCFRunLoopDefaultMode)) {
-								CFRunLoopRemoveSource(event_loop, event_source, kCFRunLoopDefaultMode);
-							}
-
-							CFRunLoopObserverInvalidate(observer);
-
-							stop_message_port_runloop();
 						}
 						else {
 							// We cant do a whole lot of anything if we cant
@@ -176,9 +169,6 @@ static void *hook_thread_proc(void *arg) {
 						// Set the exit status.
 						*status = UIOHOOK_ERROR_GET_RUNLOOP;
 					}
-
-					// Clean up the event source.
-					CFRelease(event_source);
 				}
 				else {
 					logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
@@ -187,10 +177,6 @@ static void *hook_thread_proc(void *arg) {
 					// Set the exit status.
 					*status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
 				}
-
-				// Stop the CFMachPort from receiving any more messages.
-				CFMachPortInvalidate(event_port);
-				CFRelease(event_port);
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
@@ -199,6 +185,9 @@ static void *hook_thread_proc(void *arg) {
 				// Set the exit status.
 				*status = UIOHOOK_ERROR_EVENT_PORT;
 			}
+			
+			// Execute the thread cleanup handler.
+			pthread_cleanup_pop(1);
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
@@ -209,15 +198,9 @@ static void *hook_thread_proc(void *arg) {
 		}
 	} while (restart_tap);
 
-	// Execute the cleanup handlers only under cancellation and other abnormal
-	// termination scenarios.
+	// Execute the thread cancel handler.
 	pthread_cleanup_pop(1);
-
-	// Make sure we signal that we have passed any exception throwing code for
-	// the waiting hook_enable().
-	pthread_cond_signal(&hook_control_cond);
-	pthread_mutex_unlock(&hook_control_mutex);
-
+	
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 

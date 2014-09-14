@@ -19,6 +19,18 @@
 #ifndef _included_hook_callback
 #define _included_hook_callback
 
+extern CFRunLoopRef event_loop;
+
+typedef struct _hook_data {
+	CFMachPortRef port;
+	CFRunLoopSourceRef source;
+	CFRunLoopObserverRef observer;
+} hook_data;
+
+extern void hook_cleanup_proc(void *arg);
+
+extern void hook_cancel_proc(void *arg);
+
 extern void start_message_port_runloop();
 
 extern void stop_message_port_runloop();

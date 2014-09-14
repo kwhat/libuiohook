@@ -30,6 +30,7 @@
 
 #include "logger.h"
 #include "input_helper.h"
+#include "hook_callback.h"
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -98,23 +99,35 @@ static inline uint16_t get_modifiers() {
 }
 
 void hook_cleanup_proc(void *arg) {
-	event.type = EVENT_HOOK_STOP;
+	pthread_mutex_lock(&hook_control_mutex);
+	hook_data *data = (hook_data *) arg;
 
-	// Set the event.time.
-	// FIXME See if we can do something lighter with the event_time instead of more division.
-	gettimeofday(&system_time, NULL);
-	event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	// Free the XRecord range if it was set.
+	if (data->range != NULL) {
+		XFree(data->range);
+	}
 
-	event.mask = 0x00;
-	event.reserved = 0x00;
+	if (data->display != NULL) {
+		// Free up the context if it was set.
+		if (context != 0) {
+			XRecordFreeContext(data->display, context);
+			context = 0;
+		}
 
-	logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
-			__FUNCTION__, __LINE__);
+		// Close down the XRecord data display.
+		XCloseDisplay(data->display);
+	}
 
-	dispatch_event(&event);
+	// Cleanup the structure.
+	free(arg);
 
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
+
+	// Make sure we signal that we have passed any exception throwing code for
+	// the waiting hook_enable().
+	pthread_cond_signal(&hook_control_cond);
+	pthread_mutex_unlock(&hook_control_mutex);
 }
 
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
@@ -134,15 +147,13 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		dispatch_event(&event);
 
+		// Unlock the control mutex so hook_enable() can continue.
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
 	}
 	else if (hook->category == XRecordEndOfData) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
-
-		// Unlock the running mutex to signal the hook has stopped.
-		pthread_mutex_unlock(&hook_running_mutex);
 
 		// Send the  hook event end of data
 		event.type = EVENT_HOOK_STOP;

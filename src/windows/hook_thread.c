@@ -78,7 +78,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 
 		// Windows does not have a hook start event or callback so we need to
 		// manually fake it.
-		hook_startup_proc();
+		hook_start_proc();
 
 		// Signal that we have passed the thread initialization.
 		SetEvent(hook_running_mutex);
@@ -114,7 +114,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 
 	// We must explicitly call the cleanup handler because Windows does not
 	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
-	hook_cleanup_proc();
+	hook_stop_proc();
 
 	// Close any handle that is still open.
 	if (hook_thread_handle != NULL) {

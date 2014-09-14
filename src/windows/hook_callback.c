@@ -124,6 +124,36 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
+void hook_start_proc() {
+	event.type = EVENT_HOOK_START;
+
+	// Set the event.time.
+	// FIXME See if we can do something lighter with the event_time instead of more division.
+	GetSystemTimeAsFileTime(&ft);
+	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+	event.time = system_time - 11644473600000;
+
+	event.mask = 0x00;
+	event.reserved = 0x00;
+
+	dispatch_event(&event);
+}
+
+void hook_stop_proc() {
+	event.type = EVENT_HOOK_STOP;
+
+	// Set the event.time.
+	// FIXME See if we can do something lighter with the event_time instead of more division.
+	GetSystemTimeAsFileTime(&ft);
+	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+	event.time = system_time - 11644473600000;
+
+	event.mask = 0x00;
+	event.reserved = 0x00;
+
+	dispatch_event(&event);
+}
+
 LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	// MS Keyboard event struct data.
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;

@@ -28,7 +28,7 @@
 
 #include "input_helper.h"
 
-UIOHOOK_API void hook_post_event(virtual_event * const event) {
+UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	CGEventRef cg_event = NULL;
 	CGEventType cg_event_type = kCGEventNull;
 	CGScrollEventUnit cg_event_unit;

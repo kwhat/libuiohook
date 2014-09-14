@@ -123,23 +123,23 @@ AC_ARG_ENABLE([quiet],
 
 # Linux Options
 AC_ARG_ENABLE([evdev],
-	AS_HELP_STRING([--disable-evdev], [Disable generic Linux input driver (default: enabled)]),
+	AS_HELP_STRING([--without-evdev], [Disable generic Linux input driver (default: enabled)]),
 	[enable_evdev="$enableval"],
 	[enable_evdev="yes"])
 
 # Linux & Unix Options
 AC_ARG_ENABLE([xkb],
-	AS_HELP_STRING([--disable-xkb], [Disable X Keyboard Extension (default: enabled)]),
+	AS_HELP_STRING([--without-xkb], [Disable X Keyboard Extension (default: enabled)]),
 	[enable_xkb="$enableval"],
 	[enable_xkb="yes"])
 
 AC_ARG_ENABLE([xt],
-	AS_HELP_STRING([--disable-xt], [Disable X Toolkit Intrinsics (default: enabled)]),
+	AS_HELP_STRING([--without-xt], [Disable X Toolkit Intrinsics (default: enabled)]),
 	[enable_xt="$enableval"],
 	[enable_xt="yes"])
 
 AC_ARG_ENABLE([xf86misc],
-	AS_HELP_STRING([--enable-xf86misc], [Enable XFree86-Misc X Extension (default: disabled)]),
+	AS_HELP_STRING([--with-xf86misc], [Enable XFree86-Misc X Extension (default: disabled)]),
 	[enable_xf86misc="$enableval"],
 	[enable_xf86misc="no"])
 
@@ -149,18 +149,18 @@ AC_ARG_ENABLE([xrecord-async],
 	[enable_xrecord_async="no"])
 
 AC_ARG_ENABLE([xtest],
-	AS_HELP_STRING([--disable-xtest], [Disable XTest Extension (default: enabled)]),
+	AS_HELP_STRING([--without-xtest], [Disable XTest Extension (default: enabled)]),
 	[enable_xtest="$enableval"],
 	[enable_xtest="yes"])
 
 # Darwin Options
 AC_ARG_ENABLE([corefoundation],
-	AS_HELP_STRING([--disable-corefoundation],	[Disable CoreFoundation framework (default: enabled)]),
+	AS_HELP_STRING([--without-corefoundation],	[Disable CoreFoundation framework (default: enabled)]),
 	[enable_corefoundation="$enableval"],
 	[enable_corefoundation="yes"])
 
 AC_ARG_ENABLE([iokit],
-	AS_HELP_STRING([--disable-iokit],	[Disable IOKit framework (default: enabled)]),
+	AS_HELP_STRING([--without-iokit],	[Disable IOKit framework (default: enabled)]),
 	[enable_iokit="$enableval"],
 	[enable_iokit="yes"])
 
@@ -170,7 +170,7 @@ AC_ARG_ENABLE([weak-import],
 	[enable_weak_import="no"])
 
 AC_ARG_ENABLE([carbon-legacy],
-	AS_HELP_STRING([--enable-carbon-legacy], [Enable legacy Carbon framework functionality (default: disabled)]),
+	AS_HELP_STRING([--with-carbon-legacy], [Enable legacy Carbon framework functionality (default: disabled)]),
 	[enable_carbon_legacy="$enableval"],
 	[enable_carbon_legacy="no"])
 

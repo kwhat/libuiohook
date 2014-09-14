@@ -75,6 +75,10 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		// Set the exit status.
 		status = UIOHOOK_SUCCESS;
 
+		// Windows does not have a hook start event or callback so we need to
+		// manually fake it.
+		hook_startup_proc();
+
 		// Signal that we have passed the thread initialization.
 		SetEvent(hook_running_mutex);
 		SetEvent(hook_control_mutex);
@@ -107,8 +111,11 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		mouse_event_hhook = NULL;
 	}
 
-	// TODO We really need some startup and shutdown methods.
-	// Windows doesn't provide a good way to clean this up asynchronously.
+	// We must explicitly call the cleanup handler because Windows does not
+	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
+	hook_cleanup_proc();
+
+	// Close any handle that is still open.
 	if (hook_thread_handle != NULL) {
 		CloseHandle(hook_thread_handle);
 		hook_thread_handle = NULL;
@@ -197,14 +204,13 @@ UIOHOOK_API int hook_disable() {
 		// Try to exit the thread naturally.
 		PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
 
-		// If we want method to behave synchronically, we must wait 
+		// If we want method to behave synchronically, we must wait
 		// for the thread to die.
 		// NOTE This will prevent function calls from the callback!
 		// WaitForSingleObject(hook_thread_handle,  INFINITE);
 
 		status = UIOHOOK_SUCCESS;
 	}
-
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
@@ -216,14 +222,43 @@ UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
 	if (hook_running_mutex != NULL) {
-		DWORD status = WaitForSingleObject(hook_running_mutex, 100);
+		DWORD status = WaitForSingleObject(hook_running_mutex, 0);
 		switch (status)	{
 			case WAIT_OBJECT_0:
-				is_running = true;
-
 				logger(LOG_LEVEL_DEBUG,
 						"%s [%u]: Running event signaled.\n",
 						__FUNCTION__, __LINE__);
+
+				GetExitCodeThread(hook_thread_handle, &status);
+				if (status == STILL_ACTIVE) {
+					is_running = true;
+				}
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: Late thread cleanup detected!\n",
+							__FUNCTION__, __LINE__);
+
+					// NOTE Windows does not provide reliable thread cleanup!
+					// Instead we rely on auto-magic cleanup from the OS for
+					// thread resources and we need to detect and cleanup the
+					// leftovers so we can restart the hook in the event a
+					// developer calls ExitThread or TerminateThread from the
+					// uiohook event dispatch callback.
+					if (hook_thread_handle != NULL) {
+						CloseHandle(hook_thread_handle);
+						hook_thread_handle = NULL;
+					}
+
+					if (hook_control_mutex != NULL) {
+						CloseHandle(hook_control_mutex);
+						hook_control_mutex = NULL;
+					}
+
+					if (hook_running_mutex != NULL) {
+						CloseHandle(hook_running_mutex);
+						hook_running_mutex = NULL;
+					}
+				}
+
 				break;
 
 			case WAIT_TIMEOUT:

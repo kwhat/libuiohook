@@ -601,7 +601,7 @@ static int refresh_locale_list() {
 }
 
 int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
-	// Get the thread id that currently has focus and ask for its current 
+	// Get the thread id that currently has focus and ask for its current
 	// locale..
 	DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
 	HKL locale_id = GetKeyboardLayout(focus_pid);

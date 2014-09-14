@@ -16,13 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#ifndef _included_logger
+#define _included_logger
 
 #include <uiohook.h>
 #include <stdbool.h>
-
 
 #ifndef __FUNCTION__
 #define __FUNCTION__ __func__
@@ -30,3 +28,5 @@
 
 // logger(level, message)
 extern logger_t logger;
+
+#endif

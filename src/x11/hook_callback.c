@@ -53,7 +53,7 @@ static bool mouse_dragged = false;
 static struct timeval system_time;
 
 // Virtual event pointer.
-static virtual_event event;
+static uiohook_event event;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -69,7 +69,7 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(virtual_event *const event) {
+static inline void dispatch_event(uiohook_event *const event) {
 	if (dispatcher != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n",
 				__FUNCTION__, __LINE__, event->type);
@@ -97,10 +97,42 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+void hook_cleanup_proc(void *arg) {
+	event.type = EVENT_HOOK_STOP;
+
+	// Set the event.time.
+	// FIXME See if we can do something lighter with the event_time instead of more division.
+	gettimeofday(&system_time, NULL);
+	event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	event.mask = 0x00;
+	event.reserved = 0x00;
+
+	logger(LOG_LEVEL_WARN,	"%s [%u]: Hook thread canceled!\n",
+			__FUNCTION__, __LINE__);
+
+	dispatch_event(&event);
+
+	// Make sure we signal that the thread has terminated.
+	pthread_mutex_unlock(&hook_running_mutex);
+}
+
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
+
+		event.type = EVENT_HOOK_START;
+
+		// Set the event.time.
+		// FIXME See if we can do something lighter with the event_time instead of more division.
+		gettimeofday(&system_time, NULL);
+		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		event.mask = 0x00;
+		event.reserved = 0x00;
+
+		dispatch_event(&event);
 
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
@@ -111,12 +143,26 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		// Unlock the running mutex to signal the hook has stopped.
 		pthread_mutex_unlock(&hook_running_mutex);
+
+		// Send the  hook event end of data
+		event.type = EVENT_HOOK_STOP;
+
+		// Set the event.time.
+		// FIXME See if we can do something lighter with the event_time instead of more division.
+		gettimeofday(&system_time, NULL);
+		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		event.mask = 0x00;
+		event.reserved = 0x00;
+
+		dispatch_event(&event);
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {
 		// Get XRecord data.
 		XRecordDatum *data = (XRecordDatum *) hook->data;
 
 		// Set the event.time.
+		// FIXME See if we can do something lighter with the event_time instead of more division.
 		gettimeofday(&system_time, NULL);
 		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 

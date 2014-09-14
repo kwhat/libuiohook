@@ -53,11 +53,14 @@ pthread_mutex_t hook_running_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 
+
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has terminated due to error.
 	// This is unlocked in the hook_callback.c hook_event_proc().
 	pthread_mutex_lock(&hook_control_mutex);
+
+	pthread_cleanup_push(hook_cleanup_proc, arg);
 
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
@@ -160,8 +163,8 @@ static void *hook_thread_proc(void *arg) {
 				unload_input_helper();
 
 				// FIXME context is in critical section... lock control mutex?
-				// The end data callback may fire before the enable context 
-				// function exits.  Because it locks the control mutex on end 
+				// The end data callback may fire before the enable context
+				// function exits.  Because it locks the control mutex on end
 				// data, the free context below may not be thread safe!
 
 				// Free up the context after the run loop terminates.
@@ -204,14 +207,19 @@ static void *hook_thread_proc(void *arg) {
 		*status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-			__FUNCTION__, __LINE__);
+	// Execute the cleanup handlers only under cancellation and other abnormal
+	// termination scenarios.
+	pthread_cleanup_pop(1);
 
-	// Make sure we signal that we have passed any exception throwing code.
+	// Make sure we signal that we have passed any exception throwing code for
+	// the waiting hook_enable().
 	pthread_cond_signal(&hook_control_cond);
 	pthread_mutex_unlock(&hook_control_mutex);
 
-	return status;
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+
+	return arg;
 }
 
 UIOHOOK_API int hook_enable() {
@@ -245,8 +253,8 @@ UIOHOOK_API int hook_enable() {
 			#endif
 
 			if (is_auto_repeat == False) {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: %s\n",
-						__FUNCTION__, __LINE__, "Could not enable detectable auto-repeat!\n");
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
+						__FUNCTION__, __LINE__);
 			}
 			else {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
@@ -381,8 +389,8 @@ UIOHOOK_API int hook_disable() {
 				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
 				XFlush(disp_ctrl);
 				//XSync(disp_ctrl, True);
-				
-				// If we want method to behave synchronically, we must wait 
+
+				// If we want method to behave synchronically, we must wait
 				// for the thread to die.
 				// NOTE This will prevent function calls from the callback!
 				// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);

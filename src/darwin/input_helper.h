@@ -20,8 +20,8 @@
 // Reference: https://svn.blender.org/svnroot/bf-blender/branches/render25/intern/ghost/intern/GHOST_SystemCocoa.mm
 // Reference: http://www.mactech.com/macintosh-c/chap02-1.html
 
-#ifndef _included_osx_input_helpers
-#define _included_osx_input_helpers
+#ifndef _included_input_helper
+#define _included_input_helper
 
 #include <ApplicationServices/ApplicationServices.h>
 #include <Carbon/Carbon.h>	// For HIToolbox kVK_ keycodes and TIS funcitons.

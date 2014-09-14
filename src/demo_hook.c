@@ -41,9 +41,9 @@ static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include "logger.h"
 
-// NOTE: This function executes on the hook thread!  If you need to block, 
+// NOTE: This function executes on the hook thread!  If you need to block,
 // please do so on another thread with your own event dispatcher implementation.
-void dispatch_proc(virtual_event * const event) {
+void dispatch_proc(uiohook_event * const event) {
 	#if defined(_WIN32) && !defined(_WIN64)
 	logger(LOG_LEVEL_INFO, "id=%i,when=%I64u,mask=0x%X",
 			event->type, event->time, event->mask);
@@ -94,6 +94,9 @@ void dispatch_proc(virtual_event * const event) {
 			logger(LOG_LEVEL_INFO, ",type=%i,amount=%i,rotation=%i",
 							event->data.wheel.type, event->data.wheel.amount,
 							event->data.wheel.rotation);
+			break;
+
+		default:
 			break;
 	}
 

@@ -45,7 +45,7 @@ static DWORD click_time = 0;
 static POINT last_click;
 
 // Virtual event pointer.
-static virtual_event event;
+static uiohook_event event;
 
 extern HHOOK keyboard_event_hhook, mouse_event_hhook;
 
@@ -60,7 +60,7 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(virtual_event *const event) {
+static inline void dispatch_event(uiohook_event *const event) {
 	if (dispatcher != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n",
 				__FUNCTION__, __LINE__, event->type);
@@ -124,6 +124,35 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
+void hook_startup_proc() {
+		event.type = EVENT_HOOK_START;
+
+		// Set the event.time.
+		// FIXME See if we can do something lighter with the event_time instead of more division.
+		GetSystemTimeAsFileTime(&ft);
+		uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+		event.time = system_time - 11644473600000;
+
+		event.mask = 0x00;
+		event.reserved = 0x00;
+
+		dispatch_event(&event);
+}
+
+void hook_cleanup_proc() {
+		event.type = EVENT_HOOK_STOP;
+
+		// Set the event.time.
+		// FIXME See if we can do something lighter with the event_time instead of more division.
+		GetSystemTimeAsFileTime(&ft);
+		uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+		event.time = system_time - 11644473600000;
+
+		event.mask = 0x00;
+		event.reserved = 0x00;
+
+		dispatch_event(&event);
+}
 
 LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	// MS Keyboard event struct data.
@@ -136,6 +165,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	GetSystemTimeAsFileTime(&ft);
 
 	// Convert to milliseconds = 100-nanoseconds / 10000
+	// FIXME See if we can do something lighter with the event_time instead of more division.
 	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
 
 	// Convert Windows epoch to Unix epoch (1970 - 1601 in milliseconds)

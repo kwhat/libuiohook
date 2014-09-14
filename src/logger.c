@@ -30,7 +30,7 @@
 
 static bool default_logger(unsigned int level, const char *format, ...) {
 	bool status = false;
-	
+
 	#ifndef USE_QUIET
 	va_list args;
 	switch (level) {
@@ -42,7 +42,7 @@ static bool default_logger(unsigned int level, const char *format, ...) {
   			status = vfprintf(stdout, format, args) >= 0;
 			va_end(args);
 			break;
-			
+
 		case LOG_LEVEL_WARN:
 		case LOG_LEVEL_ERROR:
 			va_start(args, format);
@@ -51,7 +51,7 @@ static bool default_logger(unsigned int level, const char *format, ...) {
 			break;
 	}
 	#endif
-	
+
 	return status;
 }
 

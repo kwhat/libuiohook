@@ -67,7 +67,9 @@ typedef bool (*logger_t)(unsigned int, const char *, ...);
 
 /* Begin Virtual Event Types and Data Structures */
 typedef enum _event_type {
-	EVENT_KEY_TYPED = 1,
+	EVENT_HOOK_START = 1,
+	EVENT_HOOK_STOP,
+	EVENT_KEY_TYPED,
 	EVENT_KEY_PRESSED,
 	EVENT_KEY_RELEASED,
 	EVENT_MOUSE_CLICKED,
@@ -106,7 +108,7 @@ typedef struct _mouse_wheel_event_data {
 	int16_t rotation;
 } mouse_wheel_event_data;
 
-typedef struct _virtual_event {
+typedef struct _uiohook_event {
 	event_type type;
 	uint64_t time;
 	uint16_t mask;
@@ -116,9 +118,9 @@ typedef struct _virtual_event {
 		mouse_event_data mouse;
 		mouse_wheel_event_data wheel;
 	} data;
-} virtual_event;
+} uiohook_event;
 
-typedef void (*dispatcher_t)(virtual_event *const);
+typedef void (*dispatcher_t)(uiohook_event *const);
 /* End Virtual Event Types and Data Structures */
 
 
@@ -389,7 +391,7 @@ extern "C" {
 	UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc);
 
 	// Send a virtual event back to the system.
-	UIOHOOK_API void hook_post_event(virtual_event * const event);
+	UIOHOOK_API void hook_post_event(uiohook_event * const event);
 
 	// Set the event callback function.
 	UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc);

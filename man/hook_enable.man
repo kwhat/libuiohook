@@ -41,8 +41,6 @@ Failed to create a native thread.
 Failed to initialize the native thread.
 .IP \fIUIOHOOK_ERROR_THREAD_START\fP li
 Failed to start the native thread.
-.IP \fIUIOHOOK_ERROR_THREAD_STOP\fP li
-Failed to stop the native thread.
 
 .IP \fIUIOHOOK_ERROR_X_OPEN_DISPLAY\fP li
 X11 specific error for XOpenDisplay\^(\^) failures.

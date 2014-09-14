@@ -21,7 +21,7 @@ hook_set_dispatch_proc \- Set the event callback function
 .SH SYNTAX
 #include <uiohook.h>
 .HP
-void dispatch_proc\^(\fIvirtual_event * const event\fP\^) {
+void dispatch_proc\^(\fIuiohook_event * const event\fP\^) {
 ...
 }
 .HP

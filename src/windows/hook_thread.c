@@ -39,6 +39,36 @@ static HANDLE hook_control_mutex = NULL;
 
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
+static inline void hook_startup_proc() {
+	event.type = EVENT_HOOK_START;
+
+	// Set the event.time.
+	// FIXME See if we can do something lighter with the event_time instead of more division.
+	GetSystemTimeAsFileTime(&ft);
+	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+	event.time = system_time - 11644473600000;
+
+	event.mask = 0x00;
+	event.reserved = 0x00;
+
+	dispatch_event(&event);
+}
+
+static inline void hook_cleanup_proc() {
+	event.type = EVENT_HOOK_STOP;
+
+	// Set the event.time.
+	// FIXME See if we can do something lighter with the event_time instead of more division.
+	GetSystemTimeAsFileTime(&ft);
+	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+	event.time = system_time - 11644473600000;
+
+	event.mask = 0x00;
+	event.reserved = 0x00;
+
+	dispatch_event(&event);
+}
+
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
 

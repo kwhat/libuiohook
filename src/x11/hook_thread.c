@@ -37,9 +37,14 @@
 #include "input_helper.h"
 #include "logger.h"
 
+typedef struct _hook_data {
+	Display *display;
+	XRecordRange *range;
+} hook_data;
+
 // The pointer to the X11 display accessed by the callback.
 static Display *ctrl_display;
-XRecordContext context;
+static XRecordContext context;
 
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
@@ -54,18 +59,52 @@ pthread_mutex_t hook_control_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 
 
+static void hook_cleanup_proc(void *arg) {
+	pthread_mutex_lock(&hook_control_mutex);
+
+	hook_data *data = (hook_data *) arg;
+
+	// Free the XRecord range if it was set.
+	if (data->range != NULL) {
+		XFree(data->range);
+	}
+
+	if (data->display != NULL) {
+		// Free up the context if it was set.
+		if (context != 0) {
+			XRecordFreeContext(data->display, context);
+			context = 0;
+		}
+
+		// Close down the XRecord data display.
+		XCloseDisplay(data->display);
+	}
+
+	// Cleanup the structure.
+	free(arg);
+
+	// Make sure we signal that the thread has terminated.
+	pthread_mutex_unlock(&hook_running_mutex);
+
+	// Make sure we signal that we have passed any exception throwing code for
+	// the waiting hook_enable().
+	pthread_cond_signal(&hook_control_cond);
+	pthread_mutex_unlock(&hook_control_mutex);
+}
+
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has terminated due to error.
 	// This is unlocked in the hook_callback.c hook_event_proc().
 	pthread_mutex_lock(&hook_control_mutex);
 
-	int *status = (int *) arg;
-	*status = UIOHOOK_FAILURE;
-
 	// Hook data for future cleanup.
 	hook_data *data = malloc(sizeof(hook_data));
 	pthread_cleanup_push(hook_cleanup_proc, data);
+	
+	// Cast for convenience and initialize.
+	int *status = (int *) arg;
+	*status = UIOHOOK_FAILURE;
 
 	// Set the context to an invalid value (zero).
 	context = 0;
@@ -202,7 +241,7 @@ static void *hook_thread_proc(void *arg) {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
-	return status;
+	return arg;
 }
 
 UIOHOOK_API int hook_enable() {

@@ -98,38 +98,6 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
-void hook_cleanup_proc(void *arg) {
-	pthread_mutex_lock(&hook_control_mutex);
-	hook_data *data = (hook_data *) arg;
-
-	// Free the XRecord range if it was set.
-	if (data->range != NULL) {
-		XFree(data->range);
-	}
-
-	if (data->display != NULL) {
-		// Free up the context if it was set.
-		if (context != 0) {
-			XRecordFreeContext(data->display, context);
-			context = 0;
-		}
-
-		// Close down the XRecord data display.
-		XCloseDisplay(data->display);
-	}
-
-	// Cleanup the structure.
-	free(arg);
-
-	// Make sure we signal that the thread has terminated.
-	pthread_mutex_unlock(&hook_running_mutex);
-
-	// Make sure we signal that we have passed any exception throwing code for
-	// the waiting hook_enable().
-	pthread_cond_signal(&hook_control_cond);
-	pthread_mutex_unlock(&hook_control_mutex);
-}
-
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.

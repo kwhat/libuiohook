@@ -30,6 +30,12 @@
 #include "input_helper.h"
 #include "logger.h"
 
+typedef struct _hook_data {
+	CFMachPortRef port;
+	CFRunLoopSourceRef source;
+	CFRunLoopObserverRef observer;
+} hook_data;
+
 // Thread and hook handles.
 CFRunLoopRef event_loop;
 
@@ -40,6 +46,54 @@ pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 // Flag to restart the event tap incase of timeout.
 Boolean restart_tap = false;
 
+
+static void hook_cleanup_proc(void *arg) {
+	pthread_mutex_lock(&hook_control_mutex);
+	hook_data *data = (hook_data *) arg;
+
+	// Stop the CFMachPort from receiving any more messages.
+	if (data->port != NULL) {
+		CFMachPortInvalidate(data->port);
+		CFRelease(data->port);
+	}
+
+	if (event_loop != NULL && data->observer != NULL) {
+		// Lock back up until we are done processing the exit.
+		if (CFRunLoopContainsObserver(event_loop, data->observer, kCFRunLoopDefaultMode)) {
+			CFRunLoopRemoveObserver(event_loop, data->observer, kCFRunLoopDefaultMode);
+		}
+
+		if (CFRunLoopContainsSource(event_loop, data->source, kCFRunLoopDefaultMode)) {
+			CFRunLoopRemoveSource(event_loop, data->source, kCFRunLoopDefaultMode);
+		}
+		
+		CFRunLoopObserverInvalidate(data->observer);
+	}
+	
+	// Clean up the event source.
+	if (data->source) {
+		CFRelease(data->source);
+	}
+
+	stop_message_port_runloop();
+	
+	// Free the data structure.
+	free(arg);
+}
+
+static void hook_cancel_proc(void *arg) {
+	// Make sure the control mutex is locked because the hook_cleanup_proc
+	// may not get popped under some circumstances.
+	pthread_mutex_trylock(&hook_control_mutex);
+	
+	// Make sure we signal that the thread has terminated.
+	pthread_mutex_unlock(&hook_running_mutex);
+
+	// Make sure we signal that we have passed any exception throwing code for
+	// the waiting hook_enable().
+	pthread_cond_signal(&hook_control_cond);
+	pthread_mutex_unlock(&hook_control_mutex);
+}
 
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the

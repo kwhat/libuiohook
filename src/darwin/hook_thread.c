@@ -210,7 +210,7 @@ static void *hook_thread_proc(void *arg) {
 									__FUNCTION__, __LINE__);
 
 							// Set the exit status.
-							*status = UIOHOOK_ERROR_OBSERVER_CREATE;
+							*status = UIOHOOK_ERROR_CREATE_OBSERVER;
 						}
 
 						// Cleanup Native Input Functions.
@@ -237,7 +237,7 @@ static void *hook_thread_proc(void *arg) {
 						__FUNCTION__, __LINE__);
 
 				// Set the exit status.
-				*status = UIOHOOK_ERROR_EVENT_PORT;
+				*status = UIOHOOK_ERROR_CREATE_EVENT_PORT;
 			}
 			
 			// Execute the thread cleanup handler.

@@ -35,8 +35,6 @@
 #define UIOHOOK_ERROR_THREAD_CREATE				0x10
 #define UIOHOOK_ERROR_THREAD_INIT				0x11
 #define UIOHOOK_ERROR_THREAD_START				0x12
-// FIXME This error is not currently possible
-#define UIOHOOK_ERROR_THREAD_STOP				0x13
 
 // Unix specific errors.
 #define UIOHOOK_ERROR_X_OPEN_DISPLAY			0x20
@@ -53,7 +51,7 @@
 #define UIOHOOK_ERROR_EVENT_PORT				0x41
 #define UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE	0x42
 #define UIOHOOK_ERROR_GET_RUNLOOP				0x43
-#define UIOHOOK_ERROR_OBSERVER_CREATE			0x44
+#define UIOHOOK_ERROR_CREATE_OBSERVER			0x44
 /* End Error Codes */
 
 typedef enum _log_level {

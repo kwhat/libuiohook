@@ -20,6 +20,7 @@
 #include <config.h>
 #endif
 
+#include <limits.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <sys/time.h>
@@ -230,15 +231,21 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				event.data.keyboard.rawcode = keysym;
 				event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
-					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+				logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 				dispatch_event(&event);
 				break;
 
 			case ButtonPress:
 				// Track the number of clicks.
 				if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
-					click_count++;
+					if (click_count < USHRT_MAX) {
+						click_count++;
+					}
+					else {
+						logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
+								__FUNCTION__, __LINE__);
+					}
 				}
 				else {
 					click_count = 1;

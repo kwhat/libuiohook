@@ -21,6 +21,7 @@
 #endif
 
 #include <ApplicationServices/ApplicationServices.h>
+#include <limits.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include <uiohook.h>
@@ -414,7 +415,13 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 
 			// Track the number of clicks.
 			if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
-				click_count++;
+				if (click_count < USHRT_MAX) {
+					click_count++;
+				}
+				else {
+					logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
+							__FUNCTION__, __LINE__);
+				}
 			}
 			else {
 				click_count = 1;

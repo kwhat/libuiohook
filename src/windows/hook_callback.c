@@ -290,7 +290,13 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 		BUTTONDOWN:
 			// Track the number of clicks.
 			if ((long) (event.time - click_time) <= hook_get_multi_click_time()) {
-				click_count++;
+				if (click_count < USHRT_MAX) {
+					click_count++;
+				}
+				else {
+					logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
+							__FUNCTION__, __LINE__);
+				}
 			}
 			else {
 				click_count = 1;

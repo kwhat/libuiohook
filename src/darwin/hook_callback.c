@@ -51,6 +51,8 @@ static CFRunLoopSourceRef src_msg_port;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
+static CGEventTimestamp previous_time = (CGEventTimestamp) ~0x00;
+static uint64_t offset_time = 0;
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -273,9 +275,31 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 	// Event data.
 	CGPoint event_point;
 
-	// Set the event.time.
-	gettimeofday(&system_time, NULL);
-	event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	// Grab the system uptime in NS.
+	CGEventTimestamp hook_time = CGEventGetTimestamp(event_ref);
+
+	// Convert time from NS to MS.
+	hook_time /= 1000000;
+
+	// Check for event clock reset.
+	if (previous_time > hook_time) {
+		// Get the local system time in UTC.
+		gettimeofday(&system_time, NULL);
+
+		// Convert the local system time to a Unix epoch in MS.
+		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		// Calculate the offset based on the system and hook times.
+		offset_time = epoch_time - hook_time;
+
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
+				__FUNCTION__, __LINE__, offset_time);
+	}
+	// Set the previous event time for click reset check above.
+	previous_time = hook_time;
+
+	// Set the event time to the server time + offset.
+	event.time = hook_time + offset_time;
 
 	// Make sure reserved bits are zeroed out.
 	event.reserved = 0x00;

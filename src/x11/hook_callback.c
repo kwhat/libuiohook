@@ -53,6 +53,8 @@ static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
+static Time previous_time = (Time) ~0x00;
+static uint64_t offset_time = 0;
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -141,10 +143,25 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		// Get XRecord data.
 		XRecordDatum *data = (XRecordDatum *) hook->data;
 
-		// Set the event.time.
-		// FIXME See if we can do something lighter with the event_time instead of more division.
-		gettimeofday(&system_time, NULL);
-		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+		// Check for event clock reset.
+		if (previous_time > hook->server_time) {
+			// Get the local system time in UTC.
+			gettimeofday(&system_time, NULL);
+
+			// Convert the local system time to a Unix epoch in MS.
+			uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+			// Calculate the offset based on the system and hook times.
+			offset_time = epoch_time - hook->server_time;
+
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
+					__FUNCTION__, __LINE__, offset_time);
+		}
+		// Set the previous event time for click reset check above.
+		previous_time = hook->server_time;
+
+		// Set the event time to the server time + offset.
+		event.time = hook->server_time + offset_time;
 
 		// Make sure reserved bits are zeroed out.
 		event.reserved = 0x00;
@@ -165,7 +182,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				scancode = keycode_to_scancode(event_code);
 
 				// TODO If you have a better suggestion for this ugly, let me know.
-				// Maybe able to use the event_mask for left modifiers and only check the right.
 				if (scancode == VC_SHIFT_L)			set_modifier_mask(MASK_SHIFT_L);
 				else if (scancode == VC_SHIFT_R)	set_modifier_mask(MASK_SHIFT_R);
 				else if (scancode == VC_CONTROL_L)	set_modifier_mask(MASK_CTRL_L);
@@ -211,7 +227,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				scancode = keycode_to_scancode(event_code);
 
 				// TODO If you have a better suggestion for this ugly, let me know.
-				// Maybe able to use the event_mask for left modifiers and only check the right.
 				if (scancode == VC_SHIFT_L)			unset_modifier_mask(MASK_SHIFT_L);
 				else if (scancode == VC_SHIFT_R)	unset_modifier_mask(MASK_SHIFT_R);
 				else if (scancode == VC_CONTROL_L)	unset_modifier_mask(MASK_CTRL_L);

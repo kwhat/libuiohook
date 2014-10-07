@@ -34,7 +34,9 @@
 static unsigned short int current_modifiers = 0x0000;
 
 // Structure for the current Unix epoch in milliseconds.
-static FILETIME ft;
+static FILETIME system_time;
+static DWORD previous_time = (DWORD) ~0x00;
+static uint64_t offset_time = 0;
 
 // Key typed Unicode return values.
 static WCHAR keywchar = '\0';
@@ -129,9 +131,9 @@ void hook_start_proc() {
 
 	// Set the event.time.
 	// FIXME See if we can do something lighter with the event_time instead of more division.
-	GetSystemTimeAsFileTime(&ft);
-	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
-	event.time = system_time - 11644473600000;
+	GetSystemTimeAsFileTime(&system_time);
+	uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+	event.time = epoch_time - 11644473600000;
 
 	event.mask = 0x00;
 	event.reserved = 0x00;
@@ -144,9 +146,9 @@ void hook_stop_proc() {
 
 	// Set the event.time.
 	// FIXME See if we can do something lighter with the event_time instead of more division.
-	GetSystemTimeAsFileTime(&ft);
-	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
-	event.time = system_time - 11644473600000;
+	GetSystemTimeAsFileTime(&system_time);
+	uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+	event.time = epoch_time - 11644473600000;
 
 	event.mask = 0x00;
 	event.reserved = 0x00;
@@ -161,15 +163,33 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	// MS Mouse event struct data.
 	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
 
-	// Set the event time.
-	GetSystemTimeAsFileTime(&ft);
+	// Grab the system uptime in MS.
+	// NOTE This value rolls every 49.7 days.
+	DWORD hook_time = GetTickCount();
 
-	// Convert to milliseconds = 100-nanoseconds / 10000
-	// FIXME See if we can do something lighter with the event_time instead of more division.
-	uint64_t system_time = (((uint64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime) / 10000;
+	// Check for event clock reset.
+	if (previous_time > hook_time) {
+		// Get the local system time in UTC.
+		GetSystemTimeAsFileTime(&system_time);
 
-	// Convert Windows epoch to Unix epoch (1970 - 1601 in milliseconds)
-	event.time = system_time - 11644473600000;
+		// Convert the local system time to a Unix epoch in MS.
+		// milliseconds = 100-nanoseconds / 10000
+		uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
+		// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
+		system_time -= 11644473600000;
+
+		// Calculate the offset based on the system and hook times.
+		offset_time = system_time - hook_time;
+
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
+				__FUNCTION__, __LINE__, offset_time);
+	}
+	// Set the previous event time for click reset check above.
+	previous_time = hook_time;
+
+	// Set the event time to the server time + offset.
+	event.time = hook_time + offset_time;
 
 	// Make sure reserved bits are zeroed out.
 	event.reserved = 0x00;
@@ -191,13 +211,6 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
 
-			/* Replaced by keycode_to_scancode
-			event.data.keyboard.keycode = kbhook->scanCode;
-			if (kbhook->flags & 0x03) {
-				// This is a bit of a hack, but it seems to work and it is fast.
-				event.data.keyboard.keycode |= (UINT8) ((kbhook->flags ^ 0x0F) & 0x0F) << 8;
-			}
-			*/
 			event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
 
 			event.data.keyboard.rawcode = kbhook->vkCode;
@@ -240,13 +253,6 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
-			/* Replaced by keycode_to_scancode
-			event.data.keyboard.keycode = kbhook->scanCode;
-			if (kbhook->flags & 0x03) {
-				// This is a bit of a hack, but it seems to work and it is fast.
-				event.data.keyboard.keycode |= (UINT8) ((kbhook->flags ^ 0x0F) & 0x0F) << 8;
-			}
-			*/
 			event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
 
 			event.data.keyboard.rawcode = kbhook->vkCode;

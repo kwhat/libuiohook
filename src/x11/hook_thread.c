@@ -101,7 +101,7 @@ static void *hook_thread_proc(void *arg) {
 	// Hook data for future cleanup.
 	hook_data *data = malloc(sizeof(hook_data));
 	pthread_cleanup_push(hook_cleanup_proc, data);
-	
+
 	// Cast for convenience and initialize.
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
@@ -136,7 +136,7 @@ static void *hook_thread_proc(void *arg) {
 			 * disp_data should be used!
 			 * See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
 			 */
-			context = XRecordCreateContext(data->display, 0, &clients, 1, &(data->range), 1);
+			context = XRecordCreateContext(data->display, XRecordFromServerTime, &clients, 1, &(data->range), 1);
 			if (context != 0) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 						__FUNCTION__, __LINE__);

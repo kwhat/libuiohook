@@ -177,10 +177,10 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 		uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
 
 		// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
-		system_time -= 11644473600000;
+		epoch_time -= 11644473600000;
 
 		// Calculate the offset based on the system and hook times.
-		offset_time = system_time - hook_time;
+		offset_time = epoch_time - hook_time;
 
 		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
 				__FUNCTION__, __LINE__, offset_time);

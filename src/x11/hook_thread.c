@@ -60,7 +60,12 @@ pthread_cond_t hook_control_cond = PTHREAD_COND_INITIALIZER;
 
 
 static void hook_cleanup_proc(void *arg) {
-	pthread_mutex_lock(&hook_control_mutex);
+	// Make sure the control mutex is locked because the hook_event_proc
+	// may not get called with XRecordEndOfData if the thread is canceled.
+	if (pthread_mutex_trylock(&hook_control_mutex) == 0) {
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Improper hook shutdown detected!\n",
+				__FUNCTION__, __LINE__);
+	}
 
 	hook_data *data = (hook_data *) arg;
 
@@ -78,6 +83,15 @@ static void hook_cleanup_proc(void *arg) {
 
 		// Close down the XRecord data display.
 		XCloseDisplay(data->display);
+	}
+
+	// Cleanup native input functions.
+	unload_input_helper();
+
+	// Close down any open displays.
+	if (ctrl_display != NULL) {
+		XCloseDisplay(ctrl_display);
+		ctrl_display = NULL;
 	}
 
 	// Cleanup the structure.
@@ -201,9 +215,6 @@ static void *hook_thread_proc(void *arg) {
 					// Set the exit status.
 					*status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 				}
-
-				// Deinitialize native input helper functions.
-				unload_input_helper();
 			}
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
@@ -219,12 +230,6 @@ static void *hook_thread_proc(void *arg) {
 
 			// Set the exit status.
 			*status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
-		}
-
-		// Close down any open displays.
-		if (ctrl_display != NULL) {
-			XCloseDisplay(ctrl_display);
-			ctrl_display = NULL;
 		}
 	}
 	else {

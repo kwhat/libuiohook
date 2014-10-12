@@ -48,7 +48,14 @@ Boolean restart_tap = false;
 
 
 static void hook_cleanup_proc(void *arg) {
-	pthread_mutex_lock(&hook_control_mutex);
+	// Make sure the control mutex is locked because the hook_status_proc
+	// may not get called with kCFRunLoopExit if the thread is canceled.
+	if (pthread_mutex_trylock(&hook_control_mutex) == 0) {
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Improper hook shutdown detected!\n",
+				__FUNCTION__, __LINE__);
+	}
+	
+	// Cast the void * to the hook_date for use locally.
 	hook_data *data = (hook_data *) arg;
 
 	// Stop the CFMachPort from receiving any more messages.
@@ -74,21 +81,22 @@ static void hook_cleanup_proc(void *arg) {
 	if (data->source) {
 		CFRelease(data->source);
 	}
-
+	
+	// Stop the runloop used for keytyped events.
 	stop_message_port_runloop();
+	
+	// Cleanup native input functions.
+	unload_input_helper();
 	
 	// Free the data structure.
 	free(arg);
 }
 
 static void hook_cancel_proc(void *arg) {
-	// Make sure the control mutex is locked because the hook_cleanup_proc
-	// may not get popped under some circumstances.
-	pthread_mutex_trylock(&hook_control_mutex);
-	
+	// NOTE The hook_control_mutex is guaranteed to be locked at this time.
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
-
+	
 	// Make sure we signal that we have passed any exception throwing code for
 	// the waiting hook_enable().
 	pthread_cond_signal(&hook_control_cond);
@@ -212,9 +220,6 @@ static void *hook_thread_proc(void *arg) {
 							// Set the exit status.
 							*status = UIOHOOK_ERROR_CREATE_OBSERVER;
 						}
-
-						// Cleanup Native Input Functions.
-						unload_input_helper();
 					}
 					else {
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
@@ -254,7 +259,7 @@ static void *hook_thread_proc(void *arg) {
 
 	// Execute the thread cancel handler.
 	pthread_cleanup_pop(1);
-	
+
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 

@@ -223,13 +223,15 @@ void stop_message_port_runloop() {
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	switch (activity) {
 		case kCFRunLoopEntry:
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Entering hook thread RunLoop.\n",
+					__FUNCTION__, __LINE__);
+			
 			// Lock the running mutex to signal the hook has started.
 			pthread_mutex_lock(&hook_running_mutex);
 
 			event.type = EVENT_HOOK_START;
 
 			// Set the event.time.
-			// FIXME See if we can do something lighter with the event_time instead of more division.
 			gettimeofday(&system_time, NULL);
 			event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 
@@ -244,6 +246,9 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			break;
 
 		case kCFRunLoopExit:
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Exiting hook thread RunLoop.\n",
+					__FUNCTION__, __LINE__);
+			
 			// Lock the control mutex until we exit.
 			pthread_mutex_lock(&hook_control_mutex);
 
@@ -254,7 +259,6 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			event.type = EVENT_HOOK_STOP;
 
 			// Set the event.time.
-			// FIXME See if we can do something lighter with the event_time instead of more division.
 			gettimeofday(&system_time, NULL);
 			event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 

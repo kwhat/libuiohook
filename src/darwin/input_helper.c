@@ -108,7 +108,13 @@ bool is_accessibility_enabled() {
 			}
 		}
 		else {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled(). (%s)\n",
+			// Could not load the AXIsProcessTrustedWithOptions function!
+			if (dlError != NULL) {
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+						__FUNCTION__, __LINE__, dlError);
+			}
+			
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled().\n",
 					__FUNCTION__, __LINE__, dlError);
 
 			// Check for the fallback function AXAPIEnabled().
@@ -120,8 +126,13 @@ bool is_accessibility_enabled() {
 			}
 			else {
 				// Could not load the AXAPIEnabled function!
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()! (%s)\n",
-						__FUNCTION__, __LINE__, dlError);
+				if (dlError != NULL) {
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+							__FUNCTION__, __LINE__, dlError);
+				}
+			
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()!\n",
+						__FUNCTION__, __LINE__);
 			}
 		}
 
@@ -168,6 +179,7 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 	// Release the previous keyboard layout.
 	if (prev_keyboard_layout != NULL) {
 		CFRelease(prev_keyboard_layout);
+		prev_keyboard_layout = NULL;
 	}
 
 	// Set the previous keyboard layout to the current layout.
@@ -586,6 +598,7 @@ void unload_input_helper() {
 	if (prev_keyboard_layout != NULL) {
 		// Cleanup tracking of the previous layout.
 		CFRelease(prev_keyboard_layout);
+		prev_keyboard_layout = NULL;
 	}
 	#endif
 }

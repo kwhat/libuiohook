@@ -171,8 +171,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 		BYTE event_code = data->event.u.u.detail;
 		int event_x = data->event.u.keyButtonPointer.rootX;
 		int event_y = data->event.u.keyButtonPointer.rootY;
-
-		// FIXME Its not worth using the native modifier tracking.
 		int event_mask = data->event.u.keyButtonPointer.state;
 
 		KeySym keysym;

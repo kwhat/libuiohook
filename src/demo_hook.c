@@ -116,6 +116,7 @@ int main() {
 		WaitForSingleObject(control_handle, INFINITE);
 		#else
 		#if defined(__APPLE__) && defined(__MACH__)
+		// NOTE Darwin requires that you start your own runloop from main.
 		CFRunLoopRun();
 		#else
 		pthread_mutex_lock(&control_mutex);

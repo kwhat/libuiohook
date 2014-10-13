@@ -390,3 +390,12 @@ UIOHOOK_API bool hook_is_enabled() {
 
 	return is_running;
 }
+
+UIOHOOK_API void hook_wait(){
+	// NOTE Darwin requires that you start your own runloop from main.
+	CFRunLoopRun();
+}
+
+UIOHOOK_API void hook_continue(){
+	CFRunLoopStop(CFRunLoopGetMain());
+}

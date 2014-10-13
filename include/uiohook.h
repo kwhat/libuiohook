@@ -402,6 +402,14 @@ extern "C" {
 
 	// Check the event hook status.
 	UIOHOOK_API bool hook_is_enabled();
+	
+	// Natively waits on the calling thread.
+	// Specially meaningful for mac, where a run loop is started
+	UIOHOOK_API void hook_wait();
+	
+	// Natively stops the waiting on the calling thread.
+	// Specially meaningful for mac, where a run loop is stopped
+	UIOHOOK_API void hook_continue();
 
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();

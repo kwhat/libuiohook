@@ -83,6 +83,7 @@ int main() {
 
 	int status = hook_enable();
 	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
+		//Specially meaningful for mac/darwin. Requirement to start your own runloop from main.
 		hook_wait();
 	}
 

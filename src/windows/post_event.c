@@ -66,7 +66,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
 
-	double fx, fy;
 	double fScreenWidth   = GetSystemMetrics( SM_CXSCREEN )-1; 
 	double fScreenHeight  = GetSystemMetrics( SM_CYSCREEN )-1;
 	
@@ -205,17 +204,24 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 		EVENT_MOUSEBUTTON:
 			events[events_size].type = INPUT_MOUSE;
-			
-			fx = event->data.mouse.x * (65535.0f/fScreenWidth);
-			fy = event->data.mouse.y * (65535.0f/fScreenHeight);
+			//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
+			//The coordinates need to be normalized
+			double fx, fy;
+			if( event->data.mouse.xp == 0 && event->data.mouse.yp == 0 ){
+				fx = event->data.mouse.x * (65535.0f/fScreenWidth);
+				fy = event->data.mouse.y * (65535.0f/fScreenHeight);
+			}else{
+				fx = (event->data.mouse.xp * fScreenWidth / 100) * (65535.0f/fScreenWidth);
+				fy = (event->data.mouse.yp * fScreenHeight / 100) * (65535.0f/fScreenHeight);
+			}
 			events[events_size].mi.dx = fx;
-			events[events_size].mi.dy = fy;
+		    events[events_size].mi.dy = fy;
 			/*events[events_size].mi.dx = event->data.mouse.x;
 			events[events_size].mi.dy = event->data.mouse.y;*/
 			//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
 			//events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -224,18 +230,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// The button masks are all applied with the modifier masks.
 
 		case EVENT_MOUSE_MOVED:
-			events[events_size].type = INPUT_MOUSE;
-			//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
-			//The coordinates need to be normalized
-			fx = event->data.mouse.x * (65535.0f/fScreenWidth);
-			fy = event->data.mouse.y * (65535.0f/fScreenHeight);
-			events[events_size].mi.dx = fx;
-			events[events_size].mi.dy = fy;
-			/*events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;*/
-			events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.time = 0; //GetSystemTime()
-			events_size++;
+			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
+			goto EVENT_MOUSEBUTTON;
 			break;
 
 		case EVENT_HOOK_START:

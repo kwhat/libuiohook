@@ -33,21 +33,25 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	CGEventType cg_event_type = kCGEventNull;
 	CGScrollEventUnit cg_event_unit;
 
+	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	//CGEventSourceRef src = NULL;
+
 	switch (event->type) {
 		case EVENT_KEY_TYPED:
 
 		case EVENT_KEY_PRESSED:
-			cg_event = CGEventCreateKeyboardEvent(NULL,
+			cg_event = CGEventCreateKeyboardEvent( src,
 					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
 					true);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
-
+			//CGEventSetFlags(cg_event, kCGEventFlagMaskCommand);
+  
 			if (event->type == EVENT_KEY_PRESSED) {
 				break;
 			}
 
 		case EVENT_KEY_RELEASED:
-			cg_event = CGEventCreateKeyboardEvent(NULL,
+			cg_event = CGEventCreateKeyboardEvent( src,
 					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
 					false);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
@@ -70,7 +74,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_type = kCGEventOtherMouseDown;
 			}
 
-			CGEventCreateMouseEvent(NULL,
+			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -96,7 +100,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_type = kCGEventOtherMouseUp;
 			}
 
-			CGEventCreateMouseEvent(NULL,
+			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -107,7 +111,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 
 		case EVENT_MOUSE_MOVED:
-			CGEventCreateMouseEvent(NULL,
+			cg_event = CGEventCreateMouseEvent( src,
 					kCGEventMouseMoved,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -131,7 +135,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_type = kCGEventOtherMouseDragged;
 			}
 
-			CGEventCreateMouseEvent(NULL,
+			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -151,7 +155,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_unit = kCGScrollEventUnitPixel;
 			}
 
-			CGEventCreateScrollWheelEvent(NULL,
+			cg_event = CGEventCreateScrollWheelEvent( src,
 					cg_event_unit,
 					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.
 					event->data.wheel.amount * event->data.wheel.rotation);
@@ -161,7 +165,13 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		break;
 	}
 
-	CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
+	//CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
+	
+	//CGEventSetFlags(cg_event, kCGEventFlagMaskCommand);
+
+    CGEventTapLocation loc = kCGHIDEventTap; // kCGSessionEventTap also works
+    CGEventPost(loc, cg_event);
 
 	CFRelease(cg_event);
+	CFRelease(src);
 }

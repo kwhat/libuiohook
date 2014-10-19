@@ -276,6 +276,14 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
+
+	size_t screenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
+    size_t screenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
+    
+    //CGRect mainMonitor = CGDisplayBounds(CGMainDisplayID());
+	//CGFloat monitorHeight = CGRectGetHeight(mainMonitor);
+	//CGFloat monitorWidth = CGRectGetWidth(mainMonitor);
+	
 	// Event data.
 	CGPoint event_point;
 
@@ -466,9 +474,11 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
+			event.data.mouse.xp = event_point.x * 100 / screenWidth;
+			event.data.mouse.yp = event_point.y * 100 / screenHeight;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u pressed %u time(s). (%u(%u), %u(%u))\n",
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 			dispatch_event(&event);
 			break;
 
@@ -488,9 +498,11 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
+			event.data.mouse.xp = event_point.x * 100 / screenWidth;
+			event.data.mouse.yp = event_point.y * 100 / screenHeight;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u(%u), %u(%u))\n",
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 			dispatch_event(&event);
 
 
@@ -503,9 +515,11 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.mouse.clicks = click_count;
 				event.data.mouse.x = event_point.x;
 				event.data.mouse.y = event_point.y;
+				event.data.mouse.xp = event_point.x * 100 / screenWidth;
+				event.data.mouse.yp = event_point.y * 100 / screenHeight;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u(%u), %u(%u))\n",
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 				dispatch_event(&event);
 			}
 			break;
@@ -528,12 +542,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
+			event.data.mouse.xp = event_point.x * 100 / screenWidth;
+			event.data.mouse.yp = event_point.y * 100 / screenHeight;
 
 			// Set the mouse dragged flag.
 			mouse_dragged = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
-					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u(%u), %u(%u).\n",
+					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 			dispatch_event(&event);
 			break;
 
@@ -552,12 +568,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
+			event.data.mouse.xp = event_point.x * 100 / screenWidth;
+			event.data.mouse.yp = event_point.y * 100 / screenHeight;
 
 			// Set the mouse dragged flag.
 			mouse_dragged = false;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
-					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u(%u), %u(%u).\n",
+					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 			dispatch_event(&event);
 			break;
 
@@ -585,6 +603,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.wheel.clicks = click_count;
 				event.data.wheel.x = event_point.x;
 				event.data.wheel.y = event_point.y;
+				event.data.mouse.xp = event_point.x * 100 / screenWidth;
+				event.data.mouse.yp = event_point.y * 100 / screenHeight;
 
 				// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
 				if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {

@@ -28,10 +28,41 @@
 
 #include "input_helper.h"
 
+//https://developer.apple.com/library/mac/documentation/Carbon/Reference/
+//QuartzEventServicesRef/index.html#//apple_ref/swift/tdef/CGMouseButton
+CGMouseButton toCarbonMouseButton( int evenMouseButton ){
+    CGMouseButton cgMButton = -1;
+	switch( evenMouseButton ){
+		case MOUSE_LEFT:
+			cgMButton = kCGMouseButtonLeft;
+			break;
+		case MOUSE_RIGHT:
+			cgMButton = kCGMouseButtonRight;
+			break;
+		case MOUSE_MIDDLE:
+			cgMButton = kCGMouseButtonCenter;
+			break;
+	}
+	return cgMButton;
+}
+
+void calculateCoordinates( uiohook_event * const event, double *fx, double *fy ){
+	if( event->data.mouse.xp == 0 && event->data.mouse.yp == 0 ){
+		*fx = event->data.mouse.x;
+		*fy = event->data.mouse.y;
+	}else{
+		size_t fScreenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
+    	size_t fScreenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
+		*fx = (event->data.mouse.xp * fScreenWidth / 100);
+		*fy = (event->data.mouse.yp * fScreenHeight / 100);
+	}
+}
+
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	CGEventRef cg_event = NULL;
 	CGEventType cg_event_type = kCGEventNull;
 	CGScrollEventUnit cg_event_unit;
+	double fx, fy;
 
 	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 	//CGEventSourceRef src = NULL;
@@ -73,14 +104,14 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseDown;
 			}
-
+			calculateCoordinates( event, &fx, &fy );
 			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
+						(CGFloat) fx,
+						(CGFloat) fy
 					),
-					event->data.mouse.button - 1
+					toCarbonMouseButton( event->data.mouse.button )
 			);
 
 			if (event->type == EVENT_MOUSE_PRESSED) {
@@ -99,23 +130,24 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseUp;
 			}
-
+			calculateCoordinates( event, &fx, &fy );
 			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
+						(CGFloat) fx,
+						(CGFloat) fy
 					),
-					event->data.mouse.button - 1
+					toCarbonMouseButton( event->data.mouse.button )
 			);
 			break;
 
 		case EVENT_MOUSE_MOVED:
+			calculateCoordinates( event, &fx, &fy );
 			cg_event = CGEventCreateMouseEvent( src,
 					kCGEventMouseMoved,
 					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
+						(CGFloat) fx,
+						(CGFloat) fy
 					),
 					0
 			);
@@ -134,14 +166,14 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseDragged;
 			}
-
+			calculateCoordinates( event, &fx, &fy );
 			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
+						(CGFloat) fx,
+						(CGFloat) fy
 					),
-					event->data.mouse.button - 1
+					toCarbonMouseButton( event->data.mouse.button )
 			);
 			break;
 

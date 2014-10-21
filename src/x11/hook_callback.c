@@ -101,7 +101,27 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+void calculateCoordinates( int x, int y ){
+	//http://linux.die.net/man/3/xopendisplay
+	//important to close after used.
+	//XOpenDisplay connects your application to the X server through TCP
+	// or DECnet communications protocols
+	//TODO: it might be a heavy operation, move to hook_enable
+	Display* disp = XOpenDisplay(NULL);
+	Screen*  scrn = DefaultScreenOfDisplay(disp);
+	int screenHeight = scrn->height;
+	int screenWidth  = scrn->width;
+
+	event.data.mouse.x = x;
+	event.data.mouse.y = y;
+	event.data.mouse.xp = x * 100 / screenWidth;
+	event.data.mouse.yp = y * 100 / screenHeight;
+
+	XCloseDisplay( disp );
+}
+
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
+
 	if (hook->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
@@ -281,11 +301,10 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					event.data.mouse.button = button;
 					event.data.mouse.clicks = click_count;
-					event.data.mouse.x = event_x;
-					event.data.mouse.y = event_y;
+					calculateCoordinates( event_x, event_y );
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u-%u, %u-%u)\n",
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 					dispatch_event(&event);
 				}
 				else if (event_code == WheelUp || event_code == WheelDown) {
@@ -349,11 +368,10 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
 					event.data.mouse.button = button;
 					event.data.mouse.clicks = click_count;
-					event.data.mouse.x = event_x;
-					event.data.mouse.y = event_y;
+					calculateCoordinates( event_x, event_y );
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u-%u, %u-%u)\n",
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 					dispatch_event(&event);
 
 					if (mouse_dragged != true) {
@@ -363,11 +381,10 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 						event.data.mouse.button = button;
 						event.data.mouse.clicks = click_count;
-						event.data.mouse.x = event_x;
-						event.data.mouse.y = event_y;
+						calculateCoordinates( event_x, event_y );
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u-%u, %u-%u)\n",
+								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 						dispatch_event(&event);
 					}
 				}
@@ -396,11 +413,10 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 				event.data.mouse.button = MOUSE_NOBUTTON;
 				event.data.mouse.clicks = click_count;
-				event.data.mouse.x = event_x;
-				event.data.mouse.y = event_y;
+				calculateCoordinates( event_x, event_y );
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
-						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
+						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 				dispatch_event(&event);
 				break;
 

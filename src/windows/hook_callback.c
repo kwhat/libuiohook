@@ -156,11 +156,32 @@ void hook_stop_proc() {
 	dispatch_event(&event);
 }
 
-LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	
+void fillEventDataMouse( /*int mButton,*/ int clicks, MSLLHOOKSTRUCT *mshook ){
 	//double fx, fy;
 	double fScreenWidth   = GetSystemMetrics( SM_CXSCREEN )-1; 
 	double fScreenHeight  = GetSystemMetrics( SM_CYSCREEN )-1;
+	
+	//event.data.mouse.button = mButton;
+	event.data.mouse.clicks = clicks;
+	
+	event.data.mouse.x = mshook->pt.x;
+	event.data.mouse.y = mshook->pt.y;
+	
+	//Windows sends overflowed integers as coordinates while continuously moving the mouse to the left side (
+	//overflowed x) or to the top upper corner (overflowed y) overflowed vars can't be operated (compare, etc) 
+	//but thankfully our coordinates are unsigned, which can't overflow by definition, so they wrap-around.
+	//values after wrap-around: 65535, 65534, 65533, so USHRT_MAX - 535 to safely cover those
+	if( event.data.mouse.x >= USHRT_MAX - 535 )
+		event.data.mouse.x = 0;
+		
+	if( event.data.mouse.y >= USHRT_MAX - 535 )
+		event.data.mouse.y = 0;
+	
+	event.data.mouse.xp = mshook->pt.x * 100 / fScreenWidth;
+	event.data.mouse.yp = mshook->pt.y * 100 / fScreenHeight;
+}
+
+LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 	// MS Keyboard event struct data.
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
@@ -324,11 +345,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_MOUSE_PRESSED;
 			event.mask = get_modifiers();
 
-			event.data.mouse.clicks = click_count;
-			event.data.mouse.x = mshook->pt.x;
-			event.data.mouse.y = mshook->pt.y;
-			event.data.mouse.xp = mshook->pt.x * 100 / fScreenWidth;
-			event.data.mouse.yp = mshook->pt.y * 100 / fScreenHeight;
+			fillEventDataMouse( click_count, mshook );
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u-%u, %u-%u)\n",
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
@@ -370,11 +387,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.type = EVENT_MOUSE_RELEASED;
 			event.mask = get_modifiers();
 
-			event.data.mouse.clicks = click_count;
-			event.data.mouse.x = mshook->pt.x;
-			event.data.mouse.y = mshook->pt.y;
-			event.data.mouse.xp = mshook->pt.x * 100 / fScreenWidth;
-			event.data.mouse.yp = mshook->pt.y * 100 / fScreenHeight;
+			fillEventDataMouse( click_count, mshook );
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u-%u, %u-%u)\n",
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
@@ -388,11 +401,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				//event.mask = get_modifiers();
 				//event.data.mouse.button = button;
 
-				event.data.mouse.clicks = click_count;
-				event.data.mouse.x = mshook->pt.x;
-				event.data.mouse.y = mshook->pt.y;
-				event.data.mouse.xp = mshook->pt.x * 100 / fScreenWidth;
-				event.data.mouse.yp = mshook->pt.y * 100 / fScreenHeight;
+				fillEventDataMouse( click_count, mshook );
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u-%u, %u-%u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
@@ -424,11 +433,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				event.mask = get_modifiers();
 
 				event.data.mouse.button = MOUSE_NOBUTTON;
-				event.data.mouse.clicks = click_count;
-				event.data.mouse.x = mshook->pt.x;
-				event.data.mouse.y = mshook->pt.y;
-				event.data.mouse.xp = mshook->pt.x * 100 / fScreenWidth;
-				event.data.mouse.yp = mshook->pt.y * 100 / fScreenHeight;
+				fillEventDataMouse( click_count, mshook );
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u(%u), %u(%u).\n",
 						__FUNCTION__, __LINE__,  event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);

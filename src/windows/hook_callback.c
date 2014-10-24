@@ -460,7 +460,11 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			event.data.wheel.type = get_scroll_wheel_type();
 			event.data.wheel.amount = get_scroll_wheel_amount();
 
-			fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
+			//ATT: fillEventDataMouse( &mshook->pt.x, &mshook->pt.y ); data.wheel not data.mouse
+			//TODO: complete/improve
+			event.data.wheel.x = mshook->pt.x;
+			event.data.wheel.y = mshook->pt.y;
+
 			/* Delta HIWORD(mshook->mouseData)
 			 * A positive value indicates that the wheel was rotated
 			 * forward, away from the user; a negative value indicates that
@@ -468,8 +472,9 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			 * click is defined as WHEEL_DELTA, which is 120. */
 			event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u(%u), %u(%u)\n",
-					__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u\n",
+				__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * 
+				event.data.wheel.rotation, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
 

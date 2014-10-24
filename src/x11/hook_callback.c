@@ -101,7 +101,9 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
-void calculateCoordinates( int x, int y ){
+static inline void fillEventDataMouse( int *x, int *y ){
+	event.mask = get_modifiers();
+	event.data.mouse.clicks = click_count;
 	//http://linux.die.net/man/3/xopendisplay
 	//important to close after used.
 	//XOpenDisplay connects your application to the X server through TCP
@@ -109,15 +111,25 @@ void calculateCoordinates( int x, int y ){
 	//TODO: it might be a heavy operation, move to hook_enable
 	Display* disp = XOpenDisplay(NULL);
 	Screen*  scrn = DefaultScreenOfDisplay(disp);
+	XCloseDisplay( disp );
+	
 	int screenHeight = scrn->height;
 	int screenWidth  = scrn->width;
 
-	event.data.mouse.x = x;
-	event.data.mouse.y = y;
-	event.data.mouse.xp = x * 100 / screenWidth;
-	event.data.mouse.yp = y * 100 / screenHeight;
+	event.data.mouse.x = *x;
+	event.data.mouse.y = *y;
+	
+	//Sometimes X11 screenWidth or screenHeight values are 0... need to check
+	//to protect from Arithmetic exception of division by 0
+	if( screenWidth > 0 )
+		event.data.mouse.xp = event.data.mouse.x * 100 / screenWidth;
+	else
+		event.data.mouse.xp = 0;
 
-	XCloseDisplay( disp );
+	if( screenHeight > 0 )
+		event.data.mouse.yp = event.data.mouse.y * 100 / screenHeight;
+	else
+		event.data.mouse.yp = 0;
 }
 
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
@@ -156,7 +168,9 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		event.mask = 0x00;
 		event.reserved = 0x00;
-
+logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
+						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, 
+						event.data.mouse.y, event.data.mouse.yp);
 		dispatch_event(&event);
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {
@@ -297,14 +311,14 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					// Fire mouse pressed event.
 					event.type = EVENT_MOUSE_PRESSED;
-					event.mask = get_modifiers();
 
 					event.data.mouse.button = button;
-					event.data.mouse.clicks = click_count;
-					calculateCoordinates( event_x, event_y );
+					
+					fillEventDataMouse( &event_x, &event_y );
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u-%u, %u-%u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+						 event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 					dispatch_event(&event);
 				}
 				else if (event_code == WheelUp || event_code == WheelDown) {
@@ -317,9 +331,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					// Fire mouse wheel event.
 					event.type = EVENT_MOUSE_WHEEL;
-					event.mask = get_modifiers();
 
-					event.data.wheel.clicks = click_count;
+					//ATT: fillEventDataMouse( &event_x, &event_y ); data.wheel not data.mouse
 					event.data.wheel.x = event_x;
 					event.data.wheel.y = event_y;
 
@@ -346,8 +359,9 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 						event.data.wheel.rotation = 1;
 					}
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n",
-							__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
+						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
+						 event.data.wheel.rotation, event.data.mouse.x, event.data.mouse.y );
 					dispatch_event(&event);
 				}
 				break;
@@ -363,28 +377,28 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					// Fire mouse released event.
 					event.type = EVENT_MOUSE_RELEASED;
-					event.mask = get_modifiers();
+					//event.mask = get_modifiers();
 
 					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
 					event.data.mouse.button = button;
-					event.data.mouse.clicks = click_count;
-					calculateCoordinates( event_x, event_y );
+					fillEventDataMouse( &event_x, &event_y );
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u-%u, %u-%u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+						 event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 					dispatch_event(&event);
 
 					if (mouse_dragged != true) {
 						// Fire mouse clicked event.
 						event.type = EVENT_MOUSE_CLICKED;
-						event.mask = get_modifiers();
+						//event.mask = get_modifiers();
 
 						event.data.mouse.button = button;
-						event.data.mouse.clicks = click_count;
-						calculateCoordinates( event_x, event_y );
+						fillEventDataMouse( &event_x, &event_y );
 
 						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u-%u, %u-%u)\n",
-								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+							 event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
 						dispatch_event(&event);
 					}
 				}
@@ -412,11 +426,11 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				}
 
 				event.data.mouse.button = MOUSE_NOBUTTON;
-				event.data.mouse.clicks = click_count;
-				calculateCoordinates( event_x, event_y );
+				fillEventDataMouse( &event_x, &event_y );
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
-						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, 
+						event.data.mouse.y, event.data.mouse.yp);
 				dispatch_event(&event);
 				break;
 

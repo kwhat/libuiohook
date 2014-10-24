@@ -168,9 +168,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 		event.mask = 0x00;
 		event.reserved = 0x00;
-logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
-						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, 
-						event.data.mouse.y, event.data.mouse.yp);
+
 		dispatch_event(&event);
 	}
 	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {
@@ -361,7 +359,7 @@ logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
 						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
-						 event.data.wheel.rotation, event.data.mouse.x, event.data.mouse.y );
+						 event.data.wheel.rotation, event.wheel.mouse.x, event.wheel.mouse.y );
 					dispatch_event(&event);
 				}
 				break;

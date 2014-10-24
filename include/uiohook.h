@@ -433,6 +433,9 @@ extern "C" {
 
 	// Retrieves the double/triple click interval.
 	UIOHOOK_API long int hook_get_multi_click_time();
+	
+	// Retrieves the screen resolution: width and height respectively.
+	UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight );
 
 #ifdef __cplusplus
 }

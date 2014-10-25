@@ -158,12 +158,7 @@ void hook_stop_proc() {
 
 static inline void fillEventDataMouse( LONG *x, LONG *y ){
 	event.mask = get_modifiers();
-
-	//double fx, fy;
-	double fScreenWidth   = GetSystemMetrics( SM_CXSCREEN )-1; 
-	double fScreenHeight  = GetSystemMetrics( SM_CYSCREEN )-1;
 	
-	//event.data.mouse.button = mButton;
 	event.data.mouse.clicks = click_count;
 	
 	//Windows sends overflowed integers as coordinates while continuously moving the mouse to the left side (
@@ -180,9 +175,6 @@ static inline void fillEventDataMouse( LONG *x, LONG *y ){
 		event.data.mouse.y = 0;
 	else
 		event.data.mouse.y = *y;
-	
-	event.data.mouse.xp = event.data.mouse.x * 100 / fScreenWidth;
-	event.data.mouse.yp = event.data.mouse.y * 100 / fScreenHeight;
 }
 
 LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
@@ -342,16 +334,14 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			// Store the last click point.
 			last_click.x = mshook->pt.x;
 			last_click.y = mshook->pt.y;
-			//last_click.xp = mshook->pt.x * 100 / fScreenWidth;
-			//last_click.yp = mshook->pt.y * 100 / fScreenHeight;
 
 			// Fire mouse pressed event.
 			event.type = EVENT_MOUSE_PRESSED;
 
 			fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u-%u, %u-%u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, u)\n",
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
 
@@ -391,8 +381,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 			fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u-%u, %u-%u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 
 			if (last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
@@ -405,8 +395,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 				fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u-%u, %u-%u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
 			break;
@@ -437,8 +427,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				event.data.mouse.button = MOUSE_NOBUTTON;
 				fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u(%u), %u(%u).\n",
-						__FUNCTION__, __LINE__,  event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
+						__FUNCTION__, __LINE__,  event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
 			break;

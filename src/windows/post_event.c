@@ -170,8 +170,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			goto EVENT_MOUSEBUTTON;
 
 		case EVENT_MOUSE_WHEEL:
-			// Wheel events should be the same as click events.
-			//TODO: they are not
 			events[events_size].mi.dwFlags = MOUSEEVENTF_WHEEL;
 			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
 			goto EVENT_MOUSEBUTTON;
@@ -202,20 +200,18 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			}
 			goto EVENT_MOUSEBUTTON;
 
+			//TODO: remove goto's and refactor
 		EVENT_MOUSEBUTTON:
 			events[events_size].type = INPUT_MOUSE;
 			//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
 			//The coordinates need to be normalized
-			double fx, fy;
-			if( event->data.mouse.xp == 0 && event->data.mouse.yp == 0 ){
-				fx = event->data.mouse.x * (65535.0f/fScreenWidth);
-				fy = event->data.mouse.y * (65535.0f/fScreenHeight);
+			if( event->type == EVENT_MOUSE_WHEEL ){
+				events[events_size].mi.dx = event->data.wheel.x * (65535.0f/fScreenWidth);
+				events[events_size].mi.dy = event->data.wheel.y * (65535.0f/fScreenHeight);
 			}else{
-				fx = (event->data.mouse.xp * fScreenWidth / 100) * (65535.0f/fScreenWidth);
-				fy = (event->data.mouse.yp * fScreenHeight / 100) * (65535.0f/fScreenHeight);
-			}
-			events[events_size].mi.dx = fx;
-		    events[events_size].mi.dy = fy;
+				events[events_size].mi.dx = event->data.mouse.x * (65535.0f/fScreenWidth);
+				events[events_size].mi.dy = event->data.mouse.y * (65535.0f/fScreenHeight);
+			}				
 			/*events[events_size].mi.dx = event->data.mouse.x;
 			events[events_size].mi.dy = event->data.mouse.y;*/
 			//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override

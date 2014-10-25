@@ -50,7 +50,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	CGEventRef cg_event = NULL;
 	CGEventType cg_event_type = kCGEventNull;
 	CGScrollEventUnit cg_event_unit;
-	double fx, fy;
 
 	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 	//CGEventSourceRef src = NULL;
@@ -175,8 +174,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_unit = kCGScrollEventUnitPixel;
 			}
 
-
 			//TODO: Should I create a source event with the coords?
+			//It seems to use automagically the current location of the cursor
 			//(CGFloat) event->data.wheel.x,
 			//(CGFloat) event->data.wheel.y			
 			cg_event = CGEventCreateScrollWheelEvent( src,

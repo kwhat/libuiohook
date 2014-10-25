@@ -24,21 +24,6 @@
 #include <stdio.h>
 #include <uiohook.h>
 
-#ifdef _WIN32
-#include <windows.h>
-
-static HANDLE control_handle = NULL;
-#else
-#include <pthread.h>
-
-#if defined(__APPLE__) && defined(__MACH__)
-#include <CoreFoundation/CoreFoundation.h>
-#else
-static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
-#endif
-
 #include "logger.h"
 
 // NOTE: This function executes on the hook thread!  If you need to block,
@@ -58,17 +43,7 @@ void dispatch_proc(uiohook_event * const event) {
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
 				hook_disable();
 
-				#ifdef _WIN32
-				SetEvent(control_handle);
-				#else
-				#if defined(__APPLE__) && defined(__MACH__)
-				CFRunLoopStop(CFRunLoopGetMain());
-				#else
-				pthread_mutex_lock(&control_mutex);
-				pthread_cond_signal(&control_cond);
-				pthread_mutex_unlock(&control_mutex);
-				#endif
-				#endif
+				hook_continue();
 			}
 		case EVENT_KEY_RELEASED:
 			logger(LOG_LEVEL_INFO, ",keycode=%u,rawcode=0x%X",
@@ -106,29 +81,11 @@ void dispatch_proc(uiohook_event * const event) {
 int main() {
 	hook_set_dispatch_proc(&dispatch_proc);
 
-	#ifdef _WIN32
-	control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("control_handle"));
-	#endif
-
 	int status = hook_enable();
 	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
-		#ifdef _WIN32
-		WaitForSingleObject(control_handle, INFINITE);
-		#else
-		#if defined(__APPLE__) && defined(__MACH__)
-		// NOTE Darwin requires that you start your own runloop from main.
-		CFRunLoopRun();
-		#else
-		pthread_mutex_lock(&control_mutex);
-		pthread_cond_wait(&control_cond, &control_mutex);
-		pthread_mutex_unlock(&control_mutex);
-		#endif
-		#endif
+		//Specially meaningful for mac/darwin. Requirement to start your own runloop from main.
+		hook_wait();
 	}
-
-	#ifdef _WIN32
-	CloseHandle(control_handle);
-	#endif
 
 	return status;
 }

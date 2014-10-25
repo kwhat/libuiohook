@@ -137,3 +137,15 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 
     return TRUE;
 }
+
+UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
+	
+	int _screenWidth  = GetSystemMetrics( SM_CXSCREEN )-1; 
+	int _screenHeight = GetSystemMetrics( SM_CYSCREEN )-1;
+	
+	*screenWidth = _screenWidth;
+	*screenHeight = _screenHeight;
+	
+	//TODO: it might need more checks
+	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
+}

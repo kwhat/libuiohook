@@ -276,6 +276,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
+	
 	// Event data.
 	CGPoint event_point;
 
@@ -468,7 +469,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.y = event_point.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+					event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
 
@@ -490,7 +492,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.y = event_point.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+					event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 
 
@@ -505,7 +508,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.mouse.y = event_point.y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+						event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
 			break;
@@ -603,10 +607,13 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
 				// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
-				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
+				//event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
+				//Removing -1 as MS assumption is more natural (follows the cartesian coordinate system)
+				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n",
-						__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at (%u), (%u)\n",
+						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation, 
+						event.data.wheel.type, event.data.wheel.x, event.data.wheel.y);
 				dispatch_event(&event);
 			}
 			break;

@@ -66,6 +66,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
 
+	double fScreenWidth   = GetSystemMetrics( SM_CXSCREEN )-1; 
+	double fScreenHeight  = GetSystemMetrics( SM_CYSCREEN )-1;
+	
 	if (event->mask & (MASK_SHIFT | MASK_CTRL | MASK_META | MASK_ALT)) {
 		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
 			if (event->mask & 1 << i) {
@@ -145,23 +148,76 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 
 		case EVENT_MOUSE_PRESSED:
-			goto EVENT_BUTTON;
+		    switch( event->data.mouse.button ){
+				case MOUSE_BUTTON1:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;					
+				break;
+				case MOUSE_BUTTON2:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
+				break;
+				case MOUSE_BUTTON3:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
+				break;
+				case MOUSE_BUTTON4:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
+					events[events_size].mi.mouseData = XBUTTON1;
+				break;
+				case MOUSE_BUTTON5:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
+					events[events_size].mi.mouseData = XBUTTON2;
+				break;
+			}
+			goto EVENT_MOUSEBUTTON;
 
 		case EVENT_MOUSE_WHEEL:
-			// Wheel events should be the same as click events.
+			events[events_size].mi.dwFlags = MOUSEEVENTF_WHEEL;
+			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
+			goto EVENT_MOUSEBUTTON;
 
 		case EVENT_MOUSE_CLICKED:
 			event->type = EVENT_MOUSE_PRESSED;
 			hook_post_event(event);
 
 		case EVENT_MOUSE_RELEASED:
-			goto EVENT_BUTTON;
+			switch( event->data.mouse.button ){
+				case MOUSE_BUTTON1:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTUP;					
+				break;
+				case MOUSE_BUTTON2:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_RIGHTUP;
+				break;
+				case MOUSE_BUTTON3:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
+				break;
+				case MOUSE_BUTTON4:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_XUP;
+					events[events_size].mi.mouseData = XBUTTON1;
+				break;
+				case MOUSE_BUTTON5:
+					events[events_size].mi.dwFlags = MOUSEEVENTF_XUP;
+					events[events_size].mi.mouseData = XBUTTON2;
+				break;
+			}
+			goto EVENT_MOUSEBUTTON;
 
-		EVENT_BUTTON:
+			//TODO: remove goto's and refactor
+		EVENT_MOUSEBUTTON:
 			events[events_size].type = INPUT_MOUSE;
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
-			events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE & MOUSEEVENTF_MOVE;
+			//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
+			//The coordinates need to be normalized
+			if( event->type == EVENT_MOUSE_WHEEL ){
+				events[events_size].mi.dx = event->data.wheel.x * (65535.0f/fScreenWidth);
+				events[events_size].mi.dy = event->data.wheel.y * (65535.0f/fScreenHeight);
+			}else{
+				events[events_size].mi.dx = event->data.mouse.x * (65535.0f/fScreenWidth);
+				events[events_size].mi.dy = event->data.mouse.y * (65535.0f/fScreenHeight);
+			}				
+			/*events[events_size].mi.dx = event->data.mouse.x;
+			events[events_size].mi.dy = event->data.mouse.y;*/
+			//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
+			//events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+			//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -170,12 +226,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// The button masks are all applied with the modifier masks.
 
 		case EVENT_MOUSE_MOVED:
-			events[events_size].type = INPUT_MOUSE;
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
-			events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE & MOUSEEVENTF_MOVE;
-			events[events_size].mi.time = 0; //GetSystemTime()
-			events_size++;
+			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
+			goto EVENT_MOUSEBUTTON;
 			break;
 
 		case EVENT_HOOK_START:
@@ -208,21 +260,24 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events[events_size].mi.mouseData = 0x00;
 		events[events_size].mi.time = 0; // Use current system time.
 
+		//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
+		//If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP, 
+		//then mouseData should be zero.
 		if (event->mask & MASK_BUTTON1) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_LEFTUP;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_LEFTUP;
 		}
 
 		if (event->mask & MASK_BUTTON2) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_RIGHTUP;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_RIGHTUP;
 		}
 
 		if (event->mask & MASK_BUTTON3) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_MIDDLEUP;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_MIDDLEUP;
 		}
 
 		if (event->mask & MASK_BUTTON4) {
 			events[events_size].mi.mouseData = XBUTTON1;
-			events[events_size].mi.mouseData |= MOUSEEVENTF_XUP;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_XUP;
 		}
 
 		if (event->mask & MASK_BUTTON5) {

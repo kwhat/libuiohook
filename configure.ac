@@ -299,7 +299,7 @@ AS_IF(
 		#EXTRA_LIBS="-lmsvcrt -luser32 -lkernel32"
 
 		#LIBS="${LIBS} -lsetupapi"
-		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
+		LDFLAGS="$LDFLAGS  -Wl,--no-undefined -no-undefined"
 	])
 
 # OS info for Automake

@@ -364,9 +364,12 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 
 /* Begin Virtual Mouse Buttons */
 #define MOUSE_NOBUTTON							0	// AnyButton
-#define MOUSE_BUTTON1							1
-#define MOUSE_BUTTON2							2
-#define MOUSE_BUTTON3							3
+#define MOUSE_BUTTON1							1	//Left
+#define MOUSE_BUTTON2							2	//Right
+#define MOUSE_BUTTON3							3	//Middle
+#define MOUSE_LEFT								MOUSE_BUTTON1
+#define MOUSE_RIGHT								MOUSE_BUTTON2
+#define MOUSE_MIDDLE							MOUSE_BUTTON3
 #define MOUSE_BUTTON4							4	// Extra Mouse Button
 #define MOUSE_BUTTON5							5	// Extra Mouse Button
 
@@ -402,6 +405,14 @@ extern "C" {
 
 	// Check the event hook status.
 	UIOHOOK_API bool hook_is_enabled();
+	
+	// Natively waits on the calling thread.
+	// Specially meaningful for mac, where a run loop is started
+	UIOHOOK_API void hook_wait();
+	
+	// Natively stops the waiting on the calling thread.
+	// Specially meaningful for mac, where a run loop is stopped
+	UIOHOOK_API void hook_continue();
 
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();
@@ -420,6 +431,9 @@ extern "C" {
 
 	// Retrieves the double/triple click interval.
 	UIOHOOK_API long int hook_get_multi_click_time();
+	
+	// Retrieves the screen resolution: width and height respectively.
+	UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight );
 
 #ifdef __cplusplus
 }

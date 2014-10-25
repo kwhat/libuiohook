@@ -455,3 +455,18 @@ UIOHOOK_API bool hook_is_enabled() {
 
 	return is_running;
 }
+
+static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+UIOHOOK_API void hook_wait(){
+	pthread_mutex_lock(&control_mutex);
+	pthread_cond_wait(&control_cond, &control_mutex);
+	pthread_mutex_unlock(&control_mutex);
+}
+
+UIOHOOK_API void hook_continue(){
+	/*pthread_mutex_lock(&control_mutex);	
+	pthread_mutex_unlock(&control_mutex);*/
+	pthread_cond_signal(&control_cond);
+}

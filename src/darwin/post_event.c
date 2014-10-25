@@ -28,26 +28,48 @@
 
 #include "input_helper.h"
 
+//https://developer.apple.com/library/mac/documentation/Carbon/Reference/
+//QuartzEventServicesRef/index.html#//apple_ref/swift/tdef/CGMouseButton
+CGMouseButton toCarbonMouseButton( int evenMouseButton ){
+    CGMouseButton cgMButton = -1;
+	switch( evenMouseButton ){
+		case MOUSE_LEFT:
+			cgMButton = kCGMouseButtonLeft;
+			break;
+		case MOUSE_RIGHT:
+			cgMButton = kCGMouseButtonRight;
+			break;
+		case MOUSE_MIDDLE:
+			cgMButton = kCGMouseButtonCenter;
+			break;
+	}
+	return cgMButton;
+}
+
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	CGEventRef cg_event = NULL;
 	CGEventType cg_event_type = kCGEventNull;
 	CGScrollEventUnit cg_event_unit;
 
+	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	//CGEventSourceRef src = NULL;
+
 	switch (event->type) {
 		case EVENT_KEY_TYPED:
 
 		case EVENT_KEY_PRESSED:
-			cg_event = CGEventCreateKeyboardEvent(NULL,
+			cg_event = CGEventCreateKeyboardEvent( src,
 					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
 					true);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
-
+			//CGEventSetFlags(cg_event, kCGEventFlagMaskCommand);
+  
 			if (event->type == EVENT_KEY_PRESSED) {
 				break;
 			}
 
 		case EVENT_KEY_RELEASED:
-			cg_event = CGEventCreateKeyboardEvent(NULL,
+			cg_event = CGEventCreateKeyboardEvent( src,
 					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
 					false);
 			CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
@@ -70,13 +92,13 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_type = kCGEventOtherMouseDown;
 			}
 
-			CGEventCreateMouseEvent(NULL,
+			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y
 					),
-					event->data.mouse.button - 1
+					toCarbonMouseButton( event->data.mouse.button )
 			);
 
 			if (event->type == EVENT_MOUSE_PRESSED) {
@@ -96,18 +118,19 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_type = kCGEventOtherMouseUp;
 			}
 
-			CGEventCreateMouseEvent(NULL,
+			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y
 					),
-					event->data.mouse.button - 1
+					toCarbonMouseButton( event->data.mouse.button )
 			);
 			break;
 
 		case EVENT_MOUSE_MOVED:
-			CGEventCreateMouseEvent(NULL,
+
+			cg_event = CGEventCreateMouseEvent( src,
 					kCGEventMouseMoved,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
@@ -130,14 +153,14 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseDragged;
 			}
-
-			CGEventCreateMouseEvent(NULL,
+			
+			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
 						(CGFloat) event->data.mouse.x,
 						(CGFloat) event->data.mouse.y
 					),
-					event->data.mouse.button - 1
+					toCarbonMouseButton( event->data.mouse.button )
 			);
 			break;
 
@@ -151,9 +174,16 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_unit = kCGScrollEventUnitPixel;
 			}
 
-			CGEventCreateScrollWheelEvent(NULL,
+			// TODO Currently only support 1 wheel axis.
+			CGWheelCount wheelCount = 1; // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
+			
+			//TODO: Should I create a source event with the coords?
+			//It seems to use automagically the current location of the cursor
+			//(CGFloat) event->data.wheel.x,
+			//(CGFloat) event->data.wheel.y
+			cg_event = CGEventCreateScrollWheelEvent( src,
 					cg_event_unit,
-					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.
+					wheelCount, 
 					event->data.wheel.amount * event->data.wheel.rotation);
 			break;
 
@@ -161,7 +191,13 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		break;
 	}
 
-	CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
+	//CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
+	
+	//CGEventSetFlags(cg_event, kCGEventFlagMaskCommand);
+
+    CGEventTapLocation loc = kCGHIDEventTap; // kCGSessionEventTap also works
+    CGEventPost(loc, cg_event);
 
 	CFRelease(cg_event);
+	CFRelease(src);
 }

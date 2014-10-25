@@ -46,18 +46,6 @@ CGMouseButton toCarbonMouseButton( int evenMouseButton ){
 	return cgMButton;
 }
 
-void calculateCoordinates( uiohook_event * const event, double *fx, double *fy ){
-	if( event->data.mouse.xp == 0 && event->data.mouse.yp == 0 ){
-		*fx = event->data.mouse.x;
-		*fy = event->data.mouse.y;
-	}else{
-		size_t fScreenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
-    	size_t fScreenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
-		*fx = (event->data.mouse.xp * fScreenWidth / 100);
-		*fy = (event->data.mouse.yp * fScreenHeight / 100);
-	}
-}
-
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	CGEventRef cg_event = NULL;
 	CGEventType cg_event_type = kCGEventNull;
@@ -104,12 +92,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseDown;
 			}
-			calculateCoordinates( event, &fx, &fy );
+
 			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
-						(CGFloat) fx,
-						(CGFloat) fy
+						(CGFloat) event->data.mouse.x,
+						(CGFloat) event->data.mouse.y
 					),
 					toCarbonMouseButton( event->data.mouse.button )
 			);
@@ -130,24 +118,24 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseUp;
 			}
-			calculateCoordinates( event, &fx, &fy );
+
 			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
-						(CGFloat) fx,
-						(CGFloat) fy
+						(CGFloat) event->data.mouse.x,
+						(CGFloat) event->data.mouse.y
 					),
 					toCarbonMouseButton( event->data.mouse.button )
 			);
 			break;
 
 		case EVENT_MOUSE_MOVED:
-			calculateCoordinates( event, &fx, &fy );
+
 			cg_event = CGEventCreateMouseEvent( src,
 					kCGEventMouseMoved,
 					CGPointMake(
-						(CGFloat) fx,
-						(CGFloat) fy
+						(CGFloat) event->data.mouse.x,
+						(CGFloat) event->data.mouse.y
 					),
 					0
 			);
@@ -166,12 +154,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			else {
 				cg_event_type = kCGEventOtherMouseDragged;
 			}
-			calculateCoordinates( event, &fx, &fy );
+			
 			cg_event = CGEventCreateMouseEvent( src,
 					cg_event_type,
 					CGPointMake(
-						(CGFloat) fx,
-						(CGFloat) fy
+						(CGFloat) event->data.mouse.x,
+						(CGFloat) event->data.mouse.y
 					),
 					toCarbonMouseButton( event->data.mouse.button )
 			);
@@ -187,6 +175,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_unit = kCGScrollEventUnitPixel;
 			}
 
+
+			//TODO: Should I create a source event with the coords?
+			//(CGFloat) event->data.wheel.x,
+			//(CGFloat) event->data.wheel.y			
 			cg_event = CGEventCreateScrollWheelEvent( src,
 					cg_event_unit,
 					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.

@@ -174,13 +174,16 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				cg_event_unit = kCGScrollEventUnitPixel;
 			}
 
+			// TODO Currently only support 1 wheel axis.
+			CGWheelCount wheelCount = 1; // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
+			
 			//TODO: Should I create a source event with the coords?
 			//It seems to use automagically the current location of the cursor
 			//(CGFloat) event->data.wheel.x,
-			//(CGFloat) event->data.wheel.y			
+			//(CGFloat) event->data.wheel.y
 			cg_event = CGEventCreateScrollWheelEvent( src,
 					cg_event_unit,
-					(CGWheelCount) 1, // TODO Currently only support 1 wheel axis.
+					wheelCount, 
 					event->data.wheel.amount * event->data.wheel.rotation);
 			break;
 

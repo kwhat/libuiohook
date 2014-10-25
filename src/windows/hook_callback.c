@@ -460,11 +460,13 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			 * forward, away from the user; a negative value indicates that
 			 * the wheel was rotated backward, toward the user. One wheel
 			 * click is defined as WHEEL_DELTA, which is 120. */
-			event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
+			//event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
+			//Removing -1 as MS assumption is more natural (follows the cartesian coordinate system)
+			event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA);
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u\n",
 				__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * 
-				event.data.wheel.rotation, event.data.mouse.x, event.data.mouse.y);
+				event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y);
 			dispatch_event(&event);
 			break;
 

@@ -636,12 +636,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			}
 			break;
 	}
-	//Set reserved if the event was marked to be trapped/consumed
-	//And respect the value if already enable
-	//This can be controlled by the application using the library api
-	//i.e. using a special key comb to enable/disable traps
-	if( event.reserved ^ 0x01 )
-		event.reserved = reserveIfTrapEvent( event.type );
+	
+	reserveIfTrapEvent( &event.reserved, event.type );
 		
 	CGEventRef result_ref = NULL;
 	if (event.reserved ^ 0x01) {

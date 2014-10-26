@@ -80,8 +80,15 @@ UIOHOOK_API void hook_trap_event( event_type eventType, bool shouldBeTrapped ){
 }
 
 //TODO: move to a better place and initialize somewhere to all false
-uint16_t reserveIfTrapEvent( event_type eventType ){
-	return (trapEvents[ eventType - 1 ]) ? 0x01: 0x00;
+void reserveIfTrapEvent( uint16_t *reserveEvent, event_type eventType ){
+	//Set reserved if the event was marked to be trapped/consumed
+	//And respect the value if already enable
+	//This can be controlled by the application using the library api
+	//i.e. using a special key comb to enable/disable traps
+	if( *reserveEvent ^ 0x01 )
+		*reserveEvent = (trapEvents[ eventType - 1 ]) ? 0x01: 0x00;
+		//event.reserved = (trapEvents[ event.type - 1 ]) ? 0x01: 0x00;
+	//return (trapEvents[ eventType - 1 ]) ? 0x01: 0x00;
 }
 
 

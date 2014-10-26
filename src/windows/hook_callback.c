@@ -476,7 +476,14 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}
-
+	
+	//Set reserved if the event was marked to be trapped/consumed
+	//And respect the value if already enable
+	//This can be controlled by the application using the library api
+	//i.e. using a special key comb to enable/disable traps
+	if( event.reserved ^ 0x01 )
+		event.reserved = (trapEvents[ event.type - 1 ]) ? 0x01: 0x00;
+		
 	LRESULT hook_result = -1;
 	if (nCode < 0 || event.reserved ^ 0x01) {
 		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);

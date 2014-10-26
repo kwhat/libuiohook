@@ -67,3 +67,8 @@ UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
 		logger = logger_proc;
 	}
 }
+
+//TODO: move to a better place and initialize somewhere to all false
+UIOHOOK_API void hook_trap_event( event_type eventType, bool shouldBeTrapped ){
+	trapEvents[ eventType - 1 ] = shouldBeTrapped;
+}

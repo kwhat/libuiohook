@@ -435,6 +435,9 @@ extern "C" {
 	// Retrieves the screen resolution: width and height respectively.
 	UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight );
 
+	//Allows to trap or untrap an specific event
+	UIOHOOK_API void hook_trap_event( event_type eventType, bool shouldBeTrapped );
+
 #ifdef __cplusplus
 }
 #endif

@@ -68,7 +68,20 @@ UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
 	}
 }
 
+//TODO: think about where does this make more sense
+//Whether the event should be trapped/consumed or not
+//with extern doesnt compile on mingw but without doesn't on mac-clang...
+//extern bool trapEvents[ EVENT_MOUSE_WHEEL - EVENT_HOOK_START + 1];
+bool trapEvents[ EVENT_MOUSE_WHEEL - EVENT_HOOK_START + 1];
+
 //TODO: move to a better place and initialize somewhere to all false
 UIOHOOK_API void hook_trap_event( event_type eventType, bool shouldBeTrapped ){
 	trapEvents[ eventType - 1 ] = shouldBeTrapped;
 }
+
+//TODO: move to a better place and initialize somewhere to all false
+uint16_t reserveIfTrapEvent( event_type eventType ){
+	return (trapEvents[ eventType - 1 ]) ? 0x01: 0x00;
+}
+
+

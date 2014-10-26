@@ -29,8 +29,4 @@
 // logger(level, message)
 extern logger_t logger;
 
-//TODO: think about where does this make more sense
-//Whether the event should be trapped/consumed or not
-bool trapEvents[ EVENT_MOUSE_WHEEL - EVENT_HOOK_START + 1];
-
 #endif

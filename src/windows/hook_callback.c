@@ -482,7 +482,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 	//This can be controlled by the application using the library api
 	//i.e. using a special key comb to enable/disable traps
 	if( event.reserved ^ 0x01 )
-		event.reserved = (trapEvents[ event.type - 1 ]) ? 0x01: 0x00;
+		event.reserved = reserveIfTrapEvent( event.type );
+		//event.reserved = (trapEvents[ event.type - 1 ]) ? 0x01: 0x00;
 		
 	LRESULT hook_result = -1;
 	if (nCode < 0 || event.reserved ^ 0x01) {

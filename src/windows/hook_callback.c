@@ -409,26 +409,41 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 			// We received a mouse move event with the mouse actually moving.
 			// This verifies that the mouse was moved after being depressed.
+			char *mouseMov;
 			if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
 				// Check the upper half of the current modifiers for non zero
 				// value.  This indicates the presence of a button down mask.
+				event.data.mouse.button = MOUSE_NOBUTTON;
 				if (get_modifiers() >> 8) {
+					mouseMov = "dragged";
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;
+					//http://msdn.microsoft.com/en-us/library/windows/desktop/ms645616%28v=vs.85%29.aspx
+					//Although here I must rely on our mask not on wParam
+					//TODO: complete with the other possibles
+					if(get_modifiers() & MASK_BUTTON1)
+						event.data.mouse.button = MOUSE_LEFT;
+					else if(get_modifiers() & MASK_BUTTON2)
+						event.data.mouse.button = MOUSE_RIGHT;
+					else if(get_modifiers() & MASK_BUTTON3)
+						event.data.mouse.button = MOUSE_MIDDLE;
+					/*else
+						event.data.mouse.button = MOUSE_NOBUTTON;*/
 				}
 				else {
+					mouseMov = "moved";
 					// Create a Mouse Moved event.
+					//event.data.mouse.button = MOUSE_NOBUTTON;
 					event.type = EVENT_MOUSE_MOVED;
 				}
 
 				// Populate common event info.
 				//event.mask = get_modifiers();
-
-				event.data.mouse.button = MOUSE_NOBUTTON;
+				
 				fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
-						__FUNCTION__, __LINE__,  event.data.mouse.x, event.data.mouse.y);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
+						__FUNCTION__, __LINE__,  mouseMov, event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
 			break;

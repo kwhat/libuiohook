@@ -104,32 +104,9 @@ static inline uint16_t get_modifiers() {
 static inline void fillEventDataMouse( int *x, int *y ){
 	event.mask = get_modifiers();
 	event.data.mouse.clicks = click_count;
-	//http://linux.die.net/man/3/xopendisplay
-	//important to close after used.
-	//XOpenDisplay connects your application to the X server through TCP
-	// or DECnet communications protocols
-	//TODO: it might be a heavy operation, move to hook_enable
-	Display* disp = XOpenDisplay(NULL);
-	Screen*  scrn = DefaultScreenOfDisplay(disp);
-	XCloseDisplay( disp );
-	
-	int screenHeight = scrn->height;
-	int screenWidth  = scrn->width;
 
 	event.data.mouse.x = *x;
 	event.data.mouse.y = *y;
-	
-	//Sometimes X11 screenWidth or screenHeight values are 0... need to check
-	//to protect from Arithmetic exception of division by 0
-	if( screenWidth > 0 )
-		event.data.mouse.xp = event.data.mouse.x * 100 / screenWidth;
-	else
-		event.data.mouse.xp = 0;
-
-	if( screenHeight > 0 )
-		event.data.mouse.yp = event.data.mouse.y * 100 / screenHeight;
-	else
-		event.data.mouse.yp = 0;
 }
 
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
@@ -316,7 +293,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u-%u, %u-%u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-						 event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+						 event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 				}
 				else if (event_code == WheelUp || event_code == WheelDown) {
@@ -347,19 +324,20 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					 * use the Windows default value of 3.
 					 */
 					event.data.wheel.amount = 3;
-
+					
+					//MS assumption is more natural (follows the cartesian coordinate system)
 					if (event_code == WheelUp) {
 						// Wheel Rotated Up and Away.
-						event.data.wheel.rotation = -1;
+						event.data.wheel.rotation = 1;
 					}
 					else { // event_code == WheelDown
 						// Wheel Rotated Down and Towards.
-						event.data.wheel.rotation = 1;
+						event.data.wheel.rotation = -1;
 					}
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
 						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
-						 event.data.wheel.rotation, event.wheel.mouse.x, event.wheel.mouse.y );
+						 event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y );
 					dispatch_event(&event);
 				}
 				break;
@@ -383,7 +361,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u-%u, %u-%u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-						 event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+						 event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 
 					if (mouse_dragged != true) {
@@ -396,7 +374,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u-%u, %u-%u)\n",
 							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-							 event.data.mouse.x, event.data.mouse.xp, event.data.mouse.y, event.data.mouse.yp);
+							 event.data.mouse.x, event.data.mouse.y);
 						dispatch_event(&event);
 					}
 				}
@@ -427,8 +405,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				fillEventDataMouse( &event_x, &event_y );
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
-						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.xp, 
-						event.data.mouse.y, event.data.mouse.yp);
+						__FUNCTION__, __LINE__, event.data.mouse.x, 
+						event.data.mouse.y);
 				dispatch_event(&event);
 				break;
 
@@ -445,6 +423,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	}
 
 	// TODO There is no way to consume the XRecord event.
+	//reserveIfTrapEvent( &event.reserved, event.type );
 
 	XRecordFreeData(hook);
 }

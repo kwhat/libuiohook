@@ -291,7 +291,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					
 					fillEventDataMouse( &event_x, &event_y );
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u-%u, %u-%u)\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 						 event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
@@ -359,7 +359,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					event.data.mouse.button = button;
 					fillEventDataMouse( &event_x, &event_y );
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u-%u, %u-%u)\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 						 event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
@@ -372,7 +372,7 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 						event.data.mouse.button = button;
 						fillEventDataMouse( &event_x, &event_y );
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u-%u, %u-%u)\n",
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 							 event.data.mouse.x, event.data.mouse.y);
 						dispatch_event(&event);
@@ -388,25 +388,34 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 				// Populate common event info.
 				event.mask = get_modifiers();
-
+				event.data.mouse.button = MOUSE_NOBUTTON;
+				char *mouseMov;
 				// Check the upper half of virtual modifiers for non zero
 				// values and set the mouse dragged flag.
 				mouse_dragged = event.mask >> 4 > 0;
 				if (mouse_dragged) {
+					mouseMov = "dragged";
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;
+					if(event.mask & MASK_BUTTON1)
+						event.data.mouse.button = MOUSE_LEFT;
+					else if(event.mask & MASK_BUTTON2)
+						event.data.mouse.button = MOUSE_RIGHT;
+					else if(event.mask & MASK_BUTTON3)
+						event.data.mouse.button = MOUSE_MIDDLE;
 				}
 				else {
+					mouseMov = "moved";
 					// Create a Mouse Moved event.
 					event.type = EVENT_MOUSE_MOVED;
 				}
 
-				event.data.mouse.button = MOUSE_NOBUTTON;
+				
 				fillEventDataMouse( &event_x, &event_y );
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u-%u, %u-%u.\n",
-						__FUNCTION__, __LINE__, event.data.mouse.x, 
-						event.data.mouse.y);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u. btn %p\n",
+						__FUNCTION__, __LINE__, mouseMov, event.data.mouse.x, 
+						event.data.mouse.y, event.mask);
 				dispatch_event(&event);
 				break;
 

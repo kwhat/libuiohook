@@ -528,7 +528,15 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.type = EVENT_MOUSE_DRAGGED;
 			event.mask = get_modifiers();
 
-			event.data.mouse.button = MOUSE_NOBUTTON;
+			if(event.mask & MASK_BUTTON1)
+				event.data.mouse.button = MOUSE_LEFT;
+			else if(event.mask & MASK_BUTTON2)
+				event.data.mouse.button = MOUSE_RIGHT;
+			else if(event.mask & MASK_BUTTON3)
+				event.data.mouse.button = MOUSE_MIDDLE;
+			else
+				event.data.mouse.button = MOUSE_NOBUTTON;
+			
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
@@ -536,7 +544,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			// Set the mouse dragged flag.
 			mouse_dragged = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse dragged to %u, %u.\n",
 					__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;

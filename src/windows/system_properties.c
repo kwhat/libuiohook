@@ -116,6 +116,45 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	return value;
 }
 
+UIOHOOK_API long int hook_get_desktop_width() {
+	long int value = -1;
+	int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+
+	// TODO This check is probably not needed for windows.
+	// The API docs don't seem to suggest that this function never fails.
+	if (width > 0) {
+		value = (long int) width;
+	}
+
+	return value;
+}
+
+UIOHOOK_API long int hook_get_desktop_height() {
+	long int value = -1;
+	int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+
+	// TODO This check is probably not needed for windows.
+	if (height > 0) {
+		value = (long int) height;
+	}
+
+	return value;
+}
+
+UIOHOOK_API bool hook_get_screen_resolution(uint16_t *screenWidth, uint16_t *screenHeight) {
+	int width  = GetSystemMetrics(SM_CXSCREEN);
+	int height = GetSystemMetrics(SM_CYSCREEN);
+
+	*screenWidth = width;
+	*screenHeight = height;
+
+	//TODO: it might need more checks.
+	//NOTE: I don't think this needs a check.  The API docs don't seem to
+	//		suggest that this function never fails.
+	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
+}
+
+
 // DLL Entry point.
 BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 	switch (fdwReason) {
@@ -136,16 +175,4 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
     }
 
     return TRUE;
-}
-
-UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
-	
-	int _screenWidth  = GetSystemMetrics( SM_CXSCREEN ); 
-	int _screenHeight = GetSystemMetrics( SM_CYSCREEN );
-	
-	*screenWidth = _screenWidth;
-	*screenHeight = _screenHeight;
-	
-	//TODO: it might need more checks
-	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }

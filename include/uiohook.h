@@ -363,13 +363,10 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 
 
 /* Begin Virtual Mouse Buttons */
-#define MOUSE_NOBUTTON							0	// AnyButton
-#define MOUSE_BUTTON1							1	//Left
-#define MOUSE_BUTTON2							2	//Right
-#define MOUSE_BUTTON3							3	//Middle
-#define MOUSE_LEFT								MOUSE_BUTTON1
-#define MOUSE_RIGHT								MOUSE_BUTTON2
-#define MOUSE_MIDDLE							MOUSE_BUTTON3
+#define MOUSE_NOBUTTON							0	// Any Button
+#define MOUSE_BUTTON1							1	// Left Button
+#define MOUSE_BUTTON2							2	// Right Button
+#define MOUSE_BUTTON3							3	// Middle Button
 #define MOUSE_BUTTON4							4	// Extra Mouse Button
 #define MOUSE_BUTTON5							5	// Extra Mouse Button
 

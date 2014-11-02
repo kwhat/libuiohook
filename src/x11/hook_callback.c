@@ -101,16 +101,7 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
-static inline void fillEventDataMouse( int *x, int *y ){
-	event.mask = get_modifiers();
-	event.data.mouse.clicks = click_count;
-
-	event.data.mouse.x = *x;
-	event.data.mouse.y = *y;
-}
-
 void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
-
 	if (hook->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
@@ -286,14 +277,16 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					// Fire mouse pressed event.
 					event.type = EVENT_MOUSE_PRESSED;
+					event.mask = get_modifiers();
 
 					event.data.mouse.button = button;
-					
-					fillEventDataMouse( &event_x, &event_y );
+					event.data.mouse.clicks = click_count;
+					event.data.mouse.x = event_x;
+					event.data.mouse.y = event_y;
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-						 event.data.mouse.x, event.data.mouse.y);
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+							 event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 				}
 				else if (event_code == WheelUp || event_code == WheelDown) {
@@ -306,8 +299,9 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					// Fire mouse wheel event.
 					event.type = EVENT_MOUSE_WHEEL;
+					event.mask = get_modifiers();
 
-					//ATT: fillEventDataMouse( &event_x, &event_y ); data.wheel not data.mouse
+					event.data.wheel.clicks = click_count;
 					event.data.wheel.x = event_x;
 					event.data.wheel.y = event_y;
 
@@ -328,16 +322,16 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					//MS assumption is more natural (follows the cartesian coordinate system)
 					if (event_code == WheelUp) {
 						// Wheel Rotated Up and Away.
-						event.data.wheel.rotation = 1;
+						event.data.wheel.rotation = -1;
 					}
 					else { // event_code == WheelDown
 						// Wheel Rotated Down and Towards.
-						event.data.wheel.rotation = -1;
+						event.data.wheel.rotation = 1;
 					}
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
-						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
-						 event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y );
+							__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation, 
+							event.data.wheel.x, event.data.wheel.y );
 					dispatch_event(&event);
 				}
 				break;
@@ -353,28 +347,32 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 					// Fire mouse released event.
 					event.type = EVENT_MOUSE_RELEASED;
-					//event.mask = get_modifiers();
+					event.mask = get_modifiers();
 
 					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
 					event.data.mouse.button = button;
-					fillEventDataMouse( &event_x, &event_y );
+					event.data.mouse.clicks = click_count;
+					event.data.mouse.x = event_x;
+					event.data.mouse.y = event_y;
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-						 event.data.mouse.x, event.data.mouse.y);
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+							 event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 
 					if (mouse_dragged != true) {
 						// Fire mouse clicked event.
 						event.type = EVENT_MOUSE_CLICKED;
-						//event.mask = get_modifiers();
+						event.mask = get_modifiers();
 
 						event.data.mouse.button = button;
-						fillEventDataMouse( &event_x, &event_y );
+						event.data.mouse.clicks = click_count;
+						event.data.mouse.x = event_x;
+						event.data.mouse.y = event_y;
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-							 event.data.mouse.x, event.data.mouse.y);
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n", 
+								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+								event.data.mouse.x, event.data.mouse.y);
 						dispatch_event(&event);
 					}
 				}
@@ -388,34 +386,27 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 
 				// Populate common event info.
 				event.mask = get_modifiers();
-				event.data.mouse.button = MOUSE_NOBUTTON;
-				char *mouseMov;
+				
 				// Check the upper half of virtual modifiers for non zero
 				// values and set the mouse dragged flag.
 				mouse_dragged = event.mask >> 4 > 0;
 				if (mouse_dragged) {
-					mouseMov = "dragged";
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;
-					if(event.mask & MASK_BUTTON1)
-						event.data.mouse.button = MOUSE_LEFT;
-					else if(event.mask & MASK_BUTTON2)
-						event.data.mouse.button = MOUSE_RIGHT;
-					else if(event.mask & MASK_BUTTON3)
-						event.data.mouse.button = MOUSE_MIDDLE;
 				}
 				else {
-					mouseMov = "moved";
 					// Create a Mouse Moved event.
 					event.type = EVENT_MOUSE_MOVED;
 				}
 
-				
-				fillEventDataMouse( &event_x, &event_y );
+				event.data.mouse.button = MOUSE_NOBUTTON;
+				event.data.mouse.clicks = click_count;
+				event.data.mouse.x = event_x;
+				event.data.mouse.y = event_y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u. btn %p\n",
-						__FUNCTION__, __LINE__, mouseMov, event.data.mouse.x, 
-						event.data.mouse.y, event.mask);
+						__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved", 
+						event.data.mouse.x, event.data.mouse.y, event.mask);
 				dispatch_event(&event);
 				break;
 
@@ -432,7 +423,6 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 	}
 
 	// TODO There is no way to consume the XRecord event.
-	//reserveIfTrapEvent( &event.reserved, event.type );
 
 	XRecordFreeData(hook);
 }

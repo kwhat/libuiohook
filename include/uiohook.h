@@ -402,14 +402,6 @@ extern "C" {
 
 	// Check the event hook status.
 	UIOHOOK_API bool hook_is_enabled();
-	
-	// Natively waits on the calling thread.
-	// Specially meaningful for mac, where a run loop is started
-	UIOHOOK_API void hook_wait();
-	
-	// Natively stops the waiting on the calling thread.
-	// Specially meaningful for mac, where a run loop is stopped
-	UIOHOOK_API void hook_continue();
 
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();
@@ -429,11 +421,8 @@ extern "C" {
 	// Retrieves the double/triple click interval.
 	UIOHOOK_API long int hook_get_multi_click_time();
 	
-	// Retrieves the screen resolution: width and height respectively.
+	// FIXME This needs to be adjusted to handle multiple monitors though a count and an array.
 	UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight );
-
-	//Allows to trap or untrap an specific event
-	UIOHOOK_API void hook_trap_event( event_type eventType, bool shouldBeTrapped );
 
 #ifdef __cplusplus
 }

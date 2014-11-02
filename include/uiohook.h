@@ -90,8 +90,8 @@ typedef struct _keyboard_event_data {
 typedef struct _mouse_event_data {
 	uint16_t button;
 	uint16_t clicks;
-	uint16_t x;
-	uint16_t y;
+	int16_t x;
+	int16_t y;
 } mouse_event_data,
 		mouse_pressed_event_data,
 		mouse_released_event_data,
@@ -99,8 +99,8 @@ typedef struct _mouse_event_data {
 
 typedef struct _mouse_wheel_event_data {
 	uint16_t clicks;
-	uint16_t x;
-	uint16_t y;
+	int16_t x;
+	int16_t y;
 	uint16_t type;
 	uint16_t amount;
 	int16_t rotation;

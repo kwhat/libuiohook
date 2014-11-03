@@ -28,6 +28,7 @@
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
+#include <X11/extensions/Xinerama.h>
 
 #include "logger.h"
 #include "input_helper.h"
@@ -101,7 +102,7 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
-void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
+void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 	if (hook->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
@@ -285,8 +286,8 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					event.data.mouse.y = event_y;
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-							 event.data.mouse.x, event.data.mouse.y);
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+							event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 				}
 				else if (event_code == WheelUp || event_code == WheelDown) {
@@ -404,21 +405,84 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 				event.data.mouse.x = event_x;
 				event.data.mouse.y = event_y;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u. btn %p\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %i, %i. (%#X)\n",
 						__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved", 
 						event.data.mouse.x, event.data.mouse.y, event.mask);
+				
+				
+				logger(LOG_LEVEL_ERROR,	"\nDefault Display Information:\n");
+				logger(LOG_LEVEL_ERROR,	"\t*** root:\t\t%p\n", DefaultRootWindow((Display *) closeure));
+				logger(LOG_LEVEL_ERROR,	"\t*** screen:\t\t%p\n", DefaultScreenOfDisplay((Display *) closeure));
+				
+				logger(LOG_LEVEL_ERROR,	"\nxEvent Information:\n");
+				logger(LOG_LEVEL_ERROR,	"\t*** root:\t\t%p\n", data->event.u.keyButtonPointer.root);
+				logger(LOG_LEVEL_ERROR,	"\t*** window:\t%p\n", data->event.u.keyButtonPointer.event);
+				logger(LOG_LEVEL_ERROR,	"\t*** child:\t%p\n", data->event.u.keyButtonPointer.child);
+				logger(LOG_LEVEL_ERROR,	"\t*** event X,Y:\t%i, %i\n", cvtINT16toInt(data->event.u.keyButtonPointer.eventX), cvtINT16toInt(data->event.u.keyButtonPointer.eventY));
+				logger(LOG_LEVEL_ERROR,	"\t*** root X,Y:\t%i, %i\n", cvtINT16toInt(data->event.u.keyButtonPointer.rootX), cvtINT16toInt(data->event.u.keyButtonPointer.rootY));
+				
+				
+				
+				Window root_return, child_return;
+				int root_x_return, root_y_return;
+				int win_x_return, win_y_return;
+				unsigned int mask_return;
+				//XQueryPointer((Display *)closeure, DefaultRootWindow((Display *)closeure), 
+				XQueryPointer((Display *) closeure, data->event.u.keyButtonPointer.root, 
+						&root_return, &child_return,
+						&root_x_return, &root_y_return,
+						&win_x_return, &win_y_return,
+						&mask_return);
+				
+				logger(LOG_LEVEL_ERROR,	"\nXQueryPointer Information:\n");
+				logger(LOG_LEVEL_ERROR,	"\t*** root:\t\t%p\n", root_return);
+				logger(LOG_LEVEL_ERROR,	"\t*** child:\t%p\n", child_return);
+				logger(LOG_LEVEL_ERROR,	"\t*** win X,Y:\t%i, %i\n", win_x_return, win_y_return);
+				logger(LOG_LEVEL_ERROR,	"\t*** root X,Y:\t%i, %i\n", root_x_return, root_y_return);				
+				
+				
+				logger(LOG_LEVEL_ERROR,	"\nScreen Information: %i\n", ScreenCount((Display *) closeure));
+				
+				for (int i = ScreenCount((Display *) closeure) - 1; i >= 0; i--) {
+					logger(LOG_LEVEL_ERROR,	"\t*** root %i:\t\t%p\n", i, RootWindow((Display *) closeure, i));
+				}
+				
+				
+				logger(LOG_LEVEL_ERROR,	"\nXinerama Information:\n");
+				int i = 0;
+				XineramaScreenInfo *xineinfo = XineramaQueryScreens((Display *) closeure, &i);
+				for (i--; i >= 0; i--) {
+					logger(LOG_LEVEL_ERROR,	"\t***%i org X,Y:\t%i, %i\n", xineinfo[i].screen_number, xineinfo[i].x_org, xineinfo[i].y_org);
+					logger(LOG_LEVEL_ERROR,	"\t***%i width, height:\t%i, %i\n", xineinfo[i].screen_number, xineinfo[i].width, xineinfo[i].height);
+					logger(LOG_LEVEL_ERROR,	"\n");
+				}
+				XFree(xineinfo);
+				
+				
+				/*
+				Window child;
+				int dest_x_return, dest_y_return;
+				XWindowAttributes xwa;
+				Window window = data->event.u.keyButtonPointer.root,
+						rooot_window = DefaultRootWindow((Display *) closeure);
+				XTranslateCoordinates((Display *) closeure, window, root_window, 0, 0, &dest_x_return, &dest_y_return, &child );
+				XGetWindowAttributes((Display *) closeure, window, &xwa );
+				logger(LOG_LEVEL_ERROR,	"\t*** Testing XQueryPointer X/Y: \n\t\t%i, %i\n\t\t%i, %i\n", 
+						dest_x_return, dest_y_return,
+						xwa.x, xwa.y);
+				*/
 				dispatch_event(&event);
 				break;
 
 			default:
 				// In theory this *should* never execute.
-				logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Unix event! (%#X)\n",
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled X11 event! (%#X)\n",
 						__FUNCTION__, __LINE__, (unsigned int) event_type);
 				break;
 		}
 	}
 	else {
-		logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Unix hook category! (%#X)\n",
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled X11 hook category! (%#X)\n",
 				__FUNCTION__, __LINE__, hook->category);
 	}
 

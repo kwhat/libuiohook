@@ -158,9 +158,12 @@ static void *hook_thread_proc(void *arg) {
 				// Initialize native input helper functions.
 				load_input_helper(ctrl_display);
 
+				// Save the data display associated with this hook so it is passed to each event.
+				XPointer closeure = (XPointer) (ctrl_display);
+				
 				#ifdef USE_XRECORD_ASYNC
 				// Async requires that we loop so that our thread does not return.
-				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, NULL) != 0) {
+				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, closeure) != 0) {
 					// Time in MS to sleep the runloop.
 					int timesleep = 100;
 
@@ -196,7 +199,7 @@ static void *hook_thread_proc(void *arg) {
 				}
 				#else
 				// Sync blocks until XRecordDisableContext() is called.
-				if (XRecordEnableContext(data->display, context, hook_event_proc, NULL) != 0) {
+				if (XRecordEnableContext(data->display, context, hook_event_proc, closeure) != 0) {
 					// Set the exit status.
 					status = NULL;
 				}

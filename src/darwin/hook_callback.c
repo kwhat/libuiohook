@@ -608,9 +608,9 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
 				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at (%u), (%u)\n",
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
 						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation,
-						event.data.wheel.type, event.data.wheel.x, event.data.wheel.y);
+						event.data.wheel.x, event.data.wheel.y);
 				dispatch_event(&event);
 			}
 			break;

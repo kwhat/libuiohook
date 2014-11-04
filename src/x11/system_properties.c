@@ -268,9 +268,6 @@ void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
 
-	// Tell X Threads are OK.
-	XInitThreads();
-
 	// Open local display.
 	// FIXME This code should be moved somewhere where it may recover naturally!
 	disp = XOpenDisplay(XDisplayName(NULL));

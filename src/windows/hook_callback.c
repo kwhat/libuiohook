@@ -156,29 +156,7 @@ void hook_stop_proc() {
 	dispatch_event(&event);
 }
 
-static inline void fillEventDataMouse( LONG *x, LONG *y ){
-	event.mask = get_modifiers();
-	
-	event.data.mouse.clicks = click_count;
-	
-	//Windows sends overflowed integers as coordinates while continuously moving the mouse to the left side (
-	//overflowed x) or to the top upper corner (overflowed y) overflowed vars can't be operated (compare, etc) 
-	//but thankfully our coordinates are unsigned, which can't overflow by definition, so they wrap-around.
-	//values after wrap-around: 65535, 65534, 65533, so USHRT_MAX - 535 to safely cover those
-	//if( event.data.mouse.x >= USHRT_MAX - 535 )
-	if( *x < 0 )
-		event.data.mouse.x = 0;
-	else
-		event.data.mouse.x = *x;
-		
-	if( *y < 0 )
-		event.data.mouse.y = 0;
-	else
-		event.data.mouse.y = *y;
-}
-
 LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-
 	// MS Keyboard event struct data.
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
 
@@ -337,11 +315,16 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 			// Fire mouse pressed event.
 			event.type = EVENT_MOUSE_PRESSED;
+			event.mask = get_modifiers();
 
-			fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
+			event.data.mouse.clicks = click_count;
+			// TODO This may need to be clamped into range.
+			event.data.mouse.x = mshook->pt.x;
+			event.data.mouse.y = mshook->pt.y;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+					event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
 
@@ -378,11 +361,15 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 		BUTTONUP:
 			// Fire mouse released event.
 			event.type = EVENT_MOUSE_RELEASED;
+			event.mask = get_modifiers();
 
-			fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
+			event.data.mouse.clicks = click_count;
+			event.data.mouse.x = mshook->pt.x;
+			event.data.mouse.y = mshook->pt.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+					event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 
 			if (last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
@@ -390,13 +377,16 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				event.type = EVENT_MOUSE_CLICKED;
 				// TODO This shouldn't be necessary but double check that the
 				//		ptr const makes this value immutable.
-				//event.mask = get_modifiers();
-				//event.data.mouse.button = button;
+				event.mask = get_modifiers();
+				event.data.mouse.button = button;
 
-				fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
+				event.data.mouse.clicks = click_count;
+				event.data.mouse.x = mshook->pt.x;
+				event.data.mouse.y = mshook->pt.y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+						event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
 			break;
@@ -409,41 +399,30 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 			// We received a mouse move event with the mouse actually moving.
 			// This verifies that the mouse was moved after being depressed.
-			char *mouseMov;
 			if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
 				// Check the upper half of the current modifiers for non zero
 				// value.  This indicates the presence of a button down mask.
 				event.data.mouse.button = MOUSE_NOBUTTON;
 				if (get_modifiers() >> 8) {
-					mouseMov = "dragged";
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;
-					//http://msdn.microsoft.com/en-us/library/windows/desktop/ms645616%28v=vs.85%29.aspx
-					//Although here I must rely on our mask not on wParam
-					//TODO: complete with the other possibles
-					if(get_modifiers() & MASK_BUTTON1)
-						event.data.mouse.button = MOUSE_LEFT;
-					else if(get_modifiers() & MASK_BUTTON2)
-						event.data.mouse.button = MOUSE_RIGHT;
-					else if(get_modifiers() & MASK_BUTTON3)
-						event.data.mouse.button = MOUSE_MIDDLE;
-					/*else
-						event.data.mouse.button = MOUSE_NOBUTTON;*/
 				}
 				else {
-					mouseMov = "moved";
 					// Create a Mouse Moved event.
-					//event.data.mouse.button = MOUSE_NOBUTTON;
 					event.type = EVENT_MOUSE_MOVED;
 				}
 
 				// Populate common event info.
-				//event.mask = get_modifiers();
-				
-				fillEventDataMouse( &mshook->pt.x, &mshook->pt.y );
+				event.mask = get_modifiers();
+
+				event.data.mouse.button = MOUSE_NOBUTTON;
+				event.data.mouse.clicks = click_count;
+				event.data.mouse.x = mshook->pt.x;
+				event.data.mouse.y = mshook->pt.y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
-						__FUNCTION__, __LINE__,  mouseMov, event.data.mouse.x, event.data.mouse.y);
+						__FUNCTION__, __LINE__,  get_modifiers() >> 8 ? "dragged" : "moved",
+						event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
 			break;
@@ -460,13 +439,10 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 			// Fire mouse wheel event.
 			event.type = EVENT_MOUSE_WHEEL;
-			//event.mask = get_modifiers();
+			event.mask = get_modifiers();
 
 			event.data.wheel.type = get_scroll_wheel_type();
 			event.data.wheel.amount = get_scroll_wheel_amount();
-
-			//ATT: fillEventDataMouse( &mshook->pt.x, &mshook->pt.y ); data.wheel not data.mouse
-			//TODO: complete/improve
 			event.data.wheel.x = mshook->pt.x;
 			event.data.wheel.y = mshook->pt.y;
 
@@ -475,12 +451,10 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			 * forward, away from the user; a negative value indicates that
 			 * the wheel was rotated backward, toward the user. One wheel
 			 * click is defined as WHEEL_DELTA, which is 120. */
-			//event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
-			//Removing -1 as MS assumption is more natural (follows the cartesian coordinate system)
-			event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA);
+			event.data.wheel.rotation = ((signed short) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u\n",
-				__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
+				__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
 				event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y);
 			dispatch_event(&event);
 			break;
@@ -491,9 +465,7 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}
-	
-	reserveIfTrapEvent( &event.reserved, event.type );
-		
+
 	LRESULT hook_result = -1;
 	if (nCode < 0 || event.reserved ^ 0x01) {
 		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);

@@ -287,16 +287,3 @@ UIOHOOK_API bool hook_is_enabled() {
 
 	return is_running;
 }
-
-
-static HANDLE control_handle = NULL;
-
-UIOHOOK_API void hook_wait(){
-	control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("control_handle"));
-	WaitForSingleObject(control_handle, INFINITE);
-}
-
-UIOHOOK_API void hook_continue(){
-	SetEvent(control_handle);
-	CloseHandle(control_handle);
-}

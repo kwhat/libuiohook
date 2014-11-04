@@ -286,7 +286,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 					event.data.mouse.y = event_y;
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 							event.data.mouse.x, event.data.mouse.y);
 					dispatch_event(&event);
 				}
@@ -319,7 +319,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 					 * use the Windows default value of 3.
 					 */
 					event.data.wheel.amount = 3;
-					
+
 					//MS assumption is more natural (follows the cartesian coordinate system)
 					if (event_code == WheelUp) {
 						// Wheel Rotated Up and Away.
@@ -331,7 +331,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 					}
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
-							__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation, 
+							__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation,
 							event.data.wheel.x, event.data.wheel.y );
 					dispatch_event(&event);
 				}
@@ -371,8 +371,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 						event.data.mouse.x = event_x;
 						event.data.mouse.y = event_y;
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n", 
-								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 								event.data.mouse.x, event.data.mouse.y);
 						dispatch_event(&event);
 					}
@@ -387,7 +387,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 
 				// Populate common event info.
 				event.mask = get_modifiers();
-				
+
 				// Check the upper half of virtual modifiers for non zero
 				// values and set the mouse dragged flag.
 				mouse_dragged = event.mask >> 4 > 0;
@@ -406,59 +406,25 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 				event.data.mouse.y = event_y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %i, %i. (%#X)\n",
-						__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved", 
+						__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
 						event.data.mouse.x, event.data.mouse.y, event.mask);
-				
-				
-				logger(LOG_LEVEL_ERROR,	"\nDefault Display Information:\n");
-				logger(LOG_LEVEL_ERROR,	"\t*** root:\t\t%p\n", DefaultRootWindow((Display *) closeure));
-				logger(LOG_LEVEL_ERROR,	"\t*** screen:\t\t%p\n", DefaultScreenOfDisplay((Display *) closeure));
-				
-				logger(LOG_LEVEL_ERROR,	"\nxEvent Information:\n");
-				logger(LOG_LEVEL_ERROR,	"\t*** root:\t\t%p\n", data->event.u.keyButtonPointer.root);
-				logger(LOG_LEVEL_ERROR,	"\t*** window:\t%p\n", data->event.u.keyButtonPointer.event);
-				logger(LOG_LEVEL_ERROR,	"\t*** child:\t%p\n", data->event.u.keyButtonPointer.child);
-				logger(LOG_LEVEL_ERROR,	"\t*** event X,Y:\t%i, %i\n", cvtINT16toInt(data->event.u.keyButtonPointer.eventX), cvtINT16toInt(data->event.u.keyButtonPointer.eventY));
-				logger(LOG_LEVEL_ERROR,	"\t*** root X,Y:\t%i, %i\n", cvtINT16toInt(data->event.u.keyButtonPointer.rootX), cvtINT16toInt(data->event.u.keyButtonPointer.rootY));
-				
-				
-				
-				Window root_return, child_return;
-				int root_x_return, root_y_return;
-				int win_x_return, win_y_return;
-				unsigned int mask_return;
-				//XQueryPointer((Display *)closeure, DefaultRootWindow((Display *)closeure), 
-				XQueryPointer((Display *) closeure, data->event.u.keyButtonPointer.root, 
-						&root_return, &child_return,
-						&root_x_return, &root_y_return,
-						&win_x_return, &win_y_return,
-						&mask_return);
-				
-				logger(LOG_LEVEL_ERROR,	"\nXQueryPointer Information:\n");
-				logger(LOG_LEVEL_ERROR,	"\t*** root:\t\t%p\n", root_return);
-				logger(LOG_LEVEL_ERROR,	"\t*** child:\t%p\n", child_return);
-				logger(LOG_LEVEL_ERROR,	"\t*** win X,Y:\t%i, %i\n", win_x_return, win_y_return);
-				logger(LOG_LEVEL_ERROR,	"\t*** root X,Y:\t%i, %i\n", root_x_return, root_y_return);				
-				
-				
-				logger(LOG_LEVEL_ERROR,	"\nScreen Information: %i\n", ScreenCount((Display *) closeure));
-				
-				for (int i = ScreenCount((Display *) closeure) - 1; i >= 0; i--) {
-					logger(LOG_LEVEL_ERROR,	"\t*** root %i:\t\t%p\n", i, RootWindow((Display *) closeure, i));
-				}
-				
-				
+
+
 				logger(LOG_LEVEL_ERROR,	"\nXinerama Information:\n");
-				int i = 0;
-				XineramaScreenInfo *xineinfo = XineramaQueryScreens((Display *) closeure, &i);
-				for (i--; i >= 0; i--) {
+				int count = 0;
+				XineramaScreenInfo *xineinfo = XineramaQueryScreens((Display *) closeure, &count);
+				/*
+				for (int i = 0; i < count; i++) {
 					logger(LOG_LEVEL_ERROR,	"\t***%i org X,Y:\t%i, %i\n", xineinfo[i].screen_number, xineinfo[i].x_org, xineinfo[i].y_org);
 					logger(LOG_LEVEL_ERROR,	"\t***%i width, height:\t%i, %i\n", xineinfo[i].screen_number, xineinfo[i].width, xineinfo[i].height);
 					logger(LOG_LEVEL_ERROR,	"\n");
 				}
+				*/
+				event.data.mouse.x -= xineinfo[0].x_org;
+				event.data.mouse.y -= xineinfo[0].y_org;
 				XFree(xineinfo);
-				
-				
+
+
 				/*
 				Window child;
 				int dest_x_return, dest_y_return;
@@ -467,7 +433,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 						rooot_window = DefaultRootWindow((Display *) closeure);
 				XTranslateCoordinates((Display *) closeure, window, root_window, 0, 0, &dest_x_return, &dest_y_return, &child );
 				XGetWindowAttributes((Display *) closeure, window, &xwa );
-				logger(LOG_LEVEL_ERROR,	"\t*** Testing XQueryPointer X/Y: \n\t\t%i, %i\n\t\t%i, %i\n", 
+				logger(LOG_LEVEL_ERROR,	"\t*** Testing XQueryPointer X/Y: \n\t\t%i, %i\n\t\t%i, %i\n",
 						dest_x_return, dest_y_return,
 						xwa.x, xwa.y);
 				*/

@@ -262,14 +262,34 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	return value;
 }
 
+
+UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
+	//http://linux.die.net/man/3/xopendisplay
+	//important to close after used.
+	//XOpenDisplay connects your application to the X server through TCP
+	// or DECnet communications protocols
+	Display* disp = XOpenDisplay(NULL);
+	Screen* scrn = DefaultScreenOfDisplay(disp);
+	
+	int _screenWidth  = scrn->width;
+	int _screenHeight = scrn->height;
+	
+	//Close connection and clean up
+	XCloseDisplay( disp );
+	
+	*screenWidth = _screenWidth;
+	*screenHeight = _screenHeight;
+	
+	//TODO: it might need more checks
+	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
+}
+
+
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
-
-	// Tell X Threads are OK.
-	XInitThreads();
 
 	// Open local display.
 	// FIXME This code should be moved somewhere where it may recover naturally!
@@ -306,25 +326,4 @@ void on_library_unload() {
 		XCloseDisplay(disp);
 		disp = NULL;
 	}
-}
-
-UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
-	//http://linux.die.net/man/3/xopendisplay
-	//important to close after used.
-	//XOpenDisplay connects your application to the X server through TCP
-	// or DECnet communications protocols
-	Display* disp = XOpenDisplay(NULL);
-	Screen* scrn = DefaultScreenOfDisplay(disp);
-	
-	int _screenWidth  = scrn->width;
-	int _screenHeight = scrn->height;
-	
-	//Close connection and clean up
-	XCloseDisplay( disp );
-	
-	*screenWidth = _screenWidth;
-	*screenHeight = _screenHeight;
-	
-	//TODO: it might need more checks
-	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }

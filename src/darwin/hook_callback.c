@@ -606,9 +606,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
 				// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
-				//event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
-				//Removing -1 as MS assumption is more natural (follows the cartesian coordinate system)
-				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
+				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at (%u), (%u)\n",
 						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation,
@@ -635,8 +633,6 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			}
 			break;
 	}
-
-	reserveIfTrapEvent( &event.reserved, event.type );
 
 	CGEventRef result_ref = NULL;
 	if (event.reserved ^ 0x01) {

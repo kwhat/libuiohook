@@ -225,7 +225,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 		case kCFRunLoopEntry:
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Entering hook thread RunLoop.\n",
 					__FUNCTION__, __LINE__);
-			
+
 			// Lock the running mutex to signal the hook has started.
 			pthread_mutex_lock(&hook_running_mutex);
 
@@ -248,7 +248,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 		case kCFRunLoopExit:
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Exiting hook thread RunLoop.\n",
 					__FUNCTION__, __LINE__);
-			
+
 			// Lock the control mutex until we exit.
 			pthread_mutex_lock(&hook_control_mutex);
 
@@ -276,7 +276,6 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
-	
 	// Event data.
 	CGPoint event_point;
 
@@ -469,7 +468,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.y = event_point.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 					event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 			break;
@@ -492,7 +491,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.data.mouse.y = event_point.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 					event.data.mouse.x, event.data.mouse.y);
 			dispatch_event(&event);
 
@@ -508,7 +507,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.mouse.y = event_point.y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, 
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 						event.data.mouse.x, event.data.mouse.y);
 				dispatch_event(&event);
 			}
@@ -528,15 +527,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			event.type = EVENT_MOUSE_DRAGGED;
 			event.mask = get_modifiers();
 
-			if(event.mask & MASK_BUTTON1)
-				event.data.mouse.button = MOUSE_LEFT;
-			else if(event.mask & MASK_BUTTON2)
-				event.data.mouse.button = MOUSE_RIGHT;
-			else if(event.mask & MASK_BUTTON3)
-				event.data.mouse.button = MOUSE_MIDDLE;
-			else
-				event.data.mouse.button = MOUSE_NOBUTTON;
-			
+			event.data.mouse.button = MOUSE_NOBUTTON;
 			event.data.mouse.clicks = click_count;
 			event.data.mouse.x = event_point.x;
 			event.data.mouse.y = event_point.y;
@@ -620,7 +611,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at (%u), (%u)\n",
-						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation, 
+						__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount * event.data.wheel.rotation,
 						event.data.wheel.type, event.data.wheel.x, event.data.wheel.y);
 				dispatch_event(&event);
 			}
@@ -644,9 +635,9 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			}
 			break;
 	}
-	
+
 	reserveIfTrapEvent( &event.reserved, event.type );
-		
+
 	CGEventRef result_ref = NULL;
 	if (event.reserved ^ 0x01) {
 		result_ref = event_ref;

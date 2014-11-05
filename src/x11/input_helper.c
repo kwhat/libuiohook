@@ -1827,12 +1827,10 @@ void load_input_helper(Display *disp) {
 	#pragma message("*** Warning: XKB support is required to accuratly determine keyboard scancodes!")
 	#pragma message("... Assuming XFree86 keyboard layout.")
 
-	logger(LOG_LEVEL_WARN,
-				"%s [%u]: Using XFree86 keyboard layout.\n",
-				__FUNCTION__, __LINE__);
-	logger(LOG_LEVEL_WARN,
-				"%s [%u]: XKB support is required to accurately determine keyboard characters!\n",
-				__FUNCTION__, __LINE__);
+	logger(LOG_LEVEL_WARN, "%s [%u]: Using XFree86 keyboard layout.\n",
+			__FUNCTION__, __LINE__);
+	logger(LOG_LEVEL_WARN, "%s [%u]: XKB support is required to accurately determine keyboard characters!\n",
+			__FUNCTION__, __LINE__);
 
 	int minKeyCode, maxKeyCode;
 	XDisplayKeycodes(disp, &minKeyCode, &maxKeyCode);

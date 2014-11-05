@@ -28,7 +28,15 @@
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
+#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
 #include <X11/extensions/Xinerama.h>
+#elif defined(USE_XRANDR)
+#include <X11/extensions/Xrandr.h>
+#else
+// TODO We may need to fallback to the xf86vm extention for things like TwinView.
+#pragma message("*** Warning: Xinerama or XRandR support is required to uniformly determine mouse coordinates for multi-head configurations!")
+#pragma message("... Assuming single-head display.")
+#endif
 
 #include "logger.h"
 #include "input_helper.h"
@@ -405,38 +413,51 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 				event.data.mouse.x = event_x;
 				event.data.mouse.y = event_y;
 
+				// FIXME This needs to be applied for all mouse coordinates in the callback and post_event functions!
+				#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+				if (XineramaIsActive((Display *) closeure)) {
+					int count = 0;
+					XineramaScreenInfo *xineinfo = XineramaQueryScreens((Display *) closeure, &count);
+					// TODO Confirm that screen order is guaranteed and replace the
+					//      loop with xineinfo[0] with xineinfo[i]!
+					/*
+					for (int i = 0; i < count; i++) {
+						if (xineinfo[i].screen_number == 1) {
+							event.data.mouse.x -= xineinfo[i].x_org;
+							event.data.mouse.y -= xineinfo[i].y_org;
+							break;
+						}
+					}
+					*/
+					if (count > 0) {
+						event.data.mouse.x -= xineinfo[0].x_org;
+						event.data.mouse.y -= xineinfo[0].y_org;
+					}
+					XFree(xineinfo);
+				}
+				#elif defined(USE_XRANDR)
+				int event_base = 0;
+				int error_base = 0;
+				if (XRRQueryExtension((Display *) closeure, &event_base, &error_base)) {
+					Window root = DefaultRootWindow((Display *) closeure);
+
+					// FIXME XRRGetScreenResources is extremely slow!
+					XRRScreenResources *resources = XRRGetScreenResources((Display *) closeure, root);
+
+					if (resources->ncrtc > 0) {
+						XRRCrtcInfo *crtc_info = XRRGetCrtcInfo((Display *) closeure, resources, resources->crtcs[0]);
+						event.data.mouse.x -= crtc_info->x;
+						event.data.mouse.y -= crtc_info->y;
+						XRRFreeCrtcInfo(crtc_info);
+					}
+
+					XRRFreeScreenResources(resources);
+				}
+				#endif
+
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %i, %i. (%#X)\n",
 						__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
 						event.data.mouse.x, event.data.mouse.y, event.mask);
-
-
-				logger(LOG_LEVEL_ERROR,	"\nXinerama Information:\n");
-				int count = 0;
-				XineramaScreenInfo *xineinfo = XineramaQueryScreens((Display *) closeure, &count);
-				/*
-				for (int i = 0; i < count; i++) {
-					logger(LOG_LEVEL_ERROR,	"\t***%i org X,Y:\t%i, %i\n", xineinfo[i].screen_number, xineinfo[i].x_org, xineinfo[i].y_org);
-					logger(LOG_LEVEL_ERROR,	"\t***%i width, height:\t%i, %i\n", xineinfo[i].screen_number, xineinfo[i].width, xineinfo[i].height);
-					logger(LOG_LEVEL_ERROR,	"\n");
-				}
-				*/
-				event.data.mouse.x -= xineinfo[0].x_org;
-				event.data.mouse.y -= xineinfo[0].y_org;
-				XFree(xineinfo);
-
-
-				/*
-				Window child;
-				int dest_x_return, dest_y_return;
-				XWindowAttributes xwa;
-				Window window = data->event.u.keyButtonPointer.root,
-						rooot_window = DefaultRootWindow((Display *) closeure);
-				XTranslateCoordinates((Display *) closeure, window, root_window, 0, 0, &dest_x_return, &dest_y_return, &child );
-				XGetWindowAttributes((Display *) closeure, window, &xwa );
-				logger(LOG_LEVEL_ERROR,	"\t*** Testing XQueryPointer X/Y: \n\t\t%i, %i\n\t\t%i, %i\n",
-						dest_x_return, dest_y_return,
-						xwa.x, xwa.y);
-				*/
 				dispatch_event(&event);
 				break;
 

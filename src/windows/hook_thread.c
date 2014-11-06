@@ -66,9 +66,6 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
 				__FUNCTION__, __LINE__);
 
-		// Initialize native input helper functions.
-		load_input_helper();
-
 		// Check and setup modifiers.
 		initialize_modifiers();
 
@@ -89,9 +86,6 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 			TranslateMessage(&message);
 			DispatchMessage(&message);
 		}
-
-		// Deinitialize native input helper functions.
-		unload_input_helper();
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",

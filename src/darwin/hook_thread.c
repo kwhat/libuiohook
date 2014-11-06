@@ -85,9 +85,6 @@ static void hook_cleanup_proc(void *arg) {
 	// Stop the runloop used for keytyped events.
 	stop_message_port_runloop();
 
-	// Cleanup native input functions.
-	unload_input_helper();
-
 	// Free the data structure.
 	free(arg);
 }
@@ -183,9 +180,6 @@ static void *hook_thread_proc(void *arg) {
 					if (event_loop != NULL) {
 						logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
 								__FUNCTION__, __LINE__);
-
-						// Initialize Native Input Functions.
-						load_input_helper();
 
 						// Create run loop observers.
 						data->observer = CFRunLoopObserverCreate(

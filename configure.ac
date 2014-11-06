@@ -292,20 +292,24 @@ AS_IF(
 				$LIBS)
 		])
 
-		AS_IF([test "x$enable_xinerama" = "xyes"], [
-			AC_DEFINE([USE_XINERAMA], 1, [Enable Xinerama Extension])
-			PKG_CHECK_MODULES([XINERAMA], [xinerama])
-			LIBS="$XINERAMA_LIBS $LIBS"
-			#CFLAGS="$XINERAMA_CFLAGS $CFLAGS"
-			REQUIRE="$REQUIRE xinerama"
-		])
-
 		AS_IF([test "x$enable_xrandr" = "xyes"], [
+			AS_IF([test "x$enable_xinerama" = "xyes" ], [
+				AC_MSG_WARN([Both Xinerama and XRandR were enabled, ignoring Xinerama!])
+			])
+
 			AC_DEFINE([USE_XRANDR], 1, [Enable XRandR Extension])
 			PKG_CHECK_MODULES([XRANDR], [xrandr])
 			LIBS="$XRANDR_LIBS $LIBS"
 			#CFLAGS="$XRANDR_CFLAGS $CFLAGS"
 			REQUIRE="$REQUIRE xrandr"
+		],[
+			AS_IF([test "x$enable_xinerama" = "xyes"], [
+				AC_DEFINE([USE_XINERAMA], 1, [Enable Xinerama Extension])
+				PKG_CHECK_MODULES([XINERAMA], [xinerama])
+				LIBS="$XINERAMA_LIBS $LIBS"
+				#CFLAGS="$XINERAMA_CFLAGS $CFLAGS"
+				REQUIRE="$REQUIRE xinerama"
+			])
 		])
 
 		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])

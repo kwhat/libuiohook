@@ -39,6 +39,7 @@ static Display *xt_disp;
 #endif
 
 #include "copyright.h"
+#include "input_helper.h"
 #include "logger.h"
 
 Display *disp;
@@ -270,16 +271,16 @@ UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *sc
 	// or DECnet communications protocols
 	Display* disp = XOpenDisplay(NULL);
 	Screen* scrn = DefaultScreenOfDisplay(disp);
-	
+
 	int _screenWidth  = scrn->width;
 	int _screenHeight = scrn->height;
-	
+
 	//Close connection and clean up
 	XCloseDisplay( disp );
-	
+
 	*screenWidth = _screenWidth;
 	*screenHeight = _screenHeight;
-	
+
 	//TODO: it might need more checks
 	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }
@@ -303,6 +304,9 @@ void on_library_load() {
 				__FUNCTION__, __LINE__, "XOpenDisplay success.");
 	}
 
+	// Initialize native input helper functions.
+	load_input_helper(disp);
+
 	#ifdef USE_XT
 	XtToolkitInitialize();
 	xt_context = XtCreateApplicationContext();
@@ -320,6 +324,9 @@ void on_library_unload() {
 	XtCloseDisplay(xt_disp);
 	XtDestroyApplicationContext(xt_context);
 	#endif
+
+	// Cleanup native input functions.
+	unload_input_helper();
 
 	// Destroy the native displays.
 	if (disp != NULL) {

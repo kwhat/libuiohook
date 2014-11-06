@@ -449,22 +449,26 @@ __attribute__ ((constructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
+
+	// Initialize Native Input Functions.
+	load_input_helper();
 }
 
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
-	// Do Nothing.
+	// Cleanup native input functions.
+	unload_input_helper();
 }
 
 UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
-	
+
 	size_t _screenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
     size_t _screenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
-	
+
 	*screenWidth = _screenWidth;
 	*screenHeight = _screenHeight;
-	
+
 	//TODO: it might need more checks
 	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }

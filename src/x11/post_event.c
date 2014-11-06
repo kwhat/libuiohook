@@ -75,6 +75,8 @@ static unsigned int convert_to_native_mask(unsigned int mask) {
 }
 #endif
 
+// FIXME This function assumes that the hook was started by using input_helper
+// functionality without calling load_input_helper.
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	char buffer[4];
 

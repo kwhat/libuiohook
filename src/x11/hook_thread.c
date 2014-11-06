@@ -85,9 +85,6 @@ static void hook_cleanup_proc(void *arg) {
 		XCloseDisplay(data->display);
 	}
 
-	// Cleanup native input functions.
-	unload_input_helper();
-
 	// Close down any open displays.
 	if (ctrl_display != NULL) {
 		XCloseDisplay(ctrl_display);
@@ -155,12 +152,9 @@ static void *hook_thread_proc(void *arg) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 						__FUNCTION__, __LINE__);
 
-				// Initialize native input helper functions.
-				load_input_helper(ctrl_display);
-
 				// Save the data display associated with this hook so it is passed to each event.
 				XPointer closeure = (XPointer) (ctrl_display);
-				
+
 				#ifdef USE_XRECORD_ASYNC
 				// Async requires that we loop so that our thread does not return.
 				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, closeure) != 0) {

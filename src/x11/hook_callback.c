@@ -34,7 +34,7 @@
 #include <X11/extensions/Xrandr.h>
 #else
 // TODO We may need to fallback to the xf86vm extention for things like TwinView.
-#pragma message("*** Warning: Xinerama or XRandR support is required to uniformly determine mouse coordinates for multi-head configurations!")
+#pragma message("*** Warning: Xinerama or XRandR support is required to produce cross-platfrom mouse coordinates for multi-head configurations!")
 #pragma message("... Assuming single-head display.")
 #endif
 
@@ -186,7 +186,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 		#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
 		if (xineinfo != NULL) {
 			XFree(xineinfo);
-			xineinfo = NULL
+			xineinfo = NULL;
 		}
 		#elif defined(USE_XRANDR)
 		if (xrr_resources != NULL) {

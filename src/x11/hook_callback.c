@@ -68,6 +68,16 @@ static uint64_t offset_time = 0;
 // Virtual event pointer.
 static uiohook_event event;
 
+#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+// Multi-head display offsets.
+static int16_t offset_x = 0, offset_y = 0;
+#endif
+#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+XineramaScreenInfo *xineinfo = NULL;
+#elif defined(USE_XRANDR)
+XRRScreenResources *xrr_resources = NULL;
+#endif
+
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
 
@@ -115,6 +125,44 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
 
+		#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+		if (XineramaIsActive((Display *) closeure)) {
+			int count = 0;
+			xineinfo = XineramaQueryScreens((Display *) closeure, &count);
+			// TODO Confirm that screen order is guaranteed and replace the
+			//      loop with xineinfo[0] with xineinfo[i]!
+			/*
+			for (int i = 0; i < count; i++) {
+				if (xineinfo[i].screen_number == 1) {
+					event.data.mouse.x -= xineinfo[i].x_org;
+					event.data.mouse.y -= xineinfo[i].y_org;
+					break;
+				}
+			}
+			*/
+			if (count > 0) {
+				offset_x = xineinfo[0].x_org;
+				offset_y = xineinfo[0].y_org;
+			}
+			XFree(xineinfo);
+		}
+		#elif defined(USE_XRANDR)
+		int event_base = 0;
+		int error_base = 0;
+		if (XRRQueryExtension((Display *) closeure, &event_base, &error_base)) {
+			Window root = DefaultRootWindow((Display *) closeure);
+
+			xrr_resources = XRRGetScreenResources((Display *) closeure, root);
+
+			if (xrr_resources->ncrtc > 0) {
+				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo((Display *) closeure, xrr_resources, xrr_resources->crtcs[0]);
+				offset_x = crtc_info->x;
+				offset_y = crtc_info->y;
+				XRRFreeCrtcInfo(crtc_info);
+			}
+		}
+		#endif
+		
 		event.type = EVENT_HOOK_START;
 
 		// Set the event.time.
@@ -124,7 +172,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 
 		event.mask = 0x00;
 		event.reserved = 0x00;
-
+		
 		dispatch_event(&event);
 
 		// Unlock the control mutex so hook_enable() can continue.
@@ -134,6 +182,18 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 	else if (hook->category == XRecordEndOfData) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
+		
+		#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+		if (xineinfo != NULL) {
+			XFree(xineinfo);
+			xineinfo = NULL
+		}
+		#elif defined(USE_XRANDR)
+		if (xrr_resources != NULL) {
+			XRRFreeScreenResources(xrr_resources);
+			xrr_resources = NULL;
+		}
+		#endif
 
 		// Send the  hook event end of data
 		event.type = EVENT_HOOK_STOP;
@@ -292,6 +352,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 					event.data.mouse.clicks = click_count;
 					event.data.mouse.x = event_x;
 					event.data.mouse.y = event_y;
+					#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+					event.data.mouse.x -= offset_x;
+					event.data.mouse.y -= offset_y;
+					#endif
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
 							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
@@ -313,6 +377,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 					event.data.wheel.clicks = click_count;
 					event.data.wheel.x = event_x;
 					event.data.wheel.y = event_y;
+					#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+					event.data.mouse.x -= offset_x;
+					event.data.mouse.y -= offset_y;
+					#endif
 
 					/* X11 does not have an API call for acquiring the mouse scroll type.  This
 					 * maybe part of the XInput2 (XI2) extention but I will wont know until it
@@ -363,6 +431,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 					event.data.mouse.clicks = click_count;
 					event.data.mouse.x = event_x;
 					event.data.mouse.y = event_y;
+					#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+					event.data.mouse.x -= offset_x;
+					event.data.mouse.y -= offset_y;
+					#endif
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
 							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
@@ -378,6 +450,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 						event.data.mouse.clicks = click_count;
 						event.data.mouse.x = event_x;
 						event.data.mouse.y = event_y;
+						#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+						event.data.mouse.x -= offset_x;
+						event.data.mouse.y -= offset_y;
+						#endif
 
 						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
@@ -412,47 +488,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 				event.data.mouse.clicks = click_count;
 				event.data.mouse.x = event_x;
 				event.data.mouse.y = event_y;
-
-				// FIXME This needs to be applied for all mouse coordinates in the callback and post_event functions!
-				#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-				if (XineramaIsActive((Display *) closeure)) {
-					int count = 0;
-					XineramaScreenInfo *xineinfo = XineramaQueryScreens((Display *) closeure, &count);
-					// TODO Confirm that screen order is guaranteed and replace the
-					//      loop with xineinfo[0] with xineinfo[i]!
-					/*
-					for (int i = 0; i < count; i++) {
-						if (xineinfo[i].screen_number == 1) {
-							event.data.mouse.x -= xineinfo[i].x_org;
-							event.data.mouse.y -= xineinfo[i].y_org;
-							break;
-						}
-					}
-					*/
-					if (count > 0) {
-						event.data.mouse.x -= xineinfo[0].x_org;
-						event.data.mouse.y -= xineinfo[0].y_org;
-					}
-					XFree(xineinfo);
-				}
-				#elif defined(USE_XRANDR)
-				int event_base = 0;
-				int error_base = 0;
-				if (XRRQueryExtension((Display *) closeure, &event_base, &error_base)) {
-					Window root = DefaultRootWindow((Display *) closeure);
-
-					// FIXME XRRGetScreenResources is extremely slow!
-					XRRScreenResources *resources = XRRGetScreenResources((Display *) closeure, root);
-
-					if (resources->ncrtc > 0) {
-						XRRCrtcInfo *crtc_info = XRRGetCrtcInfo((Display *) closeure, resources, resources->crtcs[0]);
-						event.data.mouse.x -= crtc_info->x;
-						event.data.mouse.y -= crtc_info->y;
-						XRRFreeCrtcInfo(crtc_info);
-					}
-
-					XRRFreeScreenResources(resources);
-				}
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				event.data.mouse.x -= offset_x;
+				event.data.mouse.y -= offset_y;
 				#endif
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %i, %i. (%#X)\n",

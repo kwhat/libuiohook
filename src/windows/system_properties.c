@@ -154,7 +154,6 @@ UIOHOOK_API bool hook_get_screen_resolution(uint16_t *screenWidth, uint16_t *scr
 	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }
 
-
 // DLL Entry point.
 BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 	switch (fdwReason) {

@@ -444,6 +444,20 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	return value;
 }
 
+
+UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
+
+	size_t _screenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
+    size_t _screenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
+
+	*screenWidth = _screenWidth;
+	*screenHeight = _screenHeight;
+
+	//TODO: it might need more checks
+	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
+}
+
+
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
@@ -459,16 +473,4 @@ __attribute__ ((destructor))
 void on_library_unload() {
 	// Cleanup native input functions.
 	unload_input_helper();
-}
-
-UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
-
-	size_t _screenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
-    size_t _screenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
-
-	*screenWidth = _screenWidth;
-	*screenHeight = _screenHeight;
-
-	//TODO: it might need more checks
-	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }

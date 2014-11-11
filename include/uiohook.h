@@ -78,6 +78,14 @@ typedef enum _event_type {
 	EVENT_MOUSE_WHEEL
 } event_type;
 
+typedef struct _screen_data {
+	uint8_t number;
+	int16_t offset_x;
+	int16_t offset_y;
+	uint16_t width;
+	uint16_t height;
+} screen_data;
+
 typedef struct _keyboard_event_data {
 	uint16_t keycode;
 	uint16_t rawcode;
@@ -403,6 +411,9 @@ extern "C" {
 	// Check the event hook status.
 	UIOHOOK_API bool hook_is_enabled();
 
+	// Retrieves an array of screen data for each avaiable monitor.
+	UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count);
+
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();
 
@@ -421,9 +432,6 @@ extern "C" {
 	// Retrieves the double/triple click interval.
 	UIOHOOK_API long int hook_get_multi_click_time();
 	
-	// FIXME This needs to be adjusted to handle multiple monitors though a count and an array.
-	UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight );
-
 #ifdef __cplusplus
 }
 #endif

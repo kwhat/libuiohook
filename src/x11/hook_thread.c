@@ -303,7 +303,7 @@ UIOHOOK_API int hook_enable() {
 				pthread_t hook_thread_id;
 				void *hook_thread_status = malloc(sizeof(int));
 				if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, hook_thread_status) == 0) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully started hook thread.\n",
 							__FUNCTION__, __LINE__);
 
 					#if _POSIX_C_SOURCE >= 200112L
@@ -347,7 +347,7 @@ UIOHOOK_API int hook_enable() {
 					}
 				}
 				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create hook thread!\n",
 							__FUNCTION__, __LINE__);
 
 					status = UIOHOOK_ERROR_THREAD_CREATE;

@@ -33,8 +33,8 @@
 #elif defined(USE_XRANDR)
 #include <X11/extensions/Xrandr.h>
 #else
-// TODO We may need to fallback to the xf86vm extention for things like TwinView.
-#pragma message("*** Warning: Xinerama or XRandR support is required to produce cross-platfrom mouse coordinates for multi-head configurations!")
+// TODO We may need to fallback to the xf86vm extension for things like TwinView.
+#pragma message("*** Warning: Xinerama or XRandR support is required to produce cross-platform mouse coordinates for multi-head configurations!")
 #pragma message("... Assuming single-head display.")
 #endif
 
@@ -62,7 +62,7 @@ static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
-static Time previous_time = (Time) ~0x00;
+static Time previous_time = (Time) (~0x00);
 static uint64_t offset_time = 0;
 
 // Virtual event pointer.

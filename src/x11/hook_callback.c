@@ -117,6 +117,7 @@ static inline uint16_t get_modifiers() {
 }
 
 
+<<<<<<< HEAD
 static uint64_t get_event_timestamp(XRecordInterceptData *recorded_data) {
 	// Get XRecord data.
 	XRecordDatum *data = (XRecordDatum *) recorded_data->data;

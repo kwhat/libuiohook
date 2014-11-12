@@ -72,11 +72,6 @@ static uiohook_event event;
 // Multi-head display offsets.
 static int16_t offset_x = 0, offset_y = 0;
 #endif
-#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-XineramaScreenInfo *xineinfo = NULL;
-#elif defined(USE_XRANDR)
-XRRScreenResources *xrr_resources = NULL;
-#endif
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -125,44 +120,16 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
 
-		#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-		if (XineramaIsActive((Display *) closeure)) {
-			int count = 0;
-			xineinfo = XineramaQueryScreens((Display *) closeure, &count);
-			// TODO Confirm that screen order is guaranteed and replace the
-			//      loop with xineinfo[0] with xineinfo[i]!
-			/*
-			for (int i = 0; i < count; i++) {
-				if (xineinfo[i].screen_number == 1) {
-					event.data.mouse.x -= xineinfo[i].x_org;
-					event.data.mouse.y -= xineinfo[i].y_org;
-					break;
-				}
-			}
-			*/
-			if (count > 0) {
-				offset_x = xineinfo[0].x_org;
-				offset_y = xineinfo[0].y_org;
-			}
-			XFree(xineinfo);
-		}
-		#elif defined(USE_XRANDR)
-		int event_base = 0;
-		int error_base = 0;
-		if (XRRQueryExtension((Display *) closeure, &event_base, &error_base)) {
-			Window root = DefaultRootWindow((Display *) closeure);
-
-			xrr_resources = XRRGetScreenResources((Display *) closeure, root);
-
-			if (xrr_resources->ncrtc > 0) {
-				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo((Display *) closeure, xrr_resources, xrr_resources->crtcs[0]);
-				offset_x = crtc_info->x;
-				offset_y = crtc_info->y;
-				XRRFreeCrtcInfo(crtc_info);
-			}
+		#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+		// FIXME This should be done on each iteration.
+		uint8_t count = 0;
+		screen_data *screens = hook_get_screen_info(&count);
+		if (screens != NULL && count > 0) {
+			offset_x = screens[0].x;
+			offset_y = screens[0].y;
 		}
 		#endif
-		
+
 		event.type = EVENT_HOOK_START;
 
 		// Set the event.time.
@@ -183,18 +150,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *hook) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
 		
-		#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-		if (xineinfo != NULL) {
-			XFree(xineinfo);
-			xineinfo = NULL;
-		}
-		#elif defined(USE_XRANDR)
-		if (xrr_resources != NULL) {
-			XRRFreeScreenResources(xrr_resources);
-			xrr_resources = NULL;
-		}
-		#endif
-
 		// Send the  hook event end of data
 		event.type = EVENT_HOOK_STOP;
 

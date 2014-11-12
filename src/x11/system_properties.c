@@ -192,6 +192,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 		screens = malloc(sizeof(screen_data));
 
 		if (screens != NULL) {
+			*count = 1;
 			screens[0] = (screen_data) {
 				.number = 1,
 				.x = 0,

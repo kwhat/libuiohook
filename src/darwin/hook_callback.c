@@ -100,6 +100,33 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+static inline uint64_t get_event_timestamp() {
+	// Grab the system uptime in NS.
+	CGEventTimestamp hook_time = CGEventGetTimestamp(event_ref);
+
+	// Convert time from NS to MS.
+	hook_time /= 1000000;
+
+	// Check for event clock reset.
+	if (previous_time > hook_time) {
+		// Get the local system time in UTC.
+		gettimeofday(&system_time, NULL);
+
+		// Convert the local system time to a Unix epoch in MS.
+		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		// Calculate the offset based on the system and hook times.
+		offset_time = epoch_time - hook_time;
+
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
+				__FUNCTION__, __LINE__, offset_time);
+	}
+	// Set the previous event time for click reset check above.
+	previous_time = hook_time;
+
+	// Set the event time to the server time + offset.
+	return hook_time + offset_time;
+}
 
 static pthread_cond_t msg_port_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t msg_port_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -107,7 +134,7 @@ static pthread_mutex_t msg_port_mutex = PTHREAD_MUTEX_INITIALIZER;
 void message_port_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	switch (activity) {
 		case kCFRunLoopExit:
-			// Aquire a lock on the msg_port and signal that anyone waiting
+			// Acquire a lock on the msg_port and signal that anyone waiting
 			// should continue.
 			pthread_mutex_lock(&msg_port_mutex);
 			pthread_cond_broadcast(&msg_port_cond);
@@ -124,7 +151,7 @@ void message_port_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity a
 // Runloop to execute KeyCodeToString on the "Main" runloop due to an
 // undocumented thread safety requirement.
 static void message_port_proc(void *info) {
-	// Lock the msg_port mutex as we enter the main run loop.
+	// Lock the msg_port mutex as we enter the main runloop.
 	pthread_mutex_lock(&msg_port_mutex);
 
 	TISMessage *data = (TISMessage *) info;
@@ -176,15 +203,21 @@ void start_message_port_runloop() {
 
 		CFRunLoopRef main_loop = CFRunLoopGetMain();
 
-		// FIXME Need to null check the src_msg_port!
 		src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
+		if (src_msg_port != NULL) {
 
-		CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
+			CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
 
-		CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
+			CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
-				__FUNCTION__, __LINE__);
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
+					__FUNCTION__, __LINE__);
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopSourceCreate failure!\n",
+					__FUNCTION__, __LINE__);
+		}
+
 		pthread_mutex_unlock(&msg_port_mutex);
 	}
 	else {
@@ -221,6 +254,9 @@ void stop_message_port_runloop() {
 }
 
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+	// Calculate Unix epoch from native time source.
+	uint64_t timestamp = get_event_timestamp(recorded_data);
+
 	switch (activity) {
 		case kCFRunLoopEntry:
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Entering hook thread RunLoop.\n",
@@ -229,15 +265,14 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			// Lock the running mutex to signal the hook has started.
 			pthread_mutex_lock(&hook_running_mutex);
 
-			event.type = EVENT_HOOK_START;
-
-			// Set the event.time.
-			gettimeofday(&system_time, NULL);
-			event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-			event.mask = 0x00;
+			// Populate the hook start event.
+			event.time = timestamp;
 			event.reserved = 0x00;
 
+			event.type = EVENT_HOOK_START;
+			event.mask = 0x00;
+
+			// Fire the hook start event.
 			dispatch_event(&event);
 
 			// Unlock the control mutex so hook_enable() can continue.
@@ -255,16 +290,14 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			// Unlock the running mutex to signal the hook has stopped.
 			pthread_mutex_unlock(&hook_running_mutex);
 
-			// Send the  hook event end of data
-			event.type = EVENT_HOOK_STOP;
-
-			// Set the event.time.
-			gettimeofday(&system_time, NULL);
-			event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-			event.mask = 0x00;
+			// Populate the hook stop event.
+			event.time = timestamp;
 			event.reserved = 0x00;
 
+			event.type = EVENT_HOOK_STOP;
+			event.mask = 0x00;
+
+			// Fire the hook stop event.
 			dispatch_event(&event);
 			break;
 
@@ -276,34 +309,11 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
+	// Calculate Unix epoch from native time source.
+	uint64_t timestamp = get_event_timestamp(recorded_data);
+
 	// Event data.
 	CGPoint event_point;
-
-	// Grab the system uptime in NS.
-	CGEventTimestamp hook_time = CGEventGetTimestamp(event_ref);
-
-	// Convert time from NS to MS.
-	hook_time /= 1000000;
-
-	// Check for event clock reset.
-	if (previous_time > hook_time) {
-		// Get the local system time in UTC.
-		gettimeofday(&system_time, NULL);
-
-		// Convert the local system time to a Unix epoch in MS.
-		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-		// Calculate the offset based on the system and hook times.
-		offset_time = epoch_time - hook_time;
-
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
-				__FUNCTION__, __LINE__, offset_time);
-	}
-	// Set the previous event time for click reset check above.
-	previous_time = hook_time;
-
-	// Set the event time to the server time + offset.
-	event.time = hook_time + offset_time;
 
 	// Make sure reserved bits are zeroed out.
 	event.reserved = 0x00;
@@ -566,7 +576,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 
 		case kCGEventScrollWheel:
 			// Check to see what axis was rotated, we only care about axis 1 for vertical rotation.
-			// TOOD Implement horizontal scrolling by examining axis 2.
+			// TODO Implement horizontal scrolling by examining axis 2.
 			// NOTE kCGScrollWheelEventDeltaAxis3 is currently unused.
 			if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
 				event_point = CGEventGetLocation(event_ref);
@@ -589,7 +599,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				event.data.wheel.x = event_point.x;
 				event.data.wheel.y = event_point.y;
 
-				// TODO Figure out of kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
+				// TODO Figure out if kCGScrollWheelEventDeltaAxis2 causes mouse events with zero rotation.
 				if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
 					// Scrolling data is line-based.
 					event.data.wheel.type = WHEEL_BLOCK_SCROLL;

@@ -126,43 +126,7 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
-void hook_start_proc() {
-	event.type = EVENT_HOOK_START;
-
-	// Set the event.time.
-	// FIXME See if we can do something lighter with the event_time instead of more division.
-	GetSystemTimeAsFileTime(&system_time);
-	uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
-	event.time = epoch_time - 11644473600000;
-
-	event.mask = 0x00;
-	event.reserved = 0x00;
-
-	dispatch_event(&event);
-}
-
-void hook_stop_proc() {
-	event.type = EVENT_HOOK_STOP;
-
-	// Set the event.time.
-	// FIXME See if we can do something lighter with the event_time instead of more division.
-	GetSystemTimeAsFileTime(&system_time);
-	uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
-	event.time = epoch_time - 11644473600000;
-
-	event.mask = 0x00;
-	event.reserved = 0x00;
-
-	dispatch_event(&event);
-}
-
-LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// MS Keyboard event struct data.
-	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
-
-	// MS Mouse event struct data.
-	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
-
+static inline uint64_t get_event_timestamp() {
 	// Grab the system uptime in MS.
 	// NOTE This value rolls every 49.7 days.
 	DWORD hook_time = GetTickCount();
@@ -182,120 +146,175 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 		// Calculate the offset based on the system and hook times.
 		offset_time = epoch_time - hook_time;
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
 				__FUNCTION__, __LINE__, offset_time);
 	}
 	// Set the previous event time for click reset check above.
 	previous_time = hook_time;
 
 	// Set the event time to the server time + offset.
-	event.time = hook_time + offset_time;
+	return hook_time + offset_time;
+}
 
-	// Make sure reserved bits are zeroed out.
+void hook_start_proc() {
+	// Populate the hook start event.
+	event.time = get_event_timestamp();
 	event.reserved = 0x00;
 
-	switch(wParam) {
+	event.type = EVENT_HOOK_START;
+	event.mask = 0x00;
+
+	// Fire the hook start event.
+	dispatch_event(&event);
+}
+
+void hook_stop_proc() {
+	// Populate the hook stop event.
+	event.time = get_event_timestamp();
+	event.reserved = 0x00;
+
+	event.type = EVENT_HOOK_STOP;
+	event.mask = 0x00;
+
+	// Fire the hook stop event.
+	dispatch_event(&event);
+}
+
+LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+	// Calculate Unix epoch from native time source.
+	uint64_t timestamp = get_event_timestamp();
+
+	//FIXME Move the following CASTS to each case below, after converting to if statement.
+	// MS Keyboard event struct data.
+	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
+
+	// MS Mouse event struct data.
+	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
+
+	switch (wParam) {
 		case WM_KEYDOWN:
 		case WM_SYSKEYDOWN:
 			// Check and setup modifiers.
-			if (kbhook->vkCode == VK_LSHIFT)		set_modifier_mask(MASK_SHIFT_L);
-			else if (kbhook->vkCode == VK_RSHIFT)	set_modifier_mask(MASK_SHIFT_R);
-			else if (kbhook->vkCode == VK_LCONTROL)	set_modifier_mask(MASK_CTRL_L);
-			else if (kbhook->vkCode == VK_RCONTROL)	set_modifier_mask(MASK_CTRL_R);
-			else if (kbhook->vkCode == VK_LMENU)	set_modifier_mask(MASK_ALT_L);
-			else if (kbhook->vkCode == VK_RMENU)	set_modifier_mask(MASK_ALT_R);
-			else if (kbhook->vkCode == VK_LWIN)		set_modifier_mask(MASK_META_L);
-			else if (kbhook->vkCode == VK_RWIN)		set_modifier_mask(MASK_META_R);
+			if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);	}
+			else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);	}
+			else if (kbhook->vkCode == VK_LCONTROL)	{ set_modifier_mask(MASK_CTRL_L);	}
+			else if (kbhook->vkCode == VK_RCONTROL)	{ set_modifier_mask(MASK_CTRL_R);	}
+			else if (kbhook->vkCode == VK_LMENU)	{ set_modifier_mask(MASK_ALT_L);	}
+			else if (kbhook->vkCode == VK_RMENU)	{ set_modifier_mask(MASK_ALT_R);	}
+			else if (kbhook->vkCode == VK_LWIN)		{ set_modifier_mask(MASK_META_L);	}
+			else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);	}
 
-			// Fire key pressed event.
+			// Populate key pressed event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
 			event.type = EVENT_KEY_PRESSED;
 			event.mask = get_modifiers();
 
 			event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
-
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+
+			// Populate key pressed event.
 			dispatch_event(&event);
 
-			// If the pressed event was not consumed and a wchar exists...
-			int type_count = keysym_to_unicode(kbhook->vkCode, &keywchar);
-			for (int i = 0; event.reserved ^ 0x01 && i < type_count; i++) {
-				// Fire key typed event.
-				event.type = EVENT_KEY_TYPED;
-				event.mask = get_modifiers();
+			// If the pressed event was not consumed...
+			if (event.reserved ^ 0x01) {
+				// If the pressed event was not consumed and a wchar exists...
+				int type_count = keysym_to_unicode(kbhook->vkCode, &keywchar);
+				// TODO Does this ever return more than one char?
+				for (int i = 0; i < type_count; i++) {
+					// Populate key typed event.
+					event.time = timestamp;
+					event.reserved = 0x00;
 
-				event.data.keyboard.keycode = VC_UNDEFINED;
-				event.data.keyboard.rawcode = kbhook->vkCode;
-				event.data.keyboard.keychar = keywchar;
+					event.type = EVENT_KEY_TYPED;
+					event.mask = get_modifiers();
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
-				dispatch_event(&event);
+					event.data.keyboard.keycode = VC_UNDEFINED;
+					event.data.keyboard.rawcode = kbhook->vkCode;
+					event.data.keyboard.keychar = keywchar;
+
+					logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X typed. (%lc)\n",
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+
+					// Fire key typed event.
+					dispatch_event(&event);
+				}
 			}
 			break;
 
 		case WM_KEYUP:
 		case WM_SYSKEYUP:
 			// Check and setup modifiers.
-			if (kbhook->vkCode == VK_LSHIFT)		unset_modifier_mask(MASK_SHIFT_L);
-			else if (kbhook->vkCode == VK_RSHIFT)	unset_modifier_mask(MASK_SHIFT_R);
-			else if (kbhook->vkCode == VK_LCONTROL)	unset_modifier_mask(MASK_CTRL_L);
-			else if (kbhook->vkCode == VK_RCONTROL)	unset_modifier_mask(MASK_CTRL_R);
-			else if (kbhook->vkCode == VK_LMENU)	unset_modifier_mask(MASK_ALT_L);
-			else if (kbhook->vkCode == VK_RMENU)	unset_modifier_mask(MASK_ALT_R);
-			else if (kbhook->vkCode == VK_LWIN)		unset_modifier_mask(MASK_META_L);
-			else if (kbhook->vkCode == VK_RWIN)		unset_modifier_mask(MASK_META_R);
+			if		(kbhook->vkCode == VK_LSHIFT)	{ unset_modifier_mask(MASK_SHIFT_L);	}
+			else if (kbhook->vkCode == VK_RSHIFT)	{ unset_modifier_mask(MASK_SHIFT_R);	}
+			else if (kbhook->vkCode == VK_LCONTROL)	{ unset_modifier_mask(MASK_CTRL_L);		}
+			else if (kbhook->vkCode == VK_RCONTROL)	{ unset_modifier_mask(MASK_CTRL_R);		}
+			else if (kbhook->vkCode == VK_LMENU)	{ unset_modifier_mask(MASK_ALT_L);		}
+			else if (kbhook->vkCode == VK_RMENU)	{ unset_modifier_mask(MASK_ALT_R);		}
+			else if (kbhook->vkCode == VK_LWIN)		{ unset_modifier_mask(MASK_META_L);		}
+			else if (kbhook->vkCode == VK_RWIN)		{ unset_modifier_mask(MASK_META_R);		}
 
-			// Fire key released event.
+			// Populate key released event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
 			event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
-
 			event.data.keyboard.rawcode = kbhook->vkCode;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+
+			// Fire key released event.
 			dispatch_event(&event);
 			break;
 
 		case WM_LBUTTONDOWN:
-			event.data.mouse.button = MOUSE_BUTTON1;
-			set_modifier_mask(MASK_BUTTON1);
-			goto BUTTONDOWN;
-
 		case WM_RBUTTONDOWN:
-			event.data.mouse.button = MOUSE_BUTTON2;
-			set_modifier_mask(MASK_BUTTON2);
-			goto BUTTONDOWN;
-
 		case WM_MBUTTONDOWN:
-			event.data.mouse.button = MOUSE_BUTTON3;
-			set_modifier_mask(MASK_BUTTON3);
-			goto BUTTONDOWN;
-
 		case WM_XBUTTONDOWN:
 		case WM_NCXBUTTONDOWN:
-			if (HIWORD(mshook->mouseData) == XBUTTON1) {
-				event.data.mouse.button = MOUSE_BUTTON4;
-				set_modifier_mask(MASK_BUTTON4);
+			if (wParam == WM_LBUTTONDOWN) {
+				event.data.mouse.button = MOUSE_BUTTON1;
+				set_modifier_mask(MASK_BUTTON1);
 			}
-			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
-				event.data.mouse.button = MOUSE_BUTTON5;
-				set_modifier_mask(MASK_BUTTON5);
+			else if (wParam == WM_RBUTTONDOWN) {
+				event.data.mouse.button = MOUSE_BUTTON2;
+				set_modifier_mask(MASK_BUTTON2);
 			}
-			else {
-				// Extra mouse buttons.
-				event.data.mouse.button = HIWORD(mshook->mouseData);
+			else if (wParam == WM_MBUTTONDOWN) {
+				event.data.mouse.button = MOUSE_BUTTON3;
+				set_modifier_mask(MASK_BUTTON3);
+			}
+			else if (wParam == WM_XBUTTONDOWN || wParam == WM_NCXBUTTONDOWN) {
+				if (HIWORD(mshook->mouseData) == XBUTTON1) {
+					event.data.mouse.button = MOUSE_BUTTON4;
+					set_modifier_mask(MASK_BUTTON4);
+				}
+				else if (HIWORD(mshook->mouseData) == XBUTTON2) {
+					event.data.mouse.button = MOUSE_BUTTON5;
+					set_modifier_mask(MASK_BUTTON5);
+				}
+				else {
+					// Extra mouse buttons.
+					//event.data.mouse.button = HIWORD(mshook->mouseData);
+
+					// FIXME This entire case is ugly and hard to follow, REWRITE!
+					// TODO Currently ignoring extra mouse buttons.
+					break;
+				}
 			}
 
-		BUTTONDOWN:
-			// Track the number of clicks.
-			if ((long) (event.time - click_time) <= hook_get_multi_click_time()) {
+			// Track the number of clicks, the button must match the previous button.
+			if (event.data.mouse.button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
 				if (click_count < USHRT_MAX) {
 					click_count++;
 				}
@@ -305,81 +324,106 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				}
 			}
 			else {
+				// Reset the click count.
 				click_count = 1;
+
+				// Set the previous button.
+				click_button = event.data.mouse.button;
 			}
-			click_time = event.time;
+
+			// Save this events time to calculate the click_count.
+			click_time = timestamp;
 
 			// Store the last click point.
 			last_click.x = mshook->pt.x;
 			last_click.y = mshook->pt.y;
 
-			// Fire mouse pressed event.
+			// Populate mouse pressed event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
 			event.type = EVENT_MOUSE_PRESSED;
 			event.mask = get_modifiers();
 
 			event.data.mouse.clicks = click_count;
-			// TODO This may need to be clamped into range.
+
 			event.data.mouse.x = mshook->pt.x;
 			event.data.mouse.y = mshook->pt.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
 					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 					event.data.mouse.x, event.data.mouse.y);
+
+			// Fire mouse pressed event.
 			dispatch_event(&event);
 			break;
 
 		case WM_LBUTTONUP:
-			event.data.mouse.button = MOUSE_BUTTON1;
-			unset_modifier_mask(MASK_BUTTON1);
-			goto BUTTONUP;
-
 		case WM_RBUTTONUP:
-			event.data.mouse.button = MOUSE_BUTTON2;
-			unset_modifier_mask(MASK_BUTTON2);
-			goto BUTTONUP;
-
 		case WM_MBUTTONUP:
-			event.data.mouse.button = MOUSE_BUTTON3;
-			unset_modifier_mask(MASK_BUTTON3);
-			goto BUTTONUP;
-
 		case WM_XBUTTONUP:
 		case WM_NCXBUTTONUP:
-			if (HIWORD(mshook->mouseData) == XBUTTON1) {
-				event.data.mouse.button = MOUSE_BUTTON4;
-				unset_modifier_mask(MASK_BUTTON4);
+			// FIXME Refactor...
+			if (wParam == WM_LBUTTONDOWN) {
+				event.data.mouse.button = MOUSE_BUTTON1;
+				unset_modifier_mask(MASK_BUTTON1);
 			}
-			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
-				event.data.mouse.button = MOUSE_BUTTON5;
-				unset_modifier_mask(MASK_BUTTON5);
+			else if (wParam == WM_RBUTTONDOWN) {
+				event.data.mouse.button = MOUSE_BUTTON2;
+				unset_modifier_mask(MASK_BUTTON2);
 			}
-			else {
-				// Extra mouse buttons.
-				event.data.mouse.button = HIWORD(mshook->mouseData);
+			else if (wParam == WM_MBUTTONDOWN) {
+				event.data.mouse.button = MOUSE_BUTTON3;
+				unset_modifier_mask(MASK_BUTTON3);
+			}
+			else if (wParam == WM_XBUTTONDOWN || wParam == WM_NCXBUTTONDOWN) {
+				if (HIWORD(mshook->mouseData) == XBUTTON1) {
+					event.data.mouse.button = MOUSE_BUTTON4;
+					unset_modifier_mask(MASK_BUTTON4);
+				}
+				else if (HIWORD(mshook->mouseData) == XBUTTON2) {
+					event.data.mouse.button = MOUSE_BUTTON5;
+					unset_modifier_mask(MASK_BUTTON5);
+				}
+				else {
+					// Extra mouse buttons.
+					//event.data.mouse.button = HIWORD(mshook->mouseData);
+
+					// FIXME This entire case is ugly and hard to follow, REWRITE!
+					// TODO Currently ignoring extra mouse buttons.
+					break;
+				}
 			}
 
-		BUTTONUP:
-			// Fire mouse released event.
+			// Populate mouse released event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
 			event.type = EVENT_MOUSE_RELEASED;
 			event.mask = get_modifiers();
 
 			event.data.mouse.clicks = click_count;
+
 			event.data.mouse.x = mshook->pt.x;
 			event.data.mouse.y = mshook->pt.y;
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-					__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+					__FUNCTION__, __LINE__, event.data.mouse.button,
+					event.data.mouse.clicks,
 					event.data.mouse.x, event.data.mouse.y);
+
+			// Fire mouse released event.
 			dispatch_event(&event);
 
 			if (last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
-				// Fire mouse clicked event.
-				event.type = EVENT_MOUSE_CLICKED;
-				// TODO This shouldn't be necessary but double check that the
-				//		ptr const makes this value immutable.
-				event.mask = get_modifiers();
-				event.data.mouse.button = button;
+				// Populate mouse clicked event.
+				event.time = timestamp;
+				event.reserved = 0x00;
 
+				event.type = EVENT_MOUSE_CLICKED;
+				event.mask = get_modifiers();
+
+				event.data.mouse.button = button;
 				event.data.mouse.clicks = click_count;
 				event.data.mouse.x = mshook->pt.x;
 				event.data.mouse.y = mshook->pt.y;
@@ -387,6 +431,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 						event.data.mouse.x, event.data.mouse.y);
+
+				// Fire mouse clicked event.
 				dispatch_event(&event);
 			}
 			break;
@@ -400,10 +446,16 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			// We received a mouse move event with the mouse actually moving.
 			// This verifies that the mouse was moved after being depressed.
 			if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
+				// Populate mouse move event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.mask = get_modifiers();
+
 				// Check the upper half of the current modifiers for non zero
 				// value.  This indicates the presence of a button down mask.
-				event.data.mouse.button = MOUSE_NOBUTTON;
-				if (get_modifiers() >> 8) {
+				mouse_dragged = (event.mask >> 8 > 0);
+				if (mouse_dragged) {
 					// Create Mouse Dragged event.
 					event.type = EVENT_MOUSE_DRAGGED;
 				}
@@ -412,39 +464,39 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 					event.type = EVENT_MOUSE_MOVED;
 				}
 
-				// Populate common event info.
-				event.mask = get_modifiers();
-
 				event.data.mouse.button = MOUSE_NOBUTTON;
 				event.data.mouse.clicks = click_count;
 				event.data.mouse.x = mshook->pt.x;
 				event.data.mouse.y = mshook->pt.y;
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
-						__FUNCTION__, __LINE__,  get_modifiers() >> 8 ? "dragged" : "moved",
+						__FUNCTION__, __LINE__,  mouse_dragged ? "dragged" : "moved",
 						event.data.mouse.x, event.data.mouse.y);
+
+				// Fire mouse move event.
 				dispatch_event(&event);
 			}
 			break;
 
 		case WM_MOUSEWHEEL:
 			// Track the number of clicks.
-			if ((long) (event.time - click_time) <= hook_get_multi_click_time()) {
-				click_count++;
-			}
-			else {
-				click_count = 1;
-			}
-			click_time = event.time;
+			// Reset the click count and previous button.
+			click_count = 1;
+			click_button = MOUSE_NOBUTTON;
 
-			// Fire mouse wheel event.
+			// Populate mouse wheel event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
 			event.type = EVENT_MOUSE_WHEEL;
 			event.mask = get_modifiers();
 
-			event.data.wheel.type = get_scroll_wheel_type();
-			event.data.wheel.amount = get_scroll_wheel_amount();
+			event.data.wheel.clicks = click_count;
 			event.data.wheel.x = mshook->pt.x;
 			event.data.wheel.y = mshook->pt.y;
+
+			event.data.wheel.type = get_scroll_wheel_type();
+			event.data.wheel.amount = get_scroll_wheel_amount();
 
 			/* Delta HIWORD(mshook->mouseData)
 			 * A positive value indicates that the wheel was rotated
@@ -456,6 +508,8 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
 				__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
 				event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y);
+
+			// Fire mouse wheel event.
 			dispatch_event(&event);
 			break;
 
@@ -481,12 +535,12 @@ LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 void initialize_modifiers() {
 		current_modifiers = 0x0000;
 
-		if (GetKeyState(VK_LSHIFT)	 < 0)	set_modifier_mask(MASK_SHIFT_L);
-		if (GetKeyState(VK_RSHIFT)   < 0)	set_modifier_mask(MASK_SHIFT_R);
-		if (GetKeyState(VK_LCONTROL) < 0)	set_modifier_mask(MASK_CTRL_L);
-		if (GetKeyState(VK_RCONTROL) < 0)	set_modifier_mask(MASK_CTRL_R);
-		if (GetKeyState(VK_LMENU)    < 0)	set_modifier_mask(MASK_ALT_L);
-		if (GetKeyState(VK_RMENU)    < 0)	set_modifier_mask(MASK_ALT_R);
-		if (GetKeyState(VK_LWIN)     < 0)	set_modifier_mask(MASK_META_L);
-		if (GetKeyState(VK_RWIN)     < 0)	set_modifier_mask(MASK_META_R);
+		if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
+		if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
+		if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
+		if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
+		if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
+		if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
+		if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
+		if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
 }

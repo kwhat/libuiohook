@@ -149,7 +149,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		event.type = EVENT_HOOK_START;
 		event.mask = 0x00;
 
-		// Send out the hook start event.
+		// Fire the hook start event.
 		dispatch_event(&event);
 
 		// Unlock the control mutex so hook_enable() can continue.
@@ -167,7 +167,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		event.type = EVENT_HOOK_STOP;
 		event.mask = 0x00;
 
-		// Send out the hook stop event.
+		// Fire the hook stop event.
 		dispatch_event(&event);
 	}
 	else if (recorded_data->category == XRecordFromServer || recorded_data->category == XRecordFromClient) {
@@ -266,130 +266,144 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			dispatch_event(&event);
 		}
 		else if (data->type == ButtonPress) {
-			// Populate generic mouse event.
-			event.time = timestamp;
-			event.reserved = 0x00;
+			// X11 handles wheel events as button events.
+			if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelDown) {
+				// Reset the click count and previous button.
+				click_count = 1;
+				click_button = MOUSE_NOBUTTON;
 
-			event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
-			event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
+				/* Scroll wheel release events.
+				 * Scroll type: WHEEL_UNIT_SCROLL
+				 * Scroll amount: 3 unit increments per notch
+				 * Units to scroll: 3 unit increments
+				 * Vertical unit increment: 15 pixels
+				 */
 
-			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-			uint8_t count;
-			screen_data *screens = hook_get_screen_info(&count);
-			if (count > 1) {
-				event.data.mouse.x -= screens[0].x;
-				event.data.mouse.y -= screens[0].y;
+				// Populate mouse wheel event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.type = EVENT_MOUSE_WHEEL;
+				event.mask = get_modifiers();
+
+				event.data.wheel.clicks = click_count;
+				event.data.wheel.x = data->event.u.keyButtonPointer.rootX;
+				event.data.wheel.y = data->event.u.keyButtonPointer.rootY;
+
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				uint8_t count;
+				screen_data *screens = hook_get_screen_info(&count);
+				if (count > 1) {
+					event.data.wheel.x -= screens[0].x;
+					event.data.wheel.y -= screens[0].y;
+				}
+				#endif
+
+				/* X11 does not have an API call for acquiring the mouse scroll type.  This
+				 * maybe part of the XInput2 (XI2) extention but I will wont know until it
+				 * is available on my platform.  For the time being we will just use the
+				 * unit scroll value.
+				 */
+				event.data.wheel.type = WHEEL_UNIT_SCROLL;
+
+				/* Some scroll wheel properties are available via the new XInput2 (XI2)
+				 * extension.  Unfortunately the extension is not available on my
+				 * development platform at this time.  For the time being we will just
+				 * use the Windows default value of 3.
+				 */
+				event.data.wheel.amount = 3;
+
+				// MS assumption is more natural (follows the cartesian coordinate system)
+				// FIXME I don't understand the above adjustment and comment...
+				if (data->event.u.u.detail == WheelUp) {
+					// Wheel Rotated Up and Away.
+					event.data.wheel.rotation = -1;
+				}
+				else { // data->event.u.u.detail == WheelDown
+					// Wheel Rotated Down and Towards.
+					event.data.wheel.rotation = 1;
+				}
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
+						__FUNCTION__, __LINE__, event.data.wheel.type,
+						event.data.wheel.amount * event.data.wheel.rotation,
+						event.data.wheel.x, event.data.wheel.y );
+
+				// Fire mouse wheel event.
+				dispatch_event(&event);
 			}
-			#endif
+			else {
+				/* This information is all static for X11, its up to the WM to
+				 * decide how to interpret the wheel events.
+				 */
+				// TODO For extended button support > 5, if (wheel) else mouse w/ button - 4 if > 3
+				// FIXME Refactor this switch statement!
+				switch (data->event.u.u.detail) {
+					case Button1:
+					case Button2:
+					case Button3:
+					case XButton1:
+					case XButton2:
+						// FIXME This should use a lookup table in the input_helper to handle button remapping.
+						//event.data.mouse.button = (data->event.u.u.detail & 0x03) | (data->event.u.u.detail & 0x08) >> 1;
+						event.data.mouse.button = data->event.u.u.detail;
+						if (event.data.mouse.button > 3) {
+							event.data.mouse.button -= 4;
+						}
 
-			/* This information is all static for X11, its up to the WM to
-			 * decide how to interpret the wheel events.
-			 */
-			// TODO For extended button support > 5, if (wheel) else mouse w/ button - 4 if > 3
-			switch (data->event.u.u.detail) {
-				case Button1:
-				case Button2:
-				case Button3:
-				case XButton1:
-				case XButton2:
-					// FIXME This should use a lookup table in the input_helper to handle button remapping.
-					//event.data.mouse.button = (data->event.u.u.detail & 0x03) | (data->event.u.u.detail & 0x08) >> 1;
-					event.data.mouse.button = data->event.u.u.detail;
-					if (event.data.mouse.button > 3) {
-						event.data.mouse.button -= 4;
-					}
-
-					// Track the number of clicks, the button must match the previous button.
-					if (event.data.mouse.button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
-						if (click_count < USHRT_MAX) {
-							click_count++;
+						// Track the number of clicks, the button must match the previous button.
+						if (event.data.mouse.button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
+							if (click_count < USHRT_MAX) {
+								click_count++;
+							}
+							else {
+								logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
+										__FUNCTION__, __LINE__);
+							}
 						}
 						else {
-							logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
-									__FUNCTION__, __LINE__);
+							// Reset the click count.
+							click_count = 1;
+
+							// Set the previous button.
+							click_button = event.data.mouse.button;
 						}
-					}
-					else {
-						// Reset the click count.
-						click_count = 1;
 
-						// Set the previous button.
-						click_button = event.data.mouse.button;
-					}
+						// Save this events time to calculate the click_count.
+						click_time = timestamp;
 
-					// Save this events time to calculate the click_count.
-					click_time = timestamp;
+						// Note that all of the button modifiers are in order at the high byte.
+						// TODO If we add support for extra buttons, they should not have a unique mask!
+						set_modifier_mask(1 << (event.data.mouse.button + 7));
 
-					// Note that all of the button modifiers are in order at the high byte.
-					set_modifier_mask(1 << (event.data.mouse.button + 7));
+						// Populate mouse pressed event.
+						event.time = timestamp;
+						event.reserved = 0x00;
 
-					// Populate mouse pressed event.
-					event.type = EVENT_MOUSE_PRESSED;
-					event.mask = get_modifiers();
+						event.type = EVENT_MOUSE_PRESSED;
+						event.mask = get_modifiers();
 
-					event.data.mouse.clicks = click_count;
+						event.data.mouse.clicks = click_count;
+						event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+						event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-							event.data.mouse.x, event.data.mouse.y);
+						#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+						uint8_t count;
+						screen_data *screens = hook_get_screen_info(&count);
+						if (count > 1) {
+							event.data.mouse.x -= screens[0].x;
+							event.data.mouse.y -= screens[0].y;
+						}
+						#endif
 
-					// Fire mouse pressed event.
-					dispatch_event(&event);
-					break;
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+								event.data.mouse.x, event.data.mouse.y);
 
-				case WheelUp:
-				case WheelDown:
-					/* Scroll wheel release events.
-					 * Scroll type: WHEEL_UNIT_SCROLL
-					 * Scroll amount: 3 unit increments per notch
-					 * Units to scroll: 3 unit increments
-					 * Vertical unit increment: 15 pixels
-					 */
-
-					// Reset the click count and previous button.
-					click_count = 1;
-					click_button = MOUSE_NOBUTTON;
-
-					// Populate mouse wheel event.
-					event.type = EVENT_MOUSE_WHEEL;
-					event.mask = get_modifiers();
-
-					event.data.mouse.button = click_button;
-					event.data.mouse.clicks = click_count;
-
-					/* X11 does not have an API call for acquiring the mouse scroll type.  This
-					 * maybe part of the XInput2 (XI2) extention but I will wont know until it
-					 * is available on my platform.  For the time being we will just use the
-					 * unit scroll value.
-					 */
-					event.data.wheel.type = WHEEL_UNIT_SCROLL;
-
-					/* Some scroll wheel properties are available via the new XInput2 (XI2)
-					 * extension.  Unfortunately the extension is not available on my
-					 * development platform at this time.  For the time being we will just
-					 * use the Windows default value of 3.
-					 */
-					event.data.wheel.amount = 3;
-
-					// MS assumption is more natural (follows the cartesian coordinate system)
-					// FIXME I don't understand the above adjustment and comment...
-					if (data->event.u.u.detail == WheelUp) {
-						// Wheel Rotated Up and Away.
-						event.data.wheel.rotation = -1;
-					}
-					else { // event_code == WheelDown
-						// Wheel Rotated Down and Towards.
-						event.data.wheel.rotation = 1;
-					}
-
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
-							__FUNCTION__, __LINE__, event.data.wheel.type,
-							event.data.wheel.amount * event.data.wheel.rotation,
-							event.data.wheel.x, event.data.wheel.y );
-
-					// Fire mouse wheel event.
-					dispatch_event(&event);
-					break;
+						// Fire mouse pressed event.
+						dispatch_event(&event);
+						break;
+				}
 			}
 		}
 		else if (data->type == ButtonRelease) {
@@ -412,6 +426,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					}
 
 					// Handle button release events.
+					// TODO If we add support for extra buttons, they should not have a unique mask!
 					unset_modifier_mask(1 << (button + 7));
 
 					// Populate mouse released event.
@@ -440,10 +455,11 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 							event.data.mouse.clicks,
 							event.data.mouse.x, event.data.mouse.y);
 
+					// Fire mouse released event.
 					dispatch_event(&event);
 
 					if (mouse_dragged != true) {
-						// Fire mouse clicked event.
+						// Populate mouse clicked event.
 						event.time = timestamp;
 						event.reserved = 0x00;
 
@@ -469,6 +485,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 								event.data.mouse.clicks,
 								event.data.mouse.x, event.data.mouse.y);
 
+						// Fire mouse clicked event.
 						dispatch_event(&event);
 					}
 					break;
@@ -484,12 +501,11 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			event.time = timestamp;
 			event.reserved = 0x00;
 
-			// Populate common event info.
 			event.mask = get_modifiers();
 
 			// Check the upper half of virtual modifiers for non-zero
 			// values and set the mouse dragged flag.
-			mouse_dragged = (event.mask >> 4 > 0);
+			mouse_dragged = (event.mask >> 8 > 0);
 			if (mouse_dragged) {
 				// Create Mouse Dragged event.
 				event.type = EVENT_MOUSE_DRAGGED;
@@ -517,6 +533,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
 					event.data.mouse.x, event.data.mouse.y, event.mask);
 
+			// Fire mouse move event.
 			dispatch_event(&event);
 		}
 		else {

@@ -153,7 +153,8 @@ static void *hook_thread_proc(void *arg) {
 						__FUNCTION__, __LINE__);
 
 				// Save the data display associated with this hook so it is passed to each event.
-				XPointer closeure = (XPointer) (ctrl_display);
+				//XPointer closeure = (XPointer) (ctrl_display);
+				XPointer closeure = NULL;
 
 				#ifdef USE_XRECORD_ASYNC
 				// Async requires that we loop so that our thread does not return.

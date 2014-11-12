@@ -149,10 +149,21 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	#elif defined(USE_XRANDR)
 	pthread_mutex_lock(&xrr_mutex);
 	if (xrr_resources != NULL) {
-		screens = malloc(sizeof(screen_data) * xrr_resources->ncrtc);
+		int xrr_count = xrr_resources->ncrtc;
+		if (xine_count > UINT8_MAX) {
+			*count = UINT8_MAX;
+
+			logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
+					__FUNCTION__, __LINE__);
+		}
+		else {
+			*count = (uint8_t) xrr_count;
+		}
+
+		screens = malloc(sizeof(screen_data) * xrr_count);
 
 		if (screens != NULL) {
-			for (int i = 0; i < xrr_resources->ncrtc; i++) {
+			for (int i = 0; i < xrr_count; i++) {
 				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(disp, xrr_resources, xrr_resources->crtcs[i]);
 				
 				if (crtc_info != NULL) {
@@ -179,13 +190,16 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 
 	if (default_screen->width > 0 && default_screen->height > 0) {
 		screens = malloc(sizeof(screen_data));
-		screens[0] = (screen_data) {
-			.number = 1,
-			.x = 0,
-			.y = 0,
-			.width = default_screen->width,
-			.height = default_screen->height
-		};
+
+		if (screens != NULL) {
+			screens[0] = (screen_data) {
+				.number = 1,
+				.x = 0,
+				.y = 0,
+				.width = default_screen->width,
+				.height = default_screen->height
+			};
+		}
 	}
 	#endif
 

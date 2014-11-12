@@ -110,15 +110,13 @@ int main() {
 	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
 		#ifdef _WIN32
 		WaitForSingleObject(control_handle, INFINITE);
-		#else
-		#if defined(__APPLE__) && defined(__MACH__)
+		#elif defined(__APPLE__) && defined(__MACH__)
 		// NOTE Darwin requires that you start your own runloop from main.
 		CFRunLoopRun();
 		#else
 		pthread_mutex_lock(&control_mutex);
 		pthread_cond_wait(&control_cond, &control_mutex);
 		pthread_mutex_unlock(&control_mutex);
-		#endif
 		#endif
 	}
 

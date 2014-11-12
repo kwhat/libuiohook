@@ -38,8 +38,8 @@ int main() {
 
 		for (int i = 0; i < count; i++) {
 			fprintf(stdout,	"\tNumber:\t\t%d\n", screens[i].number);
-			fprintf(stdout,	"\tOffset X:\t%d\n", screens[i].offset_x);
-			fprintf(stdout,	"\tOffset Y:\t%d\n", screens[i].offset_y);
+			fprintf(stdout,	"\tOffset X:\t%d\n", screens[i].x);
+			fprintf(stdout,	"\tOffset Y:\t%d\n", screens[i].y);
 			fprintf(stdout,	"\tWidth:\t\t%d\n", screens[i].width);
 			fprintf(stdout,	"\tHeight:\t\t%d\n", screens[i].height);
 			fprintf(stdout,	"\n");

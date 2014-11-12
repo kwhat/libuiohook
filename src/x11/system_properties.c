@@ -31,7 +31,9 @@
 #include <X11/extensions/xf86misc.h>
 #include <X11/extensions/xf86mscstr.h>
 #endif
-#ifdef USE_XRANDR
+#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+#include <X11/extensions/Xinerama.h>
+#elif defined(USE_XRANDR)
 #include <pthread.h>
 #include <X11/extensions/Xrandr.h>
 #endif
@@ -53,14 +55,14 @@ static pthread_mutex_t xrr_mutex = PTHREAD_MUTEX_INITIALIZER;
 static XRRScreenResources *xrr_resources = NULL;
 
 static void settings_cleanup_proc(void *arg) {
-	pthread_mutex_trylock(&xrr_mutex);
-	
-	if (xrr_resources != NULL) {
-		XRRFreeScreenResources(xrr_resources);
-		xrr_resources = NULL;
-	}
+	if (pthread_mutex_trylock(&xrr_mutex) == 0) {
+		if (xrr_resources != NULL) {
+			XRRFreeScreenResources(xrr_resources);
+			xrr_resources = NULL;
+		}
 
-	pthread_mutex_unlock(&xrr_mutex);
+		pthread_mutex_unlock(&xrr_mutex);
+	}
 }
 
 static void *settings_thread_proc(void *arg) {
@@ -73,23 +75,30 @@ static void *settings_thread_proc(void *arg) {
 	
 	while(disp != NULL) {
 		XNextEvent(disp, &ev);
-	
+
 		if (ev.type == XRRScreenChangeNotifyEvent) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
+					__FUNCTION__, __LINE__);
+
 			int event_base = 0;
 			int error_base = 0;
 			if (XRRQueryExtension(disp, &event_base, &error_base)) {
 				Window root = DefaultRootWindow(disp);
 
 				pthread_mutex_lock(&xrr_mutex);
+				if (xrr_resources != NULL) {
+					XRRFreeScreenResources(xrr_resources);
+				}
+
 				xrr_resources = XRRGetScreenResources(disp, root);
 				if (xrr_resources == NULL) {
-					logger(LOG_LEVEL_WARN,	"%s [%u]: XRandr could not get screen resources!\n",
+					logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR could not get screen resources!\n",
 							__FUNCTION__, __LINE__);
 				}
 				pthread_mutex_unlock(&xrr_mutex);
 			}
 			else {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: XRandr is not currently available!\n",
+				logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR is not currently available!\n",
 						__FUNCTION__, __LINE__);
 			}
 		}
@@ -105,29 +114,29 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	screen_data *screens = NULL;
 		
 	#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-	if (XineramaIsActive(disp) {
+	if (XineramaIsActive(disp)) {
 		int xine_count = 0;
 		XineramaScreenInfo *xine_info = XineramaQueryScreens(disp, &xine_count);
 		
 		if (xine_info != NULL) {
 			if (xine_count > UINT8_MAX) {
-				count = UINT8_MAX;
+				*count = UINT8_MAX;
 				
 				logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
 						__FUNCTION__, __LINE__);
 			}
 			else {
-				count = (uint8_t) xine_count;
+				*count = (uint8_t) xine_count;
 			}
 			
 			screens = malloc(sizeof(screen_data) * xine_count);
 			
 			if (screens != NULL) {
 				for (int i = 0; i < xine_count; i++) {
-					screens[i] = {
+					screens[i] = (screen_data) {
 						.number = xine_info[i].screen_number,
-						.offset_x = xine_info[i].x_org,
-						.offset_y = xine_info[i].y_org,
+						.x = xine_info[i].x_org,
+						.y = xine_info[i].y_org,
 						.width = xine_info[i].width,
 						.height = xine_info[i].height
 					};
@@ -147,10 +156,10 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(disp, xrr_resources, xrr_resources->crtcs[i]);
 				
 				if (crtc_info != NULL) {
-					screens[i] = {
+					screens[i] = (screen_data) {
 						.number = i + 1,
-						.offset_x = crtc_info->x,
-						.offset_y = crtc_info->y,
+						.x = crtc_info->x,
+						.y = crtc_info->y,
 						.width = crtc_info->width,
 						.height = crtc_info->height
 					};
@@ -165,6 +174,19 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 		}
 	}
 	pthread_mutex_unlock(&xrr_mutex);
+	#else
+	Screen* default_screen = DefaultScreenOfDisplay(disp);
+
+	if (default_screen->width > 0 && default_screen->height > 0) {
+		screens = malloc(sizeof(screen_data));
+		screens[0] = (screen_data) {
+			.number = 1,
+			.x = 0,
+			.y = 0,
+			.width = default_screen->width,
+			.height = default_screen->height
+		};
+	}
 	#endif
 
 	return screens;
@@ -389,28 +411,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	return value;
 }
 
-/* FIXME Fallback if no Xinerama or XRandR in hook_get_screen_info()
-UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
-	//http://linux.die.net/man/3/xopendisplay
-	//important to close after used.
-	//XOpenDisplay connects your application to the X server through TCP
-	// or DECnet communications protocols
-	Display* disp = XOpenDisplay(NULL);
-	Screen* scrn = DefaultScreenOfDisplay(disp);
-
-	int _screenWidth  = scrn->width;
-	int _screenHeight = scrn->height;
-
-	//Close connection and clean up
-	XCloseDisplay( disp );
-
-	*screenWidth = _screenWidth;
-	*screenHeight = _screenHeight;
-
-	//TODO: it might need more checks
-	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
-}
-*/
 
 // Create a shared object constructor.
 __attribute__ ((constructor))
@@ -428,10 +428,11 @@ void on_library_load() {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay success.");
 	}
-	
+
+	#ifdef USE_XRANDR
 	// Create the thread attribute.
 	pthread_attr_t settings_thread_attr;
-	pthread_attr_init(&settings_thread_attr)
+	pthread_attr_init(&settings_thread_attr);
 	
 	pthread_t settings_thread_id;
 	if (pthread_create(&settings_thread_id, &settings_thread_attr, settings_thread_proc, NULL) == 0) {
@@ -445,6 +446,7 @@ void on_library_load() {
 	
 	// Make sure the thread attribute is removed.
 	pthread_attr_destroy(&settings_thread_attr);
+	#endif
 
 	// Initialize native input helper functions.
 	load_input_helper(disp);

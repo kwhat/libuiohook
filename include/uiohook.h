@@ -80,8 +80,8 @@ typedef enum _event_type {
 
 typedef struct _screen_data {
 	uint8_t number;
-	int16_t offset_x;
-	int16_t offset_y;
+	int16_t x;
+	int16_t y;
 	uint16_t width;
 	uint16_t height;
 } screen_data;
@@ -411,7 +411,7 @@ extern "C" {
 	// Check the event hook status.
 	UIOHOOK_API bool hook_is_enabled();
 
-	// Retrieves an array of screen data for each avaiable monitor.
+	// Retrieves an array of screen data for each available monitor.
 	UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count);
 
 	// Retrieves the keyboard auto repeat rate.

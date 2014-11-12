@@ -37,6 +37,32 @@
 #include "logger.h"
 #include "input_helper.h"
 
+UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	// FIXME This needs to be implemented correctly for Multi-Head!
+	*count = 0;
+	screen_data *screens = NULL;
+
+	size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
+	size_t width = CGDisplayPixelsWide(CGMainDisplayID());
+
+	if (width > 0 && height > 0) {
+		screens = malloc(sizeof(screen_data));
+
+		if (screens != NULL) {
+			*count = 1;
+			screens[0] = (screen_data) {
+				.number = 1,
+				.x = 0,
+				.y = 0,
+				.width = default_screen->width,
+				.height = default_screen->height
+			};
+		}
+	}
+
+	return screens;
+}
+
 /*
  * Apple's documentation is not very good.  I was finally able to find this
  * information after many hours of googling.  Value is the slider value in the
@@ -442,19 +468,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	#endif
 
 	return value;
-}
-
-
-UIOHOOK_API bool hook_get_screen_resolution( uint16_t *screenWidth, uint16_t *screenHeight ){
-
-	size_t _screenHeight = CGDisplayPixelsHigh( CGMainDisplayID() );
-    size_t _screenWidth = CGDisplayPixelsWide( CGMainDisplayID() );
-
-	*screenWidth = _screenWidth;
-	*screenHeight = _screenHeight;
-
-	//TODO: it might need more checks
-	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }
 
 

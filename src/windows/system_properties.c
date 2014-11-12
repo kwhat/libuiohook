@@ -30,6 +30,32 @@
 // Global Variables.
 HINSTANCE hInst = NULL;
 
+UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	// FIXME This needs to be implemented correctly for Multi-Head!
+	*count = 0;
+	screen_data *screens = NULL;
+
+	int width  = GetSystemMetrics(SM_CXSCREEN);
+	int height = GetSystemMetrics(SM_CYSCREEN);
+
+	if (width > 0 && height > 0) {
+		screens = malloc(sizeof(screen_data));
+
+		if (screens != NULL) {
+			*count = 1;
+			screens[0] = (screen_data) {
+				.number = 1,
+				.x = 0,
+				.y = 0,
+				.width = default_screen->width,
+				.height = default_screen->height
+			};
+		}
+	}
+
+	return screens;
+}
+
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	long int value = -1;
 	long int rate;
@@ -114,44 +140,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	value = (long int) clicktime;
 
 	return value;
-}
-
-UIOHOOK_API long int hook_get_desktop_width() {
-	long int value = -1;
-	int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-
-	// TODO This check is probably not needed for windows.
-	// The API docs don't seem to suggest that this function never fails.
-	if (width > 0) {
-		value = (long int) width;
-	}
-
-	return value;
-}
-
-UIOHOOK_API long int hook_get_desktop_height() {
-	long int value = -1;
-	int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-
-	// TODO This check is probably not needed for windows.
-	if (height > 0) {
-		value = (long int) height;
-	}
-
-	return value;
-}
-
-UIOHOOK_API bool hook_get_screen_resolution(uint16_t *screenWidth, uint16_t *screenHeight) {
-	int width  = GetSystemMetrics(SM_CXSCREEN);
-	int height = GetSystemMetrics(SM_CYSCREEN);
-
-	*screenWidth = width;
-	*screenHeight = height;
-
-	//TODO: it might need more checks.
-	//NOTE: I don't think this needs a check.  The API docs don't seem to
-	//		suggest that this function never fails.
-	return ( _screenWidth > 0 && _screenHeight > 0 ? true : false );
 }
 
 // DLL Entry point.

@@ -336,104 +336,179 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				/* This information is all static for X11, its up to the WM to
 				 * decide how to interpret the wheel events.
 				 */
-				// TODO For extended button support > 5, if (wheel) else mouse w/ button - 4 if > 3
-				// FIXME Refactor this switch statement!
+				uint16_t button = MOUSE_NOBUTTON;
 				switch (data->event.u.u.detail) {
+					// FIXME This should use a lookup table to handle button remapping.
 					case Button1:
+						button = MOUSE_BUTTON1;
+						set_modifier_mask(MASK_BUTTON1);
+						break;
+
 					case Button2:
+						button = MOUSE_BUTTON2;
+						set_modifier_mask(MASK_BUTTON2);
+						break;
+
 					case Button3:
+						button = MOUSE_BUTTON3;
+						set_modifier_mask(MASK_BUTTON3);
+						break;
+
 					case XButton1:
+						button = MOUSE_BUTTON4;
+						set_modifier_mask(MASK_BUTTON5);
+						break;
+
 					case XButton2:
-						// FIXME This should use a lookup table in the input_helper to handle button remapping.
-						//event.data.mouse.button = (data->event.u.u.detail & 0x03) | (data->event.u.u.detail & 0x08) >> 1;
-						event.data.mouse.button = data->event.u.u.detail;
-						if (event.data.mouse.button > 3) {
-							event.data.mouse.button -= 4;
-						}
+						button = MOUSE_BUTTON5;
+						set_modifier_mask(MASK_BUTTON5);
+						break;
 
-						// Track the number of clicks, the button must match the previous button.
-						if (event.data.mouse.button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
-							if (click_count < USHRT_MAX) {
-								click_count++;
-							}
-							else {
-								logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
-										__FUNCTION__, __LINE__);
+					default:
+						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
+						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
+							button = data->event.u.u.detail - 4;
+							
+							if (button + 7 < 16) {
+								set_modifier_mask(1 << (button + 7));
 							}
 						}
-						else {
-							// Reset the click count.
-							click_count = 1;
-
-							// Set the previous button.
-							click_button = event.data.mouse.button;
-						}
-
-						// Save this events time to calculate the click_count.
-						click_time = timestamp;
-
-						// Note that all of the button modifiers are in order at the high byte.
-						// TODO If we add support for extra buttons, they should not have a unique mask!
-						set_modifier_mask(1 << (event.data.mouse.button + 7));
-
-						// Populate mouse pressed event.
-						event.time = timestamp;
-						event.reserved = 0x00;
-
-						event.type = EVENT_MOUSE_PRESSED;
-						event.mask = get_modifiers();
-
-						event.data.mouse.clicks = click_count;
-						event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
-						event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
-
-						#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-						uint8_t count;
-						screen_data *screens = hook_get_screen_info(&count);
-						if (count > 1) {
-							event.data.mouse.x -= screens[0].x;
-							event.data.mouse.y -= screens[0].y;
-						}
-						#endif
-
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-								event.data.mouse.x, event.data.mouse.y);
-
-						// Fire mouse pressed event.
-						dispatch_event(&event);
 						break;
 				}
+
+
+				// Track the number of clicks, the button must match the previous button.
+				if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
+					if (click_count < USHRT_MAX) {
+						click_count++;
+					}
+					else {
+						logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
+								__FUNCTION__, __LINE__);
+					}
+				}
+				else {
+					// Reset the click count.
+					click_count = 1;
+
+					// Set the previous button.
+					click_button = button;
+				}
+
+				// Save this events time to calculate the click_count.
+				click_time = timestamp;
+
+
+				// Populate mouse pressed event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.type = EVENT_MOUSE_PRESSED;
+				event.mask = get_modifiers();
+
+				event.data.mouse.button = button;
+				event.data.mouse.clicks = click_count;
+				event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+				event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
+
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				uint8_t count;
+				screen_data *screens = hook_get_screen_info(&count);
+				if (count > 1) {
+					event.data.mouse.x -= screens[0].x;
+					event.data.mouse.y -= screens[0].y;
+				}
+				#endif
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+						event.data.mouse.x, event.data.mouse.y);
+
+				// Fire mouse pressed event.
+				dispatch_event(&event);
 			}
 		}
 		else if (data->type == ButtonRelease) {
-			/* This information is all static for X11, its up to the WM to
-			 * decide how to interpret the wheel events.
-			 */
-			// TODO For extended button support > 5, if (wheel) else mouse w/ button - 4 if > 3
-			unsigned short int button = MOUSE_NOBUTTON;
-			switch (data->event.u.u.detail) {
-				case Button1:
-				case Button2:
-				case Button3:
-				case XButton1:
-				case XButton2:
+			// X11 handles wheel events as button events.
+			if (data->event.u.u.detail != WheelUp && data->event.u.u.detail != WheelDown) {
+				/* This information is all static for X11, its up to the WM to
+				 * decide how to interpret the wheel events.
+				 */
+				uint16_t button = MOUSE_NOBUTTON;
+				switch (data->event.u.u.detail) {
 					// FIXME This should use a lookup table to handle button remapping.
-					//event.data.mouse.button = (data->event.u.u.detail & 0x03) | (data->event.u.u.detail & 0x08) >> 1;
-					button = data->event.u.u.detail;
-					if (button > 3) {
-						button -= 4;
-					}
+					case Button1:
+						button = MOUSE_BUTTON1;
+						unset_modifier_mask(MASK_BUTTON1);
+						break;
 
-					// Handle button release events.
-					// TODO If we add support for extra buttons, they should not have a unique mask!
-					unset_modifier_mask(1 << (button + 7));
+					case Button2:
+						button = MOUSE_BUTTON2;
+						unset_modifier_mask(MASK_BUTTON2);
+						break;
 
-					// Populate mouse released event.
+					case Button3:
+						button = MOUSE_BUTTON3;
+						unset_modifier_mask(MASK_BUTTON3);
+						break;
+
+					case XButton1:
+						button = MOUSE_BUTTON4;
+						unset_modifier_mask(MASK_BUTTON5);
+						break;
+
+					case XButton2:
+						button = MOUSE_BUTTON5;
+						unset_modifier_mask(MASK_BUTTON5);
+						break;
+
+					default:
+						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
+						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
+							button = data->event.u.u.detail - 4;
+							
+							if (button + 7 < 16) {
+								unset_modifier_mask(1 << (button + 7));
+							}
+						}
+						break;
+				}
+				
+				// Populate mouse released event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.type = EVENT_MOUSE_RELEASED;
+				event.mask = get_modifiers();
+
+				event.data.mouse.button = button;
+				event.data.mouse.clicks = click_count;
+				event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+				event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
+
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				uint8_t count;
+				screen_data *screens = hook_get_screen_info(&count);
+				if (count > 1) {
+					event.data.mouse.x -= screens[0].x;
+					event.data.mouse.y -= screens[0].y;
+				}
+				#endif
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+						__FUNCTION__, __LINE__, event.data.mouse.button,
+						event.data.mouse.clicks,
+						event.data.mouse.x, event.data.mouse.y);
+
+				// Fire mouse released event.
+				dispatch_event(&event);
+
+				if (mouse_dragged != true) {
+					// Populate mouse clicked event.
 					event.time = timestamp;
 					event.reserved = 0x00;
 
-					event.type = EVENT_MOUSE_WHEEL;
+					event.type = EVENT_MOUSE_CLICKED;
 					event.mask = get_modifiers();
 
 					event.data.mouse.button = button;
@@ -450,45 +525,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					}
 					#endif
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 							__FUNCTION__, __LINE__, event.data.mouse.button,
 							event.data.mouse.clicks,
 							event.data.mouse.x, event.data.mouse.y);
 
-					// Fire mouse released event.
+					// Fire mouse clicked event.
 					dispatch_event(&event);
-
-					if (mouse_dragged != true) {
-						// Populate mouse clicked event.
-						event.time = timestamp;
-						event.reserved = 0x00;
-
-						event.type = EVENT_MOUSE_CLICKED;
-						event.mask = get_modifiers();
-
-						event.data.mouse.button = button;
-						event.data.mouse.clicks = click_count;
-						event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
-						event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
-
-						#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-						uint8_t count;
-						screen_data *screens = hook_get_screen_info(&count);
-						if (count > 1) {
-							event.data.mouse.x -= screens[0].x;
-							event.data.mouse.y -= screens[0].y;
-						}
-						#endif
-
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-								__FUNCTION__, __LINE__, event.data.mouse.button,
-								event.data.mouse.clicks,
-								event.data.mouse.x, event.data.mouse.y);
-
-						// Fire mouse clicked event.
-						dispatch_event(&event);
-					}
-					break;
+				}
 			}
 		}
 		else if (data->type == MotionNotify) {

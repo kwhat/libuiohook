@@ -60,52 +60,69 @@ static void settings_cleanup_proc(void *arg) {
 			XRRFreeScreenResources(xrr_resources);
 			xrr_resources = NULL;
 		}
+		
+		if (arg != NULL) {
+			XCloseDisplay((Display *) arg);
+			arg = NULL;
+		}
 
 		pthread_mutex_unlock(&xrr_mutex);
 	}
 }
 
 static void *settings_thread_proc(void *arg) {
-	pthread_cleanup_push(settings_cleanup_proc, NULL);
-	
-	Window root = XDefaultRootWindow(disp);
-	unsigned long event_mask = RRScreenChangeNotifyMask;
-	XRRSelectInput(disp, root, event_mask);
-	XEvent ev;
-	
-	while(disp != NULL) {
-		XNextEvent(disp, &ev);
+	Display *disp_settings = XOpenDisplay(XDisplayName(NULL));;
+	if (disp_settings != NULL) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
+				__FUNCTION__, __LINE__, "XOpenDisplay success.");
+		
+		pthread_cleanup_push(settings_cleanup_proc, disp_settings);
 
-		if (ev.type == XRRScreenChangeNotifyEvent) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
-					__FUNCTION__, __LINE__);
+		int event_base = 0;
+		int error_base = 0;
+		if (XRRQueryExtension(disp_settings, &event_base, &error_base)) {
+			Window root = XDefaultRootWindow(disp_settings);
+			unsigned long event_mask = RRScreenChangeNotifyMask;
+			XRRSelectInput(disp_settings, root, event_mask);
 
-			int event_base = 0;
-			int error_base = 0;
-			if (XRRQueryExtension(disp, &event_base, &error_base)) {
-				Window root = DefaultRootWindow(disp);
+			XEvent ev;
 
-				pthread_mutex_lock(&xrr_mutex);
-				if (xrr_resources != NULL) {
-					XRRFreeScreenResources(xrr_resources);
+			while(disp_settings != NULL) {
+				XNextEvent(disp_settings, &ev);
+
+				if (ev.type == event_base + RRScreenChangeNotifyMask) {
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
+							__FUNCTION__, __LINE__);
+
+					pthread_mutex_lock(&xrr_mutex);
+					if (xrr_resources != NULL) {
+						XRRFreeScreenResources(xrr_resources);
+					}
+
+					xrr_resources = XRRGetScreenResources(disp_settings, root);
+					if (xrr_resources == NULL) {
+						logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR could not get screen resources!\n",
+								__FUNCTION__, __LINE__);
+					}
+					pthread_mutex_unlock(&xrr_mutex);
 				}
-
-				xrr_resources = XRRGetScreenResources(disp, root);
-				if (xrr_resources == NULL) {
-					logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR could not get screen resources!\n",
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR is not currently available!\n",
 							__FUNCTION__, __LINE__);
 				}
-				pthread_mutex_unlock(&xrr_mutex);
-			}
-			else {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR is not currently available!\n",
-						__FUNCTION__, __LINE__);
 			}
 		}
-	}
+		
+		// Execute the thread cleanup handler.
+		pthread_cleanup_pop(1);
 	
-	// Execute the thread cleanup handler.
-	pthread_cleanup_pop(1);
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
+				__FUNCTION__, __LINE__);
+	}
+
+	return NULL;
 }
 #endif
 
@@ -150,7 +167,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	pthread_mutex_lock(&xrr_mutex);
 	if (xrr_resources != NULL) {
 		int xrr_count = xrr_resources->ncrtc;
-		if (xine_count > UINT8_MAX) {
+		if (xrr_count > UINT8_MAX) {
 			*count = UINT8_MAX;
 
 			logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",

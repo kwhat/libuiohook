@@ -42,9 +42,9 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	*count = 0;
 	screen_data *screens = NULL;
 
-	size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
 	size_t width = CGDisplayPixelsWide(CGMainDisplayID());
-
+	size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
+	
 	if (width > 0 && height > 0) {
 		screens = malloc(sizeof(screen_data));
 
@@ -54,8 +54,8 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 				.number = 1,
 				.x = 0,
 				.y = 0,
-				.width = default_screen->width,
-				.height = default_screen->height
+				.width = width,
+				.height = height
 			};
 		}
 	}

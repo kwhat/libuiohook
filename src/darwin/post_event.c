@@ -33,16 +33,20 @@
 CGMouseButton toCarbonMouseButton( int evenMouseButton ){
     CGMouseButton cgMButton = -1;
 	switch( evenMouseButton ){
-		case MOUSE_LEFT:
+		case MOUSE_BUTTON1:
 			cgMButton = kCGMouseButtonLeft;
 			break;
-		case MOUSE_RIGHT:
+		case MOUSE_BUTTON2:
 			cgMButton = kCGMouseButtonRight;
 			break;
-		case MOUSE_MIDDLE:
+		case MOUSE_BUTTON3:
 			cgMButton = kCGMouseButtonCenter;
 			break;
+			
+			//default:
+				// FIXME EXTRA BUTTONS
 	}
+	
 	return cgMButton;
 }
 

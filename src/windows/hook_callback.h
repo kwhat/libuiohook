@@ -25,8 +25,9 @@ extern void hook_start_proc();
 
 extern void hook_stop_proc();
 
-// Callback used by hook_thead for all events.
-extern LRESULT CALLBACK hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam);
+extern LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam);
+
+extern LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam);
 
 extern void initialize_modifiers();
 

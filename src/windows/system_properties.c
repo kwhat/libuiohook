@@ -47,8 +47,8 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 				.number = 1,
 				.x = 0,
 				.y = 0,
-				.width = default_screen->width,
-				.height = default_screen->height
+				.width = width,
+				.height = height
 			};
 		}
 	}

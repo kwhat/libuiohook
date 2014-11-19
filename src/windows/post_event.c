@@ -62,13 +62,26 @@ static UINT keymask_lookup[8] = {
 	VK_RMENU
 };
 
+static inline void process_key_event(DWORD dwFlags, INPUT *ms_event, uiohook_event * const event) {
+
+}
+
+static inline void process_button_event(DWORD dwFlags, INPUT *ms_event, uiohook_event * const event) {
+
+}
+
+static inline void process_motion_event(DWORD dwFlags, INPUT *ms_event, uiohook_event * const event) {
+
+}
+
+static inline void process_wheel_event(uiohook_event * const event) {
+
+}
+
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
 
-	double fScreenWidth   = GetSystemMetrics( SM_CXSCREEN )-1; 
-	double fScreenHeight  = GetSystemMetrics( SM_CYSCREEN )-1;
-	
 	if (event->mask & (MASK_SHIFT | MASK_CTRL | MASK_META | MASK_ALT)) {
 		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
 			if (event->mask & 1 << i) {
@@ -113,27 +126,47 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events_size++;
 	}
 
-	char buffer[4];
+
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
-			events[events_size].ki.dwFlags = 0x0000;  // KEYEVENTF_KEYDOWN
-			goto EVENT_KEY;
-
-		case EVENT_KEY_TYPED:
-			// Need to convert a wchar_t to keysym!
-			snprintf(buffer, 4, "%lc", (wint_t) event->data.keyboard.keychar);
-
-			event->type = EVENT_KEY_PRESSED;
-			event->data.keyboard.keycode = MapVirtualKey(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)), MAPVK_VK_TO_VSC_EX);
-			event->data.keyboard.keychar = CHAR_UNDEFINED;
-			hook_post_event(event);
-
-		case EVENT_KEY_RELEASED:
-			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
-
-		EVENT_KEY:
 			events[events_size].type = INPUT_KEYBOARD;
+			events[events_size].ki.dwFlags = 0x0000; // KEYEVENTF_KEYDOWN
+			events[events_size].ki.wVk = MapVirtualKey(event->data.keyboard.keycode, MAPVK_VK_TO_VSC_EX);
+			events[events_size].ki.wScan = event->data.keyboard.keycode;
+			events[events_size].ki.dwFlags = KEYEVENTF_SCANCODE;
 
+			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
+					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
+				//Key is an extended key.
+				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+			}
+			events[events_size].ki.time = 0; //GetSystemTime()
+			events_size++;
+			break;
+			
+		case EVENT_KEY_TYPED:
+			events[events_size].type = INPUT_KEYBOARD;
+			events[events_size].ki.dwFlags = 0x0000; // KEYEVENTF_KEYDOWN
+			events[events_size].ki.wVk = MapVirtualKey(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)), MAPVK_VK_TO_VSC_EX);
+			events[events_size].ki.wScan = event->data.keyboard.keycode;
+			events[events_size].ki.dwFlags = KEYEVENTF_SCANCODE;
+
+			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
+					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
+				//Key is an extended key.
+				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+			}
+			events[events_size].ki.time = 0; //GetSystemTime()
+			events_size++;
+			
+			events[events_size] = events[events_size - 1];
+			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
+			events_size++;
+			break;
+					
+		case EVENT_KEY_RELEASED:
+			events[events_size].type = INPUT_KEYBOARD;
+			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
 			events[events_size].ki.wVk = MapVirtualKey(event->data.keyboard.keycode, MAPVK_VK_TO_VSC_EX);
 			events[events_size].ki.wScan = event->data.keyboard.keycode;
 			events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
@@ -147,87 +180,128 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events_size++;
 			break;
 
+		
+		case EVENT_MOUSE_CLICKED:
 		case EVENT_MOUSE_PRESSED:
-		    switch( event->data.mouse.button ){
+			events[events_size].type = INPUT_MOUSE;
+			events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
+			
+			switch (event->data.mouse.button) {
 				case MOUSE_BUTTON1:
-					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;					
-				break;
+					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+					break;
+
 				case MOUSE_BUTTON2:
 					events[events_size].mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
-				break;
+					break;
+
 				case MOUSE_BUTTON3:
 					events[events_size].mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
-				break;
+					break;
+
 				case MOUSE_BUTTON4:
-					events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
 					events[events_size].mi.mouseData = XBUTTON1;
-				break;
-				case MOUSE_BUTTON5:
-					events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
+					break;
+
+			   case MOUSE_BUTTON5:
 					events[events_size].mi.mouseData = XBUTTON2;
+					break;
+					
+				default:
+					// Extra buttons.
+					if (event->data.mouse.button > 3) {
+						events[events_size].mi.mouseData = event->data.mouse.button - 3;
+					}
+			}
+			
+			events[events_size].mi.dx = event->data.mouse.x;
+			events[events_size].mi.dy = event->data.mouse.y;
+
+	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
+	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.time = 0; //GetSystemTime()
+			events_size++;
+			
+			if (event->type == EVENT_MOUSE_PRESSED) {
 				break;
 			}
-			goto EVENT_MOUSEBUTTON;
-
-		case EVENT_MOUSE_WHEEL:
-			events[events_size].mi.dwFlags = MOUSEEVENTF_WHEEL;
-			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
-			goto EVENT_MOUSEBUTTON;
-
-		case EVENT_MOUSE_CLICKED:
-			event->type = EVENT_MOUSE_PRESSED;
-			hook_post_event(event);
-
+			
 		case EVENT_MOUSE_RELEASED:
-			switch( event->data.mouse.button ){
+			events[events_size].type = INPUT_MOUSE;
+			events[events_size].mi.dwFlags = MOUSEEVENTF_XUP;
+			
+			switch (event->data.mouse.button) {
 				case MOUSE_BUTTON1:
-					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTUP;					
-				break;
+					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+					break;
+
 				case MOUSE_BUTTON2:
 					events[events_size].mi.dwFlags = MOUSEEVENTF_RIGHTUP;
-				break;
+					break;
+
 				case MOUSE_BUTTON3:
 					events[events_size].mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
-				break;
-				case MOUSE_BUTTON4:
-					events[events_size].mi.dwFlags = MOUSEEVENTF_XUP;
-					events[events_size].mi.mouseData = XBUTTON1;
-				break;
-				case MOUSE_BUTTON5:
-					events[events_size].mi.dwFlags = MOUSEEVENTF_XUP;
-					events[events_size].mi.mouseData = XBUTTON2;
-				break;
-			}
-			goto EVENT_MOUSEBUTTON;
+					break;
 
-			//TODO: remove goto's and refactor
-		EVENT_MOUSEBUTTON:
-			events[events_size].type = INPUT_MOUSE;
-			//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
-			//The coordinates need to be normalized
-			if( event->type == EVENT_MOUSE_WHEEL ){
-				events[events_size].mi.dx = event->data.wheel.x * (65535.0f/fScreenWidth);
-				events[events_size].mi.dy = event->data.wheel.y * (65535.0f/fScreenHeight);
-			}else{
-				events[events_size].mi.dx = event->data.mouse.x * (65535.0f/fScreenWidth);
-				events[events_size].mi.dy = event->data.mouse.y * (65535.0f/fScreenHeight);
-			}				
-			/*events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;*/
-			//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-			//events[events_size].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+				case MOUSE_BUTTON4:
+					events[events_size].mi.mouseData = XBUTTON1;
+					break;
+
+			   case MOUSE_BUTTON5:
+					events[events_size].mi.mouseData = XBUTTON2;
+					break;
+					
+				default:
+					// Extra buttons.
+					if (event->data.mouse.button > 3) {
+						events[events_size].mi.mouseData = event->data.mouse.button - 3;
+					}
+			}
+			
+			events[events_size].mi.dx = event->data.mouse.x;
+			events[events_size].mi.dy = event->data.mouse.y;
+
+	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
+	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
 
+			
+		case EVENT_MOUSE_WHEEL:
+			events[events_size].type = INPUT_MOUSE;
+			events[events_size].mi.dwFlags = MOUSEEVENTF_WHEEL;
+			
+			// type, amount and rotation?
+			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
+			
+			events[events_size].mi.dx = event->data.mouse.x;
+			events[events_size].mi.dy = event->data.mouse.y;
+			
+			events[events_size].mi.time = 0; //GetSystemTime()
+			events_size++;
+			break;
+
+
 		case EVENT_MOUSE_DRAGGED:
 			// The button masks are all applied with the modifier masks.
 
 		case EVENT_MOUSE_MOVED:
+			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
-			goto EVENT_MOUSEBUTTON;
+			events[events_size].mi.dx = event->data.mouse.x;
+			events[events_size].mi.dy = event->data.mouse.y;
+
+	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
+	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.time = 0; //GetSystemTime()
+			events_size++;
 			break;
 
 		case EVENT_HOOK_START:

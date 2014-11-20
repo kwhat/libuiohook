@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <uiohook.h>
 #include <X11/Xlib.h>
 #ifdef USE_XKB

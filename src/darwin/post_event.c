@@ -28,28 +28,6 @@
 
 #include "input_helper.h"
 
-//https://developer.apple.com/library/mac/documentation/Carbon/Reference/
-//QuartzEventServicesRef/index.html#//apple_ref/swift/tdef/CGMouseButton
-CGMouseButton toCarbonMouseButton( int evenMouseButton ){
-    CGMouseButton cgMButton = -1;
-	switch( evenMouseButton ){
-		case MOUSE_BUTTON1:
-			cgMButton = kCGMouseButtonLeft;
-			break;
-		case MOUSE_BUTTON2:
-			cgMButton = kCGMouseButtonRight;
-			break;
-		case MOUSE_BUTTON3:
-			cgMButton = kCGMouseButtonCenter;
-			break;
-			
-			//default:
-				// FIXME EXTRA BUTTONS
-	}
-	
-	return cgMButton;
-}
-
 // TODO Possibly relocate to input helper.
 static inline CGEventFlags get_key_event_mask(uiohook_event * const event) {
 	CGEventFlags native_mask = 0x00;

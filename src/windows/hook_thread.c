@@ -58,16 +58,13 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	}
 
 	// Create the native hooks.
-	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, hook_event_proc, hInst, 0);
-	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, hook_event_proc, hInst, 0);
+	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
+	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
 
 	// If we did not encounter a problem, start processing events.
 	if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
 				__FUNCTION__, __LINE__);
-
-		// Initialize native input helper functions.
-		load_input_helper();
 
 		// Check and setup modifiers.
 		initialize_modifiers();
@@ -89,9 +86,6 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 			TranslateMessage(&message);
 			DispatchMessage(&message);
 		}
-
-		// Deinitialize native input helper functions.
-		unload_input_helper();
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",

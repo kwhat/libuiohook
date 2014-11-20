@@ -70,7 +70,7 @@ libuiohook_la_SOURCES = $(HOOK_SRC)
 
 
 if BUILD_DEMO
-bin_PROGRAMS += demohook demopost
+bin_PROGRAMS += demohook demopost demoprops
 
 demohook_SOURCES = src/demo_hook.c
 demohook_LDADD = $(top_builddir)/libuiohook.la
@@ -81,6 +81,11 @@ demopost_SOURCES = src/demo_post.c
 demopost_LDADD = $(top_builddir)/libuiohook.la
 demopost_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
 demopost_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
+
+demoprops_SOURCES = src/demo_properties.c
+demoprops_LDADD = $(top_builddir)/libuiohook.la
+demoprops_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
+demoprops_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
 endif
 
 

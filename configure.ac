@@ -153,6 +153,16 @@ AC_ARG_ENABLE([xtest],
 	[enable_xtest="$enableval"],
 	[enable_xtest="yes"])
 
+AC_ARG_ENABLE([xinerama],
+	AS_HELP_STRING([--without-xinerama], [Disable Xinerama Extension (default: enabled)]),
+	[enable_xinerama="$enableval"],
+	[enable_xinerama="yes"])
+
+AC_ARG_ENABLE([xrandr],
+	AS_HELP_STRING([--with-xrandr], [Enable XRandR Extension (default: disabled)]),
+	[enable_xrandr="$enableval"],
+	[enable_xrandr="no"])
+
 # Darwin Options
 AC_ARG_ENABLE([corefoundation],
 	AS_HELP_STRING([--without-corefoundation],	[Disable CoreFoundation framework (default: enabled)]),
@@ -227,8 +237,8 @@ AS_IF(
 		REQUIRE="$REQUIRE x11"
 
 		PKG_CHECK_MODULES([XTST], [xtst])
-		#CFLAGS="$XTST_CFLAGS $CFLAGS"
 		LIBS="$XTST_LIBS $LIBS"
+		#CFLAGS="$XTST_CFLAGS $CFLAGS"
 		REQUIRE="$REQUIRE xtst"
 
 		# Check for XRecord.
@@ -282,6 +292,26 @@ AS_IF(
 				$LIBS)
 		])
 
+		AS_IF([test "x$enable_xrandr" = "xyes"], [
+			AS_IF([test "x$enable_xinerama" = "xyes" ], [
+				AC_MSG_WARN([Both Xinerama and XRandR were enabled, ignoring Xinerama!])
+			])
+
+			AC_DEFINE([USE_XRANDR], 1, [Enable XRandR Extension])
+			PKG_CHECK_MODULES([XRANDR], [xrandr])
+			LIBS="$XRANDR_LIBS $LIBS"
+			#CFLAGS="$XRANDR_CFLAGS $CFLAGS"
+			REQUIRE="$REQUIRE xrandr"
+		],[
+			AS_IF([test "x$enable_xinerama" = "xyes"], [
+				AC_DEFINE([USE_XINERAMA], 1, [Enable Xinerama Extension])
+				PKG_CHECK_MODULES([XINERAMA], [xinerama])
+				LIBS="$XINERAMA_LIBS $LIBS"
+				#CFLAGS="$XINERAMA_CFLAGS $CFLAGS"
+				REQUIRE="$REQUIRE xinerama"
+			])
+		])
+
 		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
 		LIBS="$PTHREAD_LIBS $LIBS"
 		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
@@ -299,7 +329,7 @@ AS_IF(
 		#EXTRA_LIBS="-lmsvcrt -luser32 -lkernel32"
 
 		#LIBS="${LIBS} -lsetupapi"
-		LDFLAGS="$LDFLAGS  -Wl,--no-undefined"
+		LDFLAGS="$LDFLAGS  -Wl,--no-undefined -no-undefined"
 	])
 
 # OS info for Automake

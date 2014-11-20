@@ -85,9 +85,6 @@ static void hook_cleanup_proc(void *arg) {
 		XCloseDisplay(data->display);
 	}
 
-	// Cleanup native input functions.
-	unload_input_helper();
-
 	// Close down any open displays.
 	if (ctrl_display != NULL) {
 		XCloseDisplay(ctrl_display);
@@ -155,12 +152,13 @@ static void *hook_thread_proc(void *arg) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 						__FUNCTION__, __LINE__);
 
-				// Initialize native input helper functions.
-				load_input_helper(ctrl_display);
+				// Save the data display associated with this hook so it is passed to each event.
+				//XPointer closeure = (XPointer) (ctrl_display);
+				XPointer closeure = NULL;
 
 				#ifdef USE_XRECORD_ASYNC
 				// Async requires that we loop so that our thread does not return.
-				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, NULL) != 0) {
+				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, closeure) != 0) {
 					// Time in MS to sleep the runloop.
 					int timesleep = 100;
 
@@ -196,7 +194,7 @@ static void *hook_thread_proc(void *arg) {
 				}
 				#else
 				// Sync blocks until XRecordDisableContext() is called.
-				if (XRecordEnableContext(data->display, context, hook_event_proc, NULL) != 0) {
+				if (XRecordEnableContext(data->display, context, hook_event_proc, closeure) != 0) {
 					// Set the exit status.
 					status = NULL;
 				}
@@ -306,7 +304,7 @@ UIOHOOK_API int hook_enable() {
 				pthread_t hook_thread_id;
 				void *hook_thread_status = malloc(sizeof(int));
 				if (pthread_create(&hook_thread_id, &hook_thread_attr, hook_thread_proc, hook_thread_status) == 0) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Start successful\n",
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully started hook thread.\n",
 							__FUNCTION__, __LINE__);
 
 					#if _POSIX_C_SOURCE >= 200112L
@@ -350,7 +348,7 @@ UIOHOOK_API int hook_enable() {
 					}
 				}
 				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: Thread create failure!\n",
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create hook thread!\n",
 							__FUNCTION__, __LINE__);
 
 					status = UIOHOOK_ERROR_THREAD_CREATE;

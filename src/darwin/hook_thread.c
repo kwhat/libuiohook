@@ -54,7 +54,7 @@ static void hook_cleanup_proc(void *arg) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: Improper hook shutdown detected!\n",
 				__FUNCTION__, __LINE__);
 	}
-	
+
 	// Cast the void * to the hook_date for use locally.
 	hook_data *data = (hook_data *) arg;
 
@@ -73,21 +73,18 @@ static void hook_cleanup_proc(void *arg) {
 		if (CFRunLoopContainsSource(event_loop, data->source, kCFRunLoopDefaultMode)) {
 			CFRunLoopRemoveSource(event_loop, data->source, kCFRunLoopDefaultMode);
 		}
-		
+
 		CFRunLoopObserverInvalidate(data->observer);
 	}
-	
+
 	// Clean up the event source.
 	if (data->source) {
 		CFRelease(data->source);
 	}
-	
+
 	// Stop the runloop used for keytyped events.
 	stop_message_port_runloop();
-	
-	// Cleanup native input functions.
-	unload_input_helper();
-	
+
 	// Free the data structure.
 	free(arg);
 }
@@ -96,7 +93,7 @@ static void hook_cancel_proc(void *arg) {
 	// NOTE The hook_control_mutex is guaranteed to be locked at this time.
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
-	
+
 	// Make sure we signal that we have passed any exception throwing code for
 	// the waiting hook_enable().
 	pthread_cond_signal(&hook_control_cond);
@@ -114,7 +111,7 @@ static void *hook_thread_proc(void *arg) {
 
 	// Push hook cancel proc on the thread stack.
 	pthread_cleanup_push(hook_cancel_proc, NULL);
-	
+
 	do {
 		// Reset the restart flag...
 		restart_tap = false;
@@ -124,7 +121,7 @@ static void *hook_thread_proc(void *arg) {
 			// Push hook cleanup proc on the thread stack.
 			hook_data *data = malloc(sizeof(hook_data));
 			pthread_cleanup_push(hook_cleanup_proc, data);
-			
+
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
 					__FUNCTION__, __LINE__);
 
@@ -184,9 +181,6 @@ static void *hook_thread_proc(void *arg) {
 						logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
 								__FUNCTION__, __LINE__);
 
-						// Initialize Native Input Functions.
-						load_input_helper();
-
 						// Create run loop observers.
 						data->observer = CFRunLoopObserverCreate(
 															kCFAllocatorDefault,
@@ -244,7 +238,7 @@ static void *hook_thread_proc(void *arg) {
 				// Set the exit status.
 				*status = UIOHOOK_ERROR_CREATE_EVENT_PORT;
 			}
-			
+
 			// Execute the thread cleanup handler.
 			pthread_cleanup_pop(1);
 		}

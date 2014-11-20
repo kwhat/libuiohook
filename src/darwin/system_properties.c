@@ -37,6 +37,32 @@
 #include "logger.h"
 #include "input_helper.h"
 
+UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	// FIXME This needs to be implemented correctly for Multi-Head!
+	*count = 0;
+	screen_data *screens = NULL;
+
+	size_t width = CGDisplayPixelsWide(CGMainDisplayID());
+	size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
+	
+	if (width > 0 && height > 0) {
+		screens = malloc(sizeof(screen_data));
+
+		if (screens != NULL) {
+			*count = 1;
+			screens[0] = (screen_data) {
+				.number = 1,
+				.x = 0,
+				.y = 0,
+				.width = width,
+				.height = height
+			};
+		}
+	}
+
+	return screens;
+}
+
 /*
  * Apple's documentation is not very good.  I was finally able to find this
  * information after many hours of googling.  Value is the slider value in the
@@ -444,15 +470,20 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	return value;
 }
 
+
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
 	// Display the copyright on library load.
 	COPYRIGHT();
+
+	// Initialize Native Input Functions.
+	load_input_helper();
 }
 
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
-	// Do Nothing.
+	// Cleanup native input functions.
+	unload_input_helper();
 }

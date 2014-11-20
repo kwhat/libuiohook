@@ -30,6 +30,32 @@
 // Global Variables.
 HINSTANCE hInst = NULL;
 
+UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	// FIXME This needs to be implemented correctly for Multi-Head!
+	*count = 0;
+	screen_data *screens = NULL;
+
+	int width  = GetSystemMetrics(SM_CXSCREEN);
+	int height = GetSystemMetrics(SM_CYSCREEN);
+
+	if (width > 0 && height > 0) {
+		screens = malloc(sizeof(screen_data));
+
+		if (screens != NULL) {
+			*count = 1;
+			screens[0] = (screen_data) {
+				.number = 1,
+				.x = 0,
+				.y = 0,
+				.width = width,
+				.height = height
+			};
+		}
+	}
+
+	return screens;
+}
+
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	long int value = -1;
 	long int rate;
@@ -125,9 +151,15 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 
 			// Save the DLL address.
 			hInst = hInstDLL;
+
+			// Initialize native input helper functions.
+			load_input_helper();
 			break;
 
 		case DLL_PROCESS_DETACH:
+			// Deinitialize native input helper functions.
+			unload_input_helper();
+			break;
 
 		case DLL_THREAD_ATTACH:
 		case DLL_THREAD_DETACH:

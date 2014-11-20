@@ -58,29 +58,100 @@ static unsigned int btnmask_lookup[5] = {
 #else
 // TODO Possibly relocate to input helper.
 static unsigned int convert_to_native_mask(unsigned int mask) {
-        unsigned int native_mask = 0;
+	unsigned int native_mask = 0x00;
 
-        if (mask & MASK_SHIFT)		native_mask |= ShiftMask;
-        if (mask & MASK_CTRL)		native_mask |= ControlMask;
-        if (mask & MASK_META)		native_mask |= Mod4Mask;
-        if (mask & MASK_ALT)		native_mask |= Mod1Mask;
+	if (mask & (MASK_SHIFT))		{ native_mask |= ShiftMask;		}
+	if (mask & (MASK_CTRL))		{ native_mask |= ControlMask;	}
+	if (mask & (MASK_META))		{ native_mask |= Mod4Mask;		}
+	if (mask & (MASK_ALT))		{ native_mask |= Mod1Mask;		}
 
-        if (mask & MASK_BUTTON1)	native_mask |= Button1Mask;
-        if (mask & MASK_BUTTON2)	native_mask |= Button2Mask;
-        if (mask & MASK_BUTTON3)	native_mask |= Button3Mask;
-        if (mask & MASK_BUTTON4)	native_mask |= Button4Mask;
-        if (mask & MASK_BUTTON5)	native_mask |= Button5Mask;
+	if (mask & MASK_BUTTON1)	{ native_mask |= Button1Mask;	}
+	if (mask & MASK_BUTTON2)	{ native_mask |= Button2Mask;	}
+	if (mask & MASK_BUTTON3)	{ native_mask |= Button3Mask;	}
+	if (mask & MASK_BUTTON4)	{ native_mask |= Button4Mask;	}
+	if (mask & MASK_BUTTON5)	{ native_mask |= Button5Mask;	}
 
-        return native_mask;
+	return native_mask;
+}
+
+static inline XKeyEvent * create_key_event() {
+	XKeyEvent *event = malloc(sizeof(XKeyEvent));
+	
+	event->serial = 0x00;
+	event->send_event = False;
+	event->display = disp;
+	event->time = CurrentTime;
+	event->same_screen = True;
+	
+	unsigned int mask;
+	if (!XQueryPointer(disp, DefaultRootWindow(disp), &(event->root), &(event->subwindow), &(event->x_root), &(event->y_root), &(event->x), &(event->y), &mask)) {
+		event->root = DefaultRootWindow(disp);
+		event->window = event->root;
+		event->subwindow = None;
+				
+		event->x_root = 0;
+		event->y_root = 0;
+		event->x = 0;
+		event->y = 0;
+	}
+
+	event->type = 0x00;
+	event->state = 0x00;
+	event->keycode = 0x00;
+	
+	return event;
+}
+
+static inline XButtonEvent * create_button_event() {
+	XButtonEvent *event = malloc(sizeof(XButtonEvent));
+	
+	event->serial = 0x00;
+	event->send_event = False;
+	event->display = disp;
+	event->time = CurrentTime;
+	event->same_screen = True;
+	
+	event->root = DefaultRootWindow(disp);
+	event->window = event->root;
+	event->subwindow = None;
+				
+	event->type = 0x00;
+	event->state = 0x00;
+	event->x_root = 0;
+	event->y_root = 0;
+	event->x = 0;
+	event->y = 0;
+	event->button = 0x00;
+	
+	return event;
+}
+
+static inline XMotionEvent * create_motion_event() {
+	XMotionEvent *event = malloc(sizeof(XMotionEvent));
+	
+	event->serial = MotionNotify;
+	event->send_event = False;
+	event->display = disp;
+	event->time = CurrentTime;
+	event->same_screen = True;
+	event->is_hint = NotifyNormal,
+	event->root = DefaultRootWindow(disp);
+	event->window = event->root;
+	event->subwindow = None;
+	
+	event->type = 0x00;
+	event->state = 0x00;
+	event->x_root = 0;
+	event->y_root = 0;
+	event->x = 0;
+	event->y = 0;
+	
+	return event;
 }
 #endif
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
-	char buffer[4];
-
 	#ifdef USE_XTEST
-	Bool is_press;
-
 	// XTest does not have modifier support, so we fake it by depressing the
 	// appropriate modifier keys.
 	for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(KeySym); i++) {
@@ -97,48 +168,54 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
-			is_press = True;
-			goto EVENT_KEY;
-
-		case EVENT_KEY_TYPED:
-			// Need to convert a wchar_t to keysym!
-			snprintf(buffer, 4, "%lc", (wint_t) event->data.keyboard.keychar);
-
-			event->type = EVENT_KEY_PRESSED;
-			event->data.keyboard.keycode = keycode_to_scancode(XStringToKeysym(buffer));
-			event->data.keyboard.keychar = CHAR_UNDEFINED;
-			hook_post_event(event);
-
-		case EVENT_KEY_RELEASED:
-			is_press = False;
-
-		EVENT_KEY:
 			XTestFakeKeyEvent(
 				disp,
 				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
-				is_press,
+				True,
 				0);
 			break;
 
-		case EVENT_MOUSE_PRESSED:
-			is_press = True;
-			goto EVENT_BUTTON;
+		case EVENT_KEY_TYPED:
+			XTestFakeKeyEvent(
+				disp,
+				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
+				True,
+				0);
 
-		case EVENT_MOUSE_WHEEL:
-			// Wheel events should be the same as click events on X11.
-
-		case EVENT_MOUSE_CLICKED:
-			event->type = EVENT_MOUSE_PRESSED;
-			hook_post_event(event);
-
-		case EVENT_MOUSE_RELEASED:
-			is_press = False;
-			goto EVENT_BUTTON;
-
-		EVENT_BUTTON:
-			XTestFakeButtonEvent(disp, event->data.mouse.button, is_press, 0);
+		case EVENT_KEY_RELEASED:
+			XTestFakeKeyEvent(
+				disp,
+				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
+				False,
+				0);
 			break;
 
+
+		case EVENT_MOUSE_PRESSED:
+			XTestFakeButtonEvent(disp, event->data.mouse.button, True, 0);
+			break;
+
+		case EVENT_MOUSE_CLICKED:
+			XTestFakeButtonEvent(disp, event->data.mouse.button, True, 0);
+
+		case EVENT_MOUSE_RELEASED:
+			XTestFakeButtonEvent(disp, event->data.mouse.button, False, 0);
+			break;
+			
+		case EVENT_MOUSE_WHEEL:
+			// Wheel events should be the same as click events on X11.
+			// type, amount and rotation
+			if (event->data.wheel.rotation < 0) {
+				XTestFakeButtonEvent(disp, WheelUp, True, 0);
+				XTestFakeButtonEvent(disp, WheelUp, False, 0);
+			}
+			else {
+				XTestFakeButtonEvent(disp, WheelDown, True, 0);
+				XTestFakeButtonEvent(disp, WheelDown, False, 0);
+			}
+			break;
+
+			
 		case EVENT_MOUSE_DRAGGED:
 			// The button masks are all applied with the modifier masks.
 
@@ -169,147 +246,172 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		}
 	}
 	#else
-	XEvent *x_event = NULL;
-	long x_mask = NoEventMask;
-
-	Window root_win, child_win;
-	int root_x, root_y;
-	int win_x, win_y;
-	unsigned int mask;
-	if (!XQueryPointer(disp, DefaultRootWindow(disp), &root_win, &child_win, &root_x, &root_y, &win_x, &win_y, &mask)) {
-		root_x = 0;
-		root_y = 0;
-		win_x = 0;
-		win_y = 0;
-	}
+	XEvent *x_event;
+	
+	#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+	uint8_t screen_count;
+	screen_data *screens;
+	#endif
 
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
-			x_event = (XEvent *) malloc(sizeof(XKeyEvent));
-			((XKeyEvent *) x_event)->type = KeyPress;
-			x_mask = KeyPressMask;
-			goto EVENT_KEY;
-
-		case EVENT_KEY_TYPED:
-			// Need to convert a wchar_t to keysym!
-			snprintf(buffer, 4, "U%04d", event->data.keyboard.keychar);
-
-			event->type = EVENT_KEY_PRESSED;
-			event->data.keyboard.keycode = keycode_to_scancode(XStringToKeysym(buffer));
-			event->data.keyboard.keychar = CHAR_UNDEFINED;
-			hook_post_event(event);
-
 		case EVENT_KEY_RELEASED:
-			x_event = (XEvent *) malloc(sizeof(XKeyEvent));
-			((XKeyEvent *) x_event)->type = KeyRelease;
-			x_mask = KeyReleaseMask;
-
-		EVENT_KEY:
-			((XKeyEvent *) x_event)->display = disp;
-			((XKeyEvent *) x_event)->window = root_win; //InputFocus; //XGetInputFocus();
-			((XKeyEvent *) x_event)->root = root_win;
-			((XKeyEvent *) x_event)->subwindow = None;
-			((XKeyEvent *) x_event)->time = CurrentTime;
-			((XKeyEvent *) x_event)->x = win_x;
-			((XKeyEvent *) x_event)->y = win_y;
-			((XKeyEvent *) x_event)->x_root = root_x;
-			((XKeyEvent *) x_event)->y_root = root_y;
+		case EVENT_KEY_TYPED:
+			// Allocate memory for XKeyEvent and pre-populate.
+			x_event = (XEvent *) create_key_event();
+			
 			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
-			((XKeyEvent *) x_event)->same_screen = True;
+			
+			// Typed events convert differently.
+			if (event->type == EVENT_KEY_TYPED) {
+				// Need to convert a wchar_t to keysym!
+				char buffer[4];
+				snprintf(buffer, 4, "U%04d", event->data.keyboard.keychar);
+			
+				((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, XStringToKeysym(buffer));
+				((XKeyEvent *) x_event)->type = KeyPress;
+				XSendEvent(disp, InputFocus, False, KeyPressMask, x_event);
+			}
+			else {
+				((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
+			}
+			
+			if (event->type == EVENT_KEY_PRESSED) {
+				((XKeyEvent *) x_event)->type = KeyPress;
+				XSendEvent(disp, InputFocus, False, KeyPressMask, x_event);
+			}
+			else {
+				((XKeyEvent *) x_event)->type = KeyRelease;
+				XSendEvent(disp, InputFocus, False, KeyReleaseMask, x_event);
+			}
+			
+			free(x_event);
 			break;
+
 
 		case EVENT_MOUSE_PRESSED:
-			x_event = (XEvent *) malloc(sizeof(XButtonEvent));
-			x_mask = ButtonPressMask;
-			goto EVENT_BUTTON;
-
-		case EVENT_MOUSE_WHEEL:
-			// Wheel events should be the same as click events on X11.
-
-		case EVENT_MOUSE_CLICKED:
-			event->type = EVENT_MOUSE_PRESSED;
-			hook_post_event(event);
-
 		case EVENT_MOUSE_RELEASED:
-			x_event = (XEvent *) malloc(sizeof(XButtonEvent));
-			x_mask = KeyReleaseMask;
-			goto EVENT_BUTTON;
-
-		EVENT_BUTTON:
-			((XButtonEvent *) x_event)->display = disp;
-			((XButtonEvent *) x_event)->window = root_win; //InputFocus; //XGetInputFocus();
-			((XButtonEvent *) x_event)->root = root_win;
-			((XButtonEvent *) x_event)->subwindow = None;
-			((XButtonEvent *) x_event)->time = CurrentTime;
-			((XButtonEvent *) x_event)->x = win_x;
-			((XButtonEvent *) x_event)->y = win_y;
-			((XButtonEvent *) x_event)->x_root = root_x;
-			((XButtonEvent *) x_event)->y_root = root_y;
+		case EVENT_MOUSE_CLICKED:
+		case EVENT_MOUSE_WHEEL:
+			// Allocate memory for XButtonEvent and pre-populate.
+			x_event = (XEvent *) create_button_event();
+			
 			((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			((XButtonEvent *) x_event)->button = event->data.mouse.button;
-			((XButtonEvent *) x_event)->same_screen = True;
-			break;
+			
+			((XButtonEvent *) x_event)->x = event->data.mouse.x;
+			((XButtonEvent *) x_event)->y = event->data.mouse.y;
 
-		case EVENT_MOUSE_DRAGGED:
-			x_event = (XEvent *) malloc(sizeof(XMotionEvent));
-			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
-
-			#if Button1Mask == Button1MotionMask && \
-				Button2Mask == Button2MotionMask && \
-				Button3Mask == Button3MotionMask && \
-				Button4Mask == Button4MotionMask && \
-				Button5Mask == Button5MotionMask
-			// This little trick only works if Button#MotionMasks align with
-			// the Button#Masks.
-			x_mask = ((XButtonEvent *) x_event)->state &
-					(Button1MotionMask | Button2MotionMask |
-					Button2MotionMask | Button3MotionMask | Button5MotionMask);
-			#else
-			// Fallback to some slightly larger, slower code.
-			if (((XMotionEvent *) x_event)->state & Button1Mask) {
-				x_mask |= Button1MotionMask;
-			}
-
-			if (((XMotionEvent *) x_event)->state & Button2Mask) {
-				x_mask |= Button2MotionMask;
-			}
-
-			if (((XMotionEvent *) x_event)->state & Button3Mask) {
-				x_mask |= Button3MotionMask;
-			}
-
-			if (((XMotionEvent *) x_event)->state & Button4Mask) {
-				x_mask |= Button4MotionMask;
-			}
-
-			if (((XMotionEvent *) x_event)->state & Button5Mask) {
-				x_mask |= Button5MotionMask;
+			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+			screens = hook_get_screen_info(&screen_count);
+			if (screen_count > 1) {
+				((XButtonEvent *) x_event)->x += screens[0].x;
+				((XButtonEvent *) x_event)->y += screens[0].y;
 			}
 			#endif
 
-			goto EVENT_MOTION;
+			// These are the same because Window == Root Window.
+			((XButtonEvent *) x_event)->x_root = ((XButtonEvent *) x_event)->x;
+			((XButtonEvent *) x_event)->y_root = ((XButtonEvent *) x_event)->y;
+
+			// Typed events convert differently.
+			if (event->type == EVENT_MOUSE_CLICKED) {
+				((XButtonEvent *) x_event)->type = ButtonPress;
+				// TODO This should be implemented with a lookup table similar to the callback.
+				int button = event->data.mouse.button;
+				if (button > 7) {
+					// Extra buttons...
+					button -= 4;
+				}
+				((XButtonEvent *) x_event)->button = button;
+				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
+			}
+			else if (event->type == EVENT_MOUSE_WHEEL) {
+				((XButtonEvent *) x_event)->type = ButtonPress;
+				
+				// type, amount and rotation
+				if (event->data.wheel.rotation < 0) {
+					((XButtonEvent *) x_event)->button = WheelUp;
+				}
+				else {
+					((XButtonEvent *) x_event)->button = WheelDown;
+				}
+				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
+			}
+			
+			if (event->type == EVENT_KEY_PRESSED) {
+				((XButtonEvent *) x_event)->type = ButtonPress;
+				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
+			}
+			else {
+				((XButtonEvent *) x_event)->type = ButtonRelease;
+				XSendEvent(disp, InputFocus, False, ButtonReleaseMask, x_event);
+			}
+			
+			free(x_event);
+			break;
 
 		case EVENT_MOUSE_MOVED:
-			x_event = (XEvent *) malloc(sizeof(XMotionEvent));
-			// FIXME convert modifiers to native!
-			//((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			goto EVENT_MOTION;
+		case EVENT_MOUSE_DRAGGED:
+			x_event = (XEvent *) create_motion_event();
+			
+			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
+			
+			((XButtonEvent *) x_event)->x = event->data.mouse.x;
+			((XButtonEvent *) x_event)->y = event->data.mouse.y;
 
-		EVENT_MOTION:
-			((XMotionEvent *) x_event)->display = disp;
-			((XMotionEvent *) x_event)->window = root_win; //InputFocus; //XGetInputFocus();
-			((XMotionEvent *) x_event)->root = root_win;
-			((XMotionEvent *) x_event)->subwindow = None;
-			((XMotionEvent *) x_event)->time = CurrentTime;
-			((XMotionEvent *) x_event)->x = win_x; // Not sure what to do this
-			((XMotionEvent *) x_event)->y = win_y; // Not sure what to do this
-			((XMotionEvent *) x_event)->x_root = event->data.mouse.x;
-			((XMotionEvent *) x_event)->y_root = event->data.mouse.y;
-			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);;
-			((XMotionEvent *) x_event)->is_hint = NotifyNormal;
-			((XMotionEvent *) x_event)->same_screen = True;
+			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+			screens = hook_get_screen_info(&screen_count);
+			if (screen_count > 1) {
+				((XButtonEvent *) x_event)->x += screens[0].x;
+				((XButtonEvent *) x_event)->y += screens[0].y;
+			}
+			#endif
+
+			// These are the same because Window == Root Window.
+			((XButtonEvent *) x_event)->x_root = ((XButtonEvent *) x_event)->x;
+			((XButtonEvent *) x_event)->y_root = ((XButtonEvent *) x_event)->y;
+			
+			long int x_mask = NoEventMask;
+			if (event->type == EVENT_MOUSE_DRAGGED) {
+				#if Button1Mask == Button1MotionMask && \
+					Button2Mask == Button2MotionMask && \
+					Button3Mask == Button3MotionMask && \
+					Button4Mask == Button4MotionMask && \
+					Button5Mask == Button5MotionMask
+				// This little trick only works if Button#MotionMasks align with
+				// the Button#Masks.
+				x_mask = ((XMotionEvent *) x_event)->state &
+						(Button1MotionMask | Button2MotionMask |
+						Button2MotionMask | Button3MotionMask | Button5MotionMask);
+				#else
+				// Fallback to some slightly larger...
+				if (((XMotionEvent *) x_event)->state & Button1Mask) {
+					x_mask |= Button1MotionMask;
+				}
+
+				if (((XMotionEvent *) x_event)->state & Button2Mask) {
+					x_mask |= Button2MotionMask;
+				}
+
+				if (((XMotionEvent *) x_event)->state & Button3Mask) {
+					x_mask |= Button3MotionMask;
+				}
+
+				if (((XMotionEvent *) x_event)->state & Button4Mask) {
+					x_mask |= Button4MotionMask;
+				}
+
+				if (((XMotionEvent *) x_event)->state & Button5Mask) {
+					x_mask |= Button5MotionMask;
+				}
+				#endif
+			}
+			
+			// NOTE x_mask = NoEventMask.
+			XSendEvent(disp, InputFocus, False, x_mask, x_event);
+			free(x_event);
 			break;
+
 
 		case EVENT_HOOK_START:
 		case EVENT_HOOK_STOP:
@@ -321,8 +423,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 	}
 
-	XSendEvent(disp, InputFocus, False, x_mask, x_event);
-	free(x_event);
+
 	#endif
 
 	// Don't forget to flush!

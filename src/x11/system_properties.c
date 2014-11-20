@@ -31,6 +31,12 @@
 #include <X11/extensions/xf86misc.h>
 #include <X11/extensions/xf86mscstr.h>
 #endif
+#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+#include <X11/extensions/Xinerama.h>
+#elif defined(USE_XRANDR)
+#include <pthread.h>
+#include <X11/extensions/Xrandr.h>
+#endif
 #ifdef USE_XT
 #include <X11/Intrinsic.h>
 
@@ -39,9 +45,184 @@ static Display *xt_disp;
 #endif
 
 #include "copyright.h"
+#include "input_helper.h"
 #include "logger.h"
 
 Display *disp;
+
+#ifdef USE_XRANDR
+static pthread_mutex_t xrr_mutex = PTHREAD_MUTEX_INITIALIZER;
+static XRRScreenResources *xrr_resources = NULL;
+
+static void settings_cleanup_proc(void *arg) {
+	if (pthread_mutex_trylock(&xrr_mutex) == 0) {
+		if (xrr_resources != NULL) {
+			XRRFreeScreenResources(xrr_resources);
+			xrr_resources = NULL;
+		}
+		
+		if (arg != NULL) {
+			XCloseDisplay((Display *) arg);
+			arg = NULL;
+		}
+
+		pthread_mutex_unlock(&xrr_mutex);
+	}
+}
+
+static void *settings_thread_proc(void *arg) {
+	Display *disp_settings = XOpenDisplay(XDisplayName(NULL));;
+	if (disp_settings != NULL) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
+				__FUNCTION__, __LINE__, "XOpenDisplay success.");
+		
+		pthread_cleanup_push(settings_cleanup_proc, disp_settings);
+
+		int event_base = 0;
+		int error_base = 0;
+		if (XRRQueryExtension(disp_settings, &event_base, &error_base)) {
+			Window root = XDefaultRootWindow(disp_settings);
+			unsigned long event_mask = RRScreenChangeNotifyMask;
+			XRRSelectInput(disp_settings, root, event_mask);
+
+			XEvent ev;
+
+			while(disp_settings != NULL) {
+				XNextEvent(disp_settings, &ev);
+
+				if (ev.type == event_base + RRScreenChangeNotifyMask) {
+					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
+							__FUNCTION__, __LINE__);
+
+					pthread_mutex_lock(&xrr_mutex);
+					if (xrr_resources != NULL) {
+						XRRFreeScreenResources(xrr_resources);
+					}
+
+					xrr_resources = XRRGetScreenResources(disp_settings, root);
+					if (xrr_resources == NULL) {
+						logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR could not get screen resources!\n",
+								__FUNCTION__, __LINE__);
+					}
+					pthread_mutex_unlock(&xrr_mutex);
+				}
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: XRandR is not currently available!\n",
+							__FUNCTION__, __LINE__);
+				}
+			}
+		}
+		
+		// Execute the thread cleanup handler.
+		pthread_cleanup_pop(1);
+	
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
+				__FUNCTION__, __LINE__);
+	}
+
+	return NULL;
+}
+#endif
+
+UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	*count = 0;
+	screen_data *screens = NULL;
+		
+	#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+	if (XineramaIsActive(disp)) {
+		int xine_count = 0;
+		XineramaScreenInfo *xine_info = XineramaQueryScreens(disp, &xine_count);
+		
+		if (xine_info != NULL) {
+			if (xine_count > UINT8_MAX) {
+				*count = UINT8_MAX;
+				
+				logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
+						__FUNCTION__, __LINE__);
+			}
+			else {
+				*count = (uint8_t) xine_count;
+			}
+			
+			screens = malloc(sizeof(screen_data) * xine_count);
+			
+			if (screens != NULL) {
+				for (int i = 0; i < xine_count; i++) {
+					screens[i] = (screen_data) {
+						.number = xine_info[i].screen_number,
+						.x = xine_info[i].x_org,
+						.y = xine_info[i].y_org,
+						.width = xine_info[i].width,
+						.height = xine_info[i].height
+					};
+				}
+			}
+			
+			XFree(xine_info);
+		}
+	}
+	#elif defined(USE_XRANDR)
+	pthread_mutex_lock(&xrr_mutex);
+	if (xrr_resources != NULL) {
+		int xrr_count = xrr_resources->ncrtc;
+		if (xrr_count > UINT8_MAX) {
+			*count = UINT8_MAX;
+
+			logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
+					__FUNCTION__, __LINE__);
+		}
+		else {
+			*count = (uint8_t) xrr_count;
+		}
+
+		screens = malloc(sizeof(screen_data) * xrr_count);
+
+		if (screens != NULL) {
+			for (int i = 0; i < xrr_count; i++) {
+				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(disp, xrr_resources, xrr_resources->crtcs[i]);
+				
+				if (crtc_info != NULL) {
+					screens[i] = (screen_data) {
+						.number = i + 1,
+						.x = crtc_info->x,
+						.y = crtc_info->y,
+						.width = crtc_info->width,
+						.height = crtc_info->height
+					};
+
+					XRRFreeCrtcInfo(crtc_info);
+				}
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: XRandr failed to return crtc information! (%#X)\n",
+							__FUNCTION__, __LINE__, xrr_resources->crtcs[i]);
+				}
+			}
+		}
+	}
+	pthread_mutex_unlock(&xrr_mutex);
+	#else
+	Screen* default_screen = DefaultScreenOfDisplay(disp);
+
+	if (default_screen->width > 0 && default_screen->height > 0) {
+		screens = malloc(sizeof(screen_data));
+
+		if (screens != NULL) {
+			*count = 1;
+			screens[0] = (screen_data) {
+				.number = 1,
+				.x = 0,
+				.y = 0,
+				.width = default_screen->width,
+				.height = default_screen->height
+			};
+		}
+	}
+	#endif
+
+	return screens;
+}
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	bool successful = false;
@@ -262,6 +443,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 	return value;
 }
 
+
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
@@ -269,7 +451,6 @@ void on_library_load() {
 	COPYRIGHT();
 
 	// Open local display.
-	// FIXME This code should be moved somewhere where it may recover naturally!
 	disp = XOpenDisplay(XDisplayName(NULL));
 	if (disp == NULL) {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
@@ -279,6 +460,28 @@ void on_library_load() {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay success.");
 	}
+
+	#ifdef USE_XRANDR
+	// Create the thread attribute.
+	pthread_attr_t settings_thread_attr;
+	pthread_attr_init(&settings_thread_attr);
+	
+	pthread_t settings_thread_id;
+	if (pthread_create(&settings_thread_id, &settings_thread_attr, settings_thread_proc, NULL) == 0) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully created settings thread.\n",
+				__FUNCTION__, __LINE__);
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create settings thread!\n",
+				__FUNCTION__, __LINE__);
+	}
+	
+	// Make sure the thread attribute is removed.
+	pthread_attr_destroy(&settings_thread_attr);
+	#endif
+
+	// Initialize native input helper functions.
+	load_input_helper(disp);
 
 	#ifdef USE_XT
 	XtToolkitInitialize();
@@ -297,6 +500,9 @@ void on_library_unload() {
 	XtCloseDisplay(xt_disp);
 	XtDestroyApplicationContext(xt_context);
 	#endif
+
+	// Cleanup native input functions.
+	unload_input_helper();
 
 	// Destroy the native displays.
 	if (disp != NULL) {

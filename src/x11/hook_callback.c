@@ -20,6 +20,7 @@
 #include <config.h>
 #endif
 
+#include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -28,6 +29,15 @@
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
+#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
+#include <X11/extensions/Xinerama.h>
+#elif defined(USE_XRANDR)
+#include <X11/extensions/Xrandr.h>
+#else
+// TODO We may need to fallback to the xf86vm extension for things like TwinView.
+#pragma message("*** Warning: Xinerama or XRandR support is required to produce cross-platform mouse coordinates for multi-head configurations!")
+#pragma message("... Assuming single-head display.")
+#endif
 
 #include "logger.h"
 #include "input_helper.h"
@@ -47,13 +57,14 @@ typedef union {
 } XRecordDatum;
 
 // Mouse globals.
-static unsigned short click_count = 0;
-static long click_time = 0;
+static unsigned short int click_count = 0;
+static long int click_time = 0;
+static unsigned short int click_button = MOUSE_NOBUTTON;
 static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
-static Time previous_time = (Time) ~0x00;
+static Time previous_time = (Time) (~0x00);
 static uint64_t offset_time = 0;
 
 // Virtual event pointer.
@@ -101,157 +112,273 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
-void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
-	if (hook->category == XRecordStartOfData) {
+static inline uint64_t get_event_timestamp(XRecordInterceptData *recorded_data) {
+	// Check for event clock reset.
+	if (previous_time > recorded_data->server_time) {
+		// Get the local system time in UTC.
+		gettimeofday(&system_time, NULL);
+
+		// Convert the local system time to a Unix epoch in MS.
+		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+		// Calculate the offset based on the system and hook times.
+		offset_time = epoch_time - recorded_data->server_time;
+
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
+				__FUNCTION__, __LINE__, offset_time);
+	}
+	// Set the previous event time for click reset check above.
+	previous_time = recorded_data->server_time;
+
+	// Set the event time to the server time + offset.
+	return recorded_data->server_time + offset_time;
+}
+
+void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
+	// Calculate Unix epoch from native time source.
+	uint64_t timestamp = get_event_timestamp(recorded_data);
+
+	if (recorded_data->category == XRecordStartOfData) {
 		// Lock the running mutex to signal the hook has started.
 		pthread_mutex_lock(&hook_running_mutex);
 
-		event.type = EVENT_HOOK_START;
-
-		// Set the event.time.
-		// FIXME See if we can do something lighter with the event_time instead of more division.
-		gettimeofday(&system_time, NULL);
-		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-		event.mask = 0x00;
+		// Populate the hook start event.
+		event.time = timestamp;
 		event.reserved = 0x00;
 
+		event.type = EVENT_HOOK_START;
+		event.mask = 0x00;
+
+		// Fire the hook start event.
 		dispatch_event(&event);
 
 		// Unlock the control mutex so hook_enable() can continue.
 		pthread_cond_signal(&hook_control_cond);
 		pthread_mutex_unlock(&hook_control_mutex);
 	}
-	else if (hook->category == XRecordEndOfData) {
+	else if (recorded_data->category == XRecordEndOfData) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
 
-		// Send the  hook event end of data
-		event.type = EVENT_HOOK_STOP;
-
-		// Set the event.time.
-		// FIXME See if we can do something lighter with the event_time instead of more division.
-		gettimeofday(&system_time, NULL);
-		event.time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-		event.mask = 0x00;
+		// Populate the hook stop event.
+		event.time = timestamp;
 		event.reserved = 0x00;
 
+		event.type = EVENT_HOOK_STOP;
+		event.mask = 0x00;
+
+		// Fire the hook stop event.
 		dispatch_event(&event);
 	}
-	else if (hook->category == XRecordFromServer || hook->category == XRecordFromClient) {
+	else if (recorded_data->category == XRecordFromServer || recorded_data->category == XRecordFromClient) {
 		// Get XRecord data.
-		XRecordDatum *data = (XRecordDatum *) hook->data;
+		XRecordDatum *data = (XRecordDatum *) recorded_data->data;
+	
+		if (data->type == KeyPress) {
+			// The X11 KeyCode associated with this event.
+			KeyCode keycode = (KeyCode) data->event.u.u.detail;
+			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+			unsigned short int scancode = keycode_to_scancode(keycode);
 
-		// Check for event clock reset.
-		if (previous_time > hook->server_time) {
-			// Get the local system time in UTC.
-			gettimeofday(&system_time, NULL);
+			// TODO If you have a better suggestion for this ugly, let me know.
+			if		(scancode == VC_SHIFT_L)	{ set_modifier_mask(MASK_SHIFT_L);	}
+			else if (scancode == VC_SHIFT_R)	{ set_modifier_mask(MASK_SHIFT_R);	}
+			else if (scancode == VC_CONTROL_L)	{ set_modifier_mask(MASK_CTRL_L);	}
+			else if (scancode == VC_CONTROL_R)	{ set_modifier_mask(MASK_CTRL_R);	}
+			else if (scancode == VC_ALT_L)		{ set_modifier_mask(MASK_ALT_L);	}
+			else if (scancode == VC_ALT_R)		{ set_modifier_mask(MASK_ALT_R);	}
+			else if (scancode == VC_META_L)		{ set_modifier_mask(MASK_META_L);	}
+			else if (scancode == VC_META_R)		{ set_modifier_mask(MASK_META_R);	}
 
-			// Convert the local system time to a Unix epoch in MS.
-			uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+			// Populate key pressed event.
+			event.time = timestamp;
+			event.reserved = 0x00;
 
-			// Calculate the offset based on the system and hook times.
-			offset_time = epoch_time - hook->server_time;
+			event.type = EVENT_KEY_PRESSED;
+			event.mask = get_modifiers();
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%llu)\n",
-					__FUNCTION__, __LINE__, offset_time);
-		}
-		// Set the previous event time for click reset check above.
-		previous_time = hook->server_time;
+			event.data.keyboard.keycode = scancode;
+			event.data.keyboard.rawcode = keysym;
+			event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-		// Set the event time to the server time + offset.
-		event.time = hook->server_time + offset_time;
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
+					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
-		// Make sure reserved bits are zeroed out.
-		event.reserved = 0x00;
+			// Fire key pressed event.
+			dispatch_event(&event);
 
-		// Use more readable variables.
-		int event_type = data->type;
-		BYTE event_code = data->event.u.u.detail;
-		int event_x = data->event.u.keyButtonPointer.rootX;
-		int event_y = data->event.u.keyButtonPointer.rootY;
-		int event_mask = data->event.u.keyButtonPointer.state;
+			// If the pressed event was not consumed...
+			if (event.reserved ^ 0x01) {
+				// Check to make sure the key is printable.
+				wchar_t keychar = keysym_to_unicode(keysym);
+				if (keychar != 0x0000) {
+					// Populate key typed event.
+					event.time = timestamp;
+					event.reserved = 0x00;
 
-		KeySym keysym;
-		unsigned short int button, scancode;
-		switch (event_type) {
-			case KeyPress:
-				scancode = keycode_to_scancode(event_code);
+					event.type = EVENT_KEY_TYPED;
+					event.mask = get_modifiers();
 
-				// TODO If you have a better suggestion for this ugly, let me know.
-				if (scancode == VC_SHIFT_L)			set_modifier_mask(MASK_SHIFT_L);
-				else if (scancode == VC_SHIFT_R)	set_modifier_mask(MASK_SHIFT_R);
-				else if (scancode == VC_CONTROL_L)	set_modifier_mask(MASK_CTRL_L);
-				else if (scancode == VC_CONTROL_R)	set_modifier_mask(MASK_CTRL_R);
-				else if (scancode == VC_ALT_L)		set_modifier_mask(MASK_ALT_L);
-				else if (scancode == VC_ALT_R)		set_modifier_mask(MASK_ALT_R);
-				else if (scancode == VC_META_L)		set_modifier_mask(MASK_META_L);
-				else if (scancode == VC_META_R)		set_modifier_mask(MASK_META_R);
+					event.data.keyboard.keycode = VC_UNDEFINED;
+					event.data.keyboard.rawcode = keysym;
+					event.data.keyboard.keychar = keychar;
 
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 
-				// Fire key pressed event.
-				event.type = EVENT_KEY_PRESSED;
-				event.mask = get_modifiers();
-
-				keysym = keycode_to_keysym(event_code, event_mask);
-				event.data.keyboard.keycode = scancode;
-				event.data.keyboard.rawcode = keysym;
-				event.data.keyboard.keychar = CHAR_UNDEFINED;
-
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
-				dispatch_event(&event);
-
-				// If the pressed event was not consumed...
-				if (event.reserved ^ 0x01) {
-					// Check to make sure the key is printable.
-					wchar_t keychar = keysym_to_unicode(keysym);
-					if (keychar != 0x0000) {
-						// Fire key typed event.
-						event.type = EVENT_KEY_TYPED;
-
-						event.data.keyboard.keycode = VC_UNDEFINED;
-						event.data.keyboard.keychar = keychar;
-
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
-						dispatch_event(&event);
-					}
+					// Fire key typed event.
+					dispatch_event(&event);
 				}
-				break;
+			}
+		}
+		else if (data->type == KeyRelease) {
+			// The X11 KeyCode associated with this event.
+			KeyCode keycode = (KeyCode) data->event.u.u.detail;
+			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+			unsigned short int scancode = keycode_to_scancode(keycode);
 
-			case KeyRelease:
-				scancode = keycode_to_scancode(event_code);
-
-				// TODO If you have a better suggestion for this ugly, let me know.
-				if (scancode == VC_SHIFT_L)			unset_modifier_mask(MASK_SHIFT_L);
-				else if (scancode == VC_SHIFT_R)	unset_modifier_mask(MASK_SHIFT_R);
-				else if (scancode == VC_CONTROL_L)	unset_modifier_mask(MASK_CTRL_L);
-				else if (scancode == VC_CONTROL_R)	unset_modifier_mask(MASK_CTRL_R);
-				else if (scancode == VC_ALT_L)		unset_modifier_mask(MASK_ALT_L);
-				else if (scancode == VC_ALT_R)		unset_modifier_mask(MASK_ALT_R);
-				else if (scancode == VC_META_L)		unset_modifier_mask(MASK_META_L);
-				else if (scancode == VC_META_R)		unset_modifier_mask(MASK_META_R);
+			// TODO If you have a better suggestion for this ugly, let me know.
+			if		(scancode == VC_SHIFT_L)	{ unset_modifier_mask(MASK_SHIFT_L);	}
+			else if (scancode == VC_SHIFT_R)	{ unset_modifier_mask(MASK_SHIFT_R);	}
+			else if (scancode == VC_CONTROL_L)	{ unset_modifier_mask(MASK_CTRL_L);		}
+			else if (scancode == VC_CONTROL_R)	{ unset_modifier_mask(MASK_CTRL_R);		}
+			else if (scancode == VC_ALT_L)		{ unset_modifier_mask(MASK_ALT_L);		}
+			else if (scancode == VC_ALT_R)		{ unset_modifier_mask(MASK_ALT_R);		}
+			else if (scancode == VC_META_L)		{ unset_modifier_mask(MASK_META_L);		}
+			else if (scancode == VC_META_R)		{ unset_modifier_mask(MASK_META_R);		}
 
 
-				// Fire key released event.
-				event.type = EVENT_KEY_RELEASED;
+			// Populate key released event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
+			event.type = EVENT_KEY_RELEASED;
+			event.mask = get_modifiers();
+
+			event.data.keyboard.keycode = keycode;
+			event.data.keyboard.rawcode = keysym;
+			event.data.keyboard.keychar = CHAR_UNDEFINED;
+
+			logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
+					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+
+			// Fire key released event.
+			dispatch_event(&event);
+		}
+		else if (data->type == ButtonPress) {
+			// X11 handles wheel events as button events.
+			if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelDown) {
+				// Reset the click count and previous button.
+				click_count = 1;
+				click_button = MOUSE_NOBUTTON;
+
+				/* Scroll wheel release events.
+				 * Scroll type: WHEEL_UNIT_SCROLL
+				 * Scroll amount: 3 unit increments per notch
+				 * Units to scroll: 3 unit increments
+				 * Vertical unit increment: 15 pixels
+				 */
+
+				// Populate mouse wheel event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.type = EVENT_MOUSE_WHEEL;
 				event.mask = get_modifiers();
 
-				keysym = keycode_to_keysym(event_code, event_mask);
-				event.data.keyboard.keycode = keycode_to_scancode(event_code);
-				event.data.keyboard.rawcode = keysym;
-				event.data.keyboard.keychar = CHAR_UNDEFINED;
+				event.data.wheel.clicks = click_count;
+				event.data.wheel.x = data->event.u.keyButtonPointer.rootX;
+				event.data.wheel.y = data->event.u.keyButtonPointer.rootY;
 
-				logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				uint8_t count;
+				screen_data *screens = hook_get_screen_info(&count);
+				if (count > 1) {
+					event.data.wheel.x -= screens[0].x;
+					event.data.wheel.y -= screens[0].y;
+				}
+				#endif
+
+				/* X11 does not have an API call for acquiring the mouse scroll type.  This
+				 * maybe part of the XInput2 (XI2) extention but I will wont know until it
+				 * is available on my platform.  For the time being we will just use the
+				 * unit scroll value.
+				 */
+				event.data.wheel.type = WHEEL_UNIT_SCROLL;
+
+				/* Some scroll wheel properties are available via the new XInput2 (XI2)
+				 * extension.  Unfortunately the extension is not available on my
+				 * development platform at this time.  For the time being we will just
+				 * use the Windows default value of 3.
+				 */
+				event.data.wheel.amount = 3;
+
+				// MS assumption is more natural (follows the cartesian coordinate system)
+				// FIXME I don't understand the above adjustment and comment...
+				if (data->event.u.u.detail == WheelUp) {
+					// Wheel Rotated Up and Away.
+					event.data.wheel.rotation = -1;
+				}
+				else { // data->event.u.u.detail == WheelDown
+					// Wheel Rotated Down and Towards.
+					event.data.wheel.rotation = 1;
+				}
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
+						__FUNCTION__, __LINE__, event.data.wheel.type,
+						event.data.wheel.amount * event.data.wheel.rotation,
+						event.data.wheel.x, event.data.wheel.y );
+
+				// Fire mouse wheel event.
 				dispatch_event(&event);
-				break;
+			}
+			else {
+				/* This information is all static for X11, its up to the WM to
+				 * decide how to interpret the wheel events.
+				 */
+				uint16_t button = MOUSE_NOBUTTON;
+				switch (data->event.u.u.detail) {
+					// FIXME This should use a lookup table to handle button remapping.
+					case Button1:
+						button = MOUSE_BUTTON1;
+						set_modifier_mask(MASK_BUTTON1);
+						break;
 
-			case ButtonPress:
-				// Track the number of clicks.
-				if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
+					case Button2:
+						button = MOUSE_BUTTON2;
+						set_modifier_mask(MASK_BUTTON2);
+						break;
+
+					case Button3:
+						button = MOUSE_BUTTON3;
+						set_modifier_mask(MASK_BUTTON3);
+						break;
+
+					case XButton1:
+						button = MOUSE_BUTTON4;
+						set_modifier_mask(MASK_BUTTON5);
+						break;
+
+					case XButton2:
+						button = MOUSE_BUTTON5;
+						set_modifier_mask(MASK_BUTTON5);
+						break;
+
+					default:
+						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
+						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
+							button = data->event.u.u.detail - 4;
+							
+							if (button + 7 < 16) {
+								set_modifier_mask(1 << (button + 7));
+							}
+						}
+						break;
+				}
+
+
+				// Track the number of clicks, the button must match the previous button.
+				if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
 					if (click_count < USHRT_MAX) {
 						click_count++;
 					}
@@ -261,162 +388,210 @@ void hook_event_proc(XPointer pointer, XRecordInterceptData *hook) {
 					}
 				}
 				else {
+					// Reset the click count.
 					click_count = 1;
-				}
-				click_time = event.time;
 
+					// Set the previous button.
+					click_button = button;
+				}
+
+				// Save this events time to calculate the click_count.
+				click_time = timestamp;
+
+
+				// Populate mouse pressed event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.type = EVENT_MOUSE_PRESSED;
+				event.mask = get_modifiers();
+
+				event.data.mouse.button = button;
+				event.data.mouse.clicks = click_count;
+				event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+				event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
+
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				uint8_t count;
+				screen_data *screens = hook_get_screen_info(&count);
+				if (count > 1) {
+					event.data.mouse.x -= screens[0].x;
+					event.data.mouse.y -= screens[0].y;
+				}
+				#endif
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+						__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
+						event.data.mouse.x, event.data.mouse.y);
+
+				// Fire mouse pressed event.
+				dispatch_event(&event);
+			}
+		}
+		else if (data->type == ButtonRelease) {
+			// X11 handles wheel events as button events.
+			if (data->event.u.u.detail != WheelUp && data->event.u.u.detail != WheelDown) {
 				/* This information is all static for X11, its up to the WM to
 				 * decide how to interpret the wheel events.
 				 */
-				// TODO Should use constants and a lookup table for button codes.
-				if (event_code > 0 && (event_code <= 3 || event_code == XButton1 || event_code == XButton2)) {
-					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
-					button = (event_code & 0x03) | (event_code & 0x08) >> 1;
+				uint16_t button = MOUSE_NOBUTTON;
+				switch (data->event.u.u.detail) {
+					// FIXME This should use a lookup table to handle button remapping.
+					case Button1:
+						button = MOUSE_BUTTON1;
+						unset_modifier_mask(MASK_BUTTON1);
+						break;
 
-					set_modifier_mask(1 << (button + 7));
+					case Button2:
+						button = MOUSE_BUTTON2;
+						unset_modifier_mask(MASK_BUTTON2);
+						break;
 
-					// Fire mouse pressed event.
-					event.type = EVENT_MOUSE_PRESSED;
-					event.mask = get_modifiers();
+					case Button3:
+						button = MOUSE_BUTTON3;
+						unset_modifier_mask(MASK_BUTTON3);
+						break;
 
-					event.data.mouse.button = button;
-					event.data.mouse.clicks = click_count;
-					event.data.mouse.x = event_x;
-					event.data.mouse.y = event_y;
+					case XButton1:
+						button = MOUSE_BUTTON4;
+						unset_modifier_mask(MASK_BUTTON5);
+						break;
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
-					dispatch_event(&event);
+					case XButton2:
+						button = MOUSE_BUTTON5;
+						unset_modifier_mask(MASK_BUTTON5);
+						break;
+
+					default:
+						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
+						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
+							button = data->event.u.u.detail - 4;
+							
+							if (button + 7 < 16) {
+								unset_modifier_mask(1 << (button + 7));
+							}
+						}
+						break;
 				}
-				else if (event_code == WheelUp || event_code == WheelDown) {
-					/* Scroll wheel release events.
-					 * Scroll type: WHEEL_UNIT_SCROLL
-					 * Scroll amount: 3 unit increments per notch
-					 * Units to scroll: 3 unit increments
-					 * Vertical unit increment: 15 pixels
-					 */
+				
+				// Populate mouse released event.
+				event.time = timestamp;
+				event.reserved = 0x00;
 
-					// Fire mouse wheel event.
-					event.type = EVENT_MOUSE_WHEEL;
-					event.mask = get_modifiers();
-
-					event.data.wheel.clicks = click_count;
-					event.data.wheel.x = event_x;
-					event.data.wheel.y = event_y;
-
-					/* X11 does not have an API call for acquiring the mouse scroll type.  This
-					 * maybe part of the XInput2 (XI2) extention but I will wont know until it
-					 * is available on my platform.  For the time being we will just use the
-					 * unit scroll value.
-					 */
-					event.data.wheel.type = WHEEL_UNIT_SCROLL;
-
-					/* Some scroll wheel properties are available via the new XInput2 (XI2)
-					 * extention.  Unfortunately the extention is not available on my
-					 * development platform at this time.  For the time being we will just
-					 * use the Windows default value of 3.
-					 */
-					event.data.wheel.amount = 3;
-
-					if (event_code == WheelUp) {
-						// Wheel Rotated Up and Away.
-						event.data.wheel.rotation = -1;
-					}
-					else { // event_code == WheelDown
-						// Wheel Rotated Down and Towards.
-						event.data.wheel.rotation = 1;
-					}
-
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel rotated %i units. (%u)\n",
-							__FUNCTION__, __LINE__, event.data.wheel.amount * event.data.wheel.rotation, event.data.wheel.type);
-					dispatch_event(&event);
-				}
-				break;
-
-			case ButtonRelease:
-				// TODO Should use constants for button codes.
-				if (event_code > 0 && (event_code <= 3 || event_code == XButton1 || event_code == XButton2)) {
-					// Handle button release events.
-					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
-					button = (event_code & 0x03) | (event_code & 0x08) >> 1;
-
-					unset_modifier_mask(1 << (button + 7));
-
-					// Fire mouse released event.
-					event.type = EVENT_MOUSE_RELEASED;
-					event.mask = get_modifiers();
-
-					// TODO This would probably be faster and simpler as a if (> 3) { event_code - 4 } conditional.
-					event.data.mouse.button = button;
-					event.data.mouse.clicks = click_count;
-					event.data.mouse.x = event_x;
-					event.data.mouse.y = event_y;
-
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-							__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
-					dispatch_event(&event);
-
-					if (mouse_dragged != true) {
-						// Fire mouse clicked event.
-						event.type = EVENT_MOUSE_CLICKED;
-						event.mask = get_modifiers();
-
-						event.data.mouse.button = button;
-						event.data.mouse.clicks = click_count;
-						event.data.mouse.x = event_x;
-						event.data.mouse.y = event_y;
-
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-								__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks, event.data.mouse.x, event.data.mouse.y);
-						dispatch_event(&event);
-					}
-				}
-				break;
-
-			case MotionNotify:
-				// Reset the click count.
-				if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
-					click_count = 0;
-				}
-
-				// Populate common event info.
+				event.type = EVENT_MOUSE_RELEASED;
 				event.mask = get_modifiers();
 
-				// Check the upper half of virtual modifiers for non zero
-				// values and set the mouse dragged flag.
-				mouse_dragged = event.mask >> 4 > 0;
-				if (mouse_dragged) {
-					// Create Mouse Dragged event.
-					event.type = EVENT_MOUSE_DRAGGED;
-				}
-				else {
-					// Create a Mouse Moved event.
-					event.type = EVENT_MOUSE_MOVED;
-				}
-
-				event.data.mouse.button = MOUSE_NOBUTTON;
+				event.data.mouse.button = button;
 				event.data.mouse.clicks = click_count;
-				event.data.mouse.x = event_x;
-				event.data.mouse.y = event_y;
+				event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+				event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse moved to %u, %u.\n",
-						__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
+				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+				uint8_t count;
+				screen_data *screens = hook_get_screen_info(&count);
+				if (count > 1) {
+					event.data.mouse.x -= screens[0].x;
+					event.data.mouse.y -= screens[0].y;
+				}
+				#endif
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+						__FUNCTION__, __LINE__, event.data.mouse.button,
+						event.data.mouse.clicks,
+						event.data.mouse.x, event.data.mouse.y);
+
+				// Fire mouse released event.
 				dispatch_event(&event);
-				break;
 
-			default:
-				// In theory this *should* never execute.
-				logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Unix event! (%#X)\n",
-						__FUNCTION__, __LINE__, (unsigned int) event_type);
-				break;
+				if (mouse_dragged != true) {
+					// Populate mouse clicked event.
+					event.time = timestamp;
+					event.reserved = 0x00;
+
+					event.type = EVENT_MOUSE_CLICKED;
+					event.mask = get_modifiers();
+
+					event.data.mouse.button = button;
+					event.data.mouse.clicks = click_count;
+					event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+					event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
+
+					#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+					uint8_t count;
+					screen_data *screens = hook_get_screen_info(&count);
+					if (count > 1) {
+						event.data.mouse.x -= screens[0].x;
+						event.data.mouse.y -= screens[0].y;
+					}
+					#endif
+
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+							__FUNCTION__, __LINE__, event.data.mouse.button,
+							event.data.mouse.clicks,
+							event.data.mouse.x, event.data.mouse.y);
+
+					// Fire mouse clicked event.
+					dispatch_event(&event);
+				}
+			}
+		}
+		else if (data->type == MotionNotify) {
+			// Reset the click count.
+			if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+				click_count = 0;
+			}
+
+			// Populate mouse move event.
+			event.time = timestamp;
+			event.reserved = 0x00;
+
+			event.mask = get_modifiers();
+
+			// Check the upper half of virtual modifiers for non-zero
+			// values and set the mouse dragged flag.
+			mouse_dragged = (event.mask >> 8 > 0);
+			if (mouse_dragged) {
+				// Create Mouse Dragged event.
+				event.type = EVENT_MOUSE_DRAGGED;
+			}
+			else {
+				// Create a Mouse Moved event.
+				event.type = EVENT_MOUSE_MOVED;
+			}
+
+			event.data.mouse.button = MOUSE_NOBUTTON;
+			event.data.mouse.clicks = click_count;
+			event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
+			event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
+
+			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+			uint8_t count;
+			screen_data *screens = hook_get_screen_info(&count);
+			if (count > 1) {
+				event.data.mouse.x -= screens[0].x;
+				event.data.mouse.y -= screens[0].y;
+			}
+			#endif
+
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %i, %i. (%#X)\n",
+					__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
+					event.data.mouse.x, event.data.mouse.y, event.mask);
+
+			// Fire mouse move event.
+			dispatch_event(&event);
+		}
+		else {
+			// In theory this *should* never execute.
+			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled X11 event! (%#X)\n",
+					__FUNCTION__, __LINE__, (unsigned int) data->type);
 		}
 	}
 	else {
-		logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Unix hook category! (%#X)\n",
-				__FUNCTION__, __LINE__, hook->category);
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled X11 hook category! (%#X)\n",
+				__FUNCTION__, __LINE__, recorded_data->category);
 	}
 
 	// TODO There is no way to consume the XRecord event.
 
-	XRecordFreeData(hook);
+	XRecordFreeData(recorded_data);
 }

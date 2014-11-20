@@ -78,6 +78,14 @@ typedef enum _event_type {
 	EVENT_MOUSE_WHEEL
 } event_type;
 
+typedef struct _screen_data {
+	uint8_t number;
+	int16_t x;
+	int16_t y;
+	uint16_t width;
+	uint16_t height;
+} screen_data;
+
 typedef struct _keyboard_event_data {
 	uint16_t keycode;
 	uint16_t rawcode;
@@ -90,8 +98,8 @@ typedef struct _keyboard_event_data {
 typedef struct _mouse_event_data {
 	uint16_t button;
 	uint16_t clicks;
-	uint16_t x;
-	uint16_t y;
+	int16_t x;
+	int16_t y;
 } mouse_event_data,
 		mouse_pressed_event_data,
 		mouse_released_event_data,
@@ -99,8 +107,8 @@ typedef struct _mouse_event_data {
 
 typedef struct _mouse_wheel_event_data {
 	uint16_t clicks;
-	uint16_t x;
-	uint16_t y;
+	int16_t x;
+	int16_t y;
 	uint16_t type;
 	uint16_t amount;
 	int16_t rotation;
@@ -363,10 +371,10 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 
 
 /* Begin Virtual Mouse Buttons */
-#define MOUSE_NOBUTTON							0	// AnyButton
-#define MOUSE_BUTTON1							1
-#define MOUSE_BUTTON2							2
-#define MOUSE_BUTTON3							3
+#define MOUSE_NOBUTTON							0	// Any Button
+#define MOUSE_BUTTON1							1	// Left Button
+#define MOUSE_BUTTON2							2	// Right Button
+#define MOUSE_BUTTON3							3	// Middle Button
 #define MOUSE_BUTTON4							4	// Extra Mouse Button
 #define MOUSE_BUTTON5							5	// Extra Mouse Button
 
@@ -403,6 +411,9 @@ extern "C" {
 	// Check the event hook status.
 	UIOHOOK_API bool hook_is_enabled();
 
+	// Retrieves an array of screen data for each available monitor.
+	UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count);
+
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();
 
@@ -420,7 +431,7 @@ extern "C" {
 
 	// Retrieves the double/triple click interval.
 	UIOHOOK_API long int hook_get_multi_click_time();
-
+	
 #ifdef __cplusplus
 }
 #endif

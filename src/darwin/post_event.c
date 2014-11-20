@@ -102,6 +102,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			
 			CGEventSetFlags(cg_event, get_key_event_mask(event));
 			CGEventPost(loc, cg_event);
+			CFRelease(cg_event);
 			break;
 /*** FIXME ****
 		case EVENT_KEY_TYPED:
@@ -112,6 +113,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			
 			CGEventSetFlags(cg_event, get_key_event_mask(event));
 			CGEventPost(loc, cg_event);
+			CFRelease(cg_event);
 */
 		case EVENT_KEY_RELEASED:
 			cg_event = CGEventCreateKeyboardEvent(src,
@@ -120,6 +122,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			
 			CGEventSetFlags(cg_event, get_key_event_mask(event));
 			CGEventPost(loc, cg_event);
+			CFRelease(cg_event);
 			break;
 
 			
@@ -134,6 +137,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					),
 					kCGMouseButtonLeft
 				);
+				CFRelease(cg_event);
 				CGEventPost(loc, cg_event);
 			}
 			else if (event->data.mouse.button == MOUSE_BUTTON2) {
@@ -145,6 +149,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					),
 					kCGMouseButtonRight
 				);
+				CFRelease(cg_event);
 				CGEventPost(loc, cg_event);
 			}
 			else if (event->data.mouse.button > 0) {
@@ -157,6 +162,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					event->data.mouse.button - 1
 				);
 				CGEventPost(loc, cg_event);
+				CFRelease(cg_event);
 			}
 
 			if (event->type == EVENT_MOUSE_PRESSED) {
@@ -174,6 +180,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					kCGMouseButtonLeft
 				);
 				CGEventPost(loc, cg_event);
+				CFRelease(cg_event);
 			}
 			else if (event->data.mouse.button == MOUSE_BUTTON2) {
 				cg_event = CGEventCreateMouseEvent(src,
@@ -185,6 +192,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					kCGMouseButtonRight
 				);
 				CGEventPost(loc, cg_event);
+				CFRelease(cg_event);
 			}
 			else if (event->data.mouse.button > 0) {
 				cg_event = CGEventCreateMouseEvent(src,
@@ -196,6 +204,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					event->data.mouse.button - 1
 				);
 				CGEventPost(loc, cg_event);
+				CFRelease(cg_event);
 			}
 			break;
 
@@ -222,6 +231,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					event->data.wheel.amount * event->data.wheel.rotation);
 			}
 			CGEventPost(loc, cg_event);
+			CFRelease(cg_event);
 			break;
 
 
@@ -269,19 +279,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				);
 			}
 			CGEventPost(loc, cg_event);
+			CFRelease(cg_event);
 			break;
 
 		default:
 		break;
 	}
 
-	//CGEventSetFlags(cg_event, (CGEventFlags) 0x00);
-	
-	//CGEventSetFlags(cg_event, kCGEventFlagMaskCommand);
-
-    
-
-
-	CFRelease(cg_event);
 	CFRelease(src);
 }

@@ -254,9 +254,6 @@ static void *hook_thread_proc(void *arg) {
 	// Execute the thread cancel handler.
 	pthread_cleanup_pop(1);
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-			__FUNCTION__, __LINE__);
-
 	return arg;
 }
 

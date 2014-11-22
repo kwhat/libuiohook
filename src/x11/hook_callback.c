@@ -160,6 +160,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
 
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+				__FUNCTION__, __LINE__);
+		
 		// Populate the hook stop event.
 		event.time = timestamp;
 		event.reserved = 0x00;

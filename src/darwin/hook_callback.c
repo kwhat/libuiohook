@@ -248,9 +248,9 @@ void stop_message_port_runloop() {
 
 	observer = NULL;
 	src_msg_port = NULL;
-
+/*
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
-			__FUNCTION__, __LINE__);
+			__FUNCTION__, __LINE__);*/
 }
 
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
@@ -285,6 +285,9 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 
 		case kCFRunLoopExit:
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Exiting hook thread RunLoop.\n",
+					__FUNCTION__, __LINE__);
+			
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 					__FUNCTION__, __LINE__);
 
 			// Lock the control mutex until we exit.

@@ -171,6 +171,9 @@ void hook_start_proc() {
 }
 
 void hook_stop_proc() {
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+
 	// Populate the hook stop event.
 	event.time = get_event_timestamp();
 	event.reserved = 0x00;

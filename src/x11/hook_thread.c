@@ -103,6 +103,9 @@ static void hook_cleanup_proc(void *arg) {
 	pthread_mutex_unlock(&hook_control_mutex);
 }
 
+extern void _test_start();
+extern void _test_stop();
+
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has terminated due to error.
@@ -112,7 +115,8 @@ static void *hook_thread_proc(void *arg) {
 	// Hook data for future cleanup.
 	hook_data *data = malloc(sizeof(hook_data));
 	pthread_cleanup_push(hook_cleanup_proc, data);
-
+//_test_start();
+	
 	// Cast for convenience and initialize.
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
@@ -143,10 +147,9 @@ static void *hook_thread_proc(void *arg) {
 			data->range->device_events.first = KeyPress;
 			data->range->device_events.last = MotionNotify;
 
-			/* Note that the documentation for this function is incorrect,
-			 * disp_data should be used!
-			 * See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
-			 */
+			// Note that the documentation for this function is incorrect,
+			// disp_data should be used!
+			// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
 			context = XRecordCreateContext(data->display, XRecordFromServerTime, &clients, 1, &(data->range), 1);
 			if (context != 0) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
@@ -241,9 +244,6 @@ static void *hook_thread_proc(void *arg) {
 	// Execute the thread cleanup handler.
 	pthread_cleanup_pop(1);
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-			__FUNCTION__, __LINE__);
-
 	return arg;
 }
 
@@ -253,7 +253,7 @@ UIOHOOK_API int hook_enable() {
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has fully stopped.
 	pthread_mutex_lock(&hook_control_mutex);
-
+	
 	// Make sure the native thread is not already running.
 	if (hook_is_enabled() != true) {
 		// Open the control and data displays.
@@ -398,33 +398,35 @@ UIOHOOK_API int hook_disable() {
 	pthread_mutex_lock(&hook_control_mutex);
 
 	if (hook_is_enabled() == true) {
-		// We need to make sure the context is still valid.
-		XRecordState *state = malloc(sizeof(XRecordState));
-		if (XRecordGetContext(ctrl_display, context, &state) != 0) {
-			// Try to exit the thread naturally.
-			if (state->enabled && XRecordDisableContext(ctrl_display, context) != 0) {
-				#ifdef USE_XRECORD_ASYNC
-				pthread_mutex_lock(&hook_xrecord_mutex);
-				running = false;
-				pthread_cond_signal(&hook_xrecord_cond);
-				pthread_mutex_unlock(&hook_xrecord_mutex);
-				#endif
+		if (ctrl_display != NULL && context != 0) {
+			// We need to make sure the context is still valid.
+			XRecordState *state = malloc(sizeof(XRecordState));
+			if (XRecordGetContext(ctrl_display, context, &state) != 0) {
+				// Try to exit the thread naturally.
+				if (state->enabled && XRecordDisableContext(ctrl_display, context) != 0) {
+					#ifdef USE_XRECORD_ASYNC
+					pthread_mutex_lock(&hook_xrecord_mutex);
+					running = false;
+					pthread_cond_signal(&hook_xrecord_cond);
+					pthread_mutex_unlock(&hook_xrecord_mutex);
+					#endif
 
-				// See Bug 42356 for more information.
-				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-				XFlush(ctrl_display);
-				//XSync(ctrl_display, True);
+					// See Bug 42356 for more information.
+					// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+					XFlush(ctrl_display);
+					//XSync(ctrl_display, True);
 
-				// If we want method to behave synchronically, we must wait
-				// for the thread to die.
-				// NOTE This will prevent function calls from the callback!
-				// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
+					// If we want method to behave synchronically, we must wait
+					// for the thread to die.
+					// NOTE This will prevent function calls from the callback!
+					// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
 
-				status = UIOHOOK_SUCCESS;
+					status = UIOHOOK_SUCCESS;
+				}
 			}
+			
+			free(state);
 		}
-
-		free(state);
 	}
 
 	// Make sure the mutex gets unlocked.

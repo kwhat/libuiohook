@@ -44,7 +44,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
 
 	// Spot check the hInst incase the library was statically linked and DllMain
-	// did not receieve a pointer on load.
+	// did not receive a pointer on load.
 	if (hInst == NULL) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: hInst was not set by DllMain()!\n",
 				__FUNCTION__, __LINE__);
@@ -124,9 +124,6 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		CloseHandle(hook_running_mutex);
 		hook_running_mutex = NULL;
 	}
-
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-			__FUNCTION__, __LINE__);
 
 	return status;
 }

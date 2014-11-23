@@ -148,7 +148,7 @@ static void *hook_thread_proc(void *arg) {
 			data->range->device_events.last = MotionNotify;
 
 			// Note that the documentation for this function is incorrect,
-			// disp_data should be used!
+			// data->display should be used!
 			// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
 			context = XRecordCreateContext(data->display, XRecordFromServerTime, &clients, 1, &(data->range), 1);
 			if (context != 0) {
@@ -161,7 +161,7 @@ static void *hook_thread_proc(void *arg) {
 
 				#ifdef USE_XRECORD_ASYNC
 				// Async requires that we loop so that our thread does not return.
-				if (XRecordEnableContextAsync(disp_data, context, hook_event_proc, closeure) != 0) {
+				if (XRecordEnableContextAsync(data->display, context, hook_event_proc, closeure) != 0) {
 					// Time in MS to sleep the runloop.
 					int timesleep = 100;
 
@@ -173,7 +173,7 @@ static void *hook_thread_proc(void *arg) {
 						// Unlock the mutex from the previous iteration.
 						pthread_mutex_unlock(&hook_xrecord_mutex);
 
-						XRecordProcessReplies(disp_data);
+						XRecordProcessReplies(data->display);
 
 						// Prevent 100% CPU utilization.
 						struct timeval tv;

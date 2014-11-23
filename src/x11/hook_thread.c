@@ -103,9 +103,6 @@ static void hook_cleanup_proc(void *arg) {
 	pthread_mutex_unlock(&hook_control_mutex);
 }
 
-extern void _test_start();
-extern void _test_stop();
-
 static void *hook_thread_proc(void *arg) {
 	// Lock the thread control mutex.  This will be unlocked when the
 	// thread has finished starting, or when it has terminated due to error.
@@ -115,8 +112,7 @@ static void *hook_thread_proc(void *arg) {
 	// Hook data for future cleanup.
 	hook_data *data = malloc(sizeof(hook_data));
 	pthread_cleanup_push(hook_cleanup_proc, data);
-//_test_start();
-	
+
 	// Cast for convenience and initialize.
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;

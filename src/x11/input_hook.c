@@ -22,7 +22,7 @@
 
 #include <inttypes.h>
 #include <limits.h>
-#include <pthread.h>
+
 #include <stdint.h>
 #include <sys/time.h>
 #include <uiohook.h>
@@ -41,7 +41,7 @@
 
 #include "logger.h"
 #include "input_helper.h"
-#include "hook_callback.h"
+#include "input_hook.h"
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -159,9 +159,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	else if (recorded_data->category == XRecordEndOfData) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
-
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-				__FUNCTION__, __LINE__);
 		
 		// Populate the hook stop event.
 		event.time = timestamp;
@@ -597,4 +594,243 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	// TODO There is no way to consume the XRecord event.
 
 	XRecordFreeData(recorded_data);
+}
+
+
+UIOHOOK_API int hook_enable() {
+	// Open the control and data displays.
+	Display *ctrl_display = XOpenDisplay(NULL);
+	if (ctrl_display == NULL) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
+				__FUNCTION__, __LINE__);
+
+		// Close down any open displays.
+		if (ctrl_display != NULL) {
+			XCloseDisplay(ctrl_display);
+			ctrl_display = NULL;
+		}
+
+		return UIOHOOK_ERROR_X_OPEN_DISPLAY;
+	}
+
+		
+	// Attempt to setup detectable autorepeat.
+	// NOTE: is_auto_repeat is NOT stdbool!
+	Bool is_auto_repeat = False;
+	#ifdef USE_XKB
+	// Enable detectable autorepeat.
+	XkbSetDetectableAutoRepeat(ctrl_display, True, &is_auto_repeat);
+	#else
+	XAutoRepeatOn(ctrl_display);
+
+	XKeyboardState kb_state;
+	XGetKeyboardControl(ctrl_display, &kb_state);
+
+	is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
+	#endif
+
+	if (is_auto_repeat == False) {
+		logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
+				__FUNCTION__, __LINE__);
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
+				__FUNCTION__, __LINE__);
+	}
+
+
+	// Check to make sure XRecord is installed and enabled.
+	int major, minor;
+	if (XRecordQueryVersion(ctrl_display, &major, &minor) == 0) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecord is not currently available!\n",
+				__FUNCTION__, __LINE__);
+
+		return UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
+	}
+	else {
+		logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n",
+				__FUNCTION__, __LINE__, major, minor);
+	}
+
+
+	// Hook data for future cleanup.
+	hook_data *data = malloc(sizeof(hook_data));
+
+	// Try and open a data display for XRecord.
+	// NOTE This display must be opened on the same thread as XRecord.
+	data->display = XOpenDisplay(NULL);
+	if (data->display == NULL) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
+				__FUNCTION__, __LINE__);
+
+		// Set the exit status.
+		return UIOHOOK_ERROR_X_OPEN_DISPLAY;
+	}
+	else {	
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
+				__FUNCTION__, __LINE__);
+	}
+
+	// Make sure the data display is synchronized to prevent late event delivery!
+	// See Bug 42356 for more information.
+	// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+	XSynchronize(data->display, True);
+
+	// Setup XRecord range.
+	XRecordClientSpec clients = XRecordAllClients;
+	data->range = XRecordAllocRange();
+	if (data->range == NULL) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordAllocRange failure!\n",
+				__FUNCTION__, __LINE__);
+
+		// Set the exit status.
+		return UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n",
+				__FUNCTION__, __LINE__);
+
+		// Create XRecord Context.
+		data->range->device_events.first = KeyPress;
+		data->range->device_events.last = MotionNotify;
+	}
+
+
+	// Note that the documentation for this function is incorrect,
+	// data->display should be used!
+	// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
+	XRecordContext context = XRecordCreateContext(data->display, XRecordFromServerTime, &clients, 1, &data->range, 1);
+	if (context == 0) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
+				__FUNCTION__, __LINE__);
+
+		// Set the exit status.
+		return UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
+	}
+	else {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
+				__FUNCTION__, __LINE__);
+	}
+
+	// Save the data display associated with this hook so it is passed to each event.
+	//XPointer closeure = (XPointer) (ctrl_display);
+	XPointer closeure = NULL;
+
+	#ifdef USE_XRECORD_ASYNC
+	// Async requires that we loop so that our thread does not return.
+	if (XRecordEnableContextAsync(data->display, context, hook_event_proc, closeure) != 0) {
+		// Time in MS to sleep the runloop.
+		int timesleep = 100;
+
+		// Allow the thread loop to block.
+		pthread_mutex_lock(&hook_xrecord_mutex);
+		running = true;
+
+		do {
+			// Unlock the mutex from the previous iteration.
+			pthread_mutex_unlock(&hook_xrecord_mutex);
+
+			XRecordProcessReplies(data->display);
+
+			// Prevent 100% CPU utilization.
+			struct timeval tv;
+			gettimeofday(&tv, NULL);
+
+			struct timespec ts;
+			ts.tv_sec = time(NULL) + timesleep / 1000;
+			ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (timesleep % 1000);
+			ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
+			ts.tv_nsec %= (1000 * 1000 * 1000);
+
+			pthread_mutex_lock(&hook_xrecord_mutex);
+			pthread_cond_timedwait(&hook_xrecord_cond, &hook_xrecord_mutex, &ts);
+		} while (running);
+
+		// Unlock after loop exit.
+		pthread_mutex_unlock(&hook_xrecord_mutex);
+
+		// Set the exit status.
+		status = NULL;
+	}
+	#else
+	// Sync blocks until XRecordDisableContext() is called.
+	if (XRecordEnableContext(data->display, context, hook_event_proc, closeure) != 0) {
+
+	}
+	#endif
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordEnableContext failure!\n",
+			__FUNCTION__, __LINE__);
+
+		#ifdef USE_XRECORD_ASYNC
+		// Reset the running state.
+		pthread_mutex_lock(&hook_xrecord_mutex);
+		running = false;
+		pthread_mutex_unlock(&hook_xrecord_mutex);
+		#endif
+
+		// Set the exit status.
+		return UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
+	}
+
+	
+	// Free the XRecord range if it was set.
+	XFree(data->range);
+
+	// Free up the context if it was set.
+	XRecordFreeContext(data->display, context);
+
+	// Close down the XRecord data display.
+	XCloseDisplay(data->display);
+
+	// Close down any open displays.
+	XCloseDisplay(ctrl_display);
+
+	
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+
+	return UIOHOOK_SUCCESS;
+}
+
+UIOHOOK_API int hook_disable() {
+	int status = UIOHOOK_FAILURE;
+
+
+		if (ctrl_display != NULL && context != 0) {
+			// We need to make sure the context is still valid.
+			XRecordState *state = malloc(sizeof(XRecordState));
+			if (XRecordGetContext(ctrl_display, context, &state) != 0) {
+				// Try to exit the thread naturally.
+				if (state->enabled && XRecordDisableContext(ctrl_display, context) != 0) {
+					#ifdef USE_XRECORD_ASYNC
+					pthread_mutex_lock(&hook_xrecord_mutex);
+					running = false;
+					pthread_cond_signal(&hook_xrecord_cond);
+					pthread_mutex_unlock(&hook_xrecord_mutex);
+					#endif
+
+					// See Bug 42356 for more information.
+					// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+					XFlush(ctrl_display);
+					//XSync(ctrl_display, True);
+
+					// If we want method to behave synchronically, we must wait
+					// for the thread to die.
+					// NOTE This will prevent function calls from the callback!
+					// pthread_cond_wait(&hook_control_cond, &hook_control_mutex);
+
+					status = UIOHOOK_SUCCESS;
+				}
+			}
+			
+			free(state);
+		}
+
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
+
+	return status;
 }

@@ -44,7 +44,6 @@
 
 #include "logger.h"
 #include "input_helper.h"
-#include "input_hook.h"
 
 
 // Thread and hook handles.

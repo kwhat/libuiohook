@@ -21,14 +21,26 @@
 #endif
 
 #include <ApplicationServices/ApplicationServices.h>
-#include <limits.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <sys/time.h>
 #include <uiohook.h>
 
 #include "hook_callback.h"
 #include "input_helper.h"
 #include "logger.h"
+
+typedef struct _hook_info {
+	CFMachPortRef port;
+	CFRunLoopSourceRef source;
+	CFRunLoopObserverRef observer;
+} hook_info;
+
+// Thread and hook handles.
+CFRunLoopRef event_loop;
+
+// Flag to restart the event tap incase of timeout.
+Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x00000000;
@@ -57,12 +69,10 @@ static uint64_t offset_time = 0;
 // Virtual event pointer.
 static uiohook_event event;
 
+static Boolean restart_tap;
+
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
-
-extern pthread_mutex_t hook_running_mutex, hook_control_mutex;
-extern pthread_cond_t hook_control_cond;
-extern Boolean restart_tap;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n",
@@ -85,6 +95,7 @@ static inline void dispatch_event(uiohook_event *const event) {
 	}
 }
 
+
 // Set the native modifier mask for future events.
 static inline void set_modifier_mask(uint16_t mask) {
 	current_modifiers |= mask;
@@ -99,6 +110,7 @@ static inline void unset_modifier_mask(uint16_t mask) {
 static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
+
 
 static inline uint64_t get_event_timestamp(CGEventRef event_ref) {
 	// Grab the system uptime in NS.
@@ -127,6 +139,7 @@ static inline uint64_t get_event_timestamp(CGEventRef event_ref) {
 	// Set the event time to the server time + offset.
 	return hook_time + offset_time;
 }
+
 
 static pthread_cond_t msg_port_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t msg_port_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -253,6 +266,7 @@ void stop_message_port_runloop() {
 			__FUNCTION__, __LINE__);*/
 }
 
+
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
@@ -262,12 +276,6 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 
 	switch (activity) {
 		case kCFRunLoopEntry:
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Entering hook thread RunLoop.\n",
-					__FUNCTION__, __LINE__);
-
-			// Lock the running mutex to signal the hook has started.
-			pthread_mutex_lock(&hook_running_mutex);
-
 			// Populate the hook start event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -277,25 +285,9 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 
 			// Fire the hook start event.
 			dispatch_event(&event);
-
-			// Unlock the control mutex so hook_enable() can continue.
-			pthread_cond_signal(&hook_control_cond);
-			pthread_mutex_unlock(&hook_control_mutex);
 			break;
 
 		case kCFRunLoopExit:
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Exiting hook thread RunLoop.\n",
-					__FUNCTION__, __LINE__);
-			
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-					__FUNCTION__, __LINE__);
-
-			// Lock the control mutex until we exit.
-			pthread_mutex_lock(&hook_control_mutex);
-
-			// Unlock the running mutex to signal the hook has stopped.
-			pthread_mutex_unlock(&hook_running_mutex);
-
 			// Populate the hook stop event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -749,4 +741,222 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 	}
 
 	return result_ref;
+}
+
+
+
+UIOHOOK_API int hook_enable() {
+	do {
+		// Reset the restart flag...
+		restart_tap = false;
+
+		// Check for accessibility each time we start the loop.
+		if (!is_accessibility_enabled()) {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
+					__FUNCTION__, __LINE__);
+
+			// Set the exit status.
+			return UIOHOOK_ERROR_AXAPI_DISABLED;
+		}
+		else {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
+					__FUNCTION__, __LINE__);
+		}
+
+		// Push hook cleanup proc on the thread stack.
+		hook_info *hook = malloc(sizeof(hook_info));
+		if (hook == NULL) {
+			return UIOHOOK_ERROR_OUT_OF_MEMORY;
+		}
+
+		// Setup the event mask to listen for.
+		#ifdef USE_DEBUG
+		CGEventMask event_mask =	kCGEventMaskForAllEvents;
+		#else
+		// This includes everything except:
+		//	kCGEventNull
+		//	kCGEventTapDisabledByTimeout
+		//	kCGEventTapDisabledByTimeout
+		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
+									CGEventMaskBit(kCGEventKeyUp) |
+									CGEventMaskBit(kCGEventFlagsChanged) |
+
+									CGEventMaskBit(kCGEventLeftMouseDown) |
+									CGEventMaskBit(kCGEventLeftMouseUp) |
+									CGEventMaskBit(kCGEventLeftMouseDragged) |
+
+									CGEventMaskBit(kCGEventRightMouseDown) |
+									CGEventMaskBit(kCGEventRightMouseUp) |
+									CGEventMaskBit(kCGEventRightMouseDragged) |
+
+									CGEventMaskBit(kCGEventOtherMouseDown) |
+									CGEventMaskBit(kCGEventOtherMouseUp) |
+									CGEventMaskBit(kCGEventOtherMouseDragged) |
+
+									CGEventMaskBit(kCGEventMouseMoved) |
+									CGEventMaskBit(kCGEventScrollWheel) |
+									CGEventMaskBit(kCGEventTapDisabledByTimeout);
+		#endif
+
+		// Create the event tap.
+		hook->port = CGEventTapCreate(
+				kCGSessionEventTap,			// kCGHIDEventTap
+				kCGHeadInsertEventTap,		// kCGTailAppendEventTap
+				kCGEventTapOptionDefault,	// kCGEventTapOptionListenOnly See Bug #22
+				event_mask,
+				hook_event_proc,
+				NULL);
+
+		if (hook->port == NULL) {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
+					__FUNCTION__, __LINE__);
+
+			// Set the exit status.
+			return UIOHOOK_ERROR_CREATE_EVENT_PORT;
+		}
+		else {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
+					__FUNCTION__, __LINE__);
+		}
+
+
+		// Create the runloop event source from the event tap.
+		hook->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, hook->port, 0);
+		if (hook->source != NULL) {
+
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
+					__FUNCTION__, __LINE__);
+
+			// Set the exit status.
+			return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+		}
+		else {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
+					__FUNCTION__, __LINE__);
+		}
+
+
+
+		event_loop = CFRunLoopGetCurrent();
+		if (event_loop == NULL) {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
+					__FUNCTION__, __LINE__);
+
+			// Set the exit status.
+			return UIOHOOK_ERROR_GET_RUNLOOP;
+		}	
+		else {			
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
+					__FUNCTION__, __LINE__);
+		}
+
+		// Create run loop observers.
+		hook->observer = CFRunLoopObserverCreate(
+				kCFAllocatorDefault,
+				kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+				true,
+				0,
+				hook_status_proc,
+				NULL);
+
+		if (hook->observer == NULL) {
+			// We cant do a whole lot of anything if we cant
+			// create run loop observer.
+
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
+					__FUNCTION__, __LINE__);
+
+			// Set the exit status.
+			return UIOHOOK_ERROR_CREATE_OBSERVER;
+		}
+
+
+		start_message_port_runloop();
+
+		// Add the event source and observer to the runloop mode.
+		CFRunLoopAddSource(event_loop, hook->source, kCFRunLoopDefaultMode);
+		CFRunLoopAddObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
+
+		// Start the hook thread runloop.
+		CFRunLoopRun();
+
+
+		}
+
+
+
+		// Execute the thread cleanup handler.
+
+		// Stop the CFMachPort from receiving any more messages.
+		if (hook->port != NULL) {
+			CFMachPortInvalidate(hook->port);
+			CFRelease(hook->port);
+		}
+
+		if (event_loop != NULL && hook->observer != NULL) {
+			// Lock back up until we are done processing the exit.
+			if (CFRunLoopContainsObserver(event_loop, hook->observer, kCFRunLoopDefaultMode)) {
+				CFRunLoopRemoveObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
+			}
+
+			if (CFRunLoopContainsSource(event_loop, hook->source, kCFRunLoopDefaultMode)) {
+				CFRunLoopRemoveSource(event_loop, hook->source, kCFRunLoopDefaultMode);
+			}
+
+			CFRunLoopObserverInvalidate(hook->observer);
+		}
+
+		// Clean up the event source.
+		if (hook->source) {
+			CFRelease(hook->source);
+		}
+
+		// Stop the runloop used for keytyped events.
+		stop_message_port_runloop();
+
+		// Free the hook structure.
+		free(arg);
+	} while (restart_tap);
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+
+	return UIOHOOK_SUCCESS;
+}
+
+UIOHOOK_API int hook_disable() {
+	int status = UIOHOOK_FAILURE;
+
+	if (hook_is_enabled() == true) {
+		// Make sure the tap doesn't restart.
+		restart_tap = false;
+
+		// Stop the run loop.
+		CFRunLoopStop(event_loop);
+
+		status = UIOHOOK_SUCCESS;
+	}
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
+
+	return status;
+}
+
+UIOHOOK_API bool hook_is_enabled() {
+	bool is_running = false;
+
+	// Try to aquire a lock on the running mutex.
+	if (pthread_mutex_trylock(&hook_running_mutex) == 0) {
+		// Lock Successful, thread is not running.
+		pthread_mutex_unlock(&hook_running_mutex);
+	}
+	else {
+		is_running = true;
+	}
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n",
+			__FUNCTION__, __LINE__, is_running);
+
+	return is_running;
 }

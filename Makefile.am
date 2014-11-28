@@ -32,9 +32,8 @@ MAN3_SRC = man/hook_disable.man \
 	   man/hook_set_logger_proc.man
 
 if BUILD_DARWIN
-HOOK_SRC += src/darwin/hook_callback.c \
-	 src/darwin/hook_thread.c \
-	 src/darwin/input_helper.c \
+HOOK_SRC += src/darwin/input_helper.c \
+	 src/darwin/input_hook.c \
 	 src/darwin/post_event.c \
 	 src/darwin/system_properties.c
 endif

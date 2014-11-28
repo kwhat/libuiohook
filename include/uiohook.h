@@ -31,11 +31,6 @@
 // System level errors.
 #define UIOHOOK_ERROR_OUT_OF_MEMORY				0x02
 
-// Native thread errors.
-#define UIOHOOK_ERROR_THREAD_CREATE				0x10
-#define UIOHOOK_ERROR_THREAD_INIT				0x11
-#define UIOHOOK_ERROR_THREAD_START				0x12
-
 // Unix specific errors.
 #define UIOHOOK_ERROR_X_OPEN_DISPLAY			0x20
 #define UIOHOOK_ERROR_X_RECORD_NOT_FOUND		0x21
@@ -65,8 +60,8 @@ typedef bool (*logger_t)(unsigned int, const char *, ...);
 
 /* Begin Virtual Event Types and Data Structures */
 typedef enum _event_type {
-	EVENT_HOOK_START = 1,
-	EVENT_HOOK_STOP,
+	EVENT_HOOK_ENABLED = 1,
+	EVENT_HOOK_DISABLED,
 	EVENT_KEY_TYPED,
 	EVENT_KEY_PRESSED,
 	EVENT_KEY_RELEASED,
@@ -407,9 +402,6 @@ extern "C" {
 
 	// Withdraw the event hook.
 	UIOHOOK_API int hook_disable();
-
-	// Check the event hook status.
-	UIOHOOK_API bool hook_is_enabled();
 
 	// Retrieves an array of screen data for each available monitor.
 	UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count);

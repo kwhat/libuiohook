@@ -29,15 +29,9 @@
 #include <windows.h>
 
 static HANDLE control_handle = NULL;
-#else
-#include <pthread.h>
-
-#if defined(__APPLE__) && defined(__MACH__)
+#elif defined(__APPLE__) && defined(__MACH__)
 #include <CoreFoundation/CoreFoundation.h>
-#else
-static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
+#include <pthread.h>
 #endif
 
 // NOTE: This function executes on the hook thread!  If you need to block,
@@ -54,14 +48,8 @@ void dispatch_proc(uiohook_event * const event) {
 
 				#ifdef _WIN32
 				SetEvent(control_handle);
-				#else
-				#if defined(__APPLE__) && defined(__MACH__)
+				#elif defined(__APPLE__) && defined(__MACH__)
 				CFRunLoopStop(CFRunLoopGetMain());
-				#else
-				pthread_mutex_lock(&control_mutex);
-				pthread_cond_signal(&control_cond);
-				pthread_mutex_unlock(&control_mutex);
-				#endif
 				#endif
 			}
 		case EVENT_KEY_RELEASED:
@@ -107,6 +95,7 @@ int main() {
 	#endif
 
 	int status = hook_enable();
+/*
 	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
 		#ifdef _WIN32
 		WaitForSingleObject(control_handle, INFINITE);
@@ -119,7 +108,7 @@ int main() {
 		pthread_mutex_unlock(&control_mutex);
 		#endif
 	}
-
+*/
 	#ifdef _WIN32
 	CloseHandle(control_handle);
 	#endif

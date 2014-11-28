@@ -40,9 +40,8 @@ HOOK_SRC += src/darwin/hook_callback.c \
 endif
 
 if BUILD_X11
-HOOK_SRC += src/x11/hook_callback.c \
-	 src/x11/hook_thread.c \
-	 src/x11/input_helper.c \
+HOOK_SRC += src/x11/input_helper.c \
+	 src/x11/input_hook.c \
 	 src/x11/post_event.c \
 	 src/x11/system_properties.c
 endif

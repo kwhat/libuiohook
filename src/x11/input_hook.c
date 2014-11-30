@@ -22,7 +22,9 @@
 
 #include <inttypes.h>
 #include <limits.h>
-
+#ifdef USE_XRECORD_ASYNC
+#include <pthread.h>
+#endif
 #include <stdint.h>
 #include <sys/time.h>
 #include <uiohook.h>

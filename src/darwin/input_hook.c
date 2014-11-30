@@ -26,7 +26,6 @@
 #include <sys/time.h>
 #include <uiohook.h>
 
-#include "hook_callback.h"
 #include "input_helper.h"
 #include "logger.h"
 
@@ -40,7 +39,7 @@ typedef struct _hook_info {
 CFRunLoopRef event_loop;
 
 // Flag to restart the event tap incase of timeout.
-Boolean restart_tap = false;
+static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x00000000;
@@ -68,8 +67,6 @@ static uint64_t offset_time = 0;
 
 // Virtual event pointer.
 static uiohook_event event;
-
-static Boolean restart_tap;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -181,7 +178,7 @@ static void message_port_proc(void *info) {
 }
 
 static CFRunLoopObserverRef observer = NULL;
-void start_message_port_runloop() {
+static void start_message_port_runloop() {
 	// Create a runloop observer for the main runloop.
 	observer = CFRunLoopObserverCreate(
 			kCFAllocatorDefault,
@@ -239,7 +236,7 @@ void start_message_port_runloop() {
 	}
 }
 
-void stop_message_port_runloop() {
+static void stop_message_port_runloop() {
 	CFRunLoopRef main_loop = CFRunLoopGetMain();
 
 	if (CFRunLoopContainsObserver(main_loop, observer, kCFRunLoopDefaultMode)) {
@@ -261,9 +258,9 @@ void stop_message_port_runloop() {
 
 	observer = NULL;
 	src_msg_port = NULL;
-/*
+
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
-			__FUNCTION__, __LINE__);*/
+			__FUNCTION__, __LINE__);
 }
 
 
@@ -280,7 +277,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			event.time = timestamp;
 			event.reserved = 0x00;
 
-			event.type = EVENT_HOOK_START;
+			event.type = EVENT_HOOK_ENABLED;
 			event.mask = 0x00;
 
 			// Fire the hook start event.
@@ -292,7 +289,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			event.time = timestamp;
 			event.reserved = 0x00;
 
-			event.type = EVENT_HOOK_STOP;
+			event.type = EVENT_HOOK_DISABLED;
 			event.mask = 0x00;
 
 			// Fire the hook stop event.
@@ -328,65 +325,75 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
 	// If the pressed event was not consumed...
 	if (event.reserved ^ 0x01) {
-		// Lock for code dealing with the main runloop.
-		pthread_mutex_lock(&msg_port_mutex);
-
-		// Check to see if the main runloop is still running.
-		// TOOD I would rather this be a check on hook_enable(),
-		// but it makes the usage complicated by requiring a separate 
-		// thread for the main runloop and hook registration.
-		CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
-		if (mode != NULL) {
-			CFRelease(mode);
-
-			// Lookup the Unicode representation for this event.
-			CFRunLoopSourceContext context = { .version = 0 };
-			CFRunLoopSourceGetContext(src_msg_port, &context);
-
-			// Get the run loop context info pointer.
-			TISMessage *info = (TISMessage *) context.info;
-
-			// Set the event pointer.
-			info->event = event_ref;
-
-			// Signal the custom source and wakeup the main runloop.
-			CFRunLoopSourceSignal(src_msg_port);
-			CFRunLoopWakeUp(CFRunLoopGetMain());
-
-			// Wait for a lock while the main run loop processes they key typed event.
-			pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
-
-			// TODO Can length exceed 1?
-			if (info->length == 1) {
-				// Populate key typed event.
-				event.time = timestamp;
-				event.reserved = 0x00;
-
-				event.type = EVENT_KEY_TYPED;
-				event.mask = get_modifiers();
-
-				event.data.keyboard.keycode = VC_UNDEFINED;
-				event.data.keyboard.rawcode = keycode;
-				event.data.keyboard.keychar = info->buffer[0];
-
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, 
-						(wint_t) event.data.keyboard.keychar);
-				
-				// Populate key typed event.
-				dispatch_event(&event);
-			}
-
-			info->event = NULL;
-			info->length = 0;
+		if (CFRunLoopGetCurrent() == CFRunLoopGetMain()) {
+			// If the hook is running on the main runloop, we do not need to do 
+			// all of this signaling junk.
+			UniChar buffer[4];
+			UniCharCount length = 0;
+			
+			keycode_to_string(event_ref, sizeof(buffer), &length, buffer);
 		}
 		else {
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Failed to signal RunLoop main!\n",
-					__FUNCTION__, __LINE__);
-		}
+			// Lock for code dealing with the main runloop.
+			pthread_mutex_lock(&msg_port_mutex);
 
-		// Maintain a lock until we pass all code dealing with TISMessage *info.
-		pthread_mutex_unlock(&msg_port_mutex);
+			// Check to see if the main runloop is still running.
+			// TOOD I would rather this be a check on hook_enable(),
+			// but it makes the usage complicated by requiring a separate 
+			// thread for the main runloop and hook registration.
+			CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
+			if (mode != NULL) {
+				CFRelease(mode);
+
+				// Lookup the Unicode representation for this event.
+				CFRunLoopSourceContext context = { .version = 0 };
+				CFRunLoopSourceGetContext(src_msg_port, &context);
+
+				// Get the run loop context info pointer.
+				TISMessage *info = (TISMessage *) context.info;
+
+				// Set the event pointer.
+				info->event = event_ref;
+
+				// Signal the custom source and wakeup the main runloop.
+				CFRunLoopSourceSignal(src_msg_port);
+				CFRunLoopWakeUp(CFRunLoopGetMain());
+
+				// Wait for a lock while the main run loop processes they key typed event.
+				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
+
+				// TODO Can length exceed 1?
+				if (info->length == 1) {
+					// Populate key typed event.
+					event.time = timestamp;
+					event.reserved = 0x00;
+
+					event.type = EVENT_KEY_TYPED;
+					event.mask = get_modifiers();
+
+					event.data.keyboard.keycode = VC_UNDEFINED;
+					event.data.keyboard.rawcode = keycode;
+					event.data.keyboard.keychar = info->buffer[0];
+
+					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, 
+							(wint_t) event.data.keyboard.keychar);
+
+					// Populate key typed event.
+					dispatch_event(&event);
+				}
+
+				info->event = NULL;
+				info->length = 0;
+			}
+			else {
+				logger(LOG_LEVEL_WARN,	"%s [%u]: Failed to signal RunLoop main!\n",
+						__FUNCTION__, __LINE__);
+			}
+
+			// Maintain a lock until we pass all code dealing with TISMessage *info.
+			pthread_mutex_unlock(&msg_port_mutex);
+		}
 	}
 }
 
@@ -712,11 +719,18 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			process_mouse_wheel(timestamp, event_ref);
 			break;
 
+		#ifdef USE_DEBUG
+		case kCGEventNull:
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring kCGEventNull.\n",
+					__FUNCTION__, __LINE__);
+			break;
+		#endif
+			
 		default:
 			// Check for an old OS X bug where the tap seems to timeout for no reason.
 			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
 			if (type == (CGEventType) kCGEventTapDisabledByTimeout) {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: CGEventTap timeout!\n",
+				logger(LOG_LEVEL_WARN, "%s [%u]: CGEventTap timeout!\n",
 						__FUNCTION__, __LINE__);
 
 				// We need to restart the tap!
@@ -725,7 +739,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			}
 			else {
 				// In theory this *should* never execute.
-				logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Darwin event! (%#X)\n",
+				logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled Darwin event! (%#X)\n",
 						__FUNCTION__, __LINE__, (unsigned int) type);
 			}
 			break;
@@ -775,8 +789,6 @@ UIOHOOK_API int hook_enable() {
 		#else
 		// This includes everything except:
 		//	kCGEventNull
-		//	kCGEventTapDisabledByTimeout
-		//	kCGEventTapDisabledByTimeout
 		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
 									CGEventMaskBit(kCGEventKeyUp) |
 									CGEventMaskBit(kCGEventFlagsChanged) |
@@ -822,7 +834,7 @@ UIOHOOK_API int hook_enable() {
 
 		// Create the runloop event source from the event tap.
 		hook->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, hook->port, 0);
-		if (hook->source != NULL) {
+		if (hook->source == NULL) {
 
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
 					__FUNCTION__, __LINE__);
@@ -870,8 +882,9 @@ UIOHOOK_API int hook_enable() {
 			return UIOHOOK_ERROR_CREATE_OBSERVER;
 		}
 
-
-		start_message_port_runloop();
+		if (event_loop != CFRunLoopGetMain()) {
+			start_message_port_runloop();
+		}
 
 		// Add the event source and observer to the runloop mode.
 		CFRunLoopAddSource(event_loop, hook->source, kCFRunLoopDefaultMode);
@@ -880,13 +893,7 @@ UIOHOOK_API int hook_enable() {
 		// Start the hook thread runloop.
 		CFRunLoopRun();
 
-
-		}
-
-
-
-		// Execute the thread cleanup handler.
-
+		
 		// Stop the CFMachPort from receiving any more messages.
 		if (hook->port != NULL) {
 			CFMachPortInvalidate(hook->port);
@@ -911,11 +918,13 @@ UIOHOOK_API int hook_enable() {
 			CFRelease(hook->source);
 		}
 
-		// Stop the runloop used for keytyped events.
-		stop_message_port_runloop();
+		if (event_loop != CFRunLoopGetMain()) {
+			// Stop the runloop used for keytyped events.
+			stop_message_port_runloop();
+		}
 
 		// Free the hook structure.
-		free(arg);
+		free(hook);
 	} while (restart_tap);
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
@@ -927,7 +936,7 @@ UIOHOOK_API int hook_enable() {
 UIOHOOK_API int hook_disable() {
 	int status = UIOHOOK_FAILURE;
 
-	if (hook_is_enabled() == true) {
+	//if (hook_is_enabled() == true) {
 		// Make sure the tap doesn't restart.
 		restart_tap = false;
 
@@ -935,14 +944,14 @@ UIOHOOK_API int hook_disable() {
 		CFRunLoopStop(event_loop);
 
 		status = UIOHOOK_SUCCESS;
-	}
+	//}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
 
 	return status;
 }
-
+/*
 UIOHOOK_API bool hook_is_enabled() {
 	bool is_running = false;
 
@@ -960,3 +969,4 @@ UIOHOOK_API bool hook_is_enabled() {
 
 	return is_running;
 }
+*/

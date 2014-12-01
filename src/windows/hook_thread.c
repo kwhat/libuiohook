@@ -51,7 +51,7 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: hInst was not set by DllMain()!\n",
 				__FUNCTION__, __LINE__);
 
-		hInst = GetModuleHandle(NULL);
+		HINSTANCE hInstPE = GetModuleHandle(NULL);
 
 		if (hInst != NULL) {
 			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);

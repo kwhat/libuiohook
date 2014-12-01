@@ -145,7 +145,7 @@ void thread_start_proc() {
 	event.time = timestamp;
 	event.reserved = 0x00;
 
-	event.type = EVENT_THREAD_START;
+	event.type = EVENT_THREAD_STARTED;
 	event.mask = 0x00;
 
 	// Fire the hook start event.
@@ -163,7 +163,7 @@ void thread_stop_proc() {
 	event.time = timestamp;
 	event.reserved = 0x00;
 
-	event.type = EVENT_THREAD_STOP;
+	event.type = EVENT_THREAD_STOPPED;
 	event.mask = 0x00;
 
 	// Fire the hook stop event.

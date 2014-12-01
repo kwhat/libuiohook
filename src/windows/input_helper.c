@@ -787,6 +787,31 @@ int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 	return charCount;
 }
 
+BOOL check_module_hInst() {
+	BOOL status = TRUE;
+	
+	// Spot check the hInst incase the library was statically linked and DllMain
+	// did not receive a pointer on load.
+	if (hInst == NULL) {
+		logger(LOG_LEVEL_INFO,	"%s [%u]: hInst was not set by DllMain().\n",
+				__FUNCTION__, __LINE__);
+
+		HINSTANCE hInstPE = GetModuleHandle(NULL);
+
+		if (hInst != NULL) {
+			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
+					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
+			
+			status = FALSE;
+		}
+	}
+	
+	return status;
+}
+
 int load_input_helper() {
 	int count = 0;
 

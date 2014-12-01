@@ -359,7 +359,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 				CFRunLoopSourceSignal(src_msg_port);
 				CFRunLoopWakeUp(CFRunLoopGetMain());
 
-				// Wait for a lock while the main run loop processes they key typed event.
+				// Wait for a lock while the main runloop processes they key typed event.
 				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 
 				// TODO Can length exceed 1?
@@ -936,7 +936,10 @@ UIOHOOK_API int hook_enable() {
 UIOHOOK_API int hook_disable() {
 	int status = UIOHOOK_FAILURE;
 
-	//if (hook_is_enabled() == true) {
+	CFStringRef mode = CFRunLoopCopyCurrentMode(event_loop);
+	if (mode != NULL) {
+		CFRelease(mode);
+		
 		// Make sure the tap doesn't restart.
 		restart_tap = false;
 
@@ -944,29 +947,10 @@ UIOHOOK_API int hook_disable() {
 		CFRunLoopStop(event_loop);
 
 		status = UIOHOOK_SUCCESS;
-	//}
+	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
 
 	return status;
 }
-/*
-UIOHOOK_API bool hook_is_enabled() {
-	bool is_running = false;
-
-	// Try to aquire a lock on the running mutex.
-	if (pthread_mutex_trylock(&hook_running_mutex) == 0) {
-		// Lock Successful, thread is not running.
-		pthread_mutex_unlock(&hook_running_mutex);
-	}
-	else {
-		is_running = true;
-	}
-
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: State (%i).\n",
-			__FUNCTION__, __LINE__, is_running);
-
-	return is_running;
-}
-*/

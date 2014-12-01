@@ -260,8 +260,15 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			CFRelease(cg_event);
 			break;
 
+
+		case EVENT_HOOK_ENABLED:
+		case EVENT_HOOK_DISABLED:
+			// TODO Figure out if we should start / stop the event hook
+			// or fall thru to a warning.
+
 		default:
-		break;
+			// FIXME Produce a warning.
+			break;
 	}
 
 	CFRelease(src);

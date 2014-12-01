@@ -312,9 +312,13 @@ AS_IF(
 			])
 		])
 
-		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
-		LIBS="$PTHREAD_LIBS $LIBS"
-		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+		# We only need pthreads if we are using async XRecord or XRandR.
+		AS_IF([test "x$enable_xrecord_async" = "xyes" || test "x$enable_xrandr" = "xyes"], [
+			AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
+			LIBS="$PTHREAD_LIBS $LIBS"
+			CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+		])
+
 		LDFLAGS="$LDFLAGS -Wl,--no-undefined"
 	],
 	[test "x$backend" = "xwindows"], [
@@ -324,11 +328,6 @@ AS_IF(
 			CFLAGS="$CFLAGS -Wno-format"
 		])
 
-		#REQUIRE="$REQUIRE -lmsvcrt -luser32 -lkernel32"
-
-		#EXTRA_LIBS="-lmsvcrt -luser32 -lkernel32"
-
-		#LIBS="${LIBS} -lsetupapi"
 		LDFLAGS="$LDFLAGS  -Wl,--no-undefined -no-undefined"
 	])
 

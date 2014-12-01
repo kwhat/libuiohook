@@ -46,9 +46,8 @@ HOOK_SRC += src/x11/input_helper.c \
 endif
 
 if BUILD_WINDOWS
-HOOK_SRC += src/windows/hook_callback.c \
-	 src/windows/hook_thread.c \
-	 src/windows/input_helper.c \
+HOOK_SRC += src/windows/input_helper.c \
+	 src/windows/input_hook.c \
 	 src/windows/post_event.c \
 	 src/windows/system_properties.c
 endif

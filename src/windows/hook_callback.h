@@ -21,6 +21,10 @@
 
 #include <windows.h>
 
+extern void thread_start_proc();
+
+extern void thread_stop_proc();
+
 extern void hook_start_proc();
 
 extern void hook_stop_proc();

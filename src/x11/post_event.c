@@ -223,8 +223,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			XTestFakeMotionEvent(disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
 			break;
 
-		case EVENT_HOOK_START:
-		case EVENT_HOOK_STOP:
+			
+		case EVENT_THREAD_STARTED:
+		case EVENT_THREAD_STOPPED:
+			
+		case EVENT_HOOK_ENABLED:
+		case EVENT_HOOK_DISABLED:
 			// TODO Figure out if we should start / stop the event hook
 			// or fall thru to a warning.
 
@@ -413,8 +417,11 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 
 
-		case EVENT_HOOK_START:
-		case EVENT_HOOK_STOP:
+		case EVENT_THREAD_STARTED:
+		case EVENT_THREAD_STOPPED:
+			
+		case EVENT_HOOK_ENABLED:
+		case EVENT_HOOK_DISABLED:
 			// TODO Figure out if we should start / stop the event hook
 			// or fall thru to a warning.
 

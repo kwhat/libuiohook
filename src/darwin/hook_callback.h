@@ -19,6 +19,10 @@
 #ifndef _included_hook_callback
 #define _included_hook_callback
 
+extern void thread_start_proc();
+
+extern void thread_stop_proc();
+
 extern void start_message_port_runloop();
 
 extern void stop_message_port_runloop();

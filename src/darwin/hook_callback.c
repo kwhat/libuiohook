@@ -253,6 +253,42 @@ void stop_message_port_runloop() {
 			__FUNCTION__, __LINE__);*/
 }
 
+void thread_start_proc() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	// Populate the hook start event.
+	event.time = timestamp;
+	event.reserved = 0x00;
+
+	event.type = EVENT_THREAD_STARTED;
+	event.mask = 0x00;
+
+	// Fire the hook start event.
+	dispatch_event(&event);
+}
+
+void thread_stop_proc() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	
+	// Populate the hook stop event.
+	event.time = timestamp;
+	event.reserved = 0x00;
+
+	event.type = EVENT_THREAD_STOPPED;
+	event.mask = 0x00;
+
+	// Fire the hook stop event.
+	dispatch_event(&event);
+}
+
 void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
@@ -272,7 +308,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			event.time = timestamp;
 			event.reserved = 0x00;
 
-			event.type = EVENT_HOOK_START;
+			event.type = EVENT_HOOK_ENABLED;
 			event.mask = 0x00;
 
 			// Fire the hook start event.
@@ -287,9 +323,6 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Exiting hook thread RunLoop.\n",
 					__FUNCTION__, __LINE__);
 			
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-					__FUNCTION__, __LINE__);
-
 			// Lock the control mutex until we exit.
 			pthread_mutex_lock(&hook_control_mutex);
 
@@ -300,7 +333,7 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 			event.time = timestamp;
 			event.reserved = 0x00;
 
-			event.type = EVENT_HOOK_STOP;
+			event.type = EVENT_HOOK_DISABLED;
 			event.mask = 0x00;
 
 			// Fire the hook stop event.
@@ -719,6 +752,13 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 		case kCGEventScrollWheel:
 			process_mouse_wheel(timestamp, event_ref);
 			break;
+
+		#ifdef USE_DEBUG
+		case kCGEventNull:
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring kCGEventNull.\n",
+					__FUNCTION__, __LINE__);
+			break;
+		#endif
 
 		default:
 			// Check for an old OS X bug where the tap seems to timeout for no reason.

@@ -48,7 +48,7 @@ static DWORD click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 static POINT last_click;
 
-// Virtual event pointer.
+// Static event memory.
 static uiohook_event event;
 
 extern HHOOK keyboard_event_hhook, mouse_event_hhook;
@@ -158,12 +158,36 @@ static inline uint64_t get_event_timestamp() {
 	return hook_time + offset_time;
 }
 
+void thread_start_proc() {
+	// Populate the hook start event.
+	event.time = get_event_timestamp();
+	event.reserved = 0x00;
+
+	event.type = EVENT_THREAD_STARTED;
+	event.mask = 0x00;
+
+	// Fire the hook start event.
+	dispatch_event(&event);
+}
+
+void thread_stop_proc() {
+	// Populate the hook stop event.
+	event.time = get_event_timestamp();
+	event.reserved = 0x00;
+
+	event.type = EVENT_THREAD_STOPPED;
+	event.mask = 0x00;
+
+	// Fire the hook stop event.
+	dispatch_event(&event);
+}
+
 void hook_start_proc() {
 	// Populate the hook start event.
 	event.time = get_event_timestamp();
 	event.reserved = 0x00;
 
-	event.type = EVENT_HOOK_START;
+	event.type = EVENT_HOOK_ENABLED;
 	event.mask = 0x00;
 
 	// Fire the hook start event.
@@ -171,14 +195,11 @@ void hook_start_proc() {
 }
 
 void hook_stop_proc() {
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-			__FUNCTION__, __LINE__);
-
 	// Populate the hook stop event.
 	event.time = get_event_timestamp();
 	event.reserved = 0x00;
 
-	event.type = EVENT_HOOK_STOP;
+	event.type = EVENT_HOOK_DISABLED;
 	event.mask = 0x00;
 
 	// Fire the hook stop event.

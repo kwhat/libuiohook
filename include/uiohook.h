@@ -42,6 +42,7 @@
 #define UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE		0x22
 #define UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT	0x23
 #define UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT	0x24
+#define UIOHOOK_ERROR_X_RECORD_GET_CONTEXT		0x25
 
 // Windows specific errors.
 #define UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX		0x30
@@ -65,8 +66,10 @@ typedef bool (*logger_t)(unsigned int, const char *, ...);
 
 /* Begin Virtual Event Types and Data Structures */
 typedef enum _event_type {
-	EVENT_HOOK_START = 1,
-	EVENT_HOOK_STOP,
+	EVENT_THREAD_STARTED = 1,
+	EVENT_THREAD_STOPPED,
+	EVENT_HOOK_ENABLED,
+	EVENT_HOOK_DISABLED,
 	EVENT_KEY_TYPED,
 	EVENT_KEY_PRESSED,
 	EVENT_KEY_RELEASED,

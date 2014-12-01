@@ -22,6 +22,10 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
 
+extern void thread_start_proc();
+
+extern void thread_stop_proc();
+
 // Callback used by hook_thead for all events.
 extern void hook_event_proc(XPointer pointer, XRecordInterceptData *hook);
 

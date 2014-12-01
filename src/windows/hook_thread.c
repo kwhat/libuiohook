@@ -39,10 +39,12 @@ static HANDLE hook_control_mutex = NULL;
 
 HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
-
+extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
 static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	DWORD status = UIOHOOK_FAILURE;
-
+	
+	thread_start_proc();
+	
 	// Spot check the hInst incase the library was statically linked and DllMain
 	// did not receive a pointer on load.
 	if (hInst == NULL) {
@@ -51,7 +53,10 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 
 		hInst = GetModuleHandle(NULL);
 
-		if (hInst == NULL) {
+		if (hInst != NULL) {
+			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
+		}
+		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
 					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 		}
@@ -109,6 +114,11 @@ static DWORD WINAPI hook_thread_proc(LPVOID lpParameter) {
 	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
 	hook_stop_proc();
 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+	
+	thread_stop_proc();
+	
 	// Close any handle that is still open.
 	if (hook_thread_handle != NULL) {
 		CloseHandle(hook_thread_handle);

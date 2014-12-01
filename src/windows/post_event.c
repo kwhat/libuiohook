@@ -62,22 +62,6 @@ static UINT keymask_lookup[8] = {
 	VK_RMENU
 };
 
-static inline void process_key_event(DWORD dwFlags, INPUT *ms_event, uiohook_event * const event) {
-
-}
-
-static inline void process_button_event(DWORD dwFlags, INPUT *ms_event, uiohook_event * const event) {
-
-}
-
-static inline void process_motion_event(DWORD dwFlags, INPUT *ms_event, uiohook_event * const event) {
-
-}
-
-static inline void process_wheel_event(uiohook_event * const event) {
-
-}
-
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
@@ -304,8 +288,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events_size++;
 			break;
 
-		case EVENT_HOOK_START:
-		case EVENT_HOOK_STOP:
+			
+		case EVENT_THREAD_STARTED:
+		case EVENT_THREAD_STOPPED:
+			
+		case EVENT_HOOK_ENABLED:
+		case EVENT_HOOK_DISABLED:
 			// TODO Figure out if we should start / stop the event hook
 			// or fall thru to a warning.
 

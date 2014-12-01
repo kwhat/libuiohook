@@ -94,6 +94,11 @@ static void hook_cleanup_proc(void *arg) {
 	// Cleanup the structure.
 	free(arg);
 
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+	
+	thread_stop_proc();
+	
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
 
@@ -109,6 +114,8 @@ static void *hook_thread_proc(void *arg) {
 	// This is unlocked in the hook_callback.c hook_event_proc().
 	pthread_mutex_lock(&hook_control_mutex);
 
+	thread_start_proc();
+	
 	// Hook data for future cleanup.
 	hook_data *data = malloc(sizeof(hook_data));
 	pthread_cleanup_push(hook_cleanup_proc, data);

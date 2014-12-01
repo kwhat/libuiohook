@@ -90,6 +90,11 @@ static void hook_cleanup_proc(void *arg) {
 }
 
 static void hook_cancel_proc(void *arg) {
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+			__FUNCTION__, __LINE__);
+	
+	thread_stop_proc();
+	
 	// NOTE The hook_control_mutex is guaranteed to be locked at this time.
 	// Make sure we signal that the thread has terminated.
 	pthread_mutex_unlock(&hook_running_mutex);
@@ -106,6 +111,8 @@ static void *hook_thread_proc(void *arg) {
 	// This is unlocked in the hook_callback.c hook_status_proc().
 	pthread_mutex_lock(&hook_control_mutex);
 
+	thread_start_proc();
+	
 	int *status = (int *) arg;
 	*status = UIOHOOK_FAILURE;
 

@@ -134,6 +134,42 @@ static inline uint64_t get_event_timestamp(XRecordInterceptData *recorded_data) 
 	return recorded_data->server_time + offset_time;
 }
 
+void thread_start_proc() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	// Populate the hook start event.
+	event.time = timestamp;
+	event.reserved = 0x00;
+
+	event.type = EVENT_THREAD_START;
+	event.mask = 0x00;
+
+	// Fire the hook start event.
+	dispatch_event(&event);
+}
+
+void thread_stop_proc() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	// Populate the hook stop event.
+	event.time = timestamp;
+	event.reserved = 0x00;
+
+	event.type = EVENT_THREAD_STOP;
+	event.mask = 0x00;
+
+	// Fire the hook stop event.
+	dispatch_event(&event);
+}
+
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	// Calculate Unix epoch from native time source.
 	uint64_t timestamp = get_event_timestamp(recorded_data);
@@ -146,7 +182,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		event.time = timestamp;
 		event.reserved = 0x00;
 
-		event.type = EVENT_HOOK_START;
+		event.type = EVENT_HOOK_ENABLED;
 		event.mask = 0x00;
 
 		// Fire the hook start event.
@@ -159,15 +195,12 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	else if (recorded_data->category == XRecordEndOfData) {
 		// Lock the control mutex until we exit.
 		pthread_mutex_lock(&hook_control_mutex);
-
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
-				__FUNCTION__, __LINE__);
 		
 		// Populate the hook stop event.
 		event.time = timestamp;
 		event.reserved = 0x00;
 
-		event.type = EVENT_HOOK_STOP;
+		event.type = EVENT_HOOK_DISABLED;
 		event.mask = 0x00;
 
 		// Fire the hook stop event.

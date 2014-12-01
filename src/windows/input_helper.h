@@ -126,9 +126,6 @@ typedef struct tagKbdLayer {
 	DWORD dwSubType;
 } KBDTABLES, *PKBDTABLES;				// __ptr64
 
-// The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
-extern HINSTANCE hInst;
-
 extern int keysym_to_unicode(int virtualKey, PWCHAR out);
 
 // FIXME Implement!
@@ -137,9 +134,6 @@ extern int keysym_to_unicode(int virtualKey, PWCHAR out);
 extern unsigned short keycode_to_scancode(DWORD vk_code);
 
 extern DWORD scancode_to_keycode(unsigned short scancode);
-
-extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
-extern BOOL check_module_hInst();
 
 // Initialize the locale list and wow64 pointer size.
 extern int load_input_helper();

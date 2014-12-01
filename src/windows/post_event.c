@@ -63,9 +63,6 @@ static UINT keymask_lookup[8] = {
 };
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
-	// Make sure we got a valid hInst.
-	check_module_hInst();
-	
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
 

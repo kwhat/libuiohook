@@ -31,6 +31,9 @@
 static DWORD hook_thread_id = 0;
 static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
+// The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
+extern HINSTANCE hInst;
+
 // Modifiers for tracking key masks.
 static unsigned short int current_modifiers = 0x0000;
 
@@ -583,15 +586,31 @@ void initialize_modifiers() {
 		if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
 }
 
-
+extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
 UIOHOOK_API int hook_enable() {
 	int status = UIOHOOK_FAILURE;
 	
 	// Set the thread id we want to signal later.
 	hook_thread_id = GetCurrentThreadId();
 
-	// Make sure we got a valid hInst.
-	check_module_hInst();
+	// Spot check the hInst incase the library was statically linked and DllMain
+	// did not receive a pointer on load.
+	if (hInst == NULL) {
+		logger(LOG_LEVEL_INFO,	"%s [%u]: hInst was not set by DllMain().\n",
+				__FUNCTION__, __LINE__);
+
+		HINSTANCE hInstPE = GetModuleHandle(NULL);
+
+		if (hInst != NULL) {
+			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
+					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
+			
+			status = FALSE;
+		}
+	}
 
 	// Create the native hooks.
 	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);

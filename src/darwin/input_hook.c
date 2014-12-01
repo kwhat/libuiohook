@@ -325,7 +325,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
 	// If the pressed event was not consumed...
 	if (event.reserved ^ 0x01) {
-		if (CFRunLoopGetCurrent() == CFRunLoopGetMain()) {
+		if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
 			// If the hook is running on the main runloop, we do not need to do 
 			// all of this signaling junk.
 			UniChar buffer[4];

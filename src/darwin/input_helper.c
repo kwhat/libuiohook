@@ -34,7 +34,7 @@
 
 // Current dead key state.
 #if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
-static UInt32 curr_deadkey_state = 0;
+static UInt32 deadkey_state;
 #endif
 
 // Input source data for the keyboard.
@@ -148,11 +148,13 @@ bool is_accessibility_enabled() {
 	return is_enabled;
 }
 
-// This method must be executed from the main runloop to avoid the seemingly random
-// Exception detected while handling key input.  TSMProcessRawKeyCode failed (-192) errors.
-// TODO CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())
-void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *length, UniChar *buffer) {
-	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
+// NOTE This method must be executed from the main runloop,
+// Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) to avoid 
+// Exception detected while handling key input and TSMProcessRawKeyCode failed 
+// (-192) errors.
+UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
+	UniCharCount count = 0;
+	
 	#if defined(USE_CARBON_LEGACY)
 	KeyboardLayoutRef curr_keyboard_layout;
 	void *inputData = NULL;
@@ -173,7 +175,7 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 
 	// Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
 	if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
-		curr_deadkey_state = 0;
+		deadkey_state = 0x00;
 	}
 
 	// Release the previous keyboard layout.
@@ -188,6 +190,7 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 	}
 	#endif
 
+	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 	if (inputData != NULL) {
 		#ifdef USE_CARBON_LEGACY
 		const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout *) inputData;
@@ -214,41 +217,23 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 			bool is_caps_lock = modifiers & kCGEventFlagMaskAlphaShift;
 			modifiers &= ~kCGEventFlagMaskAlphaShift;
 
+			// Run the translation with the saved deadkey_state.
+			OSStatus status = UCKeyTranslate(
+					keyboard_layout,
+					keycode,
+					kUCKeyActionDown, //kUCKeyActionDisplay,
+					(modifiers >> 16) & 0xFF, //(modifiers >> 16) & 0xFF, || (modifiers >> 8) & 0xFF,
+					LMGetKbdType(),
+					kNilOptions, //kNilOptions, //kUCKeyTranslateNoDeadKeysMask
+					&deadkey_state,
+					size,
+					&count,
+					buffer);
 
-			OSStatus status = noErr;
-			if (curr_deadkey_state == 0) {
-				// No previous deadkey, attempt a lookup.
-				status = UCKeyTranslate(
-									keyboard_layout,
-									keycode,
-									kUCKeyActionDown,
-									(modifiers >> 16) & 0xFF, //(modifiers >> 16) & 0xFF, || (modifiers >> 8) & 0xFF,
-									LMGetKbdType(),
-									kNilOptions, //kNilOptions, //kUCKeyTranslateNoDeadKeysMask
-									&curr_deadkey_state,
-									size,
-									length,
-									buffer);
-			}
-			else {
-				// The previous key was a deadkey, lookup what it should be.
-				status = UCKeyTranslate(
-									keyboard_layout,
-									keycode,
-									kUCKeyActionDown,
-									(modifiers >> 16) & 0xFF, //No Modifier
-									LMGetKbdType(),
-									kNilOptions, //kNilOptions, //kUCKeyTranslateNoDeadKeysMask
-									&curr_deadkey_state,
-									size,
-									length,
-									buffer);
-			}
-
-			if (status == noErr && *length > 0) {
+			if (status == noErr && count > 0) {
 				if (is_caps_lock) {
 					// We *had* a caps lock mask so we need to convert to uppercase.
-					CFMutableStringRef keytxt = CFStringCreateMutableWithExternalCharactersNoCopy(kCFAllocatorDefault, buffer, *length, size, kCFAllocatorNull);
+					CFMutableStringRef keytxt = CFStringCreateMutableWithExternalCharactersNoCopy(kCFAllocatorDefault, buffer, count, size, kCFAllocatorNull);
 					if (keytxt != NULL) {
 						CFLocaleRef locale = CFLocaleCopyCurrent();
 						CFStringUppercase(keytxt, locale);
@@ -257,29 +242,22 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 					}
 					else {
 						// There was an problem creating the CFMutableStringRef.
-						*length = 0;
+						count = 0;
 					}
 				}
 			}
 			else {
-				// Make sure the buffer length is zero if an error occurred.
-				*length = 0;
+				// Make sure the buffer count is zero if an error occurred.
+				count = 0;
 			}
 		}
 	}
-	#endif
-
-	// Fallback to CGEventKeyboardGetUnicodeString if we were unable to use UCKeyTranslate().
-	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
-	if (*length == 0) {
-		CGEventKeyboardGetUnicodeString(event_ref, size, length, buffer);
-	}
 	#else
-	CGEventKeyboardGetUnicodeString(event_ref, size, length, buffer);
+	CGEventKeyboardGetUnicodeString(event_ref, size, &count, buffer);
 	#endif
 
 	// The following codes should not be processed because they are invalid.
-	if (*length == 1) {
+	if (count == 1) {
 		switch (buffer[0]) {
 			case 0x01:		// Home
 			case 0x04:		// End
@@ -287,9 +265,11 @@ void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *le
 			case 0x10:		// Function Keys
 			case 0x0B:		// Page Up
 			case 0x0C:		// Page Down
-				*length = 0;
+				count = 0;
 		}
 	}
+	
+	return count;
 }
 
 
@@ -589,7 +569,7 @@ UInt64 scancode_to_keycode(uint16_t scancode) {
 void load_input_helper() {
 	#if defined(USE_CARBON_LEGACY) || defined(USE_COREFOUNDATION)
 	// Start with a fresh dead key state.
-	curr_deadkey_state = 0;
+	//curr_deadkey_state = 0;
 	#endif
 }
 

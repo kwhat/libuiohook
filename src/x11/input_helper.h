@@ -36,7 +36,7 @@
 /* Converts an X11 key symbol to a single Unicode character.  No direct X11
  * functionality exists to provide this information.
  */
-extern wchar_t keysym_to_unicode(KeySym keysym);
+extern size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size);
 
 /* Convert a single Unicode character to an X11 key symbol.  This function
  * provides a better translation than XStringToKeysym() for Unicode characters.

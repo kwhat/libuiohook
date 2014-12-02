@@ -37,7 +37,7 @@ static uint16_t current_modifiers = 0x00000000;
 // Unicode lookups.
 typedef struct {
 	CGEventRef event;
-	UniChar buffer[4];
+	UniChar buffer[2];
 	UniCharCount length;
 } TISMessage;
 
@@ -158,7 +158,7 @@ static void message_port_proc(void *info) {
 
 	if (data != NULL && data->event != NULL) {
 		// Preform Unicode lookup.
-		keycode_to_string(data->event, sizeof(data->buffer), &(data->length), data->buffer);
+		data->length = keycode_to_unicode(data->event, data->buffer, sizeof(data->buffer));
 	}
 
 	// Unlock the msg_port mutex to signal to the hook_thread that we have
@@ -397,8 +397,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 			// Wait for a lock while the main run loop processes they key typed event.
 			pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 
-			// TODO Can length exceed 1?
-			if (info->length == 1) {
+			for (unsigned int i = 0; i < info->length; i++) {
 				// Populate key typed event.
 				event.time = timestamp;
 				event.reserved = 0x00;
@@ -408,7 +407,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
 				event.data.keyboard.keycode = VC_UNDEFINED;
 				event.data.keyboard.rawcode = keycode;
-				event.data.keyboard.keychar = info->buffer[0];
+				event.data.keyboard.keychar = info->buffer[i];
 
 				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
 						__FUNCTION__, __LINE__, event.data.keyboard.keycode, 
@@ -679,7 +678,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			break;
 
 		case kCGEventKeyUp:
-			process_key_pressed(timestamp, event_ref);
+			process_key_released(timestamp, event_ref);
 			break;
 
 		case kCGEventFlagsChanged:
@@ -752,6 +751,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 		case kCGEventScrollWheel:
 			process_mouse_wheel(timestamp, event_ref);
 			break;
+
 
 		#ifdef USE_DEBUG
 		case kCGEventNull:

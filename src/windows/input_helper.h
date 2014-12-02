@@ -127,9 +127,8 @@ typedef struct tagKbdLayer {
 } KBDTABLES, *PKBDTABLES;				// __ptr64
 
 
-extern int keysym_to_unicode(int virtualKey, PWCHAR out);
+extern SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
 
-// FIXME Implement!
 //extern KeySym unicode_to_keysym(wchar_t unicode);
 
 extern unsigned short keycode_to_scancode(DWORD vk_code);

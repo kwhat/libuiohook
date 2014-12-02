@@ -39,9 +39,6 @@ static FILETIME system_time;
 static DWORD previous_time = (DWORD) ~0x00;
 static uint64_t offset_time = 0;
 
-// Key typed Unicode return values.
-static WCHAR keywchar = '\0';
-
 // Click count globals.
 static unsigned short click_count = 0;
 static DWORD click_time = 0;
@@ -236,10 +233,12 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 
 	// If the pressed event was not consumed...
 	if (event.reserved ^ 0x01) {
-		// If the pressed event was not consumed and a wchar exists...
-		int type_count = keysym_to_unicode(kbhook->vkCode, &keywchar);
-		// TODO Does this ever return more than one char?
-		for (int i = 0; i < type_count; i++) {
+		// Buffer for unicode typed chars. No more than 2 needed.
+		WCHAR buffer[2]; // = { WCH_NONE };
+
+		// If the pressed event was not consumed and a unicode char exists...
+		SIZE_T count = keycode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
+		for (unsigned int i = 0; i < count; i++) {
 			// Populate key typed event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -249,7 +248,7 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 
 			event.data.keyboard.keycode = VC_UNDEFINED;
 			event.data.keyboard.rawcode = kbhook->vkCode;
-			event.data.keyboard.keychar = keywchar;
+			event.data.keyboard.keychar = buffer[i];
 
 			logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X typed. (%lc)\n",
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);

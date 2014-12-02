@@ -1437,26 +1437,26 @@ static struct codepair {
  *
  * This software is in the public domain. Share and enjoy!
  ***********************************************************************/
-KeySym unicode_to_keysym(wchar_t ucs) {
+KeySym unicode_to_keysym(wchar_t unicode) {
 	int min = 0;
 	int max = sizeof(keysym_unicode_table) / sizeof(struct codepair) - 1;
 	int mid;
 
 	#ifdef XK_LATIN1
 	// First check for Latin-1 characters. (1:1 mapping)
-	if ((ucs >= 0x0020 && ucs <= 0x007E) ||
-		(ucs >= 0x00A0 && ucs <= 0x00FF)) {
-		return ucs;
+	if ((unicode >= 0x0020 && unicode <= 0x007E) ||
+			(unicode >= 0x00A0 && unicode <= 0x00FF)) {
+		return unicode;
 	}
 	#endif
 
 	// Binary search the lookup table.
 	while (max >= min) {
 		mid = (min + max) / 2;
-		if (keysym_unicode_table[mid].unicode < ucs) {
+		if (keysym_unicode_table[mid].unicode < unicode) {
 			min = mid + 1;
 		}
-		else if (keysym_unicode_table[mid].unicode > ucs) {
+		else if (keysym_unicode_table[mid].unicode > unicode) {
 			max = mid - 1;
 		}
 		else {
@@ -1466,7 +1466,7 @@ KeySym unicode_to_keysym(wchar_t ucs) {
 	}
 
 	// No matching KeySym value found, return UCS2 with bit set.
-	return ucs | 0x01000000;
+	return unicode | 0x01000000;
 }
 
 /***********************************************************************
@@ -1485,16 +1485,23 @@ KeySym unicode_to_keysym(wchar_t ucs) {
  *
  * This software is in the public domain. Share and enjoy!
  ***********************************************************************/
-wchar_t keysym_to_unicode(KeySym keysym) {
+size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size) {
+	size_t count = 0;
+	
 	int min = 0;
 	int max = sizeof(keysym_unicode_table) / sizeof(struct codepair) - 1;
 	int mid;
 
 	#ifdef XK_LATIN1
     // First check for Latin-1 characters. (1:1 mapping)
-	if ((keysym >= 0x0020 && keysym <= 0x007E) ||
-		(keysym >= 0x00A0 && keysym <= 0x00FF)) {
-		return keysym;
+	if ((keysym >= 0x0020 && keysym <= 0x007E) 
+			|| (keysym >= 0x00A0 && keysym <= 0x00FF)) {
+		
+		if (count < size) {
+			buffer[count++] = keysym;
+		}
+		
+		return count;
 	}
 	#endif
 
@@ -1504,7 +1511,11 @@ wchar_t keysym_to_unicode(KeySym keysym) {
 		defined(XK_VIETNAMESE) || defined(XK_CURRENCY) || \
 		defined(XK_MATHEMATICAL) || defined(XK_BRAILLE) || defined(XK_SINHALA)
     if ((keysym & 0xFF000000) == 0x01000000) {
-		return keysym & 0x00FFFFFF;
+		if (count < size) {
+			buffer[count++] = keysym & 0x00FFFFFF;
+		}
+		
+		return count;
 	}
 	#endif
 
@@ -1519,12 +1530,16 @@ wchar_t keysym_to_unicode(KeySym keysym) {
 		}
 		else {
 			// Found it.
-			return keysym_unicode_table[mid].unicode;
+			if (count < size) {
+				buffer[count++] = keysym_unicode_table[mid].unicode;
+			}
+		
+			return count;
 		}
     }
 
     // No matching Unicode value found!
-    return 0x0000;
+    return count;
 }
 
 

@@ -545,7 +545,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				// Fire mouse released event.
 				dispatch_event(&event);
 
-				if (mouse_dragged != true) {
+				// If the pressed event was not consumed...
+				if (event.reserved ^ 0x01 && mouse_dragged != true) {
 					// Populate mouse clicked event.
 					event.time = timestamp;
 					event.reserved = 0x00;

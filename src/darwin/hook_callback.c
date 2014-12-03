@@ -555,12 +555,12 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 	// Fire mouse released event.
 	dispatch_event(&event);
 
-	// FIXME Conusmed shouldn't fire.
-	if (mouse_dragged != true) {
+	// If the pressed event was not consumed...
+	if (event.reserved ^ 0x01 && mouse_dragged != true) {
 		// Populate mouse clicked event.
 		event.time = timestamp;
 		event.reserved = 0x00;
-	
+
 		event.type = EVENT_MOUSE_CLICKED;
 		event.mask = get_modifiers();
 
@@ -572,10 +572,10 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 		logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 				__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 				event.data.mouse.x, event.data.mouse.y);
-		
+
 		// Fire mouse clicked event.
 		dispatch_event(&event);
-	}	
+	}
 }
 
 static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref) {
@@ -603,30 +603,24 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 	event.data.mouse.x = event_point.x;
 	event.data.mouse.y = event_point.y;
 
-	// FIXME moved OR dragged 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse dragged to %u, %u.\n",
-			__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
+			__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved", 
+			event.data.mouse.x, event.data.mouse.y);
 
 	// Fire mouse motion event.
 	dispatch_event(&event);
 }
 
 static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
+	// Reset the click count and previous button.
+	click_count = 1;
+	click_button = MOUSE_NOBUTTON;
+				
 	// Check to see what axis was rotated, we only care about axis 1 for vertical rotation.
 	// TODO Implement horizontal scrolling by examining axis 2.
 	// NOTE kCGScrollWheelEventDeltaAxis3 is currently unused.
 	if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
 		CGPoint event_point = CGEventGetLocation(event_ref);
-
-		// Track the number of clicks.
-		if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
-			click_count++;
-		}
-		else {
-			click_count = 1;
-		}
-		click_time = event.time;
-
 
 		// Populate mouse wheel event.
 		event.time = timestamp;

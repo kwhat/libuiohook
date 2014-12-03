@@ -386,7 +386,9 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	// Fire mouse released event.
 	dispatch_event(&event);
 
-	if (last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
+	// If the pressed event was not consumed...
+	if (event.reserved ^ 0x01 
+			&& last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
 		// Populate mouse clicked event.
 		event.time = timestamp;
 		event.reserved = 0x00;

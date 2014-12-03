@@ -212,8 +212,7 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 			// I don't know why but UCKeyTranslate does not process the
 			// kCGEventFlagMaskAlphaShift (A.K.A. Caps Lock Mask) correctly.
 			// We need to basically turn off the mask and process the capital
-			// letters after UCKeyTranslate().  Think Different, not because it
-			// makes sense but because you want to be a hipster.
+			// letters after UCKeyTranslate().
 			bool is_caps_lock = modifiers & kCGEventFlagMaskAlphaShift;
 			modifiers &= ~kCGEventFlagMaskAlphaShift;
 

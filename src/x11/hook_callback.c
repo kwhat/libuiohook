@@ -250,7 +250,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				// Check to make sure the key is printable.
 				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
 				if (count > 0) {
-					// NOTE This will currently always just be 1 iteration.
+					// NOTE This will currently always be a single iteration.
 					//for (unsigned int i = 0; i < count; i++) {
 						// Populate key typed event.
 						event.time = timestamp;

@@ -82,17 +82,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			CGEventPost(loc, cg_event);
 			CFRelease(cg_event);
 			break;
-/*** FIXME ****
-		case EVENT_KEY_TYPED:
-			// FIXME Use keychar not keycode!
-			cg_event = CGEventCreateKeyboardEvent(src,
-					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
-					true);
-			
-			CGEventSetFlags(cg_event, get_key_event_mask(event));
-			CGEventPost(loc, cg_event);
-			CFRelease(cg_event);
-*/
+
 		case EVENT_KEY_RELEASED:
 			cg_event = CGEventCreateKeyboardEvent(src,
 					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
@@ -104,7 +94,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 
 			
-		case EVENT_MOUSE_CLICKED:
 		case EVENT_MOUSE_PRESSED:
 			if (event->data.mouse.button == MOUSE_BUTTON1) {
 				cg_event = CGEventCreateMouseEvent(src,
@@ -142,10 +131,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				CGEventPost(loc, cg_event);
 				CFRelease(cg_event);
 			}
-
-			if (event->type == EVENT_MOUSE_PRESSED) {
-				break;
-			}
+			break;
 						
 		case EVENT_MOUSE_RELEASED:
 			if (event->data.mouse.button == MOUSE_BUTTON1) {
@@ -260,6 +246,11 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			CFRelease(cg_event);
 			break;
 
+			
+		case EVENT_MOUSE_CLICKED:
+		case EVENT_KEY_TYPED:
+			// Ignore clicked and typed events.
+			
 		case EVENT_THREAD_STARTED:
 		case EVENT_THREAD_STOPPED:
 			

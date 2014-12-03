@@ -128,26 +128,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events_size++;
 			break;
 			
-		case EVENT_KEY_TYPED:
-			events[events_size].type = INPUT_KEYBOARD;
-			events[events_size].ki.dwFlags = 0x0000; // KEYEVENTF_KEYDOWN
-			events[events_size].ki.wVk = MapVirtualKey(VkKeyScanEx((TCHAR) event->data.keyboard.keycode, GetKeyboardLayout(0)), MAPVK_VK_TO_VSC_EX);
-			events[events_size].ki.wScan = event->data.keyboard.keycode;
-			events[events_size].ki.dwFlags = KEYEVENTF_SCANCODE;
-
-			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
-					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
-				//Key is an extended key.
-				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
-			}
-			events[events_size].ki.time = 0; //GetSystemTime()
-			events_size++;
-			
-			events[events_size] = events[events_size - 1];
-			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
-			events_size++;
-			break;
-					
 		case EVENT_KEY_RELEASED:
 			events[events_size].type = INPUT_KEYBOARD;
 			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
@@ -165,7 +145,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 
 		
-		case EVENT_MOUSE_CLICKED:
 		case EVENT_MOUSE_PRESSED:
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
@@ -207,10 +186,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
-			
-			if (event->type == EVENT_MOUSE_PRESSED) {
-				break;
-			}
+			break;
 			
 		case EVENT_MOUSE_RELEASED:
 			events[events_size].type = INPUT_MOUSE;
@@ -288,6 +264,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events_size++;
 			break;
 
+
+		case EVENT_MOUSE_CLICKED:
+		case EVENT_KEY_TYPED:
+			// Ignore clicked and typed events.
 			
 		case EVENT_THREAD_STARTED:
 		case EVENT_THREAD_STOPPED:

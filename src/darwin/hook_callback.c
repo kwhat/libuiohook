@@ -248,9 +248,9 @@ void stop_message_port_runloop() {
 
 	observer = NULL;
 	src_msg_port = NULL;
-/*
+
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
-			__FUNCTION__, __LINE__);*/
+			__FUNCTION__, __LINE__);
 }
 
 void thread_start_proc() {

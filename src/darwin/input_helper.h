@@ -46,9 +46,10 @@
 #define kCGEventFlagMaskXButton1		1 << 3
 #define kCGEventFlagMaskXButton2		1 << 4
 
-/* Check for access to Apples accessibility API.
+/* Converts an OSX key code and event mask to the appropriate Unicode character
+ * representation.
  */
-extern bool is_accessibility_enabled();
+extern UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size);
 
 /* Converts an OSX keycode to the appropriate UIOHook scancode constant.
  */
@@ -58,10 +59,9 @@ extern uint16_t keycode_to_scancode(UInt64 keycode);
  */
 extern UInt64 scancode_to_keycode(uint16_t keycode);
 
-/* Converts an OSX key code and event mask to the appropriate Unicode character
- * representation.
+/* Check for access to Apples accessibility API.
  */
-extern void keycode_to_string(CGEventRef event_ref, UniCharCount size, UniCharCount *length, UniChar *buffer);
+extern bool is_accessibility_enabled();
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be

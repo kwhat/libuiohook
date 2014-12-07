@@ -48,7 +48,7 @@ static uint16_t current_modifiers = 0x00000000;
 // Unicode lookups.
 typedef struct {
 	CGEventRef event;
-	UniChar buffer[4];
+	UniChar buffer[2];
 	UniCharCount length;
 } TISMessage;
 
@@ -168,7 +168,7 @@ static void message_port_proc(void *info) {
 
 	if (data != NULL && data->event != NULL) {
 		// Preform Unicode lookup.
-		keycode_to_string(data->event, sizeof(data->buffer), &(data->length), data->buffer);
+		data->length = keycode_to_unicode(data->event, data->buffer, sizeof(data->buffer));
 	}
 
 	// Unlock the msg_port mutex to signal to the hook_thread that we have
@@ -362,11 +362,10 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 				// Wait for a lock while the main runloop processes they key typed event.
 				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 
-				// TODO Can length exceed 1?
-				if (info->length == 1) {
-					// Populate key typed event.
-					event.time = timestamp;
-					event.reserved = 0x00;
+			for (unsigned int i = 0; i < info->length; i++) {
+				// Populate key typed event.
+				event.time = timestamp;
+				event.reserved = 0x00;
 
 					event.type = EVENT_KEY_TYPED;
 					event.mask = get_modifiers();
@@ -522,12 +521,12 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 	// Fire mouse released event.
 	dispatch_event(&event);
 
-	// FIXME Conusmed shouldn't fire.
-	if (mouse_dragged != true) {
+	// If the pressed event was not consumed...
+	if (event.reserved ^ 0x01 && mouse_dragged != true) {
 		// Populate mouse clicked event.
 		event.time = timestamp;
 		event.reserved = 0x00;
-	
+
 		event.type = EVENT_MOUSE_CLICKED;
 		event.mask = get_modifiers();
 
@@ -539,10 +538,10 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 		logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 				__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 				event.data.mouse.x, event.data.mouse.y);
-		
+
 		// Fire mouse clicked event.
 		dispatch_event(&event);
-	}	
+	}
 }
 
 static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref) {
@@ -570,30 +569,24 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 	event.data.mouse.x = event_point.x;
 	event.data.mouse.y = event_point.y;
 
-	// FIXME moved OR dragged 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse dragged to %u, %u.\n",
-			__FUNCTION__, __LINE__, event.data.mouse.x, event.data.mouse.y);
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
+			__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved", 
+			event.data.mouse.x, event.data.mouse.y);
 
 	// Fire mouse motion event.
 	dispatch_event(&event);
 }
 
 static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
+	// Reset the click count and previous button.
+	click_count = 1;
+	click_button = MOUSE_NOBUTTON;
+				
 	// Check to see what axis was rotated, we only care about axis 1 for vertical rotation.
 	// TODO Implement horizontal scrolling by examining axis 2.
 	// NOTE kCGScrollWheelEventDeltaAxis3 is currently unused.
 	if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
 		CGPoint event_point = CGEventGetLocation(event_ref);
-
-		// Track the number of clicks.
-		if ((long int) (event.time - click_time) <= hook_get_multi_click_time()) {
-			click_count++;
-		}
-		else {
-			click_count = 1;
-		}
-		click_time = event.time;
-
 
 		// Populate mouse wheel event.
 		event.time = timestamp;
@@ -645,7 +638,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			break;
 
 		case kCGEventKeyUp:
-			process_key_pressed(timestamp, event_ref);
+			process_key_released(timestamp, event_ref);
 			break;
 
 		case kCGEventFlagsChanged:
@@ -719,13 +712,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			process_mouse_wheel(timestamp, event_ref);
 			break;
 
+
 		#ifdef USE_DEBUG
 		case kCGEventNull:
 			logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring kCGEventNull.\n",
 					__FUNCTION__, __LINE__);
 			break;
 		#endif
-			
+
 		default:
 			// Check for an old OS X bug where the tap seems to timeout for no reason.
 			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217

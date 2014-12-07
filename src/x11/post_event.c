@@ -175,13 +175,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				0);
 			break;
 
-		case EVENT_KEY_TYPED:
-			XTestFakeKeyEvent(
-				disp,
-				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
-				True,
-				0);
-
 		case EVENT_KEY_RELEASED:
 			XTestFakeKeyEvent(
 				disp,
@@ -194,9 +187,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_PRESSED:
 			XTestFakeButtonEvent(disp, event->data.mouse.button, True, 0);
 			break;
-
-		case EVENT_MOUSE_CLICKED:
-			XTestFakeButtonEvent(disp, event->data.mouse.button, True, 0);
 
 		case EVENT_MOUSE_RELEASED:
 			XTestFakeButtonEvent(disp, event->data.mouse.button, False, 0);
@@ -223,10 +213,14 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			XTestFakeMotionEvent(disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
 			break;
 
+
+		case EVENT_MOUSE_CLICKED:
+		case EVENT_KEY_TYPED:
+			// Ignore clicked and typed events.
+			
 		case EVENT_HOOK_ENABLED:
 		case EVENT_HOOK_DISABLED:
-			// TODO Figure out if we should start / stop the event hook
-			// or fall thru to a warning.
+			// Ignore hook enabled / disabled events.
 
 		default:
 			// FIXME Produce a warning.
@@ -256,26 +250,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 		case EVENT_KEY_RELEASED:
-		case EVENT_KEY_TYPED:
 			// Allocate memory for XKeyEvent and pre-populate.
 			x_event = (XEvent *) create_key_event();
 			
 			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			
-			// Typed events convert differently.
-			if (event->type == EVENT_KEY_TYPED) {
-				// Need to convert a wchar_t to keysym!
-				char buffer[4];
-				snprintf(buffer, 4, "U%04d", event->data.keyboard.keychar);
-			
-				((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, XStringToKeysym(buffer));
-				((XKeyEvent *) x_event)->type = KeyPress;
-				XSendEvent(disp, InputFocus, False, KeyPressMask, x_event);
-			}
-			else {
-				((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
-			}
-			
+			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
+
 			if (event->type == EVENT_KEY_PRESSED) {
 				((XKeyEvent *) x_event)->type = KeyPress;
 				XSendEvent(disp, InputFocus, False, KeyPressMask, x_event);
@@ -291,7 +271,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 		case EVENT_MOUSE_PRESSED:
 		case EVENT_MOUSE_RELEASED:
-		case EVENT_MOUSE_CLICKED:
 		case EVENT_MOUSE_WHEEL:
 			// Allocate memory for XButtonEvent and pre-populate.
 			x_event = (XEvent *) create_button_event();
@@ -313,19 +292,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			((XButtonEvent *) x_event)->x_root = ((XButtonEvent *) x_event)->x;
 			((XButtonEvent *) x_event)->y_root = ((XButtonEvent *) x_event)->y;
 
-			// Typed events convert differently.
-			if (event->type == EVENT_MOUSE_CLICKED) {
-				((XButtonEvent *) x_event)->type = ButtonPress;
-				// TODO This should be implemented with a lookup table similar to the callback.
-				int button = event->data.mouse.button;
-				if (button > 7) {
-					// Extra buttons...
-					button -= 4;
-				}
-				((XButtonEvent *) x_event)->button = button;
-				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
-			}
-			else if (event->type == EVENT_MOUSE_WHEEL) {
+			if (event->type == EVENT_MOUSE_WHEEL) {
 				((XButtonEvent *) x_event)->type = ButtonPress;
 				
 				// type, amount and rotation
@@ -413,10 +380,13 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 
 
+		case EVENT_MOUSE_CLICKED:
+		case EVENT_KEY_TYPED:
+			// Ignore clicked and typed events.
+			
 		case EVENT_HOOK_ENABLED:
 		case EVENT_HOOK_DISABLED:
-			// TODO Figure out if we should start / stop the event hook
-			// or fall thru to a warning.
+			// Ignore hook enabled / disabled events.
 
 		default:
 			// FIXME Produce a warning.

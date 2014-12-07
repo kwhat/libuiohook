@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <uiohook.h>
 #include <windows.h>
 
@@ -600,7 +601,7 @@ static int refresh_locale_list() {
 	return count;
 }
 
-int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
+SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 	// Get the thread id that currently has focus and ask for its current
 	// locale..
 	DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
@@ -640,8 +641,8 @@ int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 	}
 
 	// Initialize to empty.
-	int charCount = 0;
-	*outputChar = WCH_NONE;
+	SIZE_T charCount = 0;
+	// buffer[i] = WCH_NONE;
 
 	// Check and make sure the Unicode helper was loaded.
 	if (locale_current != NULL) {
@@ -650,9 +651,6 @@ int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 				__FUNCTION__, __LINE__, locale_current->id);
 
 		int mod = 0;
-
-		WCHAR baseChar;
-		WCHAR diacritic;
 
 		int capsLock = (GetKeyState(VK_CAPITAL) & 0x01);
 
@@ -720,7 +718,7 @@ int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 				BYTE *pCurrentVkToWchars = (BYTE *) pVkToWchars;
 
 				do {
-					if (((PVK_TO_WCHARS) pCurrentVkToWchars)->VirtualKey == virtualKey) {
+					if (((PVK_TO_WCHARS) pCurrentVkToWchars)->VirtualKey == keycode) {
 						if ((((PVK_TO_WCHARS) pCurrentVkToWchars)->Attributes == CAPLOK) && capsLock) {
 							if (is_shift && mod > 0) {
 								mod -= 1;
@@ -729,28 +727,38 @@ int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 								mod += 1;
 							}
 						}
-						*outputChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
-						charCount = 1;
-
+						
+						// Set the initial unicode char.
+						WCHAR unicode = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
+		
 						// Increment the pCurrentVkToWchars by the size of wch[n].
 						pCurrentVkToWchars += sizeof(VK_TO_WCHARS) + (sizeof(WCHAR) * n);
 
-						if (*outputChar == WCH_NONE) {
-							// Set the char count to zero.
-							charCount = 0;
-						}
-						else if (*outputChar == WCH_DEAD) {
-							// Handle the dead keys.
+						
+						if (unicode == WCH_DEAD) {
+							// The current unicode char is a dead key...
 							if (deadChar == WCH_NONE) {
-								// Received the first dead key.
+								// No previous dead key was set so cache the next 
+								// wchar so we know what to do next time its pressed.
 								deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
-								charCount = 0;
 							}
 							else {
-								// Received a second dead key.
-								*outputChar = deadChar;
-								deadChar = WCH_NONE;
-								charCount = 2;
+								if (size >= 2) {
+									// Received a second dead key.
+									memset(buffer, deadChar, 2);
+									//buffer[0] = deadChar;
+									//buffer[1] = deadChar;
+									
+									deadChar = WCH_NONE;
+									charCount = 2;
+								}
+							}
+						}
+						else if (unicode != WCH_NONE) {
+							// We are not WCH_NONE or WCH_DEAD
+							if (size >= 1) {
+								buffer[0] = unicode;
+								charCount = 1;
 							}
 						}
 
@@ -772,13 +780,17 @@ int keysym_to_unicode(int virtualKey, PWCHAR outputChar) {
 		if (deadChar != WCH_NONE) {
 			// Loop over the pDeadKey lookup table for the locale.
 			for (int i = 0; pDeadKey[i].dwBoth != 0; i++) {
-				baseChar = (WCHAR) pDeadKey[i].dwBoth;
-				diacritic = (WCHAR) (pDeadKey[i].dwBoth >> 16);
+				WCHAR baseChar = (WCHAR) pDeadKey[i].dwBoth;
+				WCHAR diacritic = (WCHAR) (pDeadKey[i].dwBoth >> 16);
 
 				// If we locate an extended dead char, set it.
-				if (baseChar == *outputChar && diacritic == deadChar) {
+				if (size >= 1 && baseChar == buffer[0] && diacritic == deadChar) {
 					deadChar = WCH_NONE;
-					*outputChar = (WCHAR) pDeadKey[i].wchComposed;
+					
+					if (charCount <= size) {
+						memset(buffer, (WCHAR) pDeadKey[i].wchComposed, charCount);
+						//buffer[i] = (WCHAR) pDeadKey[i].wchComposed;
+					}
 				}
 			}
 		}

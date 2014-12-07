@@ -223,25 +223,31 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
+				wchar_t buffer[1];
+				
 				// Check to make sure the key is printable.
-				wchar_t keychar = keysym_to_unicode(keysym);
-				if (keychar != 0x0000) {
-					// Populate key typed event.
-					event.time = timestamp;
-					event.reserved = 0x00;
+				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
+				if (count > 0) {
+					// NOTE This will currently always be a single iteration.
+					//for (unsigned int i = 0; i < count; i++) {
+						// Populate key typed event.
+						event.time = timestamp;
+						event.reserved = 0x00;
 
-					event.type = EVENT_KEY_TYPED;
-					event.mask = get_modifiers();
+						event.type = EVENT_KEY_TYPED;
+						event.mask = get_modifiers();
 
-					event.data.keyboard.keycode = VC_UNDEFINED;
-					event.data.keyboard.rawcode = keysym;
-					event.data.keyboard.keychar = keychar;
+						event.data.keyboard.keycode = VC_UNDEFINED;
+						event.data.keyboard.rawcode = keysym;
+						//event.data.keyboard.keychar = buffer[i];
+						event.data.keyboard.keychar = buffer[0];
 
-					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 
-					// Fire key typed event.
-					dispatch_event(&event);
+						// Fire key typed event.
+						dispatch_event(&event);
+					//}
 				}
 			}
 		}
@@ -517,7 +523,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				// Fire mouse released event.
 				dispatch_event(&event);
 
-				if (mouse_dragged != true) {
+				// If the pressed event was not consumed...
+				if (event.reserved ^ 0x01 && mouse_dragged != true) {
 					// Populate mouse clicked event.
 					event.time = timestamp;
 					event.reserved = 0x00;

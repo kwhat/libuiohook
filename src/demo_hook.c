@@ -27,9 +27,12 @@
 #include <string.h>
 #include <uiohook.h>
 
-// NOTE: This function executes on the same function that hook_run() is called 
-// from.  If you need to block, please do so on another thread with your own 
-// event dispatch implementation.
+// NOTE: The following callback executes on the same thread that hook_run() is called 
+// from.  This is important because hook_run() attaches to the operating systems
+// event dispatcher and may delay event delivery to the target application.
+// Furthermore, some operating systems may choose to disable your hook if it 
+// takes to long to process.  If you need to do any extended processing, please 
+// do so by copying the event to your own queued dispatch thread.
 void dispatch_proc(uiohook_event * const event) {
 	char buffer[256] = { 0 };
 	size_t length = snprintf(buffer, sizeof(buffer), 

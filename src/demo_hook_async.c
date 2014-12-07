@@ -31,6 +31,10 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#if defined(__APPLE__) && defined(__MACH__)
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #include <pthread.h>
 #endif
 
@@ -97,6 +101,11 @@ void dispatch_proc(uiohook_event * const event) {
 			ReleaseMutex(hook_running_mutex);
 			ResetEvent(hook_control_cond);
 			#else
+			#if defined(__APPLE__) && defined(__MACH__)
+			// Stop the main runloop so that this program ends.
+			CFRunLoopStop(CFRunLoopGetMain());
+			#endif
+			
 			pthread_mutex_unlock(&hook_running_mutex);
 			#endif
 			break;
@@ -239,7 +248,7 @@ int hook_enable() {
 					__FUNCTION__, __LINE__, (long) THREAD_PRIORITY_TIME_CRITICAL,
 					hook_thread	, (unsigned long) GetLastError());
 		}
-		#elif _POSIX_C_SOURCE >= 200112L
+		#elif (defined(__APPLE__) && defined(__MACH__)) || _POSIX_C_SOURCE >= 200112L
 		// Some POSIX revisions do not support pthread_setschedprio so we will 
 		// use pthread_setschedparam instead.
 		struct sched_param param = { .sched_priority = priority };
@@ -339,6 +348,11 @@ int main() {
 			#ifdef _WIN32
 			WaitForSingleObject(hook_thread,  INFINITE);
 			#else
+			#if defined(__APPLE__) && defined(__MACH__)
+			// NOTE Darwin requires that you start your own runloop from main.
+			CFRunLoopRun();
+			#endif
+			
 			pthread_join(hook_thread, NULL);
 			#endif
 			break;

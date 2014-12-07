@@ -114,7 +114,24 @@ void dispatch_proc(uiohook_event * const event) {
 		case EVENT_KEY_PRESSED:
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
-				hook_stop();
+				int status = hook_stop();
+				switch (status) {
+					// System level errors.
+					case UIOHOOK_ERROR_OUT_OF_MEMORY:
+						logger_proc(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
+						break;
+			
+					case UIOHOOK_ERROR_X_RECORD_GET_CONTEXT:
+						// NOTE This is the only platform specific error that occurs on hook_stop().
+						logger_proc(LOG_LEVEL_ERROR, "Failed to get XRecord context. (%#X)", status);
+						break;
+
+					// Default error.
+					case UIOHOOK_FAILURE:
+					default:
+						logger_proc(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
+						break;
+				}
 			}
 		case EVENT_KEY_RELEASED:
 			snprintf(buffer + length, sizeof(buffer) - length, 

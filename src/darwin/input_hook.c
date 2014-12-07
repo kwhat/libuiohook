@@ -328,10 +328,8 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 		if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
 			// If the hook is running on the main runloop, we do not need to do 
 			// all of this signaling junk.
-			UniChar buffer[4];
-			UniCharCount length = 0;
-			
-			keycode_to_string(event_ref, sizeof(buffer), &length, buffer);
+			UniChar buffer[2];
+			keycode_to_unicode(event_ref, buffer, sizeof(buffer));
 		}
 		else {
 			// Lock for code dealing with the main runloop.
@@ -779,10 +777,9 @@ UIOHOOK_API int hook_run() {
 
 		// Setup the event mask to listen for.
 		#ifdef USE_DEBUG
-		CGEventMask event_mask =	kCGEventMaskForAllEvents;
+		CGEventMask event_mask = kCGEventMaskForAllEvents;
 		#else
-		// This includes everything except:
-		//	kCGEventNull
+		// TODO This maybe exactly the same as the line above...
 		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
 									CGEventMaskBit(kCGEventKeyUp) |
 									CGEventMaskBit(kCGEventFlagsChanged) |
@@ -800,8 +797,7 @@ UIOHOOK_API int hook_run() {
 									CGEventMaskBit(kCGEventOtherMouseDragged) |
 
 									CGEventMaskBit(kCGEventMouseMoved) |
-									CGEventMaskBit(kCGEventScrollWheel) |
-									CGEventMaskBit(kCGEventTapDisabledByTimeout);
+									CGEventMaskBit(kCGEventScrollWheel);
 		#endif
 
 		// Create the event tap.

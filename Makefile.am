@@ -20,8 +20,8 @@ ACLOCAL_AMFLAGS = -I m4
 
 HOOK_SRC = src/logger.c
 TEST_SRC = test/input_helper_test.c test/system_properties_test.c test/uiohook_test.c
-MAN3_SRC = man/hook_disable.man \
-	   man/hook_enable.man \
+MAN3_SRC = man/hook_run.man \
+	   man/hook_stop.man \
 	   man/hook_get_auto_repeat_delay.man \
 	   man/hook_get_multi_click_time.man \
 	   man/hook_get_pointer_acceleration_threshold.man \

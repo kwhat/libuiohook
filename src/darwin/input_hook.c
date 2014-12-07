@@ -362,10 +362,10 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 				// Wait for a lock while the main runloop processes they key typed event.
 				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 
-			for (unsigned int i = 0; i < info->length; i++) {
-				// Populate key typed event.
-				event.time = timestamp;
-				event.reserved = 0x00;
+				for (unsigned int i = 0; i < info->length; i++) {
+					// Populate key typed event.
+					event.time = timestamp;
+					event.reserved = 0x00;
 
 					event.type = EVENT_KEY_TYPED;
 					event.mask = get_modifiers();
@@ -753,7 +753,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 
 
 
-UIOHOOK_API int hook_enable() {
+UIOHOOK_API int hook_run() {
 	do {
 		// Reset the restart flag...
 		restart_tap = false;
@@ -927,7 +927,7 @@ UIOHOOK_API int hook_enable() {
 	return UIOHOOK_SUCCESS;
 }
 
-UIOHOOK_API int hook_disable() {
+UIOHOOK_API int hook_stop() {
 	int status = UIOHOOK_FAILURE;
 
 	CFStringRef mode = CFRunLoopCopyCurrentMode(event_loop);

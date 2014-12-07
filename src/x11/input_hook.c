@@ -618,7 +618,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 }
 
 static hook_info *hook;
-UIOHOOK_API int hook_enable() {
+UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 	
 	// Hook data for future cleanup.
@@ -819,7 +819,7 @@ UIOHOOK_API int hook_enable() {
 	return status;
 }
 
-UIOHOOK_API int hook_disable() {
+UIOHOOK_API int hook_stop() {
 	int status = UIOHOOK_FAILURE;
 
 	if (hook != NULL && hook->ctrl.display != NULL && hook->ctrl.context != 0) {

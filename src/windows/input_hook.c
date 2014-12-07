@@ -156,30 +156,6 @@ static inline uint64_t get_event_timestamp() {
 	return hook_time + offset_time;
 }
 
-void thread_start_proc() {
-	// Populate the hook start event.
-	event.time = get_event_timestamp();
-	event.reserved = 0x00;
-
-	event.type = EVENT_THREAD_STARTED;
-	event.mask = 0x00;
-
-	// Fire the hook start event.
-	dispatch_event(&event);
-}
-
-void thread_stop_proc() {
-	// Populate the hook stop event.
-	event.time = get_event_timestamp();
-	event.reserved = 0x00;
-
-	event.type = EVENT_THREAD_STOPPED;
-	event.mask = 0x00;
-
-	// Fire the hook stop event.
-	dispatch_event(&event);
-}
-
 void hook_start_proc() {
 	// Populate the hook start event.
 	event.time = get_event_timestamp();
@@ -609,7 +585,7 @@ void initialize_modifiers() {
 }
 
 extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
-UIOHOOK_API int hook_enable() {
+UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 	
 	// Set the thread id we want to signal later.
@@ -623,7 +599,7 @@ UIOHOOK_API int hook_enable() {
 
 		HINSTANCE hInstPE = GetModuleHandle(NULL);
 
-		if (hInst != NULL) {
+		if (hInstPE != NULL) {
 			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
 		}
 		else {
@@ -685,7 +661,7 @@ UIOHOOK_API int hook_enable() {
 	return status;
 }
 
-UIOHOOK_API int hook_disable() {
+UIOHOOK_API int hook_stop() {
 	int status = UIOHOOK_FAILURE;
 
 	// Try to exit the thread naturally.

@@ -399,10 +399,10 @@ extern "C" {
 	UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc);
 
 	// Insert the event hook.
-	UIOHOOK_API int hook_enable();
+	UIOHOOK_API int hook_run();
 
 	// Withdraw the event hook.
-	UIOHOOK_API int hook_disable();
+	UIOHOOK_API int hook_stop();
 
 	// Retrieves an array of screen data for each available monitor.
 	UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count);

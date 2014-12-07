@@ -312,8 +312,8 @@ AS_IF(
 			])
 		])
 
-		# We only need pthreads if we are using async XRecord or XRandR.
-		AS_IF([test "x$enable_xrecord_async" = "xyes" || test "x$enable_xrandr" = "xyes"], [
+		# We only need pthreads if we are using XRandR, Async XRecord or the Demo.
+		AS_IF([test "x$enable_xrecord_async" = "xyes" || test "x$enable_xrandr" = "xyes" || test "x$enable_demo" = "xyes"], [
 			AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
 			LIBS="$PTHREAD_LIBS $LIBS"
 			CFLAGS="$PTHREAD_CFLAGS $CFLAGS"

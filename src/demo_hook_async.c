@@ -174,10 +174,6 @@ DWORD WINAPI hook_thread_proc(LPVOID arg) {
 #else
 void *hook_thread_proc(void *arg) {
 #endif
-	// thread has finished starting, or when it has terminated due to error.
-	// This is unlocked in the hook_callback.c hook_event_proc().
-	//pthread_mutex_lock(&hook_control_mutex);
-	
 	// Set the hook status.
 	int status = hook_run();
 	if (status != UIOHOOK_SUCCESS) {
@@ -238,12 +234,11 @@ int hook_enable() {
 	#endif
 		#if defined(_WIN32)
 		// Attempt to set the thread priority to time critical.
-		/*
 		if (SetThreadPriority(hook_thread, THREAD_PRIORITY_TIME_CRITICAL) == 0) {
 			logger_proc(LOG_LEVEL_WARN, "%s [%u]: Could not set thread priority %li for thread %#p! (%#lX)\n",
 					__FUNCTION__, __LINE__, (long) THREAD_PRIORITY_TIME_CRITICAL,
 					hook_thread	, (unsigned long) GetLastError());
-		}*/
+		}
 		#elif _POSIX_C_SOURCE >= 200112L
 		// Some POSIX revisions do not support pthread_setschedprio so we will 
 		// use pthread_setschedparam instead.
@@ -295,7 +290,7 @@ int hook_enable() {
 			status = UIOHOOK_SUCCESS;
 		}
 		
-		//free(hook_thread_status);
+		free(hook_thread_status);
 	
 		logger_proc(LOG_LEVEL_DEBUG,	"%s [%u]: Thread Result: (%#X).\n",
 				__FUNCTION__, __LINE__, status);
@@ -343,7 +338,6 @@ int main() {
 			// We no longer block, so we need to explicitly wait for the thread to die.
 			#ifdef _WIN32
 			WaitForSingleObject(hook_thread,  INFINITE);
-			printf("Done\n");
 			#else
 			pthread_join(hook_thread, NULL);
 			#endif

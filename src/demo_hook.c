@@ -21,50 +21,46 @@
 #endif
 
 #include <inttypes.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <uiohook.h>
 
-#ifdef _WIN32
-#include <windows.h>
-
-static HANDLE control_handle = NULL;
-#else
-#include <pthread.h>
-
-#if defined(__APPLE__) && defined(__MACH__)
-#include <CoreFoundation/CoreFoundation.h>
-#else
-static pthread_cond_t control_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t control_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
-#endif
-
-// NOTE: This function executes on the hook thread!  If you need to block,
-// please do so on another thread with your own event dispatcher implementation.
+// NOTE: The following callback executes on the same thread that hook_run() is called 
+// from.  This is important because hook_run() attaches to the operating systems
+// event dispatcher and may delay event delivery to the target application.
+// Furthermore, some operating systems may choose to disable your hook if it 
+// takes to long to process.  If you need to do any extended processing, please 
+// do so by copying the event to your own queued dispatch thread.
 void dispatch_proc(uiohook_event * const event) {
 	char buffer[256] = { 0 };
 	size_t length = snprintf(buffer, sizeof(buffer), 
 			"id=%i,when=%" PRIu64 ",mask=0x%X", 
 			event->type, event->time, event->mask);
-
+	
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			// If the escape key is pressed, naturally terminate the program.
 			if (event->data.keyboard.keycode == VC_ESCAPE) {
-				hook_disable();
+				int status = hook_stop();
+				switch (status) {
+					// System level errors.
+					case UIOHOOK_ERROR_OUT_OF_MEMORY:
+						logger_proc(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
+						break;
+			
+					case UIOHOOK_ERROR_X_RECORD_GET_CONTEXT:
+						// NOTE This is the only platform specific error that occurs on hook_stop().
+						logger_proc(LOG_LEVEL_ERROR, "Failed to get XRecord context. (%#X)", status);
+						break;
 
-				#ifdef _WIN32
-				SetEvent(control_handle);
-				#else
-				#if defined(__APPLE__) && defined(__MACH__)
-				CFRunLoopStop(CFRunLoopGetMain());
-				#else
-				pthread_mutex_lock(&control_mutex);
-				pthread_cond_signal(&control_cond);
-				pthread_mutex_unlock(&control_mutex);
-				#endif
-				#endif
+					// Default error.
+					case UIOHOOK_FAILURE:
+					default:
+						logger_proc(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
+						break;
+				}
 			}
 		case EVENT_KEY_RELEASED:
 			snprintf(buffer + length, sizeof(buffer) - length, 
@@ -109,7 +105,7 @@ bool logger_proc(unsigned int level, const char *format, ...) {
 	
 	va_list args;
 	switch (level) {
-		#ifndef USE_DEBUG
+		#ifdef USE_DEBUG
 		case LOG_LEVEL_DEBUG:
 		case LOG_LEVEL_INFO:
 			va_start(args, format);
@@ -136,27 +132,75 @@ int main() {
 	// Set the event callback for uiohook events.
 	hook_set_dispatch_proc(&dispatch_proc);
 
-	#ifdef _WIN32
-	control_handle = CreateEvent(NULL, TRUE, FALSE, TEXT("control_handle"));
-	#endif
+	// Start the hook and block.
+	// NOTE If EVENT_HOOK_ENABLED was delivered, the status will always succeed.
+	int status = hook_run();
+	switch (status) {
+		case UIOHOOK_SUCCESS:
+			// Everything is ok.
+			break;
 
-	int status = hook_enable();
-	if (status == UIOHOOK_SUCCESS && hook_is_enabled()) {
-		#ifdef _WIN32
-		WaitForSingleObject(control_handle, INFINITE);
-		#elif defined(__APPLE__) && defined(__MACH__)
-		// NOTE Darwin requires that you start your own runloop from main.
-		CFRunLoopRun();
-		#else
-		pthread_mutex_lock(&control_mutex);
-		pthread_cond_wait(&control_cond, &control_mutex);
-		pthread_mutex_unlock(&control_mutex);
-		#endif
+		// System level errors.
+		case UIOHOOK_ERROR_OUT_OF_MEMORY:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
+			break;
+
+
+		// X11 specific errors.
+		case UIOHOOK_ERROR_X_OPEN_DISPLAY:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to open X11 display. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_X_RECORD_NOT_FOUND:
+			logger_proc(LOG_LEVEL_ERROR, "Unable to locate XRecord extension. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE:
+			logger_proc(LOG_LEVEL_ERROR, "Unable to allocate XRecord range. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT:
+			logger_proc(LOG_LEVEL_ERROR, "Unable to allocate XRecord context. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to enable XRecord context. (%#X)", status);
+			break;
+
+			
+		// Windows specific errors.
+		case UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to register low level windows hook. (%#X)", status);
+			break;
+
+
+		// Darwin specific errors.
+		case UIOHOOK_ERROR_AXAPI_DISABLED:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to enable access for assistive devices. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_CREATE_EVENT_PORT:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to create apple event port. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to create apple run loop source. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_GET_RUNLOOP:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to acquire apple run loop. (%#X)", status);
+			break;
+
+		case UIOHOOK_ERROR_CREATE_OBSERVER:
+			logger_proc(LOG_LEVEL_ERROR, "Failed to create apple run loop observer. (%#X)", status);
+			break;
+
+		// Default error.
+		case UIOHOOK_FAILURE:
+		default:
+			logger_proc(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
+			break;
 	}
-
-	#ifdef _WIN32
-	CloseHandle(control_handle);
-	#endif
 
 	return status;
 }

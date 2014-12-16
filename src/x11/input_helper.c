@@ -1804,7 +1804,7 @@ void load_input_helper(Display *disp) {
 	XkbDescPtr desc = XkbGetKeyboard(disp, XkbGBN_AllComponentsMask, XkbUseCoreKbd);
 	if (desc != NULL && desc->names != NULL) {
 		const char *layout_name = XGetAtomName(disp, desc->names->keycodes);
-		logger(LOG_LEVEL_INFO,
+		logger(LOG_LEVEL_DEBUG,
 				"%s [%u]: Found keycode atom '%s' (%i)!\n",
 				__FUNCTION__, __LINE__, layout_name,
 				(unsigned int) desc->names->keycodes);

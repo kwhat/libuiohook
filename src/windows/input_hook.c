@@ -21,15 +21,18 @@
 #endif
 
 #include <inttypes.h>
-#include <limits.h>
-#include <stdint.h>
-#include <time.h>
 #include <uiohook.h>
 #include <windows.h>
 
-#include "hook_callback.h"
-#include "logger.h"
 #include "input_helper.h"
+#include "logger.h"
+
+// Thread and hook handles.
+static DWORD hook_thread_id = 0;
+static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
+
+// The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
+extern HINSTANCE hInst;
 
 // Modifiers for tracking key masks.
 static unsigned short int current_modifiers = 0x0000;
@@ -47,8 +50,6 @@ static POINT last_click;
 
 // Static event memory.
 static uiohook_event event;
-
-extern HHOOK keyboard_event_hhook, mouse_event_hhook;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
@@ -153,30 +154,6 @@ static inline uint64_t get_event_timestamp() {
 
 	// Set the event time to the server time + offset.
 	return hook_time + offset_time;
-}
-
-void thread_start_proc() {
-	// Populate the hook start event.
-	event.time = get_event_timestamp();
-	event.reserved = 0x00;
-
-	event.type = EVENT_THREAD_STARTED;
-	event.mask = 0x00;
-
-	// Fire the hook start event.
-	dispatch_event(&event);
-}
-
-void thread_stop_proc() {
-	// Populate the hook stop event.
-	event.time = get_event_timestamp();
-	event.reserved = 0x00;
-
-	event.type = EVENT_THREAD_STOPPED;
-	event.mask = 0x00;
-
-	// Fire the hook stop event.
-	dispatch_event(&event);
 }
 
 void hook_start_proc() {
@@ -605,4 +582,95 @@ void initialize_modifiers() {
 		if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
 		if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
 		if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
+}
+
+extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
+UIOHOOK_API int hook_run() {
+	int status = UIOHOOK_FAILURE;
+	
+	// Set the thread id we want to signal later.
+	hook_thread_id = GetCurrentThreadId();
+
+	// Spot check the hInst incase the library was statically linked and DllMain
+	// did not receive a pointer on load.
+	if (hInst == NULL) {
+		logger(LOG_LEVEL_INFO,	"%s [%u]: hInst was not set by DllMain().\n",
+				__FUNCTION__, __LINE__);
+
+		HINSTANCE hInstPE = GetModuleHandle(NULL);
+
+		if (hInstPE != NULL) {
+			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
+					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
+			
+			status = FALSE;
+		}
+	}
+
+	// Create the native hooks.
+	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
+	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
+
+	// If we did not encounter a problem, start processing events.
+	if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
+				__FUNCTION__, __LINE__);
+
+		// Check and setup modifiers.
+		initialize_modifiers();
+
+		// Set the exit status.
+		status = UIOHOOK_SUCCESS;
+		
+		// Windows does not have a hook start event or callback so we need to
+		// manually fake it.
+		hook_start_proc();
+
+		// Block until the thread receives an WM_QUIT request.
+		MSG message;
+		while (GetMessage(&message, (HWND) -1, 0, 0) > 0) {
+			TranslateMessage(&message);
+			DispatchMessage(&message);
+		}
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
+				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
+
+		status = UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX;
+	}
+
+	// Destroy the native hooks.
+	if (keyboard_event_hhook != NULL) {
+		UnhookWindowsHookEx(keyboard_event_hhook);
+		keyboard_event_hhook = NULL;
+	}
+
+	if (mouse_event_hhook != NULL) {
+		UnhookWindowsHookEx(mouse_event_hhook);
+		mouse_event_hhook = NULL;
+	}
+
+	// We must explicitly call the cleanup handler because Windows does not
+	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
+	hook_stop_proc();
+
+	return status;
+}
+
+UIOHOOK_API int hook_stop() {
+	int status = UIOHOOK_FAILURE;
+
+	// Try to exit the thread naturally.
+	if (PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL)) {
+		status = UIOHOOK_SUCCESS;
+	}
+
+	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+			__FUNCTION__, __LINE__, status);
+
+	return status;
 }

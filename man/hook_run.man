@@ -15,15 +15,15 @@
 .\" along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .\" %%%LICENSE_END
 .\"
-.TH hook_get_auto_repeat_rate 3 "07 July 2014" "Version 1.0" "libUIOHook Programmer's Manual"
+.TH hook_run 3 "12 Dec 2014" "Version 1.0" "libUIOHook Programmer's Manual"
 .SH NAME
-hook_enable, hook_disable \- Insert / Withdraw the native event hook
+hook_run, hook_disable \- Insert / Withdraw the native event hook
 .SH SYNTAX
 #include <uiohook.h>
 .HP
-UIOHOOK_API int hook_enable\^(\fIvoid\fP\^);
+UIOHOOK_API int hook_run\^(\fIvoid\fP\^);
 .HP
-UIOHOOK_API int hook_disable\^(\fIvoid\fP\^);
+UIOHOOK_API int hook_stop\^(\fIvoid\fP\^);
 .SH ARGUMENTS
 .IP \fIvoid\fP 1i
 
@@ -34,13 +34,6 @@ Returned on success.
 General failure status.
 .IP \fIUIOHOOK_ERROR_OUT_OF_MEMORY\fP li
 Out of system memory.
-
-.IP \fIUIOHOOK_ERROR_THREAD_CREATE\fP li
-Failed to create a native thread.
-.IP \fIUIOHOOK_ERROR_THREAD_INIT\fP li
-Failed to initialize the native thread.
-.IP \fIUIOHOOK_ERROR_THREAD_START\fP li
-Failed to start the native thread.
 
 .IP \fIUIOHOOK_ERROR_X_OPEN_DISPLAY\fP li
 X11 specific error for XOpenDisplay\^(\^) failures.
@@ -68,6 +61,9 @@ Darwin specfici error for CFRunLoopGetCurrent\^(\^) failures.
 Darwin specfici error for CFRunLoopObserverCreate\^(...\^) failures.
 
 .SH DESCRIPTION
-hook_enable\^(\^) will block until either the hook thread has stared or an error
-occurred.  The hook_disable\^(\^) function is asynchronous, and will only signal
-the running hook to stop.
+hook_run\^(\^) will block until either the hook has completed or an error
+occurred during the hook registration process.  You may assume successful 
+completion of hook_run() after receiving an event of EVENT_HOOK_ENABLED.
+
+The hook_stop\^(\^) function is asynchronous, and will only signal the running 
+hook to stop.  This function will return an error if signaling was not possible.

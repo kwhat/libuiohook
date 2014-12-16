@@ -129,7 +129,7 @@ typedef struct tagKbdLayer {
 
 extern SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
 
-//extern KeySym unicode_to_keysym(wchar_t unicode);
+//extern DWORD unicode_to_keycode(wchar_t unicode);
 
 extern unsigned short keycode_to_scancode(DWORD vk_code);
 

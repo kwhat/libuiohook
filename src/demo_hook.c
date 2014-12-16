@@ -27,6 +27,31 @@
 #include <string.h>
 #include <uiohook.h>
 
+bool logger_proc(unsigned int level, const char *format, ...) {
+	bool status = false;
+	
+	va_list args;
+	switch (level) {
+		#ifdef USE_DEBUG
+		case LOG_LEVEL_DEBUG:
+		case LOG_LEVEL_INFO:
+			va_start(args, format);
+			status = vfprintf(stdout, format, args) >= 0;
+			va_end(args);
+			break;
+		#endif
+
+		case LOG_LEVEL_WARN:
+		case LOG_LEVEL_ERROR:
+			va_start(args, format);
+			status = vfprintf(stderr, format, args) >= 0;
+			va_end(args);
+			break;
+	}
+	
+	return status;
+}
+
 // NOTE: The following callback executes on the same thread that hook_run() is called 
 // from.  This is important because hook_run() attaches to the operating systems
 // event dispatcher and may delay event delivery to the target application.
@@ -98,31 +123,6 @@ void dispatch_proc(uiohook_event * const event) {
 	}
 
 	fprintf(stdout, "%s\n",	 buffer);
-}
-
-bool logger_proc(unsigned int level, const char *format, ...) {
-	bool status = false;
-	
-	va_list args;
-	switch (level) {
-		#ifdef USE_DEBUG
-		case LOG_LEVEL_DEBUG:
-		case LOG_LEVEL_INFO:
-			va_start(args, format);
-			status = vfprintf(stdout, format, args) >= 0;
-			va_end(args);
-			break;
-		#endif
-
-		case LOG_LEVEL_WARN:
-		case LOG_LEVEL_ERROR:
-			va_start(args, format);
-			status = vfprintf(stderr, format, args) >= 0;
-			va_end(args);
-			break;
-	}
-	
-	return status;
 }
 
 int main() {

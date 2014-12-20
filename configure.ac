@@ -18,9 +18,9 @@
 
 # Define a few constants using m4 macros to prevent multiple definitions.
 m4_define([UIOHOOK_MAJOR],	[1])
-m4_define([UIOHOOK_MINOR],	[2])
+m4_define([UIOHOOK_MINOR],	[0])
 m4_define([UIOHOOK_PATCH],	[0])
-m4_define([UIOHOOK_RC],		[_M2])
+m4_define([UIOHOOK_RC],		[_RC5])
 m4_define([UIOHOOK_BUGS],	[alex@1stleg.com])
 m4_define([UIOHOOK_VERSION_STRING], UIOHOOK_MAJOR[.]UIOHOOK_MINOR[.]UIOHOOK_PATCH[]UIOHOOK_RC)
 
@@ -30,9 +30,9 @@ m4_pattern_allow([AM_PROG_AR])
 # These numbers should be tweaked on every release. Read carefully:
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 # http://sourceware.org/autobook/autobook/autobook_91.html
-lt_current="2"
-lt_revision="4"
-lt_age="1"
+lt_current="1"
+lt_revision="0"
+lt_age="0"
 LTLDFLAGS="-version-info ${lt_current}:${lt_revision}:${lt_age}"
 
 
@@ -60,10 +60,10 @@ AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 # Checks for language.
 AC_LANG([C])
+AC_PROG_CC_C99
 
 # Checks for programs.
-AC_PROG_CC([gcc clang])
-AC_PROG_CC_C99
+#AC_PROG_CC([gcc clang])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 # Checks for header files
@@ -74,6 +74,7 @@ AC_TYPE_UINT64_T
 
 # Initialize libtool.
 AC_PROG_LIBTOOL
+
 
 # Check for operating system.
 AC_MSG_CHECKING(operating system)
@@ -99,6 +100,7 @@ AS_CASE([$host],
 		AC_LIBTOOL_WIN32_DLL
 	],
 	[AC_MSG_ERROR([Unsupported operating system ${host}])])
+
 
 # Common Options
 AC_ARG_ENABLE([debug],
@@ -194,6 +196,9 @@ AS_IF([test "x$enable_quiet" = "xyes"], [
 
 AS_IF(
 	[test "x$backend" = "xdarwin"], [
+		# Force CLANG for OS X because it is required after 10.10
+		AC_PROG_CC([clang])
+
 		AS_IF([test "x$enable_corefoundation" = "xyes"], [
 			AC_DEFINE([USE_COREFOUNDATION], 1, [Enable CoreFoundation framework])
 			LIBS="${LIBS} -framework ApplicationServices"
@@ -217,9 +222,18 @@ AS_IF(
 
 		AC_DEFINE([MAC_OS_X_VERSION_MIN_REQUIRED], 1050, [Set minimum OS X version to 10.5])
 
-		AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
-		LIBS="$PTHREAD_LIBS $LIBS"
-		CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+		# We only need pthreads if we are using the Demo.
+		AS_IF([test "x$enable_demo" = "xyes"], [
+			AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
+
+			AS_IF([test "x$found_pthread" = "xno" ], [
+				AC_MSG_ERROR([Pthreads are required for Async XRecord, XRandR and the demo!])
+			])
+
+			# FIXME For some reason, llvm will not use the pthread flag.
+			#THREAD_LIBS="$PTHREAD_LIBS $LIBS"
+			#THREAD_CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+		])
 
 		# Always add Carbon due to non-deprecated #define's
 		LIBS="${LIBS} -framework Carbon"
@@ -315,8 +329,18 @@ AS_IF(
 		# We only need pthreads if we are using XRandR, Async XRecord or the Demo.
 		AS_IF([test "x$enable_xrecord_async" = "xyes" || test "x$enable_xrandr" = "xyes" || test "x$enable_demo" = "xyes"], [
 			AX_PTHREAD([found_pthreads=yes], [found_pthreads=no])
-			LIBS="$PTHREAD_LIBS $LIBS"
-			CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+
+			AS_IF([test "x$found_pthread" = "xno" ], [
+				AC_MSG_ERROR([Pthreads are required for Async XRecord, XRandR and the demo!])
+			])
+
+			AS_IF([test "x$enable_xrecord_async" = "xyes" || test "x$enable_xrandr" = "xyes"], [
+				LIBS="$PTHREAD_LIBS $LIBS"
+				CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+			], [test "x$enable_demo" = "xyes"], [
+				DEMO_LIBS="$PTHREAD_LIBS $LIBS"
+				DEMO_CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+			])
 		])
 
 		LDFLAGS="$LDFLAGS -Wl,--no-undefined"
@@ -337,6 +361,7 @@ AC_SUBST([backend])
 # Requires for pkg-config
 AC_SUBST([REQUIRE])
 AC_SUBST([LIBS])
+AC_SUBST([DEMO_CFLAGS])
 AC_SUBST([DEMO_LIBS])
 AC_SUBST([TEST_LIBS])
 

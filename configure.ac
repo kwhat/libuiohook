@@ -17,10 +17,10 @@
 #
 
 # Define a few constants using m4 macros to prevent multiple definitions.
-m4_define([UIOHOOK_MAJOR],	[1])
-m4_define([UIOHOOK_MINOR],	[2])
+m4_define([UIOHOOK_MAJOR],	[0])
+m4_define([UIOHOOK_MINOR],	[1])
 m4_define([UIOHOOK_PATCH],	[0])
-m4_define([UIOHOOK_RC],		[_M2])
+m4_define([UIOHOOK_RC],		[])
 m4_define([UIOHOOK_BUGS],	[alex@1stleg.com])
 m4_define([UIOHOOK_VERSION_STRING], UIOHOOK_MAJOR[.]UIOHOOK_MINOR[.]UIOHOOK_PATCH[]UIOHOOK_RC)
 
@@ -30,9 +30,9 @@ m4_pattern_allow([AM_PROG_AR])
 # These numbers should be tweaked on every release. Read carefully:
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 # http://sourceware.org/autobook/autobook/autobook_91.html
-lt_current="2"
-lt_revision="4"
-lt_age="1"
+lt_current="0"
+lt_revision="0"
+lt_age="0"
 LTLDFLAGS="-version-info ${lt_current}:${lt_revision}:${lt_age}"
 
 

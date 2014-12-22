@@ -30,6 +30,8 @@
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
+static HWINEVENTHOOK win_event_hhook = NULL;
+static UINT_PTR timer_idt = 0;
 
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
 extern HINSTANCE hInst;
@@ -266,6 +268,15 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+	if (timer_idt != 0) {
+		if (KillTimer(NULL, timer_idt)) {
+			timer_idt = 0;
+		}
+		else {
+			// FIXME Warning get last error!
+		}
+	}
+	
 	// Calculate Unix epoch from native time source.
 	uint64_t timestamp = get_event_timestamp();
 	
@@ -464,6 +475,15 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+	if (timer_idt != 0) {
+		if (KillTimer(NULL, timer_idt)) {
+			timer_idt = 0;
+		}
+		else {
+			// FIXME Warning get last error!
+		}
+	}
+	
 	// Calculate Unix epoch from native time source.
 	uint64_t timestamp = get_event_timestamp();
 	
@@ -571,6 +591,52 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 	return hook_result;
 }
 
+VOID CALLBACK MyTimerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
+	logger(LOG_LEVEL_WARN,	"****Timer Expired!!!!\n");
+	
+	
+	
+	if (timer_idt != 0) {
+		if (KillTimer(NULL, timer_idt)) {
+			timer_idt = 0;
+		}
+		else {
+			// FIXME Warning get last error!
+		}
+	}
+}
+
+
+// Callback function that handles events.
+void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
+	logger(LOG_LEVEL_WARN,	"Recieved Event: %#X at %lu <> %lu\n", event, dwmsEventTime, previous_time);
+
+	// Destroy the native hooks.
+	if (keyboard_event_hhook != NULL) {
+		UnhookWindowsHookEx(keyboard_event_hhook);
+		keyboard_event_hhook = NULL;
+	}
+
+	if (mouse_event_hhook != NULL) {
+		UnhookWindowsHookEx(mouse_event_hhook);
+		mouse_event_hhook = NULL;
+	}
+	
+	// Create the native hooks.
+	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
+	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
+	
+	if (keyboard_event_hhook == NULL || mouse_event_hhook == NULL) {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
+				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
+	}
+	
+	// 5-second interval 
+	if (timer_idt == 0) {
+		timer_idt = SetTimer(NULL, 0, 1000, (TIMERPROC) MyTimerProc);
+	}
+}
+
 void initialize_modifiers() {
 		current_modifiers = 0x0000;
 
@@ -613,10 +679,21 @@ UIOHOOK_API int hook_run() {
 	// Create the native hooks.
 	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
 	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
+	win_event_hhook = SetWinEventHook(
+			EVENT_SYSTEM_CAPTUREEND, EVENT_SYSTEM_CAPTUREEND,// Range of events
+			NULL,                                          // Handle to DLL.
+			win_hook_event_proc,                                // The callback.
+			0, 0,              // Process and thread IDs of interest (0 = all)
+			WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS); // Flags.
 
 	// If we did not encounter a problem, start processing events.
 	if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
+		if (win_event_hhook == NULL) {
+			logger(LOG_LEVEL_WARN,	"%s [%u]: SetWinEventHook() failed!\n",
+					__FUNCTION__, __LINE__);	
+		}
+		
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() successful.\n",
 				__FUNCTION__, __LINE__);
 
 		// Check and setup modifiers.
@@ -631,7 +708,8 @@ UIOHOOK_API int hook_run() {
 
 		// Block until the thread receives an WM_QUIT request.
 		MSG message;
-		while (GetMessage(&message, (HWND) -1, 0, 0) > 0) {
+		//while (GetMessage(&message, (HWND) -1, 0, 0) > 0) {
+		while (GetMessage(&message, (HWND) 0, 0, 0) > 0) {
 			TranslateMessage(&message);
 			DispatchMessage(&message);
 		}
@@ -652,6 +730,11 @@ UIOHOOK_API int hook_run() {
 	if (mouse_event_hhook != NULL) {
 		UnhookWindowsHookEx(mouse_event_hhook);
 		mouse_event_hhook = NULL;
+	}
+	
+	if (win_event_hhook != NULL) {
+		UnhookWinEvent(win_event_hhook);
+		win_event_hhook = NULL;
 	}
 
 	// We must explicitly call the cleanup handler because Windows does not

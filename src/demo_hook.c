@@ -59,6 +59,9 @@ bool logger_proc(unsigned int level, const char *format, ...) {
 // takes to long to process.  If you need to do any extended processing, please 
 // do so by copying the event to your own queued dispatch thread.
 void dispatch_proc(uiohook_event * const event) {
+	if (event->type == EVENT_MOUSE_MOVED || event->type == EVENT_MOUSE_DRAGGED)
+		return;
+	
 	char buffer[256] = { 0 };
 	size_t length = snprintf(buffer, sizeof(buffer), 
 			"id=%i,when=%" PRIu64 ",mask=0x%X", 
@@ -103,8 +106,8 @@ void dispatch_proc(uiohook_event * const event) {
 		case EVENT_MOUSE_PRESSED:
 		case EVENT_MOUSE_RELEASED:
 		case EVENT_MOUSE_CLICKED:
-		case EVENT_MOUSE_MOVED:
-		case EVENT_MOUSE_DRAGGED:
+		//case EVENT_MOUSE_MOVED:
+		//case EVENT_MOUSE_DRAGGED:
 			snprintf(buffer + length, sizeof(buffer) - length, 
 				",x=%i,y=%i,button=%i,clicks=%i",
 				event->data.mouse.x, event->data.mouse.y,

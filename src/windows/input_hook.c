@@ -453,7 +453,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 	* forward, away from the user; a negative value indicates that
 	* the wheel was rotated backward, toward the user. One wheel
 	* click is defined as WHEEL_DELTA, which is 120. */
-	event.data.wheel.rotation = (HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
+	event.data.wheel.rotation = ((int16_t) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
 
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
 			__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *

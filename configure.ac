@@ -196,7 +196,7 @@ AS_IF([test "x$enable_quiet" = "xyes"], [
 
 AS_IF(
 	[test "x$backend" = "xdarwin"], [
-		# Force CLANG for OS X because it is required after 10.10
+		# Force CLANG for OS X because it is required as of OS X 10.10.
 		AC_PROG_CC([clang])
 
 		AS_IF([test "x$enable_corefoundation" = "xyes"], [

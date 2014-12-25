@@ -624,11 +624,17 @@ VOID CALLBACK event_timer_proc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwT
 
 // Callback function that handles events.
 void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
-	logger(LOG_LEVEL_DEBUG, "%s [%u]: Received window event: %#X.\n",
-			__FUNCTION__, __LINE__, event);
-
-	if (event_timer_idt == 0) {
-		event_timer_idt = SetTimer(NULL, 0, 500, (TIMERPROC) event_timer_proc);
+	switch (event) {
+		case EVENT_OBJECT_FOCUS:
+		case EVENT_SYSTEM_CAPTUREEND:
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Received window event: %#X.\n",
+					__FUNCTION__, __LINE__, event);
+			
+			if (event_timer_idt == 0) {
+				// Setup a timer for 500 millisecond interval.
+				event_timer_idt = SetTimer(NULL, 0, 500, (TIMERPROC) event_timer_proc);
+			}
+			break;
 	}
 }
 
@@ -678,7 +684,7 @@ UIOHOOK_API int hook_run() {
 
 	// Create a window event hook to listen for capture change.
 	win_event_hhook = SetWinEventHook(
-			EVENT_SYSTEM_CAPTUREEND, EVENT_SYSTEM_CAPTUREEND, 
+			EVENT_SYSTEM_CAPTUREEND, EVENT_OBJECT_FOCUS, 
 			NULL, 
 			win_hook_event_proc, 
 			0, 0, 
@@ -691,7 +697,7 @@ UIOHOOK_API int hook_run() {
 					__FUNCTION__, __LINE__);
 		}
 
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() successful.\n",
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: SetWindowsHookEx() successful.\n",
 				__FUNCTION__, __LINE__);
 
 		// Check and setup modifiers.

@@ -30,8 +30,8 @@
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
-static HWINEVENTHOOK keyboard_win_hhook = NULL, mouse_win_hhook = NULL;
-static UINT_PTR keyboard_timer_idt = 0, mouse_timer_idt = 0;
+static HWINEVENTHOOK win_event_hhook = NULL;
+static UINT_PTR event_timer_idt = 0;
 
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
 extern HINSTANCE hInst;
@@ -268,9 +268,9 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	if (keyboard_timer_idt != 0) {
-		if (KillTimer(NULL, keyboard_timer_idt)) {
-			keyboard_timer_idt = 0;
+	if (event_timer_idt != 0) {
+		if (KillTimer(NULL, event_timer_idt)) {
+			event_timer_idt = 0;
 		}
 		else {
 			// FIXME Warning get last error!
@@ -475,9 +475,9 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	if (mouse_timer_idt != 0) {
-		if (KillTimer(NULL, mouse_timer_idt)) {
-			mouse_timer_idt = 0;
+	if (event_timer_idt != 0) {
+		if (KillTimer(NULL, event_timer_idt)) {
+			event_timer_idt = 0;
 		}
 		else {
 			// FIXME Warning get last error!
@@ -591,46 +591,29 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 	return hook_result;
 }
 
-VOID CALLBACK mouse_timer_proc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
-	logger(LOG_LEVEL_WARN,	"****Mouse Timer Expired!!!!\n");
+VOID CALLBACK event_timer_proc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Restarting event hooks due to timer expiration event.\n",
+			__FUNCTION__, __LINE__);
+	
+	if (keyboard_event_hhook != NULL) {
+		UnhookWindowsHookEx(keyboard_event_hhook);
+	}
 
 	if (mouse_event_hhook != NULL) {
 		UnhookWindowsHookEx(mouse_event_hhook);
 	}
 
-	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
-	if (mouse_event_hhook == NULL) {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
-				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
-	}
-
-	if (mouse_timer_idt != 0) {
-		if (KillTimer(NULL, mouse_timer_idt)) {
-			mouse_timer_idt = 0;
-		}
-		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: KillTimer() failed! (%#lX)\n",
-					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
-		}
-	}
-}
-
-VOID CALLBACK keyboard_timer_proc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
-	logger(LOG_LEVEL_WARN,	"****Keyboard Timer Expired!!!!\n");
-
-	if (keyboard_event_hhook != NULL) {
-		UnhookWindowsHookEx(keyboard_event_hhook);
-	}
-
 	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
-	if (keyboard_event_hhook == NULL) {
+	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
+	
+	if (keyboard_event_hhook == NULL || mouse_event_hhook == NULL) {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
 				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 	}
 
-	if (keyboard_timer_idt != 0) {
-		if (KillTimer(NULL, keyboard_timer_idt)) {
-			keyboard_timer_idt = 0;
+	if (event_timer_idt != 0) {
+		if (KillTimer(NULL, event_timer_idt)) {
+			event_timer_idt = 0;
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: KillTimer() failed! (%#lX)\n",
@@ -638,39 +621,28 @@ VOID CALLBACK keyboard_timer_proc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD 
 		}
 	}
 }
-
 
 // Callback function that handles events.
 void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
-	logger(LOG_LEVEL_WARN,	"Recieved Event: %#X at %lu <> %lu\n", event, dwmsEventTime, previous_time);
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Received window event: %#X.\n",
+			__FUNCTION__, __LINE__, event);
 
-	// Setup a timer for 250 millisecond interval.
-	switch (event) {
-		case EVENT_OBJECT_FOCUS:
-			if (keyboard_timer_idt == 0) {
-				keyboard_timer_idt = SetTimer(NULL, 0, 1000, (TIMERPROC) keyboard_timer_proc);
-			}
-			break;
-
-		case EVENT_SYSTEM_CAPTUREEND:
-			if (mouse_timer_idt == 0) {
-				mouse_timer_idt = SetTimer(NULL, 0, 1000, (TIMERPROC) mouse_timer_proc);
-			}
-			break;
+	if (event_timer_idt == 0) {
+		event_timer_idt = SetTimer(NULL, 0, 500, (TIMERPROC) event_timer_proc);
 	}
 }
 
 void initialize_modifiers() {
-		current_modifiers = 0x0000;
+	current_modifiers = 0x0000;
 
-		if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
-		if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
-		if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
-		if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
-		if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
-		if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
-		if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
-		if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
+	if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
+	if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
+	if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
+	if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
+	if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
+	if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
+	if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
+	if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
 }
 
 // FIXME Do something else with this extern DLL main call.
@@ -704,23 +676,17 @@ UIOHOOK_API int hook_run() {
 	keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
 	mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
 
-	keyboard_win_hhook = SetWinEventHook(
-			EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS,// Range of events
-			NULL,                                          // Handle to DLL.
-			win_hook_event_proc,                                // The callback.
-			0, 0,              // Process and thread IDs of interest (0 = all)
-			WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS); // Flags.
-
-	mouse_win_hhook = SetWinEventHook(
-			EVENT_SYSTEM_CAPTUREEND, EVENT_SYSTEM_CAPTUREEND,// Range of events
-			NULL,                                          // Handle to DLL.
-			win_hook_event_proc,                                // The callback.
-			0, 0,              // Process and thread IDs of interest (0 = all)
-			WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS); // Flags.
+	// Create a window event hook to listen for capture change.
+	win_event_hhook = SetWinEventHook(
+			EVENT_SYSTEM_CAPTUREEND, EVENT_SYSTEM_CAPTUREEND, 
+			NULL, 
+			win_hook_event_proc, 
+			0, 0, 
+			WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
 
 	// If we did not encounter a problem, start processing events.
 	if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
-		if (keyboard_win_hhook == NULL || keyboard_win_hhook == NULL) {
+		if (win_event_hhook == NULL) {
 			logger(LOG_LEVEL_WARN,	"%s [%u]: SetWinEventHook() failed!\n",
 					__FUNCTION__, __LINE__);
 		}
@@ -764,14 +730,9 @@ UIOHOOK_API int hook_run() {
 		mouse_event_hhook = NULL;
 	}
 
-	if (keyboard_win_hhook != NULL) {
-		UnhookWinEvent(keyboard_win_hhook);
-		keyboard_win_hhook = NULL;
-	}
-
-	if (mouse_win_hhook != NULL) {
-		UnhookWinEvent(mouse_win_hhook);
-		mouse_win_hhook = NULL;
+	if (win_event_hhook != NULL) {
+		UnhookWinEvent(win_event_hhook);
+		win_event_hhook = NULL;
 	}
 
 	// We must explicitly call the cleanup handler because Windows does not

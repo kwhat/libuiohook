@@ -333,7 +333,7 @@ static inline void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *ms
 	event.data.mouse.x = mshook->pt.x;
 	event.data.mouse.y = mshook->pt.y;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+	logger(LOG_LEVEL_INFO, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
 			__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 			event.data.mouse.x, event.data.mouse.y);
 
@@ -355,7 +355,7 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	event.data.mouse.x = mshook->pt.x;
 	event.data.mouse.y = mshook->pt.y;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+	logger(LOG_LEVEL_INFO, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
 			__FUNCTION__, __LINE__, event.data.mouse.button,
 			event.data.mouse.clicks,
 			event.data.mouse.x, event.data.mouse.y);
@@ -378,7 +378,7 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 		event.data.mouse.x = mshook->pt.x;
 		event.data.mouse.y = mshook->pt.y;
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+		logger(LOG_LEVEL_INFO, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 				__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 				event.data.mouse.x, event.data.mouse.y);
 
@@ -419,7 +419,7 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 		event.data.mouse.x = mshook->pt.x;
 		event.data.mouse.y = mshook->pt.y;
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
+		logger(LOG_LEVEL_INFO, "%s [%u]: Mouse %s to %u, %u.\n",
 				__FUNCTION__, __LINE__,  mouse_dragged ? "dragged" : "moved",
 				event.data.mouse.x, event.data.mouse.y);
 
@@ -455,7 +455,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 	* click is defined as WHEEL_DELTA, which is 120. */
 	event.data.wheel.rotation = ((int16_t) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
+	logger(LOG_LEVEL_INFO, "%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
 			__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
 			event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y);
 
@@ -552,6 +552,14 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 			process_mouse_wheel(timestamp, mshook);
 			break;
 
+		/* For horizontal scroll wheel support.
+		 * NOTE Windows >= Vista
+		 * case 0x020E:
+		case WM_MOUSEHWHEEL:
+			process_mouse_wheel(timestamp, mshook);
+			break;				
+		*/
+		
 		default:
 			// In theory this *should* never execute.
 			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Windows mouse event! (%#X)\n",

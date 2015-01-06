@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -37,6 +37,7 @@
 #include "logger.h"
 #include "input_helper.h"
 
+/* TODO Implement properly for multihead setup.
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	// FIXME This needs to be implemented correctly for Multi-Head!
 	*count = 0;
@@ -62,6 +63,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 
 	return screens;
 }
+*/
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this

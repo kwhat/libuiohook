@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 // Global Variables.
 HINSTANCE hInst = NULL;
 
+/* TODO Implement properly for muli-head setup. 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	// FIXME This needs to be implemented correctly for Multi-Head!
 	*count = 0;
@@ -55,6 +56,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 
 	return screens;
 }
+*/
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	long int value = -1;

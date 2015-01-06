@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -50,6 +50,7 @@
 #define UIOHOOK_ERROR_CREATE_OBSERVER			0x44
 /* End Error Codes */
 
+/* Begin Log Levels and Function Prototype */
 typedef enum _log_level {
 	LOG_LEVEL_DEBUG = 1,
 	LOG_LEVEL_INFO,
@@ -57,7 +58,9 @@ typedef enum _log_level {
 	LOG_LEVEL_ERROR
 } log_level;
 
+// Logger callback function prototype.
 typedef bool (*logger_t)(unsigned int, const char *, ...);
+/* End Log Levels and Function Prototype */
 
 /* Begin Virtual Event Types and Data Structures */
 typedef enum _event_type {

@@ -20,7 +20,7 @@
 m4_define([UIOHOOK_MAJOR],	[1])
 m4_define([UIOHOOK_MINOR],	[0])
 m4_define([UIOHOOK_PATCH],	[0])
-m4_define([UIOHOOK_RC],		[_RC5])
+m4_define([UIOHOOK_RC],		[])
 m4_define([UIOHOOK_BUGS],	[alex@1stleg.com])
 m4_define([UIOHOOK_VERSION_STRING], UIOHOOK_MAJOR[.]UIOHOOK_MINOR[.]UIOHOOK_PATCH[]UIOHOOK_RC)
 

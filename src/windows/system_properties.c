@@ -30,6 +30,7 @@
 // Global Variables.
 HINSTANCE hInst = NULL;
 
+/* TODO Implement properly for muli-head setup. 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	// FIXME This needs to be implemented correctly for Multi-Head!
 	*count = 0;
@@ -55,6 +56,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 
 	return screens;
 }
+*/
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
 	long int value = -1;

@@ -157,9 +157,6 @@ static inline uint64_t get_event_timestamp(XRecordInterceptData *recorded_data) 
 	return recorded_data->server_time + offset_time;
 }
 
-// Retrieves an array of screen data for each available monitor.
-// TODO Complete the hook_get_screen_info functions for all platforms.
-extern screen_data* hook_get_screen_info(uint8_t *count);
 
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	// Calculate Unix epoch from native time source.

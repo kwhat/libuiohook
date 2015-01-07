@@ -37,7 +37,7 @@
 #include "logger.h"
 #include "input_helper.h"
 
-/* TODO Implement properly for multihead setup.
+// FIXME Implement properly for multihead setup.
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	// FIXME This needs to be implemented correctly for Multi-Head!
 	*count = 0;
@@ -63,7 +63,6 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 
 	return screens;
 }
-*/
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this

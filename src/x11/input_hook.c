@@ -275,7 +275,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
-			event.data.keyboard.keycode = keycode;
+			event.data.keyboard.keycode = scancode;
 			event.data.keyboard.rawcode = keysym;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 

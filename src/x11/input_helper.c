@@ -66,7 +66,6 @@ static bool is_caps_lock = false, is_shift_lock = false;
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
 #if defined(USE_EVDEV) && defined(USE_XKB)
 /* This table is generated based off the evdev -> scancode mapping above
  * and the keycode mappings in the following files:
@@ -74,10 +73,9 @@ static bool is_caps_lock = false, is_shift_lock = false;
  *		/usr/share/X11/xkb/keycodes/evdev
  *
  * NOTE This table only works for Linux.
- *
  */
 static const uint16_t evdev_scancode_table[][2] = {
-	/* idx		{ keycode,				scancode				}, */
+	/* idx		{ keycode,				scancode				},     idx  evdev code */
 	/*   0 */	{ VC_UNDEFINED,			0x00					}, /* 0x00	KEY_RESERVED */
 	/*   1 */	{ VC_UNDEFINED,			0x09					}, /* 0x01	KEY_ESC */
 	/*   2 */	{ VC_UNDEFINED,			0x0A					}, /* 0x02	KEY_1 */

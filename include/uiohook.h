@@ -346,26 +346,35 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 
 
 /* Begin Virtual Modifier Masks */
+// Left Modifiers.
 #define MASK_SHIFT_L							1 << 0
 #define MASK_CTRL_L								1 << 1
 #define MASK_META_L								1 << 2
 #define MASK_ALT_L								1 << 3
 
+// Right Modifiers.
 #define MASK_SHIFT_R							1 << 4
 #define MASK_CTRL_R								1 << 5
 #define MASK_META_R								1 << 6
 #define MASK_ALT_R								1 << 7
 
+// Combined Modifiers.
 #define MASK_SHIFT								MASK_SHIFT_L | MASK_SHIFT_R
 #define MASK_CTRL								MASK_CTRL_L  | MASK_CTRL_R
 #define MASK_META								MASK_META_L  | MASK_META_R
 #define MASK_ALT								MASK_ALT_L   | MASK_ALT_R
 
+// Button Modifiers
 #define MASK_BUTTON1							1 << 8
 #define MASK_BUTTON2							1 << 9
 #define MASK_BUTTON3							1 << 10
 #define MASK_BUTTON4							1 << 11
 #define MASK_BUTTON5							1 << 12
+
+// Toggle modifiers.
+#define MASK_CAPS_LOCK							1 << 13
+#define MASK_NUM_LOCK							1 << 14
+#define MASK_SCROLL_LOCK						1 << 15
 /* End Virtual Modifier Masks */
 
 

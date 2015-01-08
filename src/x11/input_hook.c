@@ -195,14 +195,17 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			unsigned short int scancode = keycode_to_scancode(keycode);
 
 			// TODO If you have a better suggestion for this ugly, let me know.
-			if		(scancode == VC_SHIFT_L)	{ set_modifier_mask(MASK_SHIFT_L);	}
-			else if (scancode == VC_SHIFT_R)	{ set_modifier_mask(MASK_SHIFT_R);	}
-			else if (scancode == VC_CONTROL_L)	{ set_modifier_mask(MASK_CTRL_L);	}
-			else if (scancode == VC_CONTROL_R)	{ set_modifier_mask(MASK_CTRL_R);	}
-			else if (scancode == VC_ALT_L)		{ set_modifier_mask(MASK_ALT_L);	}
-			else if (scancode == VC_ALT_R)		{ set_modifier_mask(MASK_ALT_R);	}
-			else if (scancode == VC_META_L)		{ set_modifier_mask(MASK_META_L);	}
-			else if (scancode == VC_META_R)		{ set_modifier_mask(MASK_META_R);	}
+			if		(scancode == VC_SHIFT_L)	{ set_modifier_mask(MASK_SHIFT_L);		}
+			else if (scancode == VC_SHIFT_R)	{ set_modifier_mask(MASK_SHIFT_R);		}
+			else if (scancode == VC_CONTROL_L)	{ set_modifier_mask(MASK_CTRL_L);		}
+			else if (scancode == VC_CONTROL_R)	{ set_modifier_mask(MASK_CTRL_R);		}
+			else if (scancode == VC_ALT_L)		{ set_modifier_mask(MASK_ALT_L);		}
+			else if (scancode == VC_ALT_R)		{ set_modifier_mask(MASK_ALT_R);		}
+			else if (scancode == VC_META_L)		{ set_modifier_mask(MASK_META_L);		}
+			else if (scancode == VC_META_R)		{ set_modifier_mask(MASK_META_R);		}
+			else if (scancode == VC_CAPS_LOCK	{ set_modifier_mask(MASK_CAPS_LOCK);	}
+			else if (scancode == VC_NUM_LOCK	{ set_modifier_mask(MASK_NUM_LOCK);		}
+			else if (scancode == VC_SCROLL_LOCK	{ set_modifier_mask(MASK_SCROLL_LOCK);	}
 
 			// Populate key pressed event.
 			event.time = timestamp;
@@ -266,7 +269,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)		{ unset_modifier_mask(MASK_ALT_R);		}
 			else if (scancode == VC_META_L)		{ unset_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)		{ unset_modifier_mask(MASK_META_R);		}
-
+			else if (scancode == VC_CAPS_LOCK	{ unset_modifier_mask(MASK_CAPS_LOCK);	}
+			else if (scancode == VC_NUM_LOCK	{ unset_modifier_mask(MASK_NUM_LOCK);	}
+			else if (scancode == VC_SCROLL_LOCK	{ unset_modifier_mask(MASK_SCROLL_LOCK);}
 
 			// Populate key released event.
 			event.time = timestamp;
@@ -385,14 +390,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						break;
 
 					default:
-						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
-						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
-							button = data->event.u.u.detail - 4;
-							
-							if (button + 7 < 16) {
-								set_modifier_mask(1 << (button + 7));
-							}
-						}
+						// Do not set modifier masks past button MASK_BUTTON5.
 						break;
 				}
 
@@ -483,14 +481,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						break;
 
 					default:
-						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
-						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
-							button = data->event.u.u.detail - 4;
-							
-							if (button + 7 < 16) {
-								unset_modifier_mask(1 << (button + 7));
-							}
-						}
+						// Do not set modifier masks past button MASK_BUTTON5.
 						break;
 				}
 				

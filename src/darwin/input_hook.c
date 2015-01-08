@@ -304,6 +304,8 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 }
 
 static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref) {
+	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+	
 	// Populate key pressed event.
 	event.time = timestamp;
 	event.reserved = 0x00;
@@ -311,8 +313,6 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 	event.type = EVENT_KEY_PRESSED;
 	event.mask = get_modifiers();
 
-	// FIXME Check for overflow.
-	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 	event.data.keyboard.keycode = keycode_to_scancode(keycode);
 	event.data.keyboard.rawcode = keycode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
@@ -323,8 +323,26 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 	// Fire key pressed event.
 	dispatch_event(&event);
 
-	// If the pressed event was not consumed...
-	if (event.reserved ^ 0x01) {
+	/* Apple doesn't produce documented modifiers for the following keys so we
+	 * will need to fake the masks.
+	 * 
+	 * NOTE Clear/NumLock produces a NX_SYSDEFINED event, however, much like
+	 * the other NX_ events and masks, it is undocumented.
+	 */
+	if (keycode == kVK_ANSI_KeypadClear) {
+		// Process as a key pressed event.
+		set_modifier_mask(MASK_NUM_LOCK);
+		process_key_released(timestamp, event_ref);
+	}
+	else if (keycode == kVK_F14) {
+		// TODO Verify that F14 is the correct key.
+
+		// Process as a key pressed event.
+		set_modifier_mask(MASK_SCROLL_LOCK);
+		
+	}
+	else if (event.reserved ^ 0x01) {
+		// If the pressed event was not consumed...
 		if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
 			// If the hook is running on the main runloop, we do not need to do 
 			// all of this signaling junk.
@@ -395,6 +413,27 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 }
 
 static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref) {
+	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+
+	/* Apple doesn't produce documented modifiers for the following keys so we
+	 * will need to fake the masks.
+	 * 
+	 * NOTE Clear/NumLock produces a NX_SYSDEFINED event, however, much like
+	 * the other NX_ events and masks, it is undocumented.
+	 */
+	if (keycode == kVK_ANSI_KeypadClear) {
+		// Process as a key released event.
+		process_key_pressed(timestamp, event_ref);
+		unset_modifier_mask(MASK_NUM_LOCK);
+	}
+	else if (keycode == kVK_F14) {
+		// TODO Verify that F14 is the correct key.
+
+		// Process as a key released event.
+		process_key_pressed(timestamp, event_ref);
+		unset_modifier_mask(MASK_SCROLL_LOCK);
+	}
+	
 	// Populate key released event.
 	event.time = timestamp;
 	event.reserved = 0x00;
@@ -402,8 +441,6 @@ static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref
 	event.type = EVENT_KEY_RELEASED;
 	event.mask = get_modifiers();
 
-	// FIXME Check for overflow.
-	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 	event.data.keyboard.keycode = keycode_to_scancode(keycode);
 	event.data.keyboard.rawcode = keycode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
@@ -417,38 +454,128 @@ static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref
 
 static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event_ref) {
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
+	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 	
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed. (%#X)\n",
-					__FUNCTION__, __LINE__, (unsigned int) event_mask);
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed for key %#X. (%#X)\n",
+			__FUNCTION__, __LINE__, (unsigned long) keycode, (unsigned int) event_mask);
 
 	/* Because Apple treats modifier keys differently than normal key
 	 * events, any changes to the modifier keys will require a key state
 	 * change to be fired manually.
+	 * 
+	 * NOTE Left and right keyboard masks like NX_NEXTLSHIFTKEYMASK exist and 
+	 * appear to be in use on Darwin, however they are removed by comment or 
+	 * preprocessor with a note that reads "device-dependent (really?)."  To  
+	 * ensure compatability, we will do this the verbose way.
+	 * 
+	 * NOTE The masks for scroll and number lock are set in the key event.
 	 */
-	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
-	uint8_t modifier_flag = 0x0000;
-	if		(keycode == kVK_Shift)			{ modifier_flag = MASK_SHIFT_L;	}
-	else if (keycode == kVK_Control)		{ modifier_flag = MASK_CTRL_L;	}
-	else if (keycode == kVK_Command)		{ modifier_flag = MASK_META_L;	}
-	else if (keycode == kVK_Option)			{ modifier_flag = MASK_ALT_L;	}
-	else if (keycode == kVK_RightShift)		{ modifier_flag = MASK_SHIFT_R;	}
-	else if (keycode == kVK_RightControl)	{ modifier_flag = MASK_CTRL_R;	}
-	else if (keycode == kVK_RightCommand)	{ modifier_flag = MASK_META_R;	}
-	else if (keycode == kVK_RightOption)	{ modifier_flag = MASK_ALT_R;	}
-
-	// First check to see if a modifier we care about changed.
-	if (modifier_flag != 0x0000) {
-		if (get_modifiers() & modifier_flag) {
-			unset_modifier_mask(modifier_flag);
-
-			// Process as a key released event.
-			process_key_released(timestamp, event_ref);
+	if (keycode == kVK_Shift) {
+		if (event_mask & kCGEventFlagMaskShift) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_SHIFT_L);
+			process_key_pressed(timestamp, event_ref);
 		}
 		else {
-			set_modifier_mask(modifier_flag);
-
+			// Process as a key released event.
+			unset_modifier_mask(MASK_SHIFT_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_Control) {
+		if (event_mask & kCGEventFlagMaskControl) {
 			// Process as a key pressed event.
+			set_modifier_mask(MASK_CTRL_L);
 			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_CTRL_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_Command) {
+		if (event_mask & kCGEventFlagMaskCommand) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_META_L);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_META_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_Option) {
+		if (event_mask & kCGEventFlagMaskAlternate) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_ALT_L);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_ALT_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightShift) {
+		if (event_mask & kCGEventFlagMaskShift) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_SHIFT_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_SHIFT_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightControl) {
+		if (event_mask & kCGEventFlagMaskControl) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_CTRL_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_CTRL_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightCommand) {
+		if (event_mask & kCGEventFlagMaskCommand) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_META_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_META_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightOption) {
+		if (event_mask & kCGEventFlagMaskAlternate) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_ALT_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_ALT_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_CapsLock) {
+		if (event_mask & kCGEventFlagMaskAlphaShift) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_CAPS_LOCK);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_CAPS_LOCK);
+			process_key_released(timestamp, event_ref);
 		}
 	}
 }

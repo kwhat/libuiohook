@@ -203,9 +203,32 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)		{ set_modifier_mask(MASK_ALT_R);		}
 			else if (scancode == VC_META_L)		{ set_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)		{ set_modifier_mask(MASK_META_R);		}
-			else if (scancode == VC_CAPS_LOCK	{ set_modifier_mask(MASK_CAPS_LOCK);	}
-			else if (scancode == VC_NUM_LOCK	{ set_modifier_mask(MASK_NUM_LOCK);		}
-			else if (scancode == VC_SCROLL_LOCK	{ set_modifier_mask(MASK_SCROLL_LOCK);	}
+			
+			// These are toggle keys, so only set the mask on key down.
+			else if (scancode == VC_CAPS_LOCK) {
+				if (get_modifiers() & MASK_CAPS_LOCK) {
+					unset_modifier_mask(MASK_CAPS_LOCK);
+				}
+				else {
+					set_modifier_mask(MASK_CAPS_LOCK);
+				}
+			}
+			else if (scancode == VC_NUM_LOCK) {
+				if (get_modifiers() & MASK_NUM_LOCK) {
+					unset_modifier_mask(MASK_NUM_LOCK);
+				}
+				else {
+					set_modifier_mask(MASK_NUM_LOCK);
+				}
+			}
+			else if (scancode == VC_SCROLL_LOCK) {
+				if (get_modifiers() & MASK_SCROLL_LOCK) {
+					unset_modifier_mask(MASK_SCROLL_LOCK);
+				}
+				else {
+					set_modifier_mask(MASK_SCROLL_LOCK);
+				}
+			}
 
 			// Populate key pressed event.
 			event.time = timestamp;
@@ -269,9 +292,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)		{ unset_modifier_mask(MASK_ALT_R);		}
 			else if (scancode == VC_META_L)		{ unset_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)		{ unset_modifier_mask(MASK_META_R);		}
-			else if (scancode == VC_CAPS_LOCK	{ unset_modifier_mask(MASK_CAPS_LOCK);	}
-			else if (scancode == VC_NUM_LOCK	{ unset_modifier_mask(MASK_NUM_LOCK);	}
-			else if (scancode == VC_SCROLL_LOCK	{ unset_modifier_mask(MASK_SCROLL_LOCK);}
 
 			// Populate key released event.
 			event.time = timestamp;
@@ -631,6 +651,20 @@ UIOHOOK_API int hook_run() {
 			#ifdef USE_XKB
 			// Enable detectable autorepeat.
 			XkbSetDetectableAutoRepeat(hook->ctrl.display, True, &is_auto_repeat);
+			
+			unsigned int status_mask = 0x00;
+			if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &status_mask) == Success) {
+				// CapsLock		0x01
+				// NumLock		0x02
+				// ScrollLock	0x04
+				// KanaLock?	0x08
+				
+				current_modifiers = (status_mask & 0x07) << 13;
+			}
+			else {
+				logger(LOG_LEVEL_WARN,	"%s [%u]: XkbGetIndicatorState failed!\n",
+						__FUNCTION__, __LINE__);
+			}
 			#else
 			XAutoRepeatOn(hook->ctrl.display);
 
@@ -638,6 +672,8 @@ UIOHOOK_API int hook_run() {
 			XGetKeyboardControl(hook->ctrl.display, &kb_state);
 
 			is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
+			
+			#pragma message("*** Warning: XKB support is required to accurately determine keyboard lock state!")
 			#endif
 
 			if (is_auto_repeat) {

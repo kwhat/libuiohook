@@ -332,14 +332,12 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 	if (keycode == kVK_ANSI_KeypadClear) {
 		// Process as a key pressed event.
 		set_modifier_mask(MASK_NUM_LOCK);
-		process_key_released(timestamp, event_ref);
 	}
 	else if (keycode == kVK_F14) {
-		// TODO Verify that F14 is the correct key.
+		// FIXME Verify that F14 is the correct key.
 
 		// Process as a key pressed event.
 		set_modifier_mask(MASK_SCROLL_LOCK);
-		
 	}
 	else if (event.reserved ^ 0x01) {
 		// If the pressed event was not consumed...
@@ -423,14 +421,12 @@ static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref
 	 */
 	if (keycode == kVK_ANSI_KeypadClear) {
 		// Process as a key released event.
-		process_key_pressed(timestamp, event_ref);
 		unset_modifier_mask(MASK_NUM_LOCK);
 	}
 	else if (keycode == kVK_F14) {
-		// TODO Verify that F14 is the correct key.
+		// FIXME Verify that F14 is the correct key.
 
 		// Process as a key released event.
-		process_key_pressed(timestamp, event_ref);
 		unset_modifier_mask(MASK_SCROLL_LOCK);
 	}
 	
@@ -906,7 +902,6 @@ UIOHOOK_API int hook_run() {
 		#ifdef USE_DEBUG
 		CGEventMask event_mask = kCGEventMaskForAllEvents;
 		#else
-		// TODO This maybe exactly the same as the line above...
 		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
 									CGEventMaskBit(kCGEventKeyUp) |
 									CGEventMaskBit(kCGEventFlagsChanged) |

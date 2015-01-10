@@ -229,51 +229,54 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					set_modifier_mask(MASK_SCROLL_LOCK);
 				}
 			}
+			
+			// The caps-lock key needs to send events like a toggle because that is the way Darwin works.
+			if (scancode != VC_CAPS_LOCK || get_modifiers() & MASK_CAPS_LOCK) {
+				// Populate key pressed event.
+				event.time = timestamp;
+				event.reserved = 0x00;
 
-			// Populate key pressed event.
-			event.time = timestamp;
-			event.reserved = 0x00;
+				event.type = EVENT_KEY_PRESSED;
+				event.mask = get_modifiers();
 
-			event.type = EVENT_KEY_PRESSED;
-			event.mask = get_modifiers();
+				event.data.keyboard.keycode = scancode;
+				event.data.keyboard.rawcode = keysym;
+				event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-			event.data.keyboard.keycode = scancode;
-			event.data.keyboard.rawcode = keysym;
-			event.data.keyboard.keychar = CHAR_UNDEFINED;
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
-					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+				// Fire key pressed event.
+				dispatch_event(&event);
 
-			// Fire key pressed event.
-			dispatch_event(&event);
+				// If the pressed event was not consumed...
+				if (event.reserved ^ 0x01) {
+					wchar_t buffer[1];
 
-			// If the pressed event was not consumed...
-			if (event.reserved ^ 0x01) {
-				wchar_t buffer[1];
-				
-				// Check to make sure the key is printable.
-				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
-				if (count > 0) {
-					// NOTE This will currently always be a single iteration.
-					//for (unsigned int i = 0; i < count; i++) {
-						// Populate key typed event.
-						event.time = timestamp;
-						event.reserved = 0x00;
+					// Check to make sure the key is printable.
+					size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
+					if (count > 0) {
+						// NOTE This will currently always be a single iteration.
+						//for (unsigned int i = 0; i < count; i++) {
+							// Populate key typed event.
+							event.time = timestamp;
+							event.reserved = 0x00;
 
-						event.type = EVENT_KEY_TYPED;
-						event.mask = get_modifiers();
+							event.type = EVENT_KEY_TYPED;
+							event.mask = get_modifiers();
 
-						event.data.keyboard.keycode = VC_UNDEFINED;
-						event.data.keyboard.rawcode = keysym;
-						//event.data.keyboard.keychar = buffer[i];
-						event.data.keyboard.keychar = buffer[0];
+							event.data.keyboard.keycode = VC_UNDEFINED;
+							event.data.keyboard.rawcode = keysym;
+							//event.data.keyboard.keychar = buffer[i];
+							event.data.keyboard.keychar = buffer[0];
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+							logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+									__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 
-						// Fire key typed event.
-						dispatch_event(&event);
-					//}
+							// Fire key typed event.
+							dispatch_event(&event);
+						//}
+					}
 				}
 			}
 		}
@@ -293,22 +296,25 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_META_L)		{ unset_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)		{ unset_modifier_mask(MASK_META_R);		}
 
-			// Populate key released event.
-			event.time = timestamp;
-			event.reserved = 0x00;
+			// The caps-lock key needs to send events like a toggle because that is the way OSX works.
+			if (scancode != VC_CAPS_LOCK || !(get_modifiers() & MASK_CAPS_LOCK)) {
+				// Populate key released event.
+				event.time = timestamp;
+				event.reserved = 0x00;
 
-			event.type = EVENT_KEY_RELEASED;
-			event.mask = get_modifiers();
+				event.type = EVENT_KEY_RELEASED;
+				event.mask = get_modifiers();
 
-			event.data.keyboard.keycode = scancode;
-			event.data.keyboard.rawcode = keysym;
-			event.data.keyboard.keychar = CHAR_UNDEFINED;
+				event.data.keyboard.keycode = scancode;
+				event.data.keyboard.rawcode = keysym;
+				event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-			logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
-					__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+				logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
-			// Fire key released event.
-			dispatch_event(&event);
+				// Fire key released event.
+				dispatch_event(&event);
+			}
 		}
 		else if (data->type == ButtonPress) {
 			// X11 handles wheel events as button events.

@@ -182,23 +182,20 @@ void hook_stop_proc() {
 }
 
 static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
-	bool skip_events = false;
-	
 	// Check and setup modifiers.
-	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);		}
-	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);		}
-	else if (kbhook->vkCode == VK_LCONTROL)	{ set_modifier_mask(MASK_CTRL_L);		}
-	else if (kbhook->vkCode == VK_RCONTROL)	{ set_modifier_mask(MASK_CTRL_R);		}
-	else if (kbhook->vkCode == VK_LMENU)	{ set_modifier_mask(MASK_ALT_L);		}
-	else if (kbhook->vkCode == VK_RMENU)	{ set_modifier_mask(MASK_ALT_R);		}
-	else if (kbhook->vkCode == VK_LWIN)		{ set_modifier_mask(MASK_META_L);		}
-	else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);		}
+	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);	}
+	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);	}
+	else if (kbhook->vkCode == VK_LCONTROL)	{ set_modifier_mask(MASK_CTRL_L);	}
+	else if (kbhook->vkCode == VK_RCONTROL)	{ set_modifier_mask(MASK_CTRL_R);	}
+	else if (kbhook->vkCode == VK_LMENU)	{ set_modifier_mask(MASK_ALT_L);	}
+	else if (kbhook->vkCode == VK_RMENU)	{ set_modifier_mask(MASK_ALT_R);	}
+	else if (kbhook->vkCode == VK_LWIN)		{ set_modifier_mask(MASK_META_L);	}
+	else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);	}
 	
 	else if (kbhook->vkCode == VK_CAPITAL)	{
 		// If the caps-lock mask is currently set, but being turned off.
 		if (GetKeyState(VK_CAPITAL) & 0x01) {
 			unset_modifier_mask(MASK_CAPS_LOCK);
-			skip_events = true;
 		}
 		else {
 			set_modifier_mask(MASK_CAPS_LOCK);
@@ -221,54 +218,48 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 		}
 	}
 
-	// The caps-lock key needs to send events like a toggle because that is the way Darwin works.
-	if (!skip_events) {
-		// Populate key pressed event.
-		event.time = timestamp;
-		event.reserved = 0x00;
+	// Populate key pressed event.
+	event.time = timestamp;
+	event.reserved = 0x00;
 
-		event.type = EVENT_KEY_PRESSED;
-		event.mask = get_modifiers();
+	event.type = EVENT_KEY_PRESSED;
+	event.mask = get_modifiers();
 
-		event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
-		event.data.keyboard.rawcode = kbhook->vkCode;
-		event.data.keyboard.keychar = CHAR_UNDEFINED;
+	event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
+	event.data.keyboard.rawcode = kbhook->vkCode;
+	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
-				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
+			__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
-		// Populate key pressed event.
-		dispatch_event(&event);
+	// Populate key pressed event.
+	dispatch_event(&event);
 
-		// If the pressed event was not consumed...
-		if (event.reserved ^ 0x01) {
-			// Buffer for unicode typed chars. No more than 2 needed.
-			WCHAR buffer[2]; // = { WCH_NONE };
+	// If the pressed event was not consumed...
+	if (event.reserved ^ 0x01) {
+		// Buffer for unicode typed chars. No more than 2 needed.
+		WCHAR buffer[2]; // = { WCH_NONE };
 
-			// If the pressed event was not consumed and a unicode char exists...
-			SIZE_T count = keycode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
-			for (unsigned int i = 0; i < count; i++) {
-				// Populate key typed event.
-				event.time = timestamp;
-				event.reserved = 0x00;
+		// If the pressed event was not consumed and a unicode char exists...
+		SIZE_T count = keycode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
+		for (unsigned int i = 0; i < count; i++) {
+			// Populate key typed event.
+			event.time = timestamp;
+			event.reserved = 0x00;
 
-				event.type = EVENT_KEY_TYPED;
-				event.mask = get_modifiers();
+			event.type = EVENT_KEY_TYPED;
+			event.mask = get_modifiers();
 
-				event.data.keyboard.keycode = VC_UNDEFINED;
-				event.data.keyboard.rawcode = kbhook->vkCode;
-				event.data.keyboard.keychar = buffer[i];
+			event.data.keyboard.keycode = VC_UNDEFINED;
+			event.data.keyboard.rawcode = kbhook->vkCode;
+			event.data.keyboard.keychar = buffer[i];
 
-				logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X typed. (%lc)\n",
-						__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+			logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X typed. (%lc)\n",
+					__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 
-				// Fire key typed event.
-				dispatch_event(&event);
-			}
+			// Fire key typed event.
+			dispatch_event(&event);
 		}
-	}
-	else {
-		logger(LOG_LEVEL_WARN, "%s [%u]: Skip Event!\n", __FUNCTION__, __LINE__);
 	}
 }
 
@@ -283,25 +274,22 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 	else if (kbhook->vkCode == VK_LWIN)		{ unset_modifier_mask(MASK_META_L);		}
 	else if (kbhook->vkCode == VK_RWIN)		{ unset_modifier_mask(MASK_META_R);		}
 
-	// The caps-lock key needs to send events like a toggle because that is the way Darwin works.
-	if (kbhook->vkCode != VK_CAPITAL || !(GetKeyState(VK_CAPITAL) & 0x1)) {
-		// Populate key released event.
-		event.time = timestamp;
-		event.reserved = 0x00;
+	// Populate key released event.
+	event.time = timestamp;
+	event.reserved = 0x00;
 
-		event.type = EVENT_KEY_RELEASED;
-		event.mask = get_modifiers();
+	event.type = EVENT_KEY_RELEASED;
+	event.mask = get_modifiers();
 
-		event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
-		event.data.keyboard.rawcode = kbhook->vkCode;
-		event.data.keyboard.keychar = CHAR_UNDEFINED;
+	event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
+	event.data.keyboard.rawcode = kbhook->vkCode;
+	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
-				__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
+			__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
-		// Fire key released event.
-		dispatch_event(&event);
-	}
+	// Fire key released event.
+	dispatch_event(&event);
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {

@@ -44,6 +44,9 @@ static Boolean restart_tap = false;
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x00000000;
 
+// Flag for caps-lock key release.
+static Boolean caps_down = false;
+
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
 typedef struct {
@@ -566,13 +569,14 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 		if (event_mask & kCGEventFlagMaskAlphaShift) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_CAPS_LOCK);
-			process_key_pressed(timestamp, event_ref);
 		}
 		else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_CAPS_LOCK);
-			process_key_released(timestamp, event_ref);
 		}
+		
+		process_key_pressed(timestamp, event_ref);
+		caps_down = true;
 	}
 }
 
@@ -748,6 +752,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 	}
 }
 
+//static int test = 0;
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
 	// Calculate Unix epoch from native time source.
 	uint64_t timestamp = get_event_timestamp(event_ref);
@@ -766,6 +771,16 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			process_modifier_changed(timestamp, event_ref);
 			break;
 
+		case NX_SYSDEFINED:
+			if (caps_down) {
+				//test++;
+
+				CGEventSetIntegerValueField(event_ref, kCGKeyboardEventKeycode, kVK_CapsLock);
+				process_key_released(timestamp, event_ref);
+				caps_down = false;
+			}
+			break;
+			
 		case kCGEventLeftMouseDown:
 			set_modifier_mask(MASK_BUTTON1);
 			process_button_pressed(timestamp, event_ref, MOUSE_BUTTON1);
@@ -919,7 +934,9 @@ UIOHOOK_API int hook_run() {
 									CGEventMaskBit(kCGEventOtherMouseDragged) |
 
 									CGEventMaskBit(kCGEventMouseMoved) |
-									CGEventMaskBit(kCGEventScrollWheel);
+									CGEventMaskBit(kCGEventScrollWheel) |
+									
+									EventCodeMask(NX_SYSDEFINED);
 		#endif
 
 		// Create the event tap.

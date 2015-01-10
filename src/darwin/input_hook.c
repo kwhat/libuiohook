@@ -752,7 +752,6 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 	}
 }
 
-//static int test = 0;
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
 	// Calculate Unix epoch from native time source.
 	uint64_t timestamp = get_event_timestamp(event_ref);
@@ -772,9 +771,17 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			break;
 
 		case NX_SYSDEFINED:
+			/* This event is undocumented and only here to provide key release 
+			 * events for the caps-lock key.  It is not a perfect solution as 
+			 * pressing the num-lock key will force a release even if you are 
+			 * still holding the caps-lock down.  This could be mitigated in the 
+			 * future by implementing some kind of key down/up stack to track 
+			 * other press while caps_down == true and only release when 
+			 * appropriate.  The reason it will work is because every other key 
+			 * that produces this event also produces its own key down/up event!
+			 * The caps-lock is the only key that does not produce a release.
+			 */
 			if (caps_down) {
-				//test++;
-
 				CGEventSetIntegerValueField(event_ref, kCGKeyboardEventKeycode, kVK_CapsLock);
 				process_key_released(timestamp, event_ref);
 				caps_down = false;

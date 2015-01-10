@@ -195,14 +195,13 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 	else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);		}
 	
 	else if (kbhook->vkCode == VK_CAPITAL)	{
-		logger(LOG_LEVEL_WARN, "%s [%u]: CAPITAL!\n", __FUNCTION__, __LINE__);
-		
+		// If the caps-lock mask is currently set, but being turned off.
 		if (GetKeyState(VK_CAPITAL) & 0x01) {
-			set_modifier_mask(MASK_CAPS_LOCK);
-		}
-		else {
 			unset_modifier_mask(MASK_CAPS_LOCK);
 			skip_events = true;
+		}
+		else {
+			set_modifier_mask(MASK_CAPS_LOCK);
 		}
 	}
 	else if (kbhook->vkCode == VK_NUMLOCK)	{ 
@@ -284,7 +283,8 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 	else if (kbhook->vkCode == VK_LWIN)		{ unset_modifier_mask(MASK_META_L);		}
 	else if (kbhook->vkCode == VK_RWIN)		{ unset_modifier_mask(MASK_META_R);		}
 
-	if (kbhook->vkCode != VK_CAPITAL || !(get_modifiers() & MASK_CAPS_LOCK)) {
+	// The caps-lock key needs to send events like a toggle because that is the way Darwin works.
+	if (kbhook->vkCode != VK_CAPITAL || !(GetKeyState(VK_CAPITAL) & 0x1)) {
 		// Populate key released event.
 		event.time = timestamp;
 		event.reserved = 0x00;

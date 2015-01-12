@@ -29,28 +29,140 @@
 
 // Global Variables.
 HINSTANCE hInst = NULL;
+//TODO: structure should have the count as well to avoid the global. s_info[ s_array, s_count ]
+screen_data *screens = NULL;
+
+typedef BOOL (WINAPI *SetProcessDPIAware_t)(void);
+
+//http://msdn.microsoft.com/en-us/library/windows/desktop/dn280512%28v=vs.85%29.aspx
+typedef enum _Process_DPI_Awareness { 
+  Process_DPI_Unaware            = 0,
+  Process_System_DPI_Aware       = 1,
+  Process_Per_Monitor_DPI_Aware  = 2
+} Process_DPI_Awareness;
+typedef Process_DPI_Awareness PROCESS_DPI_AWARENESS;
+//http://msdn.microsoft.com/en-us/library/windows/desktop/dn302216%28v=vs.85%29.aspx
+typedef BOOL (WINAPI *SetProcessDpiAwareness_t)(PROCESS_DPI_AWARENESS);
+
+
+BOOL windows8xDPIAwareness(){
+    BOOL res = FALSE;
+    HMODULE currLib = LoadLibrary("Shcore.dll");
+    if( currLib ){
+	SetProcessDpiAwareness_t pSetProcessDpiAwareness = GetProcAddress( currLib, 
+		"SetProcessDpiAwareness" );
+		
+	if( pSetProcessDpiAwareness ) {
+                logger(LOG_LEVEL_INFO,	"%s [%u]: windows8xDPIAwareness: "
+					"SetProcessDpiAwareness called.\n", __FUNCTION__, __LINE__);
+                //http://msdn.microsoft.com/en-us/library/windows/desktop/dn469266(v=vs.85).aspx
+                //Process_Per_Monitor_DPI_Aware only 8.1 I think
+                if( pSetProcessDpiAwareness( Process_Per_Monitor_DPI_Aware ) != S_OK )
+                    pSetProcessDpiAwareness( Process_System_DPI_Aware );
+                res = TRUE;
+	}
+	FreeLibrary( currLib );
+    }
+
+    return res;
+}
+
+BOOL windows7VistaDPIAwareness(){
+    BOOL res = FALSE;
+    HMODULE currLib = LoadLibrary("user32.dll");
+    if( currLib ){
+	SetProcessDPIAware_t pSetProcessDPIAware = GetProcAddress( currLib, 
+		"SetProcessDPIAware" );
+		
+        if( pSetProcessDPIAware ) {
+            logger(LOG_LEVEL_INFO,	"%s [%u]: windows7VistaDPIAwareness: "
+				"SetProcessDPIAware called.\n", __FUNCTION__, __LINE__);
+            pSetProcessDPIAware();
+	}
+	FreeLibrary( currLib );
+    }
+
+    return res;
+}
+
+void enableDPIAwareness(){
+    //TODO: winXP?
+    if( !windows8xDPIAwareness() )
+        windows7VistaDPIAwareness();
+}
+
+//http://msdn.microsoft.com/en-us/library/windows/desktop/dd162610(v=vs.85).aspx
+//http://msdn.microsoft.com/en-us/library/dd162610%28VS.85%29.aspx
+//http://msdn.microsoft.com/en-us/library/dd145061%28VS.85%29.aspx
+//http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
+// callback function called by EnumDisplayMonitors for each enabled monitor
+BOOL CALLBACK MyMonitorEnumProc(HMONITOR hMonitor, HDC dcMonitor, RECT* pRECTMonitor, 
+	LPARAM lParam){
+	
+    //Screen counter, will be passed to the next calls
+    uint8_t *screenCount = (uint8_t*)(lParam);
+    *screenCount = *screenCount + 1; //Note: *screenCount++ doesn't do it right
+
+	//if the RECT structure becomes unreliable, use GetMonitorInfo
+	int width  = pRECTMonitor->right - pRECTMonitor->left;
+	int height = pRECTMonitor->bottom - pRECTMonitor->top;
+	int originX = pRECTMonitor->left;
+	int originY = pRECTMonitor->top;
+
+    logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %p(%d)(%p): Resolution: %ld x %ld @ "
+		"Origin: %ld,%ld\n", __FUNCTION__, __LINE__, hMonitor, *screenCount, dcMonitor, 
+		width, height, originX, originY);
+			
+	if (width > 0 && height > 0) {
+
+			if (screens == NULL) {
+				screens = malloc(sizeof(screen_data));				
+			}else{
+				screens = realloc(screens, sizeof(screen_data) * (*screenCount) );
+			}
+			
+			screens[ *screenCount - 1 ] = (screen_data) {
+					.number = *screenCount - 1,
+					.x = originX,
+					.y = originY,
+					.width = width,
+					.height = height
+				};
+	}
+    return TRUE;
+}
 
 // FIXME Implement properly for muli-head setup.
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
-	// FIXME This needs to be implemented correctly for Multi-Head!
+	//TODO: perhaps this could be offered on demand...
+	enableDPIAwareness();
+
 	*count = 0;
-	screen_data *screens = NULL;
+	//TODO: probably should check whether screens is NULL, and free otherwise
+	//or who will take responsability to free that?
+	//screen_data *screens = NULL;
+	BOOL res = EnumDisplayMonitors(NULL, NULL, MyMonitorEnumProc, (LPARAM)(count));
+	
+	if( !res ){  //Fallback in case EnumDisplayMonitors fails.
+		logger(LOG_LEVEL_INFO,	"%s [%u]: EnumDisplayMonitors failed. Fallback.\n",
+			__FUNCTION__, __LINE__);
 
-	int width  = GetSystemMetrics(SM_CXSCREEN);
-	int height = GetSystemMetrics(SM_CYSCREEN);
+		int width  = GetSystemMetrics(SM_CXSCREEN);
+		int height = GetSystemMetrics(SM_CYSCREEN);
 
-	if (width > 0 && height > 0) {
-		screens = malloc(sizeof(screen_data));
+		if (width > 0 && height > 0) {
+			screens = malloc(sizeof(screen_data));
 
-		if (screens != NULL) {
-			*count = 1;
-			screens[0] = (screen_data) {
-				.number = 1,
-				.x = 0,
-				.y = 0,
-				.width = width,
-				.height = height
-			};
+			if (screens != NULL) {
+				*count = 1;
+				screens[0] = (screen_data) {
+					.number = 1,
+					.x = 0,
+					.y = 0,
+					.width = width,
+					.height = height
+				};
+			}
 		}
 	}
 

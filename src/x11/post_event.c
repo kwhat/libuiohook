@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -31,6 +31,7 @@
 #endif
 
 #include "input_helper.h"
+#include "logger.h"
 
 extern Display *disp;
 
@@ -170,7 +171,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_KEY_PRESSED:
 			XTestFakeKeyEvent(
 				disp,
-				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
+				scancode_to_keycode(event->data.keyboard.keycode),
 				True,
 				0);
 			break;
@@ -178,7 +179,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_KEY_RELEASED:
 			XTestFakeKeyEvent(
 				disp,
-				XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode)),
+				scancode_to_keycode(event->data.keyboard.keycode),
 				False,
 				0);
 			break;

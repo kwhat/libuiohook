@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 #include <stdio.h>
 #define COPYRIGHT()	fprintf(stdout, \
 		"libUIOHook: Cross-platfrom userland keyboard and mouse hooking.\n" \
-		"Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.\n" \
+		"Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.\n" \
 		"https://github.com/kwhat/libuiohook/\n" \
 		"\n" \
 		"libUIOHook is free software: you can redistribute it and/or modify\n" \

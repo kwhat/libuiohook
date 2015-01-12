@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2014 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2015 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -275,7 +275,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			event.type = EVENT_KEY_RELEASED;
 			event.mask = get_modifiers();
 
-			event.data.keyboard.keycode = keycode;
+			event.data.keyboard.keycode = scancode;
 			event.data.keyboard.rawcode = keysym;
 			event.data.keyboard.keychar = CHAR_UNDEFINED;
 

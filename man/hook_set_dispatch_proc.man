@@ -1,4 +1,4 @@
-.\" Copyright 2006-2014 Alexander Barker (alex@1stleg.com)
+.\" Copyright 2006-2015 Alexander Barker (alex@1stleg.com)
 .\"
 .\" %%%LICENSE_START(VERBATIM)
 .\" libUIOHook is free software: you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 .\" along with this program.  If not, see <http://www.gnu.org/licenses/>.
 .\" %%%LICENSE_END
 .\"
-.TH hook_get_auto_repeat_rate 3 "07 July 2014" "Version 1.0" "libUIOHook Programmer's Manual"
+.TH hook_set_dispatch_proc 3 "07 July 2014" "Version 1.0" "libUIOHook Programmer's Manual"
 .SH NAME
 hook_set_dispatch_proc \- Set the event callback function
 .SH SYNTAX

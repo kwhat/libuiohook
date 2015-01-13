@@ -42,26 +42,29 @@ typedef enum _Process_DPI_Awareness {
 } Process_DPI_Awareness;
 typedef Process_DPI_Awareness PROCESS_DPI_AWARENESS;
 //http://msdn.microsoft.com/en-us/library/windows/desktop/dn302216%28v=vs.85%29.aspx
-typedef BOOL (WINAPI *SetProcessDpiAwareness_t)(PROCESS_DPI_AWARENESS);
+typedef HRESULT (WINAPI *SetProcessDpiAwareness_t)(PROCESS_DPI_AWARENESS);
 
 
 BOOL windows8xDPIAwareness(){
     BOOL res = FALSE;
     HMODULE currLib = LoadLibrary("Shcore.dll");
     if( currLib ){
-	SetProcessDpiAwareness_t pSetProcessDpiAwareness = GetProcAddress( currLib, 
-		"SetProcessDpiAwareness" );
+		SetProcessDpiAwareness_t pSetProcessDpiAwareness = (SetProcessDpiAwareness_t)GetProcAddress( currLib, 
+			"SetProcessDpiAwareness" );
 		
-	if( pSetProcessDpiAwareness ) {
-                logger(LOG_LEVEL_INFO,	"%s [%u]: windows8xDPIAwareness: "
-					"SetProcessDpiAwareness called.\n", __FUNCTION__, __LINE__);
+		if( pSetProcessDpiAwareness ) {
                 //http://msdn.microsoft.com/en-us/library/windows/desktop/dn469266(v=vs.85).aspx
                 //Process_Per_Monitor_DPI_Aware only 8.1 I think
-                if( pSetProcessDpiAwareness( Process_Per_Monitor_DPI_Aware ) != S_OK )
-                    pSetProcessDpiAwareness( Process_System_DPI_Aware );
-                res = TRUE;
-	}
-	FreeLibrary( currLib );
+				HRESULT hres = pSetProcessDpiAwareness( Process_Per_Monitor_DPI_Aware );
+                if( hres != S_OK )
+                    hres = pSetProcessDpiAwareness( Process_System_DPI_Aware );
+				
+				 ( hres == S_OK ) ? (res = TRUE) : (res = FALSE);
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: windows8xDPIAwareness: "
+					"SetProcessDpiAwareness: %d.\n", __FUNCTION__, __LINE__, res );
+		}
+		FreeLibrary( currLib );
     }
 
     return res;
@@ -71,15 +74,15 @@ BOOL windows7VistaDPIAwareness(){
     BOOL res = FALSE;
     HMODULE currLib = LoadLibrary("user32.dll");
     if( currLib ){
-	SetProcessDPIAware_t pSetProcessDPIAware = GetProcAddress( currLib, 
-		"SetProcessDPIAware" );
+		SetProcessDPIAware_t pSetProcessDPIAware = (SetProcessDPIAware_t)GetProcAddress( currLib, 
+			"SetProcessDPIAware" );
 		
-        if( pSetProcessDPIAware ) {
-            logger(LOG_LEVEL_INFO,	"%s [%u]: windows7VistaDPIAwareness: "
-				"SetProcessDPIAware called.\n", __FUNCTION__, __LINE__);
-            pSetProcessDPIAware();
-	}
-	FreeLibrary( currLib );
+        if( pSetProcessDPIAware ) {            
+            res = pSetProcessDPIAware();
+			logger(LOG_LEVEL_INFO,	"%s [%u]: windows7VistaDPIAwareness: "
+				"SetProcessDPIAware: %d.\n", __FUNCTION__, __LINE__, res );
+		}
+		FreeLibrary( currLib );
     }
 
     return res;
@@ -101,7 +104,7 @@ BOOL CALLBACK MyMonitorEnumProc(HMONITOR hMonitor, HDC dcMonitor, RECT* pRECTMon
 	
     //Screen counter, will be passed to the next calls
     uint8_t *screenCount = (uint8_t*)(lParam);
-    *screenCount = *screenCount + 1; //Note: *screenCount++ doesn't do it right
+    (*screenCount)++;
 
 	//if the RECT structure becomes unreliable, use GetMonitorInfo
 	int width  = pRECTMonitor->right - pRECTMonitor->left;
@@ -122,7 +125,7 @@ BOOL CALLBACK MyMonitorEnumProc(HMONITOR hMonitor, HDC dcMonitor, RECT* pRECTMon
 			}
 			
 			screens[ *screenCount - 1 ] = (screen_data) {
-					.number = *screenCount - 1,
+					.number = *screenCount,
 					.x = originX,
 					.y = originY,
 					.width = width,

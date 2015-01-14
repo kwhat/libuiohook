@@ -803,8 +803,12 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
 				uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
 
-				if (button + 7 < 16) {
-					set_modifier_mask(1 << (button + 7));
+				// Add support for mouse 4 & 5.
+				if (button == 4) {
+					set_modifier_mask(MOUSE_BUTTON4);
+				}
+				else if (button == 5) {
+					set_modifier_mask(MOUSE_BUTTON5);
 				}
 				
 				process_button_pressed(timestamp, event_ref, button);
@@ -826,8 +830,12 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
 				uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
 
-				if (button + 7 < 16) {
-					set_modifier_mask(1 << (button + 7));
+				// Add support for mouse 4 & 5.
+				if (button == 4) {
+					unset_modifier_mask(MOUSE_BUTTON4);
+				}
+				else if (button == 5) {
+					unset_modifier_mask(MOUSE_BUTTON5);
 				}
 				
 				process_button_pressed(timestamp, event_ref, button);

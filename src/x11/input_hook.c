@@ -652,6 +652,7 @@ UIOHOOK_API int hook_run() {
 			// Enable detectable autorepeat.
 			XkbSetDetectableAutoRepeat(hook->ctrl.display, True, &is_auto_repeat);
 			
+			// Initialize lock key support.
 			unsigned int status_mask = 0x00;
 			if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &status_mask) == Success) {
 				// CapsLock		0x01
@@ -674,6 +675,7 @@ UIOHOOK_API int hook_run() {
 			is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
 			
 			#pragma message("*** Warning: XKB support is required to accurately determine keyboard lock state!")
+			// TODO Is there an alternative?
 			#endif
 
 			if (is_auto_repeat) {

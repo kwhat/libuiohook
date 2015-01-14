@@ -525,8 +525,12 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 				// Extra mouse buttons.
 				uint16_t button = HIWORD(mshook->mouseData);
 
-				if (button + 7 < 16) {
-					set_modifier_mask(1 << (button + 7));
+				// Add support for mouse 4 & 5.
+				if (button == 4) {
+					set_modifier_mask(MOUSE_BUTTON4);
+				}
+				else if (button == 5) {
+					set_modifier_mask(MOUSE_BUTTON5);
 				}
 
 				process_button_pressed(timestamp, mshook, button);
@@ -563,8 +567,12 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 				// Extra mouse buttons.
 				uint16_t button = HIWORD(mshook->mouseData);
 
-				if (button + 7 < 16) {
-					unset_modifier_mask(1 << (button + 7));
+				// Add support for mouse 4 & 5.
+				if (button == 4) {
+					unset_modifier_mask(MOUSE_BUTTON4);
+				}
+				else if (button == 5) {
+					unset_modifier_mask(MOUSE_BUTTON5);
 				}
 
 				process_button_released(timestamp, mshook, MOUSE_BUTTON5);

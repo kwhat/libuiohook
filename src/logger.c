@@ -56,6 +56,7 @@ static bool default_logger(unsigned int level, const char *format, ...) {
 }
 
 // Current logger function pointer, this should never be null.
+// FIXME This should be static and wrapped with a public facing function.
 logger_t logger = &default_logger;
 
 

@@ -429,9 +429,8 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 
 		event.mask = get_modifiers();
 
-		// Check the upper half of the current modifiers for non zero
-		// value.  This indicates the presence of a button down mask.
-		bool mouse_dragged = (event.mask >> 8 > 0);
+		// Check the modifier mask range for MASK_BUTTON1 - 5.
+		bool mouse_dragged = event.mask & (MASK_BUTTON1 | MASK_BUTTON2 | MASK_BUTTON3 | MASK_BUTTON4 | MASK_BUTTON5);
 		if (mouse_dragged) {
 			// Create Mouse Dragged event.
 			event.type = EVENT_MOUSE_DRAGGED;
@@ -476,10 +475,10 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 	event.data.wheel.amount = get_scroll_wheel_amount();
 
 	/* Delta HIWORD(mshook->mouseData)
-	* A positive value indicates that the wheel was rotated
-	* forward, away from the user; a negative value indicates that
-	* the wheel was rotated backward, toward the user. One wheel
-	* click is defined as WHEEL_DELTA, which is 120. */
+	 * A positive value indicates that the wheel was rotated
+	 * forward, away from the user; a negative value indicates that
+	 * the wheel was rotated backward, toward the user. One wheel
+	 * click is defined as WHEEL_DELTA, which is 120. */
 	event.data.wheel.rotation = ((int16_t) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
 
 	logger(LOG_LEVEL_INFO, "%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
@@ -730,8 +729,7 @@ UIOHOOK_API int hook_run() {
 
 		// Block until the thread receives an WM_QUIT request.
 		MSG message;
-		//while (GetMessage(&message, (HWND) -1, 0, 0) > 0) {
-		while (GetMessage(&message, (HWND) 0, 0, 0) > 0) {
+		while (GetMessage(&message, (HWND) NULL, 0, 0) > 0) {
 			TranslateMessage(&message);
 			DispatchMessage(&message);
 		}

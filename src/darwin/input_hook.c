@@ -218,9 +218,7 @@ static void start_message_port_runloop() {
 
 		src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
 		if (src_msg_port != NULL) {
-
 			CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
-
 			CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
 
 			logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
@@ -951,6 +949,8 @@ UIOHOOK_API int hook_run() {
 									CGEventMaskBit(kCGEventMouseMoved) |
 									CGEventMaskBit(kCGEventScrollWheel) |
 									
+									// NOTE This event is undocumented and used 
+									// exclusivly for caps-lock release.
 									EventCodeMask(NX_SYSDEFINED);
 		#endif
 

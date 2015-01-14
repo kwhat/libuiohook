@@ -31,6 +31,7 @@
 // Virtual event pointers
 static uiohook_event *event = NULL;
 
+// TODO Implement CLI options.
 //int main(int argc, char *argv[]) {
 int main() {
 	// Allocate memory for the virtual events only once.

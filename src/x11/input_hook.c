@@ -358,8 +358,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				 */
 				event.data.wheel.amount = 3;
 
-				// MS assumption is more natural (follows the cartesian coordinate system)
-				// FIXME I don't understand the above adjustment and comment...
 				if (data->event.u.u.detail == WheelUp) {
 					// Wheel Rotated Up and Away.
 					event.data.wheel.rotation = -1;

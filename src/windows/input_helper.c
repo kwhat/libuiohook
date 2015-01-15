@@ -384,8 +384,8 @@ static BOOL is_wow64() {
 		if (!pIsWow64Process(current_proc, &status)) {
 			status = FALSE;
 
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: pIsWow64Process(%#p, (%#p) failed!\n",
-				__FUNCTION__, __LINE__, current_proc, &status);
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: pIsWow64Process(%#p, %#p) failed!\n",
+					__FUNCTION__, __LINE__, current_proc, &status);
 		}
 	}
 

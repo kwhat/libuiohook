@@ -36,62 +36,67 @@ typedef BOOL (WINAPI *SetProcessDPIAware_t)(void);
 
 //http://msdn.microsoft.com/en-us/library/windows/desktop/dn280512%28v=vs.85%29.aspx
 typedef enum _Process_DPI_Awareness { 
-  Process_DPI_Unaware            = 0,
-  Process_System_DPI_Aware       = 1,
-  Process_Per_Monitor_DPI_Aware  = 2
+	Process_DPI_Unaware = 0,
+	Process_System_DPI_Aware,
+	Process_Per_Monitor_DPI_Aware
 } Process_DPI_Awareness;
+
 typedef Process_DPI_Awareness PROCESS_DPI_AWARENESS;
-//http://msdn.microsoft.com/en-us/library/windows/desktop/dn302216%28v=vs.85%29.aspx
+
+// Very new SetProcessDpiAwareness() function prototype.
+// http://msdn.microsoft.com/en-us/library/windows/desktop/dn302216%28v=vs.85%29.aspx
 typedef HRESULT (WINAPI *SetProcessDpiAwareness_t)(PROCESS_DPI_AWARENESS);
 
-
-BOOL windows8xDPIAwareness(){
-    BOOL res = FALSE;
-    HMODULE currLib = LoadLibrary("Shcore.dll");
-    if( currLib ){
-		SetProcessDpiAwareness_t pSetProcessDpiAwareness = (SetProcessDpiAwareness_t)GetProcAddress( currLib, 
-			"SetProcessDpiAwareness" );
+static BOOL windows8xDPIAwareness() {
+	BOOL res = FALSE;
+	HMODULE lib_shcore = LoadLibrary("Shcore.dll");
+	if (lib_shcore) {
+		SetProcessDpiAwareness_t pSetProcessDpiAwareness = 
+				(SetProcessDpiAwareness_t) GetProcAddress(lib_shcore, "SetProcessDpiAwareness" );
 		
-		if( pSetProcessDpiAwareness ) {
-                //http://msdn.microsoft.com/en-us/library/windows/desktop/dn469266(v=vs.85).aspx
-                //Process_Per_Monitor_DPI_Aware only 8.1 I think
-				HRESULT hres = pSetProcessDpiAwareness( Process_Per_Monitor_DPI_Aware );
-                if( hres != S_OK )
-                    hres = pSetProcessDpiAwareness( Process_System_DPI_Aware );
-				
-				 ( hres == S_OK ) ? (res = TRUE) : (res = FALSE);
+		if (pSetProcessDpiAwareness) {
+			// http://msdn.microsoft.com/en-us/library/windows/desktop/dn469266(v=vs.85).aspx
+			// Process_Per_Monitor_DPI_Aware only 8.1 I think
+			HRESULT hres = pSetProcessDpiAwareness(Process_Per_Monitor_DPI_Aware);
+			if( hres != S_OK )
+				hres = pSetProcessDpiAwareness( Process_System_DPI_Aware );
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: windows8xDPIAwareness: "
+			 ( hres == S_OK ) ? (res = TRUE) : (res = FALSE);
+
+			logger(LOG_LEVEL_INFO,	"%s [%u]: windows8xDPIAwareness: "
 					"SetProcessDpiAwareness: %d.\n", __FUNCTION__, __LINE__, res );
 		}
-		FreeLibrary( currLib );
-    }
+		
+		FreeLibrary(lib_shcore);
+	}
 
-    return res;
+	return res;
 }
 
-BOOL windows7VistaDPIAwareness(){
-    BOOL res = FALSE;
-    HMODULE currLib = LoadLibrary("user32.dll");
-    if( currLib ){
-		SetProcessDPIAware_t pSetProcessDPIAware = (SetProcessDPIAware_t)GetProcAddress( currLib, 
-			"SetProcessDPIAware" );
+static BOOL windows7VistaDPIAwareness() {
+	BOOL status = FALSE;
+	
+	HMODULE currLib = LoadLibrary("user32.dll");
+	if (currLib) {
+		SetProcessDPIAware_t pSetProcessDPIAware = 
+				(SetProcessDPIAware_t) GetProcAddress(currLib, "SetProcessDPIAware");
 		
-        if( pSetProcessDPIAware ) {            
-            res = pSetProcessDPIAware();
+		if (pSetProcessDPIAware) {
+			status = pSetProcessDPIAware();
 			logger(LOG_LEVEL_INFO,	"%s [%u]: windows7VistaDPIAwareness: "
-				"SetProcessDPIAware: %d.\n", __FUNCTION__, __LINE__, res );
+					"SetProcessDPIAware: %d.\n", __FUNCTION__, __LINE__, status);
 		}
 		FreeLibrary( currLib );
-    }
+	}
 
-    return res;
+	return status;
 }
 
 void enableDPIAwareness(){
-    //TODO: winXP?
-    if( !windows8xDPIAwareness() )
-        windows7VistaDPIAwareness();
+	// TODO: Windows XP support?
+	if (!windows8xDPIAwareness()) {
+		windows7VistaDPIAwareness();
+	}
 }
 
 //http://msdn.microsoft.com/en-us/library/windows/desktop/dd162610(v=vs.85).aspx
@@ -99,54 +104,73 @@ void enableDPIAwareness(){
 //http://msdn.microsoft.com/en-us/library/dd145061%28VS.85%29.aspx
 //http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
 // callback function called by EnumDisplayMonitors for each enabled monitor
-BOOL CALLBACK MyMonitorEnumProc(HMONITOR hMonitor, HDC dcMonitor, RECT* pRECTMonitor, 
-	LPARAM lParam){
+static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+	// Screen counter, will be passed to the next calls
+	uint8_t *screen_count = (uint8_t*) dwData;
+	int width = 0, height = 0, origin_x, origin_y;
 	
-    //Screen counter, will be passed to the next calls
-    uint8_t *screenCount = (uint8_t*)(lParam);
-    (*screenCount)++;
-
-	//if the RECT structure becomes unreliable, use GetMonitorInfo
-	int width  = pRECTMonitor->right - pRECTMonitor->left;
-	int height = pRECTMonitor->bottom - pRECTMonitor->top;
-	int originX = pRECTMonitor->left;
-	int originY = pRECTMonitor->top;
-
-    logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %p(%d)(%p): Resolution: %ld x %ld @ "
-		"Origin: %ld,%ld\n", __FUNCTION__, __LINE__, hMonitor, *screenCount, dcMonitor, 
-		width, height, originX, originY);
+	if (hdcMonitor != NULL) {
+		MONITORINFO info;
+		if (GetMonitorInfo(hMonitor, &info)) {
+			RECT dementions = info.rcMonitor;
 			
-	if (width > 0 && height > 0) {
-
-			if (screens == NULL) {
-				screens = malloc(sizeof(screen_data));				
-			}else{
-				screens = realloc(screens, sizeof(screen_data) * (*screenCount) );
-			}
-			
-			screens[ *screenCount - 1 ] = (screen_data) {
-					.number = *screenCount,
-					.x = originX,
-					.y = originY,
-					.width = width,
-					.height = height
-				};
+			width  = info.rcMonitor.right - info.rcMonitor.left;
+			height = info.rcMonitor.bottom - info.rcMonitor.top;
+			origin_x = info.rcMonitor.left;
+			origin_y = info.rcMonitor.top;
+		}
+		else {
+			// FIXME Produce an error.
+		}
 	}
-    return TRUE;
+	else {
+		//if the RECT structure becomes unreliable, use GetMonitorInfo
+		width  = lprcMonitor->right - lprcMonitor->left;
+		height = lprcMonitor->bottom - lprcMonitor->top;
+		origin_x = lprcMonitor->left;
+		origin_y = lprcMonitor->top;
+	}
+	
+	if (width > 0 && height > 0) {
+		// FIXME Figure out memory management strategy.
+		if (screens == NULL) {
+			screens = malloc(sizeof(screen_data));				
+		}
+		else{
+			screens = realloc(screens, sizeof(screen_data) * (*screen_count));
+		}
+
+		screens[*screen_count++] = (screen_data) {
+				.number = *screen_count,
+				.x = origin_x,
+				.y = origin_y,
+				.width = width,
+				.height = height
+			};
+	}
+
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
+			__FUNCTION__, __LINE__, *screen_count, width, height, origin_x, origin_y);
+
+	return TRUE;
 }
 
-// FIXME Implement properly for muli-head setup.
-UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
-	//TODO: perhaps this could be offered on demand...
-	enableDPIAwareness();
 
+UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	// TODO This sounds a lot like it should be called on library load...
+	// or possibly offloaded to the library implementer!
+	//enableDPIAwareness();
+
+	// Initialize count to zero.
 	*count = 0;
-	//TODO: probably should check whether screens is NULL, and free otherwise
-	//or who will take responsability to free that?
-	//screen_data *screens = NULL;
-	BOOL res = EnumDisplayMonitors(NULL, NULL, MyMonitorEnumProc, (LPARAM)(count));
 	
-	if( !res ){  //Fallback in case EnumDisplayMonitors fails.
+	// TODO: probably should check whether screens is NULL, and free otherwise
+	// or who will take responsibility to free that?
+	// screen_data *screens = NULL;
+	BOOL status = EnumDisplayMonitors(NULL, NULL, monitor_enum_proc, (LPARAM) count);
+	
+	if (!status) {
+		// Fallback in case EnumDisplayMonitors fails.
 		logger(LOG_LEVEL_INFO,	"%s [%u]: EnumDisplayMonitors failed. Fallback.\n",
 			__FUNCTION__, __LINE__);
 
@@ -281,7 +305,7 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 		case DLL_THREAD_DETACH:
 			// Do Nothing.
 			break;
-    }
+	}
 
-    return TRUE;
+	return TRUE;
 }

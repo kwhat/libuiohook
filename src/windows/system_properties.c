@@ -112,8 +112,6 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 	if (hdcMonitor != NULL) {
 		MONITORINFO info;
 		if (GetMonitorInfo(hMonitor, &info)) {
-			RECT dementions = info.rcMonitor;
-			
 			width  = info.rcMonitor.right - info.rcMonitor.left;
 			height = info.rcMonitor.bottom - info.rcMonitor.top;
 			origin_x = info.rcMonitor.left;
@@ -147,10 +145,10 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 				.width = width,
 				.height = height
 			};
+			
+		logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
+				__FUNCTION__, __LINE__, *screen_count, width, height, origin_x, origin_y);
 	}
-
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
-			__FUNCTION__, __LINE__, *screen_count, width, height, origin_x, origin_y);
 
 	return TRUE;
 }

@@ -4,7 +4,7 @@ libuiohook
 A multi-platform C library to provide global input/ouput hooking from userland.
 
 ## Compiling
-Prerequisites: pkg-config, libtool, gcc/clang/msys2-mingw32
+Prerequisites: autotools, pkg-config, libtool, gcc, clang or msys2/mingw32
 
     ./bootstrap.sh
     ./configure

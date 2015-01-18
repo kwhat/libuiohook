@@ -50,27 +50,29 @@ static screen_data* multiple_get_screen_info( CGError *resError, uint8_t *count 
 		CGDirectDisplayID *displayIDs = malloc( sizeof( CGDirectDisplayID ) * (*count) );
 		*resError = CGGetActiveDisplayList( USHRT_MAX, displayIDs, (uint32_t*)count );
 		//whether got the monitor's list and mem for the IDs
-		if( *resError == kCGErrorSuccess && displayIDs != NULL ){
-			//TODO: memory needs to be freed!!!
-			screens = malloc( sizeof( screen_data ) * (*count) );
-			for( uint8_t i = 0;  i < *count;  i++ ){
-				/*size_t width = CGDisplayPixelsWide( displayIDs[ i ] );
-				size_t height = CGDisplayPixelsHigh( displayIDs[ i ] );*/
-				CGRect boundsDisp = CGDisplayBounds( displayIDs[ i ] );
-				if (boundsDisp.size.width > 0 && boundsDisp.size.height > 0) {
-					if ( screens != NULL ) {
-						screens[ i ] = (screen_data) {
-							.number = i+1,
-							//TODO: make sure we follow the same convention for the origin
-							//in all other platform implementations (upper-left)
-							//TODO: document the approach with examples in order to show different
-							//cases -> different resolutions (secondary monitors origin might be
-							//negative)
-							.x = boundsDisp.origin.x,
-							.y = boundsDisp.origin.y,
-							.width = boundsDisp.size.width,
-							.height = boundsDisp.size.height
-						};
+		if( displayIDs != NULL ){
+			if( *resError == kCGErrorSuccess ){
+				//TODO: memory needs to be freed!!!
+				screens = malloc( sizeof( screen_data ) * (*count) );
+				for( uint8_t i = 0;  i < *count;  i++ ){
+					/*size_t width = CGDisplayPixelsWide( displayIDs[ i ] );
+					size_t height = CGDisplayPixelsHigh( displayIDs[ i ] );*/
+					CGRect boundsDisp = CGDisplayBounds( displayIDs[ i ] );
+					if (boundsDisp.size.width > 0 && boundsDisp.size.height > 0) {
+						if ( screens != NULL ) {
+							screens[ i ] = (screen_data) {
+								.number = i+1,
+								//TODO: make sure we follow the same convention for the origin
+								//in all other platform implementations (upper-left)
+								//TODO: document the approach with examples in order to show different
+								//cases -> different resolutions (secondary monitors origin might be
+								//negative)
+								.x = boundsDisp.origin.x,
+								.y = boundsDisp.origin.y,
+								.width = boundsDisp.size.width,
+								.height = boundsDisp.size.height
+							};
+						}
 					}
 				}
 			}

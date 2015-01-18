@@ -38,7 +38,7 @@
 #include "input_helper.h"
 
 static screen_data* multiple_get_screen_info( CGError *resError, uint8_t *count ){
-	*resError = kCGErrorFailure;
+	//*resError = kCGErrorFailure;
 	screen_data *screens = NULL;
 	//TOOD: test/check whether CGGetOnlineDisplayList is more suitable
     //First call to get just the count.
@@ -83,7 +83,7 @@ static screen_data* multiple_get_screen_info( CGError *resError, uint8_t *count 
 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	*count = 0;
-	CGError res;
+	CGError res = kCGErrorFailure;
 	screen_data *screens = multiple_get_screen_info( &res, count );
     if( res != kCGErrorSuccess ){
 		logger(LOG_LEVEL_INFO,	"%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",

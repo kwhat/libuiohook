@@ -37,78 +37,79 @@
 #include "logger.h"
 #include "input_helper.h"
 
-static screen_data* multiple_get_screen_info( CGError *resError, uint8_t *count ){
-	//*resError = kCGErrorFailure;
-	screen_data *screens = NULL;
-	//TOOD: test/check whether CGGetOnlineDisplayList is more suitable
-    //First call to get just the count.
-	//USHRT_MAX to make sure uint32_t doesn't overflow uint8_t
-	*resError = CGGetActiveDisplayList( USHRT_MAX, NULL, (uint32_t*)count );
-	if( *resError == kCGErrorSuccess && *count > 0 ){ //if no error and at least one monitor
-		logger(LOG_LEVEL_INFO,	"%s [%u]: CGGetActiveDisplayList: %li.\n",
-								__FUNCTION__, __LINE__, *count);
-		CGDirectDisplayID *displayIDs = malloc( sizeof( CGDirectDisplayID ) * (*count) );
-		*resError = CGGetActiveDisplayList( USHRT_MAX, displayIDs, (uint32_t*)count );
-		//whether got the monitor's list and mem for the IDs
-		if( displayIDs != NULL ){
-			if( *resError == kCGErrorSuccess ){
-				//TODO: memory needs to be freed!!!
-				screens = malloc( sizeof( screen_data ) * (*count) );
-				for( uint8_t i = 0;  i < *count;  i++ ){
-					/*size_t width = CGDisplayPixelsWide( displayIDs[ i ] );
-					size_t height = CGDisplayPixelsHigh( displayIDs[ i ] );*/
-					CGRect boundsDisp = CGDisplayBounds( displayIDs[ i ] );
-					if (boundsDisp.size.width > 0 && boundsDisp.size.height > 0) {
-						if ( screens != NULL ) {
-							screens[ i ] = (screen_data) {
-								.number = i+1,
-								//TODO: make sure we follow the same convention for the origin
-								//in all other platform implementations (upper-left)
-								//TODO: document the approach with examples in order to show different
-								//cases -> different resolutions (secondary monitors origin might be
-								//negative)
-								.x = boundsDisp.origin.x,
-								.y = boundsDisp.origin.y,
-								.width = boundsDisp.size.width,
-								.height = boundsDisp.size.height
-							};
-						}
-					}
-				}
-			}
-			free( displayIDs );
-		}
-	}
-	
-	return screens;
-}
 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	*count = 0;
 	CGError res = kCGErrorFailure;
-	screen_data *screens = multiple_get_screen_info( &res, count );
-    if( res != kCGErrorSuccess ){
-		logger(LOG_LEVEL_INFO,	"%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
-							__FUNCTION__, __LINE__, res );
-		size_t width = CGDisplayPixelsWide(CGMainDisplayID());
-		size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
+	
+	// Allocate memory to hold each display id.  We will just allocate our MAX 
+	// because its only about 1K of memory.
+	// TODO This can probably be realistically cut to something like 16 or 32....
+	// If you have more than 32 monitors, send me a picture and make a donation ;)
+	CGDirectDisplayID *display_ids = malloc(sizeof(CGDirectDisplayID) * UCHAR_MAX);
+	if (display_ids != NULL) {
+		// NOTE Pass USHRT_MAX to make sure uint32_t doesn't overflow uint8_t.
+		// TOOD Test/Check whether CGGetOnlineDisplayList is more suitable...
+		*resError = CGGetActiveDisplayList(UCHAR_MAX, display_ids, (uint32_t *) count);
+	
+		// If there is no error and at least one monitor.
+		if (*resError == kCGErrorSuccess && *count > 0) {
+			logger(LOG_LEVEL_INFO,	"%s [%u]: CGGetActiveDisplayList: %li.\n",
+					__FUNCTION__, __LINE__, *count);
 
-		if (width > 0 && height > 0) {
-			screens = malloc(sizeof(screen_data));
-
+			//TODO Memory management!!!
+			screens = malloc(sizeof(screen_data) * (*count));
 			if (screens != NULL) {
-				*count = 1;
-				screens[0] = (screen_data) {
-					.number = 1,
-					.x = 0,
-					.y = 0,
-					.width = width,
-					.height = height
-				};
+				for (uint8_t i = 0; i < *count; i++) {
+					//size_t width = CGDisplayPixelsWide(display_ids[i]);
+					//size_t height = CGDisplayPixelsHigh(display_ids[i]);
+					CGRect boundsDisp = CGDisplayBounds(display_ids[i]);
+					if (boundsDisp.size.width > 0 && boundsDisp.size.height > 0) {
+						screens[i] = (screen_data) {
+							.number = i+1,
+							//TODO: make sure we follow the same convention for the origin
+							//in all other platform implementations (upper-left)
+							//TODO: document the approach with examples in order to show different
+							//cases -> different resolutions (secondary monitors origin might be
+							//negative)
+							.x = boundsDisp.origin.x,
+							.y = boundsDisp.origin.y,
+							.width = boundsDisp.size.width,
+							.height = boundsDisp.size.height
+						};
+						
+						*count += 1;
+					}
+				}
 			}
 		}
+		else {
+			logger(LOG_LEVEL_INFO,	"%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
+					__FUNCTION__, __LINE__, res);
+			
+			size_t width = CGDisplayPixelsWide(CGMainDisplayID());
+			size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
+
+			if (width > 0 && height > 0) {
+				screens = malloc(sizeof(screen_data));
+
+				if (screens != NULL) {
+					*count = 1;
+					screens[0] = (screen_data) {
+						.number = 1,
+						.x = 0,
+						.y = 0,
+						.width = width,
+						.height = height
+					};
+				}
+			}
+		}
+		
+		// Free the id's after we are done.
+		free(display_ids);
 	}
-	
+
 	return screens;
 }
 

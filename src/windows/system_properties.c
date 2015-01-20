@@ -32,72 +32,6 @@ HINSTANCE hInst = NULL;
 //TODO: structure should have the count as well to avoid the global. s_info[ s_array, s_count ]
 screen_data *screens = NULL;
 
-typedef BOOL (WINAPI *SetProcessDPIAware_t)(void);
-
-//http://msdn.microsoft.com/en-us/library/windows/desktop/dn280512%28v=vs.85%29.aspx
-typedef enum _Process_DPI_Awareness { 
-	Process_DPI_Unaware = 0,
-	Process_System_DPI_Aware,
-	Process_Per_Monitor_DPI_Aware
-} Process_DPI_Awareness;
-
-typedef Process_DPI_Awareness PROCESS_DPI_AWARENESS;
-
-// Very new SetProcessDpiAwareness() function prototype.
-// http://msdn.microsoft.com/en-us/library/windows/desktop/dn302216%28v=vs.85%29.aspx
-typedef HRESULT (WINAPI *SetProcessDpiAwareness_t)(PROCESS_DPI_AWARENESS);
-
-static BOOL windows8xDPIAwareness() {
-	BOOL res = FALSE;
-	HMODULE lib_shcore = LoadLibrary("Shcore.dll");
-	if (lib_shcore) {
-		SetProcessDpiAwareness_t pSetProcessDpiAwareness = 
-				(SetProcessDpiAwareness_t) GetProcAddress(lib_shcore, "SetProcessDpiAwareness" );
-		
-		if (pSetProcessDpiAwareness) {
-			// http://msdn.microsoft.com/en-us/library/windows/desktop/dn469266(v=vs.85).aspx
-			// Process_Per_Monitor_DPI_Aware only 8.1 I think
-			HRESULT hres = pSetProcessDpiAwareness(Process_Per_Monitor_DPI_Aware);
-			if( hres != S_OK )
-				hres = pSetProcessDpiAwareness( Process_System_DPI_Aware );
-
-			 ( hres == S_OK ) ? (res = TRUE) : (res = FALSE);
-
-			logger(LOG_LEVEL_INFO,	"%s [%u]: windows8xDPIAwareness: "
-					"SetProcessDpiAwareness: %d.\n", __FUNCTION__, __LINE__, res );
-		}
-		
-		FreeLibrary(lib_shcore);
-	}
-
-	return res;
-}
-
-static BOOL windows7VistaDPIAwareness() {
-	BOOL status = FALSE;
-	
-	HMODULE currLib = LoadLibrary("user32.dll");
-	if (currLib) {
-		SetProcessDPIAware_t pSetProcessDPIAware = 
-				(SetProcessDPIAware_t) GetProcAddress(currLib, "SetProcessDPIAware");
-		
-		if (pSetProcessDPIAware) {
-			status = pSetProcessDPIAware();
-			logger(LOG_LEVEL_INFO,	"%s [%u]: windows7VistaDPIAwareness: "
-					"SetProcessDPIAware: %d.\n", __FUNCTION__, __LINE__, status);
-		}
-		FreeLibrary( currLib );
-	}
-
-	return status;
-}
-
-void enableDPIAwareness(){
-	// TODO: Windows XP support?
-	if (!windows8xDPIAwareness()) {
-		windows7VistaDPIAwareness();
-	}
-}
 
 //http://msdn.microsoft.com/en-us/library/windows/desktop/dd162610(v=vs.85).aspx
 //http://msdn.microsoft.com/en-us/library/dd162610%28VS.85%29.aspx
@@ -105,60 +39,40 @@ void enableDPIAwareness(){
 //http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
 // callback function called by EnumDisplayMonitors for each enabled monitor
 static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
-	// Screen counter, will be passed to the next calls
-	uint8_t *screen_count = (uint8_t*) dwData;
-	int width = 0, height = 0, origin_x, origin_y;
-	
-	if (hdcMonitor != NULL) {
-		MONITORINFO info;
-		if (GetMonitorInfo(hMonitor, &info)) {
-			width  = info.rcMonitor.right - info.rcMonitor.left;
-			height = info.rcMonitor.bottom - info.rcMonitor.top;
-			origin_x = info.rcMonitor.left;
-			origin_y = info.rcMonitor.top;
-		}
-		else {
-			// FIXME Produce an error.
-		}
-	}
-	else {
-		//if the RECT structure becomes unreliable, use GetMonitorInfo
-		width  = lprcMonitor->right - lprcMonitor->left;
-		height = lprcMonitor->bottom - lprcMonitor->top;
-		origin_x = lprcMonitor->left;
-		origin_y = lprcMonitor->top;
-	}
+	int width  = lprcMonitor->right - lprcMonitor->left;
+	int height = lprcMonitor->bottom - lprcMonitor->top;
+	int origin_x = lprcMonitor->left;
+	int origin_y = lprcMonitor->top;
 	
 	if (width > 0 && height > 0) {
+		uint8_t *screen_count = (uint8_t *) dwData;
+		
 		// FIXME Figure out memory management strategy.
 		if (screens == NULL) {
 			screens = malloc(sizeof(screen_data));				
 		}
-		else{
-			screens = realloc(screens, sizeof(screen_data) * (*screen_count));
+		else {
+			screens = realloc(screens, sizeof(screen_data) * (*(uint8_t *) dwData));
 		}
 
-		screens[*screen_count++] = (screen_data) {
+		screens[(*screen_count)++] = (screen_data) {
+				// Should monitor count start @ zero? Currently it starts at 1.
 				.number = *screen_count,
 				.x = origin_x,
 				.y = origin_y,
 				.width = width,
 				.height = height
 			};
-			
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
-				__FUNCTION__, __LINE__, *screen_count, width, height, origin_x, origin_y);
-	}
 
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
+					__FUNCTION__, __LINE__, *screen_count, width, height, origin_x, origin_y);
+	}
+	
 	return TRUE;
 }
 
 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
-	// TODO This sounds a lot like it should be called on library load...
-	// or possibly offloaded to the library implementer!
-	//enableDPIAwareness();
-
 	// Initialize count to zero.
 	*count = 0;
 	
@@ -170,7 +84,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	if (!status) {
 		// Fallback in case EnumDisplayMonitors fails.
 		logger(LOG_LEVEL_INFO,	"%s [%u]: EnumDisplayMonitors failed. Fallback.\n",
-			__FUNCTION__, __LINE__);
+				__FUNCTION__, __LINE__);
 
 		int width  = GetSystemMetrics(SM_CXSCREEN);
 		int height = GetSystemMetrics(SM_CYSCREEN);

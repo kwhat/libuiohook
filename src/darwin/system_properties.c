@@ -39,8 +39,11 @@
 
 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+	CGError status = kCGErrorFailure;
+	screen_data* screens;
+	
+	// Initialize count to zero.
 	*count = 0;
-	CGError res = kCGErrorFailure;
 	
 	// Allocate memory to hold each display id.  We will just allocate our MAX 
 	// because its only about 1K of memory.
@@ -50,14 +53,14 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	if (display_ids != NULL) {
 		// NOTE Pass USHRT_MAX to make sure uint32_t doesn't overflow uint8_t.
 		// TOOD Test/Check whether CGGetOnlineDisplayList is more suitable...
-		*resError = CGGetActiveDisplayList(UCHAR_MAX, display_ids, (uint32_t *) count);
+		status = CGGetActiveDisplayList(UCHAR_MAX, display_ids, (uint32_t *) count);
 	
 		// If there is no error and at least one monitor.
-		if (*resError == kCGErrorSuccess && *count > 0) {
+		if (status == kCGErrorSuccess && *count > 0) {
 			logger(LOG_LEVEL_INFO,	"%s [%u]: CGGetActiveDisplayList: %li.\n",
 					__FUNCTION__, __LINE__, *count);
 
-			//TODO Memory management!!!
+			// FIXME Memory management!!!
 			screens = malloc(sizeof(screen_data) * (*count));
 			if (screens != NULL) {
 				for (uint8_t i = 0; i < *count; i++) {
@@ -66,7 +69,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 					CGRect boundsDisp = CGDisplayBounds(display_ids[i]);
 					if (boundsDisp.size.width > 0 && boundsDisp.size.height > 0) {
 						screens[i] = (screen_data) {
-							.number = i+1,
+							.number = i + 1,
 							//TODO: make sure we follow the same convention for the origin
 							//in all other platform implementations (upper-left)
 							//TODO: document the approach with examples in order to show different
@@ -77,15 +80,13 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 							.width = boundsDisp.size.width,
 							.height = boundsDisp.size.height
 						};
-						
-						*count += 1;
 					}
 				}
 			}
 		}
 		else {
 			logger(LOG_LEVEL_INFO,	"%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
-					__FUNCTION__, __LINE__, res);
+					__FUNCTION__, __LINE__, status);
 			
 			size_t width = CGDisplayPixelsWide(CGMainDisplayID());
 			size_t height = CGDisplayPixelsHigh(CGMainDisplayID());

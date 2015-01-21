@@ -215,7 +215,6 @@ static void start_message_port_runloop() {
 
 		src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
 		if (src_msg_port != NULL) {
-
 			CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
 
 			CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
@@ -264,7 +263,7 @@ static void stop_message_port_runloop() {
 }
 
 
-void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 
@@ -419,7 +418,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
 	
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed. (%#X)\n",
-					__FUNCTION__, __LINE__, (unsigned int) event_mask);
+			__FUNCTION__, __LINE__, (unsigned int) event_mask);
 
 	/* Because Apple treats modifier keys differently than normal key
 	 * events, any changes to the modifier keys will require a key state

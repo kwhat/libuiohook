@@ -265,7 +265,7 @@ static void stop_message_port_runloop() {
 }
 
 
-void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 
@@ -330,17 +330,30 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 	 * NOTE Clear/NumLock produces a NX_SYSDEFINED event, however, much like
 	 * the other NX_ events and masks, it is undocumented.
 	 */
-	if (keycode == kVK_ANSI_KeypadClear) {
-		// Process as a key pressed event.
-		set_modifier_mask(MASK_NUM_LOCK);
+	if (get_modifiers() & MASK_SHIFT) {
+		if (keycode == kVK_ANSI_KeypadClear) {
+			if (get_modifiers() & MASK_NUM_LOCK) {
+				// Unset the num-lock modifier mask.
+				unset_modifier_mask(MASK_NUM_LOCK);
+			}
+			else {
+				// Set the num-lock modifier mask.
+				set_modifier_mask(MASK_NUM_LOCK);
+			}
+		}
+		else if (keycode == kVK_F14) {
+			if (get_modifiers() & MASK_SCROLL_LOCK) {
+				// Unset the scroll-lock modifier mask.
+				unset_modifier_mask(MASK_SCROLL_LOCK);
+			}
+			else {
+				// Set the scroll-lock modifier mask.
+				set_modifier_mask(MASK_SCROLL_LOCK);
+			}
+		}
 	}
-	else if (keycode == kVK_F14) {
-		// FIXME Verify that F14 is the correct key.
-
-		// Process as a key pressed event.
-		set_modifier_mask(MASK_SCROLL_LOCK);
-	}
-	else if (event.reserved ^ 0x01) {
+	
+	if (event.reserved ^ 0x01) {
 		// If the pressed event was not consumed...
 		if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
 			// If the hook is running on the main runloop, we do not need to do
@@ -413,23 +426,6 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
 static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref) {
 	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
-
-	/* Apple doesn't produce documented modifiers for the following keys so we
-	 * will need to fake the masks.
-	 *
-	 * NOTE Clear/NumLock produces a NX_SYSDEFINED event, however, much like
-	 * the other NX_ events and masks, it is undocumented.
-	 */
-	if (keycode == kVK_ANSI_KeypadClear) {
-		// Process as a key released event.
-		unset_modifier_mask(MASK_NUM_LOCK);
-	}
-	else if (keycode == kVK_F14) {
-		// FIXME Verify that F14 is the correct key.
-
-		// Process as a key released event.
-		unset_modifier_mask(MASK_SCROLL_LOCK);
-	}
 
 	// Populate key released event.
 	event.time = timestamp;
@@ -565,11 +561,11 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 	}
 	else if (keycode == kVK_CapsLock) {
 		if (event_mask & kCGEventFlagMaskAlphaShift) {
-			// Process as a key pressed event.
+			// Set the caps-lock modifier mask.
 			set_modifier_mask(MASK_CAPS_LOCK);
 		}
 		else {
-			// Process as a key released event.
+			// Unset the caps-lock modifier mask.
 			unset_modifier_mask(MASK_CAPS_LOCK);
 		}
 

@@ -40,7 +40,7 @@
 
 UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	CGError status = kCGErrorFailure;
-	screen_data* screens;
+	screen_data* screens = NULL;
 	
 	// Initialize count to zero.
 	*count = 0;

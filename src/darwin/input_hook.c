@@ -531,16 +531,10 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 		}
 	}
 	else if (keycode == kVK_CapsLock) {
-		if (event_mask & kCGEventFlagMaskAlphaShift) {
-			// Set the caps-lock modifier mask.
-			set_modifier_mask(MASK_CAPS_LOCK);
-		}
-		else {
-			// Unset the caps-lock modifier mask.
-			unset_modifier_mask(MASK_CAPS_LOCK);
-		}
-
+		// Process as a key pressed event.
 		process_key_pressed(timestamp, event_ref);
+		
+		// Set the caps-lock flag for release.
 		caps_down = true;
 	}
 }

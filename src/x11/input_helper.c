@@ -1812,22 +1812,18 @@ void load_input_helper(Display *disp) {
 		const char *prefix_evdev = "evdev_";
 		if (strncmp(layout_name, prefix_evdev, strlen(prefix_evdev)) == 0) {
 			is_evdev = true;
-		}
-		else {
+		} else
 		#endif
-			if (strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86)) != 0) {
-				logger(LOG_LEVEL_ERROR,
-						"%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
-						__FUNCTION__, __LINE__, layout_name);
-			}
-			else if (layout_name == NULL) {
-				logger(LOG_LEVEL_ERROR,
-						"%s [%u]: X atom name failure for desc->names->keycodes!\n",
-						__FUNCTION__, __LINE__);
-			}
-		#if defined(USE_EVDEV) && defined(USE_XKB)
+		if (strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86)) != 0) {
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
+					__FUNCTION__, __LINE__, layout_name);
 		}
-		#endif
+		else if (layout_name == NULL) {
+			logger(LOG_LEVEL_ERROR,
+					"%s [%u]: X atom name failure for desc->names->keycodes!\n",
+					__FUNCTION__, __LINE__);
+		}
 
 		XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
 	}

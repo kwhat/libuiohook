@@ -25,10 +25,13 @@
 #include <stdlib.h>
 #include <uiohook.h>
 
+bool logger_proc(unsigned int level, const char *format, ...) {
+	return false;
+}
+
 int main() {
 	// Disable the logger.
-	// FIXME This doesn't appear to do what it should...
-	hook_set_logger_proc(NULL);
+	hook_set_logger_proc(&logger_proc);
 
 	// Retrieves an array of screen data for each available monitor.
 	uint8_t count = 0;

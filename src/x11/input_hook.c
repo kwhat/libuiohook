@@ -267,7 +267,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_META_L)		{ unset_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)		{ unset_modifier_mask(MASK_META_R);		}
 
-
 			// Populate key released event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -333,8 +332,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				 */
 				event.data.wheel.amount = 3;
 
-				// MS assumption is more natural (follows the cartesian coordinate system)
-				// FIXME I don't understand the above adjustment and comment...
 				if (data->event.u.u.detail == WheelUp) {
 					// Wheel Rotated Up and Away.
 					event.data.wheel.rotation = -1;
@@ -385,14 +382,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						break;
 
 					default:
-						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
-						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
-							button = data->event.u.u.detail - 4;
-							
-							if (button + 7 < 16) {
-								set_modifier_mask(1 << (button + 7));
-							}
-						}
+						// Do not set modifier masks past button MASK_BUTTON5.
 						break;
 				}
 
@@ -483,14 +473,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						break;
 
 					default:
-						// Extra buttons are at # - 4 starting after WheelUp and WheelDown.
-						if (data->event.u.u.detail - 4 <= UINT16_MAX) {
-							button = data->event.u.u.detail - 4;
-							
-							if (button + 7 < 16) {
-								unset_modifier_mask(1 << (button + 7));
-							}
-						}
+						// Do not set modifier masks past button MASK_BUTTON5.
 						break;
 				}
 				

@@ -250,7 +250,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
 				wchar_t buffer[1];
-
+				
 				// Check to make sure the key is printable.
 				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
 				if (count > 0) {

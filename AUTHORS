@@ -6,6 +6,9 @@ Anthony Liguori <anthony@codemonkey.ws>
 Fabrice Bellard <fabrice@bellard.org>
 	xfree86_keycode_to_scancode_table lookup in x11/input_helper.c
 
+Iván Munsuri Ibáñez <munsuri@gmail.com>
+	contibuted hook_get_screen_info property for Windows and Darwin
+
 Marc-André Moreau <marcandre.moreau@gmail.com>
 	original version of windows/input_helper.c
 	original version of windows/input_helper.h

@@ -650,7 +650,6 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 void initialize_modifiers() {
 	current_modifiers = 0x0000;
 
-	// Check the high-bit for 1.
 	if (GetKeyState(VK_LSHIFT))		{ set_modifier_mask(MASK_SHIFT_L);	}
 	if (GetKeyState(VK_RSHIFT))		{ set_modifier_mask(MASK_SHIFT_R);	}
 	if (GetKeyState(VK_LCONTROL))	{ set_modifier_mask(MASK_CTRL_L);	}

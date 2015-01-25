@@ -29,15 +29,25 @@
 
 // Global Variables.
 HINSTANCE hInst = NULL;
-//TODO: structure should have the count as well to avoid the global. s_info[ s_array, s_count ]
-screen_data *screens = NULL;
 
 
-//http://msdn.microsoft.com/en-us/library/windows/desktop/dd162610(v=vs.85).aspx
-//http://msdn.microsoft.com/en-us/library/dd162610%28VS.85%29.aspx
-//http://msdn.microsoft.com/en-us/library/dd145061%28VS.85%29.aspx
-//http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
-// callback function called by EnumDisplayMonitors for each enabled monitor
+// Structure for the monitor_enum_proc() callback so we can track the count.
+typedef struct _screen_info {
+	uint8_t count;
+	screen_data *data;
+} screen_info;
+
+
+/* The following function was contributed by Anthony Liguori Jan 14, 2015.
+ * https://github.com/kwhat/libuiohook/pull/17
+ * 
+ * callback function called by EnumDisplayMonitors for each enabled monitor
+ * http://msdn.microsoft.com/en-us/library/windows/desktop/dd162610(v=vs.85).aspx
+ * http://msdn.microsoft.com/en-us/library/dd162610%28VS.85%29.aspx
+ * http://msdn.microsoft.com/en-us/library/dd145061%28VS.85%29.aspx
+ * http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
+ */
+
 static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
 	int width  = lprcMonitor->right - lprcMonitor->left;
 	int height = lprcMonitor->bottom - lprcMonitor->top;
@@ -45,19 +55,18 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 	int origin_y = lprcMonitor->top;
 	
 	if (width > 0 && height > 0) {
-		uint8_t *screen_count = (uint8_t *) dwData;
+		screen_info *screens = (screen_info *) dwData;
 		
-		// FIXME Figure out memory management strategy.
-		if (screens == NULL) {
-			screens = malloc(sizeof(screen_data));				
+		if (screens->data == NULL) {
+			screens->data = malloc(sizeof(screen_data));
 		}
 		else {
-			screens = realloc(screens, sizeof(screen_data) * (*(uint8_t *) dwData));
+			screens->data = realloc(screens, sizeof(screen_data) * screens->count);
 		}
 
-		screens[(*screen_count)++] = (screen_data) {
+		screens[screens->count++] = (screen_data) {
 				// Should monitor count start @ zero? Currently it starts at 1.
-				.number = *screen_count,
+				.number = screens->count,
 				.x = origin_x,
 				.y = origin_y,
 				.width = width,
@@ -81,9 +90,14 @@ UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 	// TODO: probably should check whether screens is NULL, and free otherwise
 	// or who will take responsibility to free that?
 	// screen_data *screens = NULL;
-	BOOL status = EnumDisplayMonitors(NULL, NULL, monitor_enum_proc, (LPARAM) count);
+	screen_info screens = {
+		.count = 0,
+		.data = NULL
+	};
 	
-	if (!status) {
+	BOOL status = EnumDisplayMonitors(NULL, NULL, monitor_enum_proc, (LPARAM) &screens);
+	
+	if (!status || screens.count == 0) {
 		// Fallback in case EnumDisplayMonitors fails.
 		logger(LOG_LEVEL_INFO,	"%s [%u]: EnumDisplayMonitors failed. Fallback.\n",
 				__FUNCTION__, __LINE__);

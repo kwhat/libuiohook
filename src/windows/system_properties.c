@@ -71,8 +71,10 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 	return TRUE;
 }
 
-
-UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+/* The following function was contributed by Anthony Liguori Jan 14, 2015.
+ * https://github.com/kwhat/libuiohook/pull/17
+ */
+UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 	// Initialize count to zero.
 	*count = 0;
 	

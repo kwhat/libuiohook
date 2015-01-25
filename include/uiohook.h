@@ -408,7 +408,7 @@ extern "C" {
 	UIOHOOK_API int hook_stop();
 
 	// Retrieves an array of screen data for each available monitor.
-	UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count);
+	UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count);
 
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();

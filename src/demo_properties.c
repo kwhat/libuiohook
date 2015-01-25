@@ -35,7 +35,7 @@ int main() {
 
 	// Retrieves an array of screen data for each available monitor.
 	uint8_t count = 0;
-	screen_data *screens = hook_get_screen_info(&count);
+	screen_data *screens = hook_create_screen_info(&count);
 	if (screens != NULL) {
 		fprintf(stdout,	"Found %d Monitors:\n", count);
 
@@ -48,7 +48,7 @@ int main() {
 			fprintf(stdout,	"\n");
 		}
 
-		// You are responsible for freeing the memory returned by hook_get_screen_info.
+		// You are responsible for freeing the memory returned by hook_create_screen_info.
 		free(screens);
 	}
 	else {

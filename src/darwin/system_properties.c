@@ -37,8 +37,10 @@
 #include "logger.h"
 #include "input_helper.h"
 
-
-UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
+/* The following function was contributed by Anthony Liguori Jan 18 2015.
+ * https://github.com/kwhat/libuiohook/pull/18
+ */
+UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 	CGError status = kCGErrorFailure;
 	screen_data* screens = NULL;
 	
@@ -51,7 +53,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 	// If you have more than 32 monitors, send me a picture and make a donation ;)
 	CGDirectDisplayID *display_ids = malloc(sizeof(CGDirectDisplayID) * UCHAR_MAX);
 	if (display_ids != NULL) {
-		// NOTE Pass USHRT_MAX to make sure uint32_t doesn't overflow uint8_t.
+		// NOTE Pass UCHAR_MAX to make sure uint32_t doesn't overflow uint8_t.
 		// TOOD Test/Check whether CGGetOnlineDisplayList is more suitable...
 		status = CGGetActiveDisplayList(UCHAR_MAX, display_ids, (uint32_t *) count);
 	
@@ -60,7 +62,7 @@ UIOHOOK_API screen_data* hook_get_screen_info(uint8_t *count) {
 			logger(LOG_LEVEL_INFO,	"%s [%u]: CGGetActiveDisplayList: %li.\n",
 					__FUNCTION__, __LINE__, *count);
 
-			// FIXME Memory management!!!
+			// Allocate memory for the number of screens found.
 			screens = malloc(sizeof(screen_data) * (*count));
 			if (screens != NULL) {
 				for (uint8_t i = 0; i < *count; i++) {

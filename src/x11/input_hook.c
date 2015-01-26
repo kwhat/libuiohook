@@ -311,10 +311,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 				uint8_t count;
-				screen_data *screens = hook_get_screen_info(&count);
+				screen_data *screens = hook_create_screen_info(&count);
 				if (count > 1) {
 					event.data.wheel.x -= screens[0].x;
 					event.data.wheel.y -= screens[0].y;
+				}
+				
+				if (screens != NULL) {
+					free(screens);
 				}
 				#endif
 
@@ -423,10 +427,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 				uint8_t count;
-				screen_data *screens = hook_get_screen_info(&count);
+				screen_data *screens = hook_create_screen_info(&count);
 				if (count > 1) {
 					event.data.mouse.x -= screens[0].x;
 					event.data.mouse.y -= screens[0].y;
+				}
+				
+				if (screens != NULL) {
+					free(screens);
 				}
 				#endif
 
@@ -491,10 +499,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 				#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 				uint8_t count;
-				screen_data *screens = hook_get_screen_info(&count);
+				screen_data *screens = hook_create_screen_info(&count);
 				if (count > 1) {
 					event.data.mouse.x -= screens[0].x;
 					event.data.mouse.y -= screens[0].y;
+				}
+				
+				if (screens != NULL) {
+					free(screens);
 				}
 				#endif
 
@@ -522,10 +534,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 					#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 					uint8_t count;
-					screen_data *screens = hook_get_screen_info(&count);
+					screen_data *screens = hook_create_screen_info(&count);
 					if (count > 1) {
 						event.data.mouse.x -= screens[0].x;
 						event.data.mouse.y -= screens[0].y;
+					}
+					
+					if (screens != NULL) {
+						free(screens);
 					}
 					#endif
 

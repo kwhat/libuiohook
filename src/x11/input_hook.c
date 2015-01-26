@@ -762,10 +762,6 @@ UIOHOOK_API int hook_run() {
 				status = UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
 			}
 
-			
-			// FIXME We wouldn't need either null check if we reuse the X
-			// display from the properties that is created on library load.
-			
 			// Close down the XRecord data display.
 			if (hook->data.display != NULL) {
 				XCloseDisplay(hook->data.display);

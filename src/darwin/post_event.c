@@ -27,6 +27,7 @@
 #include <uiohook.h>
 
 #include "input_helper.h"
+#include "logger.h"
 
 // TODO Possibly relocate to input helper.
 static inline CGEventFlags get_key_event_mask(uiohook_event * const event) {

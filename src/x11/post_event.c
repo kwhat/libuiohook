@@ -224,7 +224,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// Ignore hook enabled / disabled events.
 
 		default:
-			// FIXME Produce a warning.
+			// Ignore any other garbage.
+			logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
+				__FUNCTION__, __LINE__, event->type);
 			break;
 	}
 

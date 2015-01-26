@@ -274,7 +274,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// Ignore hook enabled / disabled events.
 
 		default:
-			// FIXME Produce a warning.
+			// Ignore any other garbage.
+			logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
+				__FUNCTION__, __LINE__, event->type);
 			break;
 	}
 
@@ -299,8 +301,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events[events_size].mi.time = 0; // Use current system time.
 
 		//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
-		//If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP, 
-		//then mouseData should be zero.
+		// If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP, 
+		// then mouseData should be zero.
 		if (event->mask & MASK_BUTTON1) {
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_LEFTUP;
 		}
@@ -331,7 +333,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	//key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
 
 	if (! SendInput(events_size, events, sizeof(INPUT)) ) {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: SendInput() failed! (%#lX)\n",
+		logger(LOG_LEVEL_ERROR, "%s [%u]: SendInput() failed! (%#lX)\n",
 				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 	}
 

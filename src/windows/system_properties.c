@@ -47,7 +47,6 @@ typedef struct _screen_info {
  * http://msdn.microsoft.com/en-us/library/dd145061%28VS.85%29.aspx
  * http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
  */
-
 static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
 	int width  = lprcMonitor->right - lprcMonitor->left;
 	int height = lprcMonitor->bottom - lprcMonitor->top;
@@ -58,13 +57,13 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 		screen_info *screens = (screen_info *) dwData;
 		
 		if (screens->data == NULL) {
-			screens->data = malloc(sizeof(screen_data));
+			screens->data = (screen_data *) malloc(sizeof(screen_data));
 		}
 		else {
-			screens->data = realloc(screens, sizeof(screen_data) * screens->count);
+			screens->data = (screen_data *) realloc(screens, sizeof(screen_data) * screens->count);
 		}
 
-		screens[screens->count++] = (screen_data) {
+		screens->data[screens->count++] = (screen_data) {
 				// Should monitor count start @ zero? Currently it starts at 1.
 				.number = screens->count,
 				.x = origin_x,
@@ -74,7 +73,7 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 			};
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
-					__FUNCTION__, __LINE__, *screen_count, width, height, origin_x, origin_y);
+					__FUNCTION__, __LINE__, screens->count, width, height, origin_x, origin_y);
 	}
 	
 	return TRUE;
@@ -87,9 +86,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 	// Initialize count to zero.
 	*count = 0;
 	
-	// TODO: probably should check whether screens is NULL, and free otherwise
-	// or who will take responsibility to free that?
-	// screen_data *screens = NULL;
+	// Create a simple structure to make working with monitor_enum_proc easier. 
 	screen_info screens = {
 		.count = 0,
 		.data = NULL
@@ -106,11 +103,11 @@ UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 		int height = GetSystemMetrics(SM_CYSCREEN);
 
 		if (width > 0 && height > 0) {
-			screens = malloc(sizeof(screen_data));
+			screens.data = (screen_data *) malloc(sizeof(screen_data));
 
-			if (screens != NULL) {
+			if (screens.data != NULL) {
 				*count = 1;
-				screens[0] = (screen_data) {
+				screens.data[0] = (screen_data) {
 					.number = 1,
 					.x = 0,
 					.y = 0,
@@ -120,8 +117,12 @@ UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 			}
 		}
 	}
+	else {
+		// Populate the count.
+		*count = screens.count;
+	}
 
-	return screens;
+	return screens.data;
 }
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {

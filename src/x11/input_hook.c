@@ -187,7 +187,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	else if (recorded_data->category == XRecordFromServer || recorded_data->category == XRecordFromClient) {
 		// Get XRecord data.
 		XRecordDatum *data = (XRecordDatum *) recorded_data->data;
-	
+
 		if (data->type == KeyPress) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
@@ -224,7 +224,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
 				wchar_t buffer[1];
-				
+
 				// Check to make sure the key is printable.
 				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
 				if (count > 0) {
@@ -316,7 +316,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.wheel.x -= screens[0].x;
 					event.data.wheel.y -= screens[0].y;
 				}
-				
+
 				if (screens != NULL) {
 					free(screens);
 				}
@@ -432,7 +432,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.mouse.x -= screens[0].x;
 					event.data.mouse.y -= screens[0].y;
 				}
-				
+
 				if (screens != NULL) {
 					free(screens);
 				}
@@ -484,7 +484,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						// Do not set modifier masks past button MASK_BUTTON5.
 						break;
 				}
-				
+
 				// Populate mouse released event.
 				event.time = timestamp;
 				event.reserved = 0x00;
@@ -504,7 +504,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.mouse.x -= screens[0].x;
 					event.data.mouse.y -= screens[0].y;
 				}
-				
+
 				if (screens != NULL) {
 					free(screens);
 				}
@@ -539,7 +539,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						event.data.mouse.x -= screens[0].x;
 						event.data.mouse.y -= screens[0].y;
 					}
-					
+
 					if (screens != NULL) {
 						free(screens);
 					}
@@ -586,10 +586,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 			uint8_t count;
-			screen_data *screens = hook_get_screen_info(&count);
+			screen_data *screens = hook_create_screen_info(&count);
 			if (count > 1) {
 				event.data.mouse.x -= screens[0].x;
 				event.data.mouse.y -= screens[0].y;
+			}
+
+			if (screens != NULL) {
+				free(screens);
 			}
 			#endif
 
@@ -619,7 +623,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 static hook_info *hook;
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
-	
+
 	// Hook data for future cleanup.
 	hook = malloc(sizeof(hook_info));
 	if (hook != NULL) {
@@ -632,7 +636,7 @@ UIOHOOK_API int hook_run() {
 		if (hook->ctrl.display != NULL && hook->data.display != NULL) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
 					__FUNCTION__, __LINE__);
-			
+
 			// Attempt to setup detectable autorepeat.
 			// NOTE: is_auto_repeat is NOT stdbool!
 			Bool is_auto_repeat = False;
@@ -656,14 +660,14 @@ UIOHOOK_API int hook_run() {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
 						__FUNCTION__, __LINE__);
 			}
-			
-			
+
+
 			// Check to make sure XRecord is installed and enabled.
 			int major, minor;
 			if (XRecordQueryVersion(hook->ctrl.display, &major, &minor) != 0) {
 				logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n",
 						__FUNCTION__, __LINE__, major, minor);
-				
+
 				// Make sure the data display is synchronized to prevent late event delivery!
 				// See Bug 42356 for more information.
 				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
@@ -679,7 +683,7 @@ UIOHOOK_API int hook_run() {
 					// Create XRecord Context.
 					hook->data.range->device_events.first = KeyPress;
 					hook->data.range->device_events.last = MotionNotify;
-					
+
 					// Note that the documentation for this function is incorrect,
 					// hook->data.display should be used!
 					// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
@@ -687,7 +691,7 @@ UIOHOOK_API int hook_run() {
 					if (hook->ctrl.context != 0) {
 						logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 								__FUNCTION__, __LINE__);
-						
+
 						// Save the data display associated with this hook so it is passed to each event.
 						//XPointer closeure = (XPointer) (ctrl_display);
 						XPointer closeure = NULL;
@@ -748,7 +752,7 @@ UIOHOOK_API int hook_run() {
 							// Set the exit status.
 							status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 						}
-						
+
 						// Free up the context if it was set.
 						XRecordFreeContext(hook->data.display, hook->ctrl.context);
 					}
@@ -788,7 +792,7 @@ UIOHOOK_API int hook_run() {
 				XCloseDisplay(hook->ctrl.display);
 			}
 		}
-		else {	
+		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
 					__FUNCTION__, __LINE__);
 
@@ -798,12 +802,12 @@ UIOHOOK_API int hook_run() {
 
 		// Free data associated with this hook.
 		free(hook);
-		hook = NULL;	
+		hook = NULL;
 	}
-	else {	
+	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to allocate memory for hook structure!\n",
 				__FUNCTION__, __LINE__);
-		
+
 		status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -842,19 +846,19 @@ UIOHOOK_API int hook_stop() {
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordGetContext failure!\n",
 						__FUNCTION__, __LINE__);
-										
+
 				status = UIOHOOK_ERROR_X_RECORD_GET_CONTEXT;
 			}
 
 			free(state);
 		}
-		else {	
+		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to allocate memory for XRecordState!\n",
 				__FUNCTION__, __LINE__);
-					
+
 			status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 		}
-		
+
 		return status;
 	}
 

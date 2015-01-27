@@ -61,7 +61,7 @@ static void settings_cleanup_proc(void *arg) {
 			XRRFreeScreenResources(xrr_resources);
 			xrr_resources = NULL;
 		}
-		
+
 		if (arg != NULL) {
 			XCloseDisplay((Display *) arg);
 			arg = NULL;
@@ -76,7 +76,7 @@ static void *settings_thread_proc(void *arg) {
 	if (disp_settings != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay success.");
-		
+
 		pthread_cleanup_push(settings_cleanup_proc, disp_settings);
 
 		int event_base = 0;
@@ -113,10 +113,10 @@ static void *settings_thread_proc(void *arg) {
 				}
 			}
 		}
-		
+
 		// Execute the thread cleanup handler.
 		pthread_cleanup_pop(1);
-	
+
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
@@ -127,28 +127,28 @@ static void *settings_thread_proc(void *arg) {
 }
 #endif
 
-UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
+screen_data* hook_create_screen_info(uint8_t *count) {
 	*count = 0;
 	screen_data *screens = NULL;
-		
+
 	#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
 	if (XineramaIsActive(disp)) {
 		int xine_count = 0;
 		XineramaScreenInfo *xine_info = XineramaQueryScreens(disp, &xine_count);
-		
+
 		if (xine_info != NULL) {
 			if (xine_count > UINT8_MAX) {
 				*count = UINT8_MAX;
-				
+
 				logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
 						__FUNCTION__, __LINE__);
 			}
 			else {
 				*count = (uint8_t) xine_count;
 			}
-			
+
 			screens = malloc(sizeof(screen_data) * xine_count);
-			
+
 			if (screens != NULL) {
 				for (int i = 0; i < xine_count; i++) {
 					screens[i] = (screen_data) {
@@ -160,7 +160,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 					};
 				}
 			}
-			
+
 			XFree(xine_info);
 		}
 	}
@@ -183,7 +183,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
 		if (screens != NULL) {
 			for (int i = 0; i < xrr_count; i++) {
 				XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(disp, xrr_resources, xrr_resources->crtcs[i]);
-				
+
 				if (crtc_info != NULL) {
 					screens[i] = (screen_data) {
 						.number = i + 1,
@@ -466,7 +466,7 @@ void on_library_load() {
 	// Create the thread attribute.
 	pthread_attr_t settings_thread_attr;
 	pthread_attr_init(&settings_thread_attr);
-	
+
 	pthread_t settings_thread_id;
 	if (pthread_create(&settings_thread_id, &settings_thread_attr, settings_thread_proc, NULL) == 0) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully created settings thread.\n",
@@ -476,7 +476,7 @@ void on_library_load() {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create settings thread!\n",
 				__FUNCTION__, __LINE__);
 	}
-	
+
 	// Make sure the thread attribute is removed.
 	pthread_attr_destroy(&settings_thread_attr);
 	#endif

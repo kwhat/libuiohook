@@ -77,19 +77,19 @@ static unsigned int convert_to_native_mask(unsigned int mask) {
 
 static inline XKeyEvent * create_key_event() {
 	XKeyEvent *event = malloc(sizeof(XKeyEvent));
-	
+
 	event->serial = 0x00;
 	event->send_event = False;
 	event->display = disp;
 	event->time = CurrentTime;
 	event->same_screen = True;
-	
+
 	unsigned int mask;
 	if (!XQueryPointer(disp, DefaultRootWindow(disp), &(event->root), &(event->subwindow), &(event->x_root), &(event->y_root), &(event->x), &(event->y), &mask)) {
 		event->root = DefaultRootWindow(disp);
 		event->window = event->root;
 		event->subwindow = None;
-				
+
 		event->x_root = 0;
 		event->y_root = 0;
 		event->x = 0;
@@ -99,23 +99,23 @@ static inline XKeyEvent * create_key_event() {
 	event->type = 0x00;
 	event->state = 0x00;
 	event->keycode = 0x00;
-	
+
 	return event;
 }
 
 static inline XButtonEvent * create_button_event() {
 	XButtonEvent *event = malloc(sizeof(XButtonEvent));
-	
+
 	event->serial = 0x00;
 	event->send_event = False;
 	event->display = disp;
 	event->time = CurrentTime;
 	event->same_screen = True;
-	
+
 	event->root = DefaultRootWindow(disp);
 	event->window = event->root;
 	event->subwindow = None;
-				
+
 	event->type = 0x00;
 	event->state = 0x00;
 	event->x_root = 0;
@@ -123,13 +123,13 @@ static inline XButtonEvent * create_button_event() {
 	event->x = 0;
 	event->y = 0;
 	event->button = 0x00;
-	
+
 	return event;
 }
 
 static inline XMotionEvent * create_motion_event() {
 	XMotionEvent *event = malloc(sizeof(XMotionEvent));
-	
+
 	event->serial = MotionNotify;
 	event->send_event = False;
 	event->display = disp;
@@ -139,14 +139,14 @@ static inline XMotionEvent * create_motion_event() {
 	event->root = DefaultRootWindow(disp);
 	event->window = event->root;
 	event->subwindow = None;
-	
+
 	event->type = 0x00;
 	event->state = 0x00;
 	event->x_root = 0;
 	event->y_root = 0;
 	event->x = 0;
 	event->y = 0;
-	
+
 	return event;
 }
 #endif
@@ -192,7 +192,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_RELEASED:
 			XTestFakeButtonEvent(disp, event->data.mouse.button, False, 0);
 			break;
-			
+
 		case EVENT_MOUSE_WHEEL:
 			// Wheel events should be the same as click events on X11.
 			// type, amount and rotation
@@ -206,7 +206,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			}
 			break;
 
-			
+
 		case EVENT_MOUSE_DRAGGED:
 			// The button masks are all applied with the modifier masks.
 
@@ -218,7 +218,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_CLICKED:
 		case EVENT_KEY_TYPED:
 			// Ignore clicked and typed events.
-			
+
 		case EVENT_HOOK_ENABLED:
 		case EVENT_HOOK_DISABLED:
 			// Ignore hook enabled / disabled events.
@@ -244,7 +244,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	}
 	#else
 	XEvent *x_event;
-	
+
 	#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 	uint8_t screen_count;
 	screen_data *screens;
@@ -255,7 +255,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_KEY_RELEASED:
 			// Allocate memory for XKeyEvent and pre-populate.
 			x_event = (XEvent *) create_key_event();
-			
+
 			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
 			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
 
@@ -267,7 +267,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				((XKeyEvent *) x_event)->type = KeyRelease;
 				XSendEvent(disp, InputFocus, False, KeyReleaseMask, x_event);
 			}
-			
+
 			free(x_event);
 			break;
 
@@ -277,17 +277,21 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_WHEEL:
 			// Allocate memory for XButtonEvent and pre-populate.
 			x_event = (XEvent *) create_button_event();
-			
+
 			((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			
+
 			((XButtonEvent *) x_event)->x = event->data.mouse.x;
 			((XButtonEvent *) x_event)->y = event->data.mouse.y;
 
 			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-			screens = hook_get_screen_info(&screen_count);
+			screens = hook_create_screen_info(&screen_count);
 			if (screen_count > 1) {
 				((XButtonEvent *) x_event)->x += screens[0].x;
 				((XButtonEvent *) x_event)->y += screens[0].y;
+			}
+
+			if (screens != NULL) {
+				free(screens);
 			}
 			#endif
 
@@ -297,7 +301,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 			if (event->type == EVENT_MOUSE_WHEEL) {
 				((XButtonEvent *) x_event)->type = ButtonPress;
-				
+
 				// type, amount and rotation
 				if (event->data.wheel.rotation < 0) {
 					((XButtonEvent *) x_event)->button = WheelUp;
@@ -307,7 +311,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				}
 				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
 			}
-			
+
 			if (event->type == EVENT_KEY_PRESSED) {
 				((XButtonEvent *) x_event)->type = ButtonPress;
 				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
@@ -316,31 +320,35 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				((XButtonEvent *) x_event)->type = ButtonRelease;
 				XSendEvent(disp, InputFocus, False, ButtonReleaseMask, x_event);
 			}
-			
+
 			free(x_event);
 			break;
 
 		case EVENT_MOUSE_MOVED:
 		case EVENT_MOUSE_DRAGGED:
 			x_event = (XEvent *) create_motion_event();
-			
+
 			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			
+
 			((XButtonEvent *) x_event)->x = event->data.mouse.x;
 			((XButtonEvent *) x_event)->y = event->data.mouse.y;
 
 			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-			screens = hook_get_screen_info(&screen_count);
+			screens = hook_create_screen_info(&screen_count);
 			if (screen_count > 1) {
 				((XButtonEvent *) x_event)->x += screens[0].x;
 				((XButtonEvent *) x_event)->y += screens[0].y;
+			}
+
+			if (screens != NULL) {
+				free(screens);
 			}
 			#endif
 
 			// These are the same because Window == Root Window.
 			((XButtonEvent *) x_event)->x_root = ((XButtonEvent *) x_event)->x;
 			((XButtonEvent *) x_event)->y_root = ((XButtonEvent *) x_event)->y;
-			
+
 			long int x_mask = NoEventMask;
 			if (event->type == EVENT_MOUSE_DRAGGED) {
 				#if Button1Mask == Button1MotionMask && \
@@ -376,7 +384,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				}
 				#endif
 			}
-			
+
 			// NOTE x_mask = NoEventMask.
 			XSendEvent(disp, InputFocus, False, x_mask, x_event);
 			free(x_event);
@@ -386,7 +394,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_CLICKED:
 		case EVENT_KEY_TYPED:
 			// Ignore clicked and typed events.
-			
+
 		case EVENT_HOOK_ENABLED:
 		case EVENT_HOOK_DISABLED:
 			// Ignore hook enabled / disabled events.

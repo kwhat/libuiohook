@@ -330,7 +330,6 @@ static inline void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *ms
 	event.mask = get_modifiers();
 
 	event.data.mouse.button = button;
-	
 	event.data.mouse.clicks = click_count;
 
 	event.data.mouse.x = mshook->pt.x;

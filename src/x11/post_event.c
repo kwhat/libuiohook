@@ -61,7 +61,7 @@ static unsigned int btnmask_lookup[5] = {
 static unsigned int convert_to_native_mask(unsigned int mask) {
 	unsigned int native_mask = 0x00;
 
-	if (mask & (MASK_SHIFT))		{ native_mask |= ShiftMask;		}
+	if (mask & (MASK_SHIFT))	{ native_mask |= ShiftMask;		}
 	if (mask & (MASK_CTRL))		{ native_mask |= ControlMask;	}
 	if (mask & (MASK_META))		{ native_mask |= Mod4Mask;		}
 	if (mask & (MASK_ALT))		{ native_mask |= Mod1Mask;		}
@@ -224,7 +224,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// Ignore hook enabled / disabled events.
 
 		default:
-			// FIXME Produce a warning.
+			// Ignore any other garbage.
+			logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
+				__FUNCTION__, __LINE__, event->type);
 			break;
 	}
 
@@ -390,7 +392,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// Ignore hook enabled / disabled events.
 
 		default:
-			// FIXME Produce a warning.
+			// Ignore any other garbage.
+			logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
+				__FUNCTION__, __LINE__, event->type);
 			break;
 	}
 

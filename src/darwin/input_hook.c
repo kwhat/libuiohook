@@ -44,6 +44,9 @@ static Boolean restart_tap = false;
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x00000000;
 
+// Flag for caps-lock key release.
+static Boolean caps_down = false;
+
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
 typedef struct {
@@ -215,9 +218,7 @@ static void start_message_port_runloop() {
 
 		src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
 		if (src_msg_port != NULL) {
-
 			CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
-
 			CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
 
 			logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
@@ -264,7 +265,7 @@ static void stop_message_port_runloop() {
 }
 
 
-void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 
@@ -304,6 +305,8 @@ void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity,
 }
 
 static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref) {
+	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+
 	// Populate key pressed event.
 	event.time = timestamp;
 	event.reserved = 0x00;
@@ -311,22 +314,20 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 	event.type = EVENT_KEY_PRESSED;
 	event.mask = get_modifiers();
 
-	// FIXME Check for overflow.
-	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 	event.data.keyboard.keycode = keycode_to_scancode(keycode);
 	event.data.keyboard.rawcode = keycode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
 			__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
-	
+
 	// Fire key pressed event.
 	dispatch_event(&event);
 
 	// If the pressed event was not consumed...
 	if (event.reserved ^ 0x01) {
 		if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-			// If the hook is running on the main runloop, we do not need to do 
+			// If the hook is running on the main runloop, we do not need to do
 			// all of this signaling junk.
 			UniChar buffer[2];
 			keycode_to_unicode(event_ref, buffer, sizeof(buffer));
@@ -337,7 +338,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
 			// Check to see if the main runloop is still running.
 			// TOOD I would rather this be a check on hook_enable(),
-			// but it makes the usage complicated by requiring a separate 
+			// but it makes the usage complicated by requiring a separate
 			// thread for the main runloop and hook registration.
 			CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
 			if (mode != NULL) {
@@ -373,7 +374,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 					event.data.keyboard.keychar = info->buffer[0];
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-							__FUNCTION__, __LINE__, event.data.keyboard.keycode, 
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode,
 							(wint_t) event.data.keyboard.keychar);
 
 					// Populate key typed event.
@@ -395,61 +396,146 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 }
 
 static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref) {
+	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+
 	// Populate key released event.
 	event.time = timestamp;
 	event.reserved = 0x00;
-	
+
 	event.type = EVENT_KEY_RELEASED;
 	event.mask = get_modifiers();
 
-	// FIXME Check for overflow.
-	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 	event.data.keyboard.keycode = keycode_to_scancode(keycode);
 	event.data.keyboard.rawcode = keycode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
 			__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
-	
+
 	// Fire key released event.
 	dispatch_event(&event);
 }
 
 static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event_ref) {
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
-	
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed. (%#X)\n",
-					__FUNCTION__, __LINE__, (unsigned int) event_mask);
+	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
+
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed for key %#X. (%#X)\n",
+			__FUNCTION__, __LINE__, (unsigned long) keycode, (unsigned int) event_mask);
 
 	/* Because Apple treats modifier keys differently than normal key
 	 * events, any changes to the modifier keys will require a key state
 	 * change to be fired manually.
+	 *
+	 * NOTE Left and right keyboard masks like NX_NEXTLSHIFTKEYMASK exist and
+	 * appear to be in use on Darwin, however they are removed by comment or
+	 * preprocessor with a note that reads "device-dependent (really?)."  To
+	 * ensure compatability, we will do this the verbose way.
+	 *
+	 * NOTE The masks for scroll and number lock are set in the key event.
 	 */
-	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
-	uint8_t modifier_flag = 0x0000;
-	if		(keycode == kVK_Shift)			{ modifier_flag = MASK_SHIFT_L;	}
-	else if (keycode == kVK_Control)		{ modifier_flag = MASK_CTRL_L;	}
-	else if (keycode == kVK_Command)		{ modifier_flag = MASK_META_L;	}
-	else if (keycode == kVK_Option)			{ modifier_flag = MASK_ALT_L;	}
-	else if (keycode == kVK_RightShift)		{ modifier_flag = MASK_SHIFT_R;	}
-	else if (keycode == kVK_RightControl)	{ modifier_flag = MASK_CTRL_R;	}
-	else if (keycode == kVK_RightCommand)	{ modifier_flag = MASK_META_R;	}
-	else if (keycode == kVK_RightOption)	{ modifier_flag = MASK_ALT_R;	}
-
-	// First check to see if a modifier we care about changed.
-	if (modifier_flag != 0x0000) {
-		if (get_modifiers() & modifier_flag) {
-			unset_modifier_mask(modifier_flag);
-
-			// Process as a key released event.
-			process_key_released(timestamp, event_ref);
-		}
-		else {
-			set_modifier_mask(modifier_flag);
-
+	if (keycode == kVK_Shift) {
+		if (event_mask & kCGEventFlagMaskShift) {
 			// Process as a key pressed event.
+			set_modifier_mask(MASK_SHIFT_L);
 			process_key_pressed(timestamp, event_ref);
 		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_SHIFT_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_Control) {
+		if (event_mask & kCGEventFlagMaskControl) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_CTRL_L);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_CTRL_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_Command) {
+		if (event_mask & kCGEventFlagMaskCommand) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_META_L);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_META_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_Option) {
+		if (event_mask & kCGEventFlagMaskAlternate) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_ALT_L);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_ALT_L);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightShift) {
+		if (event_mask & kCGEventFlagMaskShift) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_SHIFT_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_SHIFT_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightControl) {
+		if (event_mask & kCGEventFlagMaskControl) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_CTRL_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_CTRL_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightCommand) {
+		if (event_mask & kCGEventFlagMaskCommand) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_META_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_META_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_RightOption) {
+		if (event_mask & kCGEventFlagMaskAlternate) {
+			// Process as a key pressed event.
+			set_modifier_mask(MASK_ALT_R);
+			process_key_pressed(timestamp, event_ref);
+		}
+		else {
+			// Process as a key released event.
+			unset_modifier_mask(MASK_ALT_R);
+			process_key_released(timestamp, event_ref);
+		}
+	}
+	else if (keycode == kVK_CapsLock) {
+		// Process as a key pressed event.
+		process_key_pressed(timestamp, event_ref);
+		
+		// Set the caps-lock flag for release.
+		caps_down = true;
 	}
 }
 
@@ -492,7 +578,7 @@ static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_r
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
 			__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 			event.data.mouse.x, event.data.mouse.y);
-	
+
 	// Fire mouse pressed event.
 	dispatch_event(&event);
 }
@@ -503,7 +589,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 	// Populate mouse released event.
 	event.time = timestamp;
 	event.reserved = 0x00;
-	
+
 	event.type = EVENT_MOUSE_RELEASED;
 	event.mask = get_modifiers();
 
@@ -515,7 +601,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
 			__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 			event.data.mouse.x, event.data.mouse.y);
-	
+
 	// Fire mouse released event.
 	dispatch_event(&event);
 
@@ -553,7 +639,7 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 	// Populate mouse motion event.
 	event.time = timestamp;
 	event.reserved = 0x00;
-	
+
 	if (mouse_dragged) {
 		event.type = EVENT_MOUSE_DRAGGED;
 	}
@@ -568,7 +654,7 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 	event.data.mouse.y = event_point.y;
 
 	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
-			__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved", 
+			__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
 			event.data.mouse.x, event.data.mouse.y);
 
 	// Fire mouse motion event.
@@ -579,7 +665,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 	// Reset the click count and previous button.
 	click_count = 1;
 	click_button = MOUSE_NOBUTTON;
-				
+
 	// Check to see what axis was rotated, we only care about axis 1 for vertical rotation.
 	// TODO Implement horizontal scrolling by examining axis 2.
 	// NOTE kCGScrollWheelEventDeltaAxis3 is currently unused.
@@ -589,7 +675,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 		// Populate mouse wheel event.
 		event.time = timestamp;
 		event.reserved = 0x00;
-		
+
 		event.type = EVENT_MOUSE_WHEEL;
 		event.mask = get_modifiers();
 
@@ -643,25 +729,55 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			process_modifier_changed(timestamp, event_ref);
 			break;
 
+		case NX_SYSDEFINED:
+			/* This event is undocumented and only here to provide key release
+			 * events for the caps-lock key.  It is not a perfect solution as
+			 * pressing the num-lock key will force a release even if you are
+			 * still holding the caps-lock down.  This could be mitigated in the
+			 * future by implementing some kind of key down/up stack to track
+			 * other press while caps_down == true and only release when
+			 * appropriate.  The reason it will work is because every other key
+			 * that produces this event also produces its own key down/up event!
+			 * The caps-lock is the only key that does not produce a release.
+			 */
+			if (caps_down) {
+				// It doesn't appear like we can modify the event coming in, so
+				// we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef caps_event = CGEventCreateKeyboardEvent(src, kVK_CapsLock, false);
+				CGEventSetFlags(caps_event, CGEventGetFlags(event_ref));
+
+				process_key_released(timestamp, caps_event);
+
+				CFRelease(caps_event);
+				CFRelease(src);
+				caps_down = false;
+			}
+			break;
+
 		case kCGEventLeftMouseDown:
 			set_modifier_mask(MASK_BUTTON1);
 			process_button_pressed(timestamp, event_ref, MOUSE_BUTTON1);
 			break;
-			
+
 		case kCGEventRightMouseDown:
 			set_modifier_mask(MASK_BUTTON2);
 			process_button_pressed(timestamp, event_ref, MOUSE_BUTTON2);
 			break;
-			
+
 		case kCGEventOtherMouseDown:
 			// Extra mouse buttons.
 			if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
 				uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
 
-				if (button + 7 < 16) {
-					set_modifier_mask(1 << (button + 7));
+				// Add support for mouse 4 & 5.
+				if (button == 4) {
+					set_modifier_mask(MOUSE_BUTTON4);
 				}
-				
+				else if (button == 5) {
+					set_modifier_mask(MOUSE_BUTTON5);
+				}
+
 				process_button_pressed(timestamp, event_ref, button);
 			}
 			break;
@@ -670,21 +786,25 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			unset_modifier_mask(MASK_BUTTON1);
 			process_button_released(timestamp, event_ref, MOUSE_BUTTON1);
 			break;
-			
+
 		case kCGEventRightMouseUp:
 			unset_modifier_mask(MASK_BUTTON2);
 			process_button_released(timestamp, event_ref, MOUSE_BUTTON2);
-			break;			
-			
+			break;
+
 		case kCGEventOtherMouseUp:
 			// Extra mouse buttons.
 			if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
 				uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
 
-				if (button + 7 < 16) {
-					set_modifier_mask(1 << (button + 7));
+				// Add support for mouse 4 & 5.
+				if (button == 4) {
+					unset_modifier_mask(MOUSE_BUTTON4);
 				}
-				
+				else if (button == 5) {
+					unset_modifier_mask(MOUSE_BUTTON5);
+				}
+
 				process_button_pressed(timestamp, event_ref, button);
 			}
 			break;
@@ -698,14 +818,14 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			mouse_dragged = true;
 			process_mouse_moved(timestamp, event_ref);
 			break;
-			
+
 		case kCGEventMouseMoved:
 			// Set the mouse dragged flag.
 			mouse_dragged = false;
 			process_mouse_moved(timestamp, event_ref);
 			break;
 
-			
+
 		case kCGEventScrollWheel:
 			process_mouse_wheel(timestamp, event_ref);
 			break;
@@ -779,7 +899,6 @@ UIOHOOK_API int hook_run() {
 		#ifdef USE_DEBUG
 		CGEventMask event_mask = kCGEventMaskForAllEvents;
 		#else
-		// TODO This maybe exactly the same as the line above...
 		CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
 									CGEventMaskBit(kCGEventKeyUp) |
 									CGEventMaskBit(kCGEventFlagsChanged) |
@@ -797,7 +916,11 @@ UIOHOOK_API int hook_run() {
 									CGEventMaskBit(kCGEventOtherMouseDragged) |
 
 									CGEventMaskBit(kCGEventMouseMoved) |
-									CGEventMaskBit(kCGEventScrollWheel);
+									CGEventMaskBit(kCGEventScrollWheel) |
+
+									// NOTE This event is undocumented and used
+									// exclusivly for caps-lock release.
+									EventCodeMask(NX_SYSDEFINED);
 		#endif
 
 		// Create the event tap.
@@ -846,8 +969,8 @@ UIOHOOK_API int hook_run() {
 
 			// Set the exit status.
 			return UIOHOOK_ERROR_GET_RUNLOOP;
-		}	
-		else {			
+		}
+		else {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
 					__FUNCTION__, __LINE__);
 		}
@@ -883,7 +1006,7 @@ UIOHOOK_API int hook_run() {
 		// Start the hook thread runloop.
 		CFRunLoopRun();
 
-		
+
 		// Stop the CFMachPort from receiving any more messages.
 		if (hook->port != NULL) {
 			CFMachPortInvalidate(hook->port);
@@ -929,7 +1052,7 @@ UIOHOOK_API int hook_stop() {
 	CFStringRef mode = CFRunLoopCopyCurrentMode(event_loop);
 	if (mode != NULL) {
 		CFRelease(mode);
-		
+
 		// Make sure the tap doesn't restart.
 		restart_tap = false;
 

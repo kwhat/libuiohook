@@ -104,9 +104,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 						(CGFloat) event->data.mouse.y
 					),
 					kCGMouseButtonLeft
-				);
-				CFRelease(cg_event);
+				);				
 				CGEventPost(loc, cg_event);
+				CFRelease(cg_event);
 			}
 			else if (event->data.mouse.button == MOUSE_BUTTON2) {
 				cg_event = CGEventCreateMouseEvent(src,
@@ -117,8 +117,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					),
 					kCGMouseButtonRight
 				);
-				CFRelease(cg_event);
 				CGEventPost(loc, cg_event);
+				CFRelease(cg_event);
 			}
 			else if (event->data.mouse.button > 0) {
 				cg_event = CGEventCreateMouseEvent(src,

@@ -65,6 +65,7 @@ static UINT keymask_lookup[8] = {
 };
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
+	//FIXME implement multiple monitor support
 	uint16_t screen_width   = GetSystemMetrics( SM_CXSCREEN ); 
 	uint16_t screen_height  = GetSystemMetrics( SM_CYSCREEN );
 

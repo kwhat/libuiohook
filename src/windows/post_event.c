@@ -90,17 +90,19 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events[events_size].mi.dy = 0;	// MOUSEEVENTF_ABSOLUTE not being set.
 		events[events_size].mi.mouseData = 0x00;
 		events[events_size].mi.time = 0; // Use current system time.
-
+		//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
+		// If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP, 
+		// then mouseData should be zero.
 		if (event->mask & MASK_BUTTON1) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_LEFTDOWN;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_LEFTDOWN;
 		}
 
 		if (event->mask & MASK_BUTTON2) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_RIGHTDOWN;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_RIGHTDOWN;
 		}
 
 		if (event->mask & MASK_BUTTON3) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_MIDDLEDOWN;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_MIDDLEDOWN;
 		}
 
 		if (event->mask & MASK_BUTTON4) {

@@ -26,34 +26,24 @@
 #include <uiohook.h>
 
 bool logger_proc(unsigned int level, const char *format, ...) {
-	return false;
+	bool status = false;
+	
+	va_list args;
+	switch (level) {
+		case LOG_LEVEL_WARN:
+		case LOG_LEVEL_ERROR:
+			va_start(args, format);
+			status = vfprintf(stderr, format, args) >= 0;
+			va_end(args);
+			break;
+	}
+	
+	return status;
 }
 
 int main() {
 	// Disable the logger.
 	hook_set_logger_proc(&logger_proc);
-
-	// Retrieves an array of screen data for each available monitor.
-	uint8_t count = 0;
-	screen_data *screens = hook_create_screen_info(&count);
-	if (screens != NULL) {
-		fprintf(stdout,	"Found %d Monitors:\n", count);
-
-		for (int i = 0; i < count; i++) {
-			fprintf(stdout,	"\tNumber:\t\t%d\n", screens[i].number);
-			fprintf(stdout,	"\tOffset X:\t%d\n", screens[i].x);
-			fprintf(stdout,	"\tOffset Y:\t%d\n", screens[i].y);
-			fprintf(stdout,	"\tWidth:\t\t%d\n", screens[i].width);
-			fprintf(stdout,	"\tHeight:\t\t%d\n", screens[i].height);
-			fprintf(stdout,	"\n");
-		}
-
-		// You are responsible for freeing the memory returned by hook_create_screen_info.
-		free(screens);
-	}
-	else {
-		fprintf(stderr,	"Failed to aquire screen information!\n");
-	}
 
 	// Retrieves the keyboard auto repeat rate.
 	long int repeat_rate = hook_get_auto_repeat_rate();

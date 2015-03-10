@@ -51,7 +51,7 @@ static Boolean caps_down = false;
 // Unicode lookups.
 typedef struct {
 	CGEventRef event;
-	UniChar buffer[2];
+	UniChar buffer[4];
 	UniCharCount length;
 } TISMessage;
 
@@ -171,7 +171,7 @@ static void message_port_proc(void *info) {
 
 	if (data != NULL && data->event != NULL) {
 		// Preform Unicode lookup.
-		data->length = keycode_to_unicode(data->event, data->buffer, sizeof(data->buffer));
+		data->length = keycode_to_unicode(data->event, data->buffer, sizeof(data->buffer) / sizeof(UniChar));
 	}
 
 	// Unlock the msg_port mutex to signal to the hook_thread that we have
@@ -196,10 +196,7 @@ static void start_message_port_runloop() {
 		pthread_mutex_lock(&msg_port_mutex);
 
 		// Initialize the TISMessage struct.
-		TISMessage *data = (TISMessage *) malloc(sizeof(TISMessage));
-		data->event = NULL;
-		//data->buffer = { 0x00 };
-		//data->length = 0;
+		TISMessage *data = (TISMessage *) calloc(1, sizeof(TISMessage));
 
 		CFRunLoopSourceContext context = {
 			.version			= 0,
@@ -329,8 +326,28 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 		if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
 			// If the hook is running on the main runloop, we do not need to do
 			// all of this signaling junk.
-			UniChar buffer[2];
-			keycode_to_unicode(event_ref, buffer, sizeof(buffer));
+			UniChar buffer[4];
+			UniCharCount length = keycode_to_unicode(event_ref, buffer, sizeof(buffer) / sizeof(UniChar));
+			
+		    for (unsigned int i = 0; i < length; i++) {
+				// Populate key typed event.
+				event.time = timestamp;
+				event.reserved = 0x00;
+
+				event.type = EVENT_KEY_TYPED;
+				event.mask = get_modifiers();
+
+				event.data.keyboard.keycode = VC_UNDEFINED;
+				event.data.keyboard.rawcode = keycode;
+				event.data.keyboard.keychar = buffer[i];
+
+				logger(LOG_LEVEL_INFO,  "%s [%u]: Key %#X typed. (%lc)\n",
+						__FUNCTION__, __LINE__, event.data.keyboard.keycode,
+						(wint_t) event.data.keyboard.keychar);
+
+				// Populate key typed event.
+				dispatch_event(&event);
+			}
 		}
 		else {
 			// Lock for code dealing with the main runloop.

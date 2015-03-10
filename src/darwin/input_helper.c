@@ -80,78 +80,63 @@ bool is_accessibility_enabled() {
 	#else
 	// Dynamically load the application services framework for examination.
 	const char *dlError = NULL;
-	void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
+	
+	*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(RTLD_DEFAULT, "AXIsProcessTrustedWithOptions");
 	dlError = dlerror();
-	if (libApplicaitonServices != NULL && dlError == NULL) {
-		// Check for the new function AXIsProcessTrustedWithOptions().
-		*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
+	if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
+		// Check for property CFStringRef kAXTrustedCheckOptionPrompt
+		void ** kAXTrustedCheckOptionPrompt_t = dlsym(RTLD_DEFAULT, "kAXTrustedCheckOptionPrompt");
+
 		dlError = dlerror();
-		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
-			// Check for property CFStringRef kAXTrustedCheckOptionPrompt
-			void ** kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
+		if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
+			// New accessibility API 10.9 and later.
+			const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
+			const void * values[] = { kCFBooleanTrue };
 
-			dlError = dlerror();
-			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
-				// New accessibility API 10.9 and later.
-				const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
-				const void * values[] = { kCFBooleanTrue };
+			CFDictionaryRef options = CFDictionaryCreate(
+					kCFAllocatorDefault,
+					keys,
+					values,
+					sizeof(keys) / sizeof(*keys),
+					&kCFCopyStringDictionaryKeyCallBacks,
+					&kCFTypeDictionaryValueCallBacks);
 
-				CFDictionaryRef options = CFDictionaryCreate(
-						kCFAllocatorDefault,
-						keys,
-						values,
-						sizeof(keys) / sizeof(*keys),
-						&kCFCopyStringDictionaryKeyCallBacks,
-						&kCFTypeDictionaryValueCallBacks);
+			is_enabled = (*AXIsProcessTrustedWithOptions_t)(options);
+		}
+	}
+	else {
+		// Could not load the AXIsProcessTrustedWithOptions function!
+		if (dlError != NULL) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+					__FUNCTION__, __LINE__, dlError);
+		}
 
-				is_enabled = (*AXIsProcessTrustedWithOptions_t)(options);
-			}
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled().\n",
+				__FUNCTION__, __LINE__, dlError);
+
+		// Check for the fallback function AXAPIEnabled().
+		*(void **) (&AXAPIEnabled_t) = dlsym(RTLD_DEFAULT, "AXAPIEnabled");
+		dlError = dlerror();
+		if (AXAPIEnabled_t != NULL && dlError == NULL) {
+			// Old accessibility check 10.8 and older.
+			is_enabled = (*AXAPIEnabled_t)();
 		}
 		else {
-			// Could not load the AXIsProcessTrustedWithOptions function!
+			// Could not load the AXAPIEnabled function!
 			if (dlError != NULL) {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
 						__FUNCTION__, __LINE__, dlError);
 			}
-			
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled().\n",
-					__FUNCTION__, __LINE__, dlError);
 
-			// Check for the fallback function AXAPIEnabled().
-			*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
-			dlError = dlerror();
-			if (AXAPIEnabled_t != NULL && dlError == NULL) {
-				// Old accessibility check 10.8 and older.
-				is_enabled = (*AXAPIEnabled_t)();
-			}
-			else {
-				// Could not load the AXAPIEnabled function!
-				if (dlError != NULL) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
-							__FUNCTION__, __LINE__, dlError);
-				}
-			
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()!\n",
-						__FUNCTION__, __LINE__);
-			}
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()!\n",
+					__FUNCTION__, __LINE__);
 		}
-
-		dlclose(libApplicaitonServices);
-	}
-	else {
-		// Could not load the ApplicationServices framework!
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
-				__FUNCTION__, __LINE__, dlError);
 	}
 	#endif
 
 	return is_enabled;
 }
 
-// NOTE This method must be executed from the main runloop,
-// Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) to avoid 
-// Exception detected while handling key input and TSMProcessRawKeyCode failed 
-// (-192) errors.
 UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
 	UniCharCount count = 0;
 	
@@ -164,29 +149,35 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 		}
 	}
 	#elif defined(USE_COREFOUNDATION)
-	TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
 	CFDataRef inputData = NULL;
-	if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
-		CFDataRef data = (CFDataRef) TISGetInputSourceProperty(curr_keyboard_layout, kTISPropertyUnicodeKeyLayoutData);
-		if (data != NULL && CFGetTypeID(data) == CFDataGetTypeID() && CFDataGetLength(data) > 0) {
-			inputData = (CFDataRef) data;
+	if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
+		// NOTE The following block must execute on the main runloop,
+		// Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain()) to avoid 
+		// Exception detected while handling key input and TSMProcessRawKeyCode failed 
+		// (-192) errors.
+		TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
+		if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
+			CFDataRef data = (CFDataRef) TISGetInputSourceProperty(curr_keyboard_layout, kTISPropertyUnicodeKeyLayoutData);
+			if (data != NULL && CFGetTypeID(data) == CFDataGetTypeID() && CFDataGetLength(data) > 0) {
+				inputData = (CFDataRef) data;
+			}
 		}
-	}
+		
+		// Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
+		if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
+			deadkey_state = 0x00;
+		}
 
-	// Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
-	if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
-		deadkey_state = 0x00;
-	}
+		// Release the previous keyboard layout.
+		if (prev_keyboard_layout != NULL) {
+			CFRelease(prev_keyboard_layout);
+			prev_keyboard_layout = NULL;
+		}
 
-	// Release the previous keyboard layout.
-	if (prev_keyboard_layout != NULL) {
-		CFRelease(prev_keyboard_layout);
-		prev_keyboard_layout = NULL;
-	}
-
-	// Set the previous keyboard layout to the current layout.
-	if (curr_keyboard_layout != NULL) {
-		prev_keyboard_layout = curr_keyboard_layout;
+		// Set the previous keyboard layout to the current layout.
+		if (curr_keyboard_layout != NULL) {
+			prev_keyboard_layout = curr_keyboard_layout;
+		}
 	}
 	#endif
 

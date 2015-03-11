@@ -50,7 +50,6 @@ extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribut
 extern CFStringRef kAXTrustedCheckOptionPrompt __attribute__((weak_import));
 #else
 static Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef);
-static Boolean (*AXAPIEnabled_t)(void);
 #endif
 
 bool is_accessibility_enabled() {
@@ -73,16 +72,10 @@ bool is_accessibility_enabled() {
 
 		is_enabled = AXIsProcessTrustedWithOptions(options);
 	}
-	else {
-		// Old accessibility check 10.8 and older.
-		is_enabled = AXAPIEnabled();
-	}
 	#else
 	// Dynamically load the application services framework for examination.
-	const char *dlError = NULL;
-	
 	*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(RTLD_DEFAULT, "AXIsProcessTrustedWithOptions");
-	dlError = dlerror();
+	const char *dlError = dlerror();
 	if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
 		// Check for property CFStringRef kAXTrustedCheckOptionPrompt
 		void ** kAXTrustedCheckOptionPrompt_t = dlsym(RTLD_DEFAULT, "kAXTrustedCheckOptionPrompt");
@@ -104,35 +97,25 @@ bool is_accessibility_enabled() {
 			is_enabled = (*AXIsProcessTrustedWithOptions_t)(options);
 		}
 	}
+	#endif
 	else {
-		// Could not load the AXIsProcessTrustedWithOptions function!
+		#ifndef USE_WEAK_IMPORT
 		if (dlError != NULL) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+			// Could not load the AXIsProcessTrustedWithOptions function!
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
 					__FUNCTION__, __LINE__, dlError);
 		}
+		#endif
+		
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Weak import AXIsProcessTrustedWithOptions not found.\n",
+					__FUNCTION__, __LINE__, dlError);
 
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled().\n",
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to AXAPIEnabled().\n",
 				__FUNCTION__, __LINE__, dlError);
-
-		// Check for the fallback function AXAPIEnabled().
-		*(void **) (&AXAPIEnabled_t) = dlsym(RTLD_DEFAULT, "AXAPIEnabled");
-		dlError = dlerror();
-		if (AXAPIEnabled_t != NULL && dlError == NULL) {
-			// Old accessibility check 10.8 and older.
-			is_enabled = (*AXAPIEnabled_t)();
-		}
-		else {
-			// Could not load the AXAPIEnabled function!
-			if (dlError != NULL) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
-						__FUNCTION__, __LINE__, dlError);
-			}
-
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()!\n",
-					__FUNCTION__, __LINE__);
-		}
+		
+		// Old accessibility check 10.8 and older.
+		is_enabled = AXAPIEnabled();
 	}
-	#endif
 
 	return is_enabled;
 }

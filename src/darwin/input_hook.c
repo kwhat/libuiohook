@@ -62,9 +62,14 @@ TISMessage *tis_message;
 
 #ifdef USE_WEAK_IMPORT
 // Required to dynamically check for AXIsProcessTrustedWithOptions availability.
+extern void dispatch_get_main_queue() __attribute__((weak_import));
 extern void dispatch_sync_f(dispatch_queue_t queue, void *context, void (*function)(void *)) __attribute__((weak_import));
 #else
-static void (*dispatch_sync_f_t)(dispatch_queue_t, void *, void (*function)(void *));
+#if __MAC_OS_X_VERSION_MAX_ALLOWED <= 1050
+typedef void* dispatch_queue_t;
+#endif
+static dispatch_queue_t (*dispatch_get_main_queue_f)();
+static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 #endif
 
 #if ! defined(USE_CARBON_LEGACY) && defined(USE_COREFOUNDATION)
@@ -353,13 +358,13 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 		bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
 		
 		#ifdef USE_WEAK_IMPORT
-		if (dispatch_sync_f != NULL && !is_runloop_main) {
+		if (dispatch_sync_f != NULL && dispatch_get_main_queue != NULL && !is_runloop_main) {
 			dispatch_sync_f(dispatch_get_main_queue(), tis_message, &keycode_to_lookup);
 		}
 		#else
-		if (dispatch_sync_f_t != NULL && !is_runloop_main) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: ********** dispatch_sync_f_t\n", __FUNCTION__, __LINE__);
-			(*dispatch_sync_f_t)(dispatch_get_main_queue(), tis_message, &keycode_to_lookup);
+		if (dispatch_sync_f_f != NULL && dispatch_get_main_queue_f != NULL && !is_runloop_main) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: ********** dispatch_sync_f_f\n", __FUNCTION__, __LINE__);
+			(*dispatch_sync_f_f)((*dispatch_get_main_queue_f)(), tis_message, &keycode_to_lookup);
 		}
 		#endif
 		#if ! defined(USE_CARBON_LEGACY) && defined(USE_COREFOUNDATION)
@@ -987,17 +992,25 @@ UIOHOOK_API int hook_run() {
 								if (tis_message != NULL) {
 									if (! CFEqual(event_loop, CFRunLoopGetMain())) {
 										#ifdef USE_WEAK_IMPORT
-										if (dispatch_sync_f == NULL) {
+										if (dispatch_sync_f == NULL || dispatch_get_main_queue == NULL) {
 										#else
-										*(void **) (&dispatch_sync_f_t) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
-										if (dispatch_sync_f_t == NULL) {
-											const char *dlError = dlerror();
-											if (dlError != NULL) {
-												logger(LOG_LEVEL_WARN,	"%s [%u]: %s.\n",
-														__FUNCTION__, __LINE__, dlError);
-											}
+										*(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
+										const char *dlError = dlerror();
+										if (dlError != NULL) {
+											logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+													__FUNCTION__, __LINE__, dlError);
+										}
+										
+										*(void **) (&dispatch_get_main_queue_f) = dlsym(RTLD_DEFAULT, "dispatch_get_main_queue");
+										dlError = dlerror();
+										if (dlError != NULL) {
+											logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+													__FUNCTION__, __LINE__, dlError);
+										}
+										
+										if (dispatch_sync_f_f == NULL || dispatch_get_main_queue_f == NULL) {
 										#endif
-											logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f()!\n",
+											logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
 													__FUNCTION__, __LINE__);
 
 											#if ! defined(USE_CARBON_LEGACY) && defined(USE_COREFOUNDATION)
@@ -1032,9 +1045,9 @@ UIOHOOK_API int hook_run() {
 									#if ! defined(USE_CARBON_LEGACY) && defined(USE_COREFOUNDATION)
 									if (! CFEqual(event_loop, CFRunLoopGetMain())) {
 										#ifdef USE_WEAK_IMPORT
-										if (dispatch_sync_f == NULL) {
+										if (dispatch_sync_f == NULL || dispatch_get_main_queue == NULL) {
 										#else
-										if (dispatch_sync_f_t == NULL) {
+										if (dispatch_sync_f_f == NULL || dispatch_get_main_queue_f == NULL) {
 										#endif	
 											stop_message_port_runloop();
 										}

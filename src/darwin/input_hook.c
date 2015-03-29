@@ -633,15 +633,16 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 		// Fire mouse clicked event.
 		dispatch_event(&event);
 	}
+
+	// Reset the number of clicks.
+	if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+		// Reset the click count.
+		click_count = 0;
+	}
 }
 
 static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref) {
 	CGPoint event_point = CGEventGetLocation(event_ref);
-
-	// Reset the click count.
-	if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
-		click_count = 0;
-	}
 
 	// Populate mouse motion event.
 	event.time = timestamp;
@@ -651,6 +652,11 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 		event.type = EVENT_MOUSE_DRAGGED;
 	}
 	else {
+		// Reset the click count.
+		if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+			click_count = 0;
+		}
+
 		event.type = EVENT_MOUSE_MOVED;
 	}
 	event.mask = get_modifiers();

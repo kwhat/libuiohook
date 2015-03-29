@@ -374,14 +374,15 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 		// Fire mouse clicked event.
 		dispatch_event(&event);
 	}
+
+	// Reset the number of clicks.
+	if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+		// Reset the click count.
+		click_count = 0;
+	}
 }
 
 static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
-	// Reset the click count.
-	if (click_count != 0 && (long) (event.time - click_time) > hook_get_multi_click_time()) {
-		click_count = 0;
-	}
-
 	// We received a mouse move event with the mouse actually moving.
 	// This verifies that the mouse was moved after being depressed.
 	if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
@@ -398,6 +399,11 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 			event.type = EVENT_MOUSE_DRAGGED;
 		}
 		else {
+			// Reset the click count.
+			if (click_count != 0 && (long) (event.time - click_time) > hook_get_multi_click_time()) {
+				click_count = 0;
+			}
+
 			// Create a Mouse Moved event.
 			event.type = EVENT_MOUSE_MOVED;
 		}

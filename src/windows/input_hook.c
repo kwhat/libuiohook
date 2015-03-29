@@ -40,8 +40,6 @@ static unsigned short int current_modifiers = 0x0000;
 
 // Structure for the current Unix epoch in milliseconds.
 static FILETIME system_time;
-static DWORD previous_time = (DWORD) ~0x00;
-static uint64_t offset_time = 0;
 
 // Click count globals.
 static unsigned short click_count = 0;
@@ -127,39 +125,17 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
-static inline uint64_t get_event_timestamp() {
-	// Grab the system uptime in MS.
-	// NOTE This value rolls every 49.7 days.
-	DWORD hook_time = GetTickCount();
-
-	// Check for event clock reset.
-	if (previous_time > hook_time) {
-		// Get the local system time in UTC.
-		GetSystemTimeAsFileTime(&system_time);
-
-		// Convert the local system time to a Unix epoch in MS.
-		// milliseconds = 100-nanoseconds / 10000
-		uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
-
-		// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
-		epoch_time -= 11644473600000;
-
-		// Calculate the offset based on the system and hook times.
-		offset_time = epoch_time - hook_time;
-
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
-				__FUNCTION__, __LINE__, offset_time);
-	}
-	// Set the previous event time for click reset check above.
-	previous_time = hook_time;
-
-	// Set the event time to the server time + offset.
-	return hook_time + offset_time;
-}
 
 void hook_start_proc() {
+	// Get the local system time in UTC.
+	GetSystemTimeAsFileTime(&system_time);
+
+	// Convert the local system time to a Unix epoch in MS.
+	// milliseconds = 100-nanoseconds / 10000
+	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
 	// Populate the hook start event.
-	event.time = get_event_timestamp();
+	event.time = timestamp;
 	event.reserved = 0x00;
 
 	event.type = EVENT_HOOK_ENABLED;
@@ -170,8 +146,15 @@ void hook_start_proc() {
 }
 
 void hook_stop_proc() {
+	// Get the local system time in UTC.
+	GetSystemTimeAsFileTime(&system_time);
+
+	// Convert the local system time to a Unix epoch in MS.
+	// milliseconds = 100-nanoseconds / 10000
+	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
 	// Populate the hook stop event.
-	event.time = get_event_timestamp();
+	event.time = timestamp;
 	event.reserved = 0x00;
 
 	event.type = EVENT_HOOK_DISABLED;
@@ -267,8 +250,12 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp();
+	// Get the local system time in UTC.
+	GetSystemTimeAsFileTime(&system_time);
+
+	// Convert the local system time to a Unix epoch in MS.
+	// milliseconds = 100-nanoseconds / 10000
+	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
 
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
 	switch (wParam) {
@@ -465,8 +452,12 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp();
+	// Get the local system time in UTC.
+	GetSystemTimeAsFileTime(&system_time);
+
+	// Convert the local system time to a Unix epoch in MS.
+	// milliseconds = 100-nanoseconds / 10000
+	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
 
 	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
 	switch (wParam) {

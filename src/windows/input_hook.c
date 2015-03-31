@@ -386,6 +386,11 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 	// We received a mouse move event with the mouse actually moving.
 	// This verifies that the mouse was moved after being depressed.
 	if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
+		// Reset the click count.
+		if (click_count != 0 && (long) (timestamp - click_time) > hook_get_multi_click_time()) {
+			click_count = 0;
+		}
+
 		// Populate mouse move event.
 		event.time = timestamp;
 		event.reserved = 0x00;
@@ -399,11 +404,6 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 			event.type = EVENT_MOUSE_DRAGGED;
 		}
 		else {
-			// Reset the click count.
-			if (click_count != 0 && (long) (event.time - click_time) > hook_get_multi_click_time()) {
-				click_count = 0;
-			}
-
 			// Create a Mouse Moved event.
 			event.type = EVENT_MOUSE_MOVED;
 		}

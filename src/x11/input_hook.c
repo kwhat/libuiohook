@@ -540,6 +540,11 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			}
 		}
 		else if (data->type == MotionNotify) {
+			// Reset the click count.
+			if (click_count != 0 && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
+				click_count = 0;
+			}
+			
 			// Populate mouse move event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -554,11 +559,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				event.type = EVENT_MOUSE_DRAGGED;
 			}
 			else {
-				// Reset the click count.
-				if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
-					click_count = 0;
-				}
-
 				// Create a Mouse Moved event.
 				event.type = EVENT_MOUSE_MOVED;
 			}

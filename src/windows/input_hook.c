@@ -125,14 +125,23 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
-
-void hook_start_proc() {
+static inline uint64_t get_unix_timestamp() {
 	// Get the local system time in UTC.
 	GetSystemTimeAsFileTime(&system_time);
 
 	// Convert the local system time to a Unix epoch in MS.
 	// milliseconds = 100-nanoseconds / 10000
 	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
+	// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
+    timestamp -= 11644473600000;
+
+	return timestamp;
+}
+
+void hook_start_proc() {
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
 
 	// Populate the hook start event.
 	event.time = timestamp;
@@ -146,12 +155,8 @@ void hook_start_proc() {
 }
 
 void hook_stop_proc() {
-	// Get the local system time in UTC.
-	GetSystemTimeAsFileTime(&system_time);
-
-	// Convert the local system time to a Unix epoch in MS.
-	// milliseconds = 100-nanoseconds / 10000
-	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
 
 	// Populate the hook stop event.
 	event.time = timestamp;
@@ -250,12 +255,8 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Get the local system time in UTC.
-	GetSystemTimeAsFileTime(&system_time);
-
-	// Convert the local system time to a Unix epoch in MS.
-	// milliseconds = 100-nanoseconds / 10000
-	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
 
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
 	switch (wParam) {
@@ -353,8 +354,7 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	dispatch_event(&event);
 
 	// If the pressed event was not consumed...
-	if (event.reserved ^ 0x01
-			&& last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
+	if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
 		// Populate mouse clicked event.
 		event.time = timestamp;
 		event.reserved = 0x00;
@@ -458,12 +458,8 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Get the local system time in UTC.
-	GetSystemTimeAsFileTime(&system_time);
-
-	// Convert the local system time to a Unix epoch in MS.
-	// milliseconds = 100-nanoseconds / 10000
-	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
 
 	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
 	switch (wParam) {

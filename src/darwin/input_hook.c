@@ -45,7 +45,7 @@ CFRunLoopRef event_loop;
 static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
-static uint16_t current_modifiers = 0x00000000;
+static uint16_t current_modifiers = 0x0000;
 
 // Flag for caps-lock key release.
 static Boolean caps_down = false;

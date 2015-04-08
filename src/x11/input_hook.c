@@ -88,8 +88,6 @@ static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
-static Time previous_time = (Time) (~0x00);
-static uint64_t offset_time = 0;
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -135,32 +133,12 @@ static inline uint16_t get_modifiers() {
 }
 
 
-static inline uint64_t get_event_timestamp(XRecordInterceptData *recorded_data) {
-	// Check for event clock reset.
-	if (previous_time > recorded_data->server_time) {
-		// Get the local system time in UTC.
-		gettimeofday(&system_time, NULL);
-
-		// Convert the local system time to a Unix epoch in MS.
-		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-		// Calculate the offset based on the system and hook times.
-		offset_time = epoch_time - recorded_data->server_time;
-
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
-				__FUNCTION__, __LINE__, offset_time);
-	}
-	// Set the previous event time for click reset check above.
-	previous_time = recorded_data->server_time;
-
-	// Set the event time to the server time + offset.
-	return recorded_data->server_time + offset_time;
-}
-
-
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp(recorded_data);
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 
 	if (recorded_data->category == XRecordStartOfData) {
 		// Populate the hook start event.
@@ -553,14 +531,20 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					// Fire mouse clicked event.
 					dispatch_event(&event);
 				}
+
+				// Reset the number of clicks.
+				if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+					// Reset the click count.
+					click_count = 0;
+				}
 			}
 		}
 		else if (data->type == MotionNotify) {
 			// Reset the click count.
-			if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+			if (click_count != 0 && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
 				click_count = 0;
 			}
-
+			
 			// Populate mouse move event.
 			event.time = timestamp;
 			event.reserved = 0x00;

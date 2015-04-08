@@ -45,7 +45,7 @@ CFRunLoopRef event_loop;
 static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
-static uint16_t current_modifiers = 0x00000000;
+static uint16_t current_modifiers = 0x0000;
 
 // Flag for caps-lock key release.
 static Boolean caps_down = false;
@@ -88,8 +88,6 @@ static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
-static CGEventTimestamp previous_time = (CGEventTimestamp) ~0x00;
-static uint64_t offset_time = 0;
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -134,34 +132,6 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
-
-static inline uint64_t get_event_timestamp(CGEventRef event_ref) {
-	// Grab the system uptime in NS.
-	CGEventTimestamp hook_time = CGEventGetTimestamp(event_ref);
-
-	// Convert time from NS to MS.
-	hook_time /= 1000000;
-
-	// Check for event clock reset.
-	if (previous_time > hook_time) {
-		// Get the local system time in UTC.
-		gettimeofday(&system_time, NULL);
-
-		// Convert the local system time to a Unix epoch in MS.
-		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-		// Calculate the offset based on the system and hook times.
-		offset_time = epoch_time - hook_time;
-
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
-				__FUNCTION__, __LINE__, offset_time);
-	}
-	// Set the previous event time for click reset check above.
-	previous_time = hook_time;
-
-	// Set the event time to the server time + offset.
-	return hook_time + offset_time;
-}
 
 // Wrap keycode_to_unicode with some null checks.
 static void keycode_to_lookup(void *info) {
@@ -663,15 +633,21 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 		// Fire mouse clicked event.
 		dispatch_event(&event);
 	}
+
+	// Reset the number of clicks.
+	if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+		// Reset the click count.
+		click_count = 0;
+	}
 }
 
 static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref) {
-	CGPoint event_point = CGEventGetLocation(event_ref);
-
 	// Reset the click count.
-	if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+	if (click_count != 0 && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
 		click_count = 0;
 	}
+
+	CGPoint event_point = CGEventGetLocation(event_ref);
 
 	// Populate mouse motion event.
 	event.time = timestamp;
@@ -749,8 +725,11 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp(event_ref);
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 
 	// Get the event class.
 	switch (type) {

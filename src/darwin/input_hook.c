@@ -132,6 +132,54 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+// Initialize the modifier mask to the current modifiers.
+static void initialize_modifiers() {
+	current_modifiers = 0x0000;
+
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Shift)) {
+		set_modifier_mask(MASK_SHIFT_L);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightShift)) {
+		set_modifier_mask(MASK_SHIFT_R);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Control)) {
+		set_modifier_mask(MASK_CTRL_L);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightControl)) {
+		set_modifier_mask(MASK_CTRL_R);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Option)) {
+		set_modifier_mask(MASK_ALT_L);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightOption)) {
+		set_modifier_mask(MASK_ALT_R);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Command)) {
+		set_modifier_mask(MASK_META_L);
+	}
+	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightCommand)) {
+		set_modifier_mask(MASK_META_R);
+	}
+
+	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_LBUTTON)) {
+		set_modifier_mask(MASK_BUTTON1);
+ 	}
+ 	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_RBUTTON)) {
+		set_modifier_mask(MASK_BUTTON2);
+	}
+	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_MBUTTON)) {
+		set_modifier_mask(MASK_BUTTON3);
+	}
+	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_XBUTTON1)) {
+		set_modifier_mask(MASK_BUTTON4);
+	}
+	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_XBUTTON2)) {
+		set_modifier_mask(MASK_BUTTON5);
+	}
+
+	// FIXME Add check for lock masks!
+}
+
 
 // Wrap keycode_to_unicode with some null checks.
 static void keycode_to_lookup(void *info) {
@@ -885,8 +933,6 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 	return result_ref;
 }
 
-
-
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_SUCCESS;
 	
@@ -898,7 +944,10 @@ UIOHOOK_API int hook_run() {
 		if (is_accessibility_enabled()) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
 					__FUNCTION__, __LINE__);
-			
+
+			// Initialize starting modifiers.
+			initialize_modifiers();
+
 			// Try and allocate memory for hook_info.
 			hook_info *hook = malloc(sizeof(hook_info));
 			if (hook != NULL) {

@@ -74,6 +74,7 @@ static inline void dispatch_event(uiohook_event *const event) {
 	}
 }
 
+
 // Set the native modifier mask for future events.
 static inline void set_modifier_mask(unsigned short int mask) {
 	current_modifiers |= mask;
@@ -88,6 +89,29 @@ static inline void unset_modifier_mask(unsigned short int mask) {
 static inline unsigned short int get_modifiers() {
 	return current_modifiers;
 }
+
+// Initialize the modifier mask to the current modifiers.
+static void initialize_modifiers() {
+	current_modifiers = 0x0000;
+
+	if (GetKeyState(VK_LSHIFT)	 > 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
+	if (GetKeyState(VK_RSHIFT)   > 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
+	if (GetKeyState(VK_LCONTROL) > 0)	{ set_modifier_mask(MASK_CTRL_L);	}
+	if (GetKeyState(VK_RCONTROL) > 0)	{ set_modifier_mask(MASK_CTRL_R);	}
+	if (GetKeyState(VK_LMENU)    > 0)	{ set_modifier_mask(MASK_ALT_L);	}
+	if (GetKeyState(VK_RMENU)    > 0)	{ set_modifier_mask(MASK_ALT_R);	}
+	if (GetKeyState(VK_LWIN)     > 0)	{ set_modifier_mask(MASK_META_L);	}
+	if (GetKeyState(VK_RWIN)     > 0)	{ set_modifier_mask(MASK_META_R);	}
+
+	if (GetKeyState(VK_LBUTTON)	 > 0)	{ set_modifier_mask(MASK_BUTTON1);	}
+	if (GetKeyState(VK_RBUTTON)  > 0)	{ set_modifier_mask(MASK_BUTTON2);	}
+	if (GetKeyState(VK_MBUTTON)  > 0)	{ set_modifier_mask(MASK_BUTTON3);	}
+	if (GetKeyState(VK_XBUTTON1) > 0)	{ set_modifier_mask(MASK_BUTTON4);	}
+	if (GetKeyState(VK_XBUTTON2) > 0)	{ set_modifier_mask(MASK_BUTTON5);	}
+
+	// FIXME Add check for lock masks!
+}
+
 
 /* Retrieves the mouse wheel scroll type. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
@@ -621,24 +645,6 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 	}
 }
 
-void initialize_modifiers() {
-	current_modifiers = 0x0000;
-
-	if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
-	if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
-	if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
-	if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
-	if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
-	if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
-	if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
-	if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
-	
-	if (GetKeyState(VK_LBUTTON)	 < 0)	{ set_modifier_mask(MASK_BUTTON1);	}
-	if (GetKeyState(VK_RBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON2);	}
-	if (GetKeyState(VK_MBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON3);	}
-	if (GetKeyState(VK_XBUTTON1) < 0)	{ set_modifier_mask(MASK_BUTTON4);	}
-	if (GetKeyState(VK_XBUTTON2) < 0)	{ set_modifier_mask(MASK_BUTTON5);	}
-}
 
 // FIXME Do something else with this extern DLL main call.
 extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);

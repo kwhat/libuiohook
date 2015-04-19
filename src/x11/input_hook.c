@@ -31,6 +31,7 @@
 #ifdef USE_XKB
 #include <X11/XKBlib.h>
 #endif
+#include <X11/keysym.h>
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
@@ -66,6 +67,7 @@ typedef struct _hook_info {
 		XRecordContext context;
 	} ctrl;
 } hook_info;
+static hook_info *hook;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -130,6 +132,74 @@ static inline void unset_modifier_mask(uint16_t mask) {
 // Get the current native modifier mask state.
 static inline uint16_t get_modifiers() {
 	return current_modifiers;
+}
+
+// Initialize the modifier mask to the current modifiers.
+static void initialize_modifiers() {
+	current_modifiers = 0x0000;
+
+	KeyCode keycode;
+	char keymap[32];
+	XQueryKeymap(hook->ctrl.display, keymap);
+
+  	Window unused_win;
+    int unused_int;
+	unsigned int mask;
+	if (XQueryPointer(hook->ctrl.display, DefaultRootWindow(hook->ctrl.display), &unused_win, &unused_win, &unused_int, &unused_int, &unused_int, &unused_int, &mask)) {
+		if (mask & ShiftMask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R);	}
+		}
+		if (mask & ControlMask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);	}
+		}
+		if (mask & Mod1Mask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);	}
+		}
+		if (mask & Mod4Mask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);	}
+		}
+
+		if (mask & Button1Mask)	{ set_modifier_mask(MASK_BUTTON1);	}
+		if (mask & Button2Mask)	{ set_modifier_mask(MASK_BUTTON2);	}
+		if (mask & Button3Mask)	{ set_modifier_mask(MASK_BUTTON3);	}
+		if (mask & Button4Mask)	{ set_modifier_mask(MASK_BUTTON4);	}
+		if (mask & Button5Mask)	{ set_modifier_mask(MASK_BUTTON5);	}
+	}
+	else {
+		logger(LOG_LEVEL_WARN, "%s [%u]: XQueryPointer failed to get current modifiers!\n",
+				__FUNCTION__, __LINE__);
+
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);	}
+	}
+
+	// FIXME Add check for lock masks!
 }
 
 
@@ -604,7 +674,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	XRecordFreeData(recorded_data);
 }
 
-static hook_info *hook;
+
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 
@@ -645,6 +715,8 @@ UIOHOOK_API int hook_run() {
 						__FUNCTION__, __LINE__);
 			}
 
+			// Initialize starting modifiers.
+			initialize_modifiers();
 
 			// Check to make sure XRecord is installed and enabled.
 			int major, minor;

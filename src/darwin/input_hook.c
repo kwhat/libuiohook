@@ -1157,7 +1157,7 @@ UIOHOOK_API int hook_run() {
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
-	return UIOHOOK_SUCCESS;
+	return status;
 }
 
 UIOHOOK_API int hook_stop() {

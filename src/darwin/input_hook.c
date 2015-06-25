@@ -915,7 +915,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			}
 			else {
 				// In theory this *should* never execute.
-				logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled Darwin event! (%#X)\n",
+				logger(LOG_LEVEL_INFO, "%s [%u]: Unhandled Darwin event: %#X.\n",
 						__FUNCTION__, __LINE__, (unsigned int) type);
 			}
 			break;

@@ -294,6 +294,12 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 		case WM_SYSKEYUP:
 			process_key_released(timestamp, kbhook);
 			break;
+
+		default:
+			// In theory this *should* never execute.
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows keyboard event: %#X.\n",
+					__FUNCTION__, __LINE__, (unsigned int) wParam);
+			break;
 	}
 
 	LRESULT hook_result = -1;
@@ -589,7 +595,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 		
 		default:
 			// In theory this *should* never execute.
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Windows mouse event! (%#X)\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows mouse event: %#X.\n",
 					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}
@@ -641,7 +647,7 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 			break;
 			
 		default:
-			logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled Windows window event: %#X.\n",
+			logger(LOG_LEVEL_INFO, "%s [%u]: Unhandled Windows window event: %#X.\n",
 					__FUNCTION__, __LINE__, event);
 	}
 }

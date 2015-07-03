@@ -21,6 +21,40 @@
 #endif
 
 #include <ApplicationServices/ApplicationServices.h>
+
+#define NX_KEYTYPE_SOUND_UP		0
+#define NX_KEYTYPE_SOUND_DOWN		1
+#define NX_KEYTYPE_BRIGHTNESS_UP	2
+#define NX_KEYTYPE_BRIGHTNESS_DOWN	3
+#define NX_KEYTYPE_CAPS_LOCK		4
+#define NX_KEYTYPE_HELP			5
+#define NX_POWER_KEY			6
+#define	NX_KEYTYPE_MUTE			7
+#define NX_UP_ARROW_KEY			8
+#define NX_DOWN_ARROW_KEY		9
+#define NX_KEYTYPE_NUM_LOCK		10
+
+#define NX_KEYTYPE_CONTRAST_UP		11
+#define NX_KEYTYPE_CONTRAST_DOWN	12
+#define NX_KEYTYPE_LAUNCH_PANEL		13
+#define NX_KEYTYPE_EJECT		14
+#define NX_KEYTYPE_VIDMIRROR		15
+
+#define NX_KEYTYPE_PLAY			16
+#define NX_KEYTYPE_NEXT			17
+#define NX_KEYTYPE_PREVIOUS		18
+#define NX_KEYTYPE_FAST			19
+#define NX_KEYTYPE_REWIND		20
+
+#define NX_KEYTYPE_ILLUMINATION_UP	21
+#define NX_KEYTYPE_ILLUMINATION_DOWN	22
+#define NX_KEYTYPE_ILLUMINATION_TOGGLE	23
+
+#define	NX_NUMSPECIALKEYS		24 /* Maximum number of special keys */
+#define NX_NUM_SCANNED_SPECIALKEYS	24 /* First 24 special keys are */
+					  /* actively scanned in kernel */
+
+
 #ifndef USE_WEAK_IMPORT
 #include <dlfcn.h>
 #endif
@@ -46,9 +80,6 @@ static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
-
-// Flag for caps-lock key release.
-static Boolean caps_down = false;
 
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
@@ -377,11 +408,12 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 		
 		#ifdef USE_WEAK_IMPORT
 		if (dispatch_sync_f != NULL && dispatch_get_main_queue != NULL && !is_runloop_main) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using dispatch_sync_f for key typed events.\n", __FUNCTION__, __LINE__);
 			dispatch_sync_f(dispatch_get_main_queue(), tis_message, &keycode_to_lookup);
 		}
 		#else
 		if (dispatch_sync_f_f != NULL && dispatch_get_main_queue_f != NULL && !is_runloop_main) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: ********** dispatch_sync_f_f\n", __FUNCTION__, __LINE__);
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using *dispatch_sync_f_f for key typed events.\n", __FUNCTION__, __LINE__);
 			(*dispatch_sync_f_f)((*dispatch_get_main_queue_f)(), tis_message, &keycode_to_lookup);
 		}
 		#endif
@@ -585,6 +617,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			process_key_released(timestamp, event_ref);
 		}
 	}
+	/* FIXME This should produce a modifier mask for the caps lock key!
 	else if (keycode == kVK_CapsLock) {
 		// Process as a key pressed event.
 		process_key_pressed(timestamp, event_ref);
@@ -592,6 +625,80 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 		// Set the caps-lock flag for release.
 		caps_down = true;
 	}
+	*/
+}
+
+/* These events are totally and completely undocumented for the
+ * CGEvent type, but are required to grab media keys and caps-lock
+ * release.
+ */
+static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) {
+	CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
+	//CFIndex len = CFDataGetLength(data);
+	UInt8 *buffer = malloc(2);
+
+	// Buffer offset 117 contains the NX_KEYTYPE_ value and 118 has the up/down flag.
+	CFDataGetBytes(data, CFRangeMake(117, 2), buffer);
+	if (buffer[0] == NX_KEYTYPE_CAPS_LOCK) {
+		bool key_down = ! (buffer[1] & 0x01);
+
+		// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+		CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+
+		CGEventRef nx_event = CGEventCreateKeyboardEvent(src, kVK_CapsLock, key_down);
+		CGEventSetFlags(nx_event, CGEventGetFlags(event_ref));
+
+		if (key_down) {
+			process_key_pressed(timestamp, nx_event);
+		}
+		else {
+			process_key_released(timestamp, nx_event);
+		}
+
+		CFRelease(nx_event);
+		CFRelease(src);
+	}
+	else if (buffer[0] == NX_KEYTYPE_SOUND_UP) {
+		bool key_down = ! (buffer[1] & 0x01);
+
+		// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+		CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+
+		CGEventRef nx_event = CGEventCreateKeyboardEvent(src, kVK_VolumeUp, key_down);
+		CGEventSetFlags(nx_event, CGEventGetFlags(event_ref));
+
+		if (key_down) {
+			process_key_pressed(timestamp, nx_event);
+		}
+		else {
+			process_key_released(timestamp, nx_event);
+		}
+
+		CFRelease(nx_event);
+		CFRelease(src);
+	}
+	else if (buffer[0] == NX_KEYTYPE_SOUND_DOWN) {
+		bool key_down = ! (buffer[1] & 0x01);
+
+		// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+		CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+
+		CGEventRef nx_event = CGEventCreateKeyboardEvent(src, kVK_VolumeDown, key_down);
+		CGEventSetFlags(nx_event, CGEventGetFlags(event_ref));
+
+		if (key_down) {
+			process_key_pressed(timestamp, nx_event);
+		}
+		else {
+			process_key_released(timestamp, nx_event);
+		}
+
+		CFRelease(nx_event);
+		CFRelease(src);
+	}
+
+	free(buffer);
+	CFRelease(data);
 }
 
 static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_ref, uint16_t button) {
@@ -794,29 +901,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			break;
 
 		case NX_SYSDEFINED:
-			/* This event is undocumented and only here to provide key release
-			 * events for the caps-lock key.  It is not a perfect solution as
-			 * pressing the num-lock key will force a release even if you are
-			 * still holding the caps-lock down.  This could be mitigated in the
-			 * future by implementing some kind of key down/up stack to track
-			 * other press while caps_down == true and only release when
-			 * appropriate.  The reason it will work is because every other key
-			 * that produces this event also produces its own key down/up event!
-			 * The caps-lock is the only key that does not produce a release.
-			 */
-			if (caps_down) {
-				// It doesn't appear like we can modify the event coming in, so
-				// we will fabricate a new event.
-				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-				CGEventRef caps_event = CGEventCreateKeyboardEvent(src, kVK_CapsLock, false);
-				CGEventSetFlags(caps_event, CGEventGetFlags(event_ref));
-
-				process_key_released(timestamp, caps_event);
-
-				CFRelease(caps_event);
-				CFRelease(src);
-				caps_down = false;
-			}
+			process_system_key(timestamp, event_ref);
 			break;
 
 		case kCGEventLeftMouseDown:
@@ -975,8 +1060,8 @@ UIOHOOK_API int hook_run() {
 											CGEventMaskBit(kCGEventScrollWheel) |
 
 											// NOTE This event is undocumented and used
-											// exclusivly for caps-lock release.
-											EventCodeMask(NX_SYSDEFINED);
+											// for caps-lock release and multi-media keys.
+											CGEventMaskBit(NX_SYSDEFINED);
 				#endif
 				
 				// Create the event tap.

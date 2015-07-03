@@ -238,6 +238,7 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 			case 0x10:		// Function Keys
 			case 0x0B:		// Page Up
 			case 0x0C:		// Page Down
+			case 0x1F:		// Volume Up
 				count = 0;
 		}
 	}

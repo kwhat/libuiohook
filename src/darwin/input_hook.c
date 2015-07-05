@@ -20,41 +20,6 @@
 #include <config.h>
 #endif
 
-#include <ApplicationServices/ApplicationServices.h>
-
-#define NX_KEYTYPE_SOUND_UP		0
-#define NX_KEYTYPE_SOUND_DOWN		1
-#define NX_KEYTYPE_BRIGHTNESS_UP	2
-#define NX_KEYTYPE_BRIGHTNESS_DOWN	3
-#define NX_KEYTYPE_CAPS_LOCK		4
-#define NX_KEYTYPE_HELP			5
-#define NX_POWER_KEY			6
-#define	NX_KEYTYPE_MUTE			7
-#define NX_UP_ARROW_KEY			8
-#define NX_DOWN_ARROW_KEY		9
-#define NX_KEYTYPE_NUM_LOCK		10
-
-#define NX_KEYTYPE_CONTRAST_UP		11
-#define NX_KEYTYPE_CONTRAST_DOWN	12
-#define NX_KEYTYPE_LAUNCH_PANEL		13
-#define NX_KEYTYPE_EJECT		14
-#define NX_KEYTYPE_VIDMIRROR		15
-
-#define NX_KEYTYPE_PLAY			16
-#define NX_KEYTYPE_NEXT			17
-#define NX_KEYTYPE_PREVIOUS		18
-#define NX_KEYTYPE_FAST			19
-#define NX_KEYTYPE_REWIND		20
-
-#define NX_KEYTYPE_ILLUMINATION_UP	21
-#define NX_KEYTYPE_ILLUMINATION_DOWN	22
-#define NX_KEYTYPE_ILLUMINATION_TOGGLE	23
-
-#define	NX_NUMSPECIALKEYS		24 /* Maximum number of special keys */
-#define NX_NUM_SCANNED_SPECIALKEYS	24 /* First 24 special keys are */
-					  /* actively scanned in kernel */
-
-
 #ifndef USE_WEAK_IMPORT
 #include <dlfcn.h>
 #endif
@@ -628,78 +593,195 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 	*/
 }
 
-/* These events are totally and completely undocumented for the
- * CGEvent type, but are required to grab media keys and caps-lock
- * release.
+/* These events are totally undocumented for the CGEvent type, but are required to grab media and caps-lock keys.
  */
 static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) {
-	CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
-	//CFIndex len = CFDataGetLength(data);
-	UInt8 *buffer = malloc(2);
+	if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
+		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
+		//CFIndex len = CFDataGetLength(data);
 
-	// Buffer offset 117 contains the NX_KEYTYPE_ value and 118 has the up/down flag.
-	CFDataGetBytes(data, CFRangeMake(117, 2), buffer);
-	if (buffer[0] == NX_KEYTYPE_CAPS_LOCK) {
-		bool key_down = ! (buffer[1] & 0x01);
+		UInt8 *buffer = malloc(12);
+		CFDataGetBytes(data, CFRangeMake(108, 12), buffer);
 
-		// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
-		CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+		UInt32 subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+		if (subtype == 8) {
+			bool key_down = ! (buffer[10] & 0x01);
 
-		CGEventRef nx_event = CGEventCreateKeyboardEvent(src, kVK_CapsLock, key_down);
-		CGEventSetFlags(nx_event, CGEventGetFlags(event_ref));
+			if (buffer[9] == NX_KEYTYPE_CAPS_LOCK) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_CapsLock, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
 
-		if (key_down) {
-			process_key_pressed(timestamp, nx_event);
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_SOUND_UP) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_VolumeUp, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_SOUND_DOWN) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_VolumeDown, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_MUTE) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_Mute, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+
+			else if (buffer[9] == NX_KEYTYPE_EJECT) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_NX_Eject, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_PLAY) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Play, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_NEXT) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Next, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_PREVIOUS) {
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Previous, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+
+			/*
+			else if (buffer[9] == NX_KEYTYPE_FAST) {
+				bool key_down = ! (buffer[1] & 0x01);
+
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Fast, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			else if (buffer[9] == NX_KEYTYPE_REWIND) {
+				bool key_down = ! (buffer[1] & 0x01);
+
+				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
+				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Rewind, key_down);
+				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
+
+				if (key_down) {
+					process_key_pressed(timestamp, ns_event);
+				}
+				else {
+					process_key_released(timestamp, ns_event);
+				}
+
+				CFRelease(ns_event);
+				CFRelease(src);
+			}
+			*/
 		}
-		else {
-			process_key_released(timestamp, nx_event);
-		}
 
-		CFRelease(nx_event);
-		CFRelease(src);
+		free(buffer);
+		CFRelease(data);
 	}
-	else if (buffer[0] == NX_KEYTYPE_SOUND_UP) {
-		bool key_down = ! (buffer[1] & 0x01);
-
-		// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
-		CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-
-		CGEventRef nx_event = CGEventCreateKeyboardEvent(src, kVK_VolumeUp, key_down);
-		CGEventSetFlags(nx_event, CGEventGetFlags(event_ref));
-
-		if (key_down) {
-			process_key_pressed(timestamp, nx_event);
-		}
-		else {
-			process_key_released(timestamp, nx_event);
-		}
-
-		CFRelease(nx_event);
-		CFRelease(src);
-	}
-	else if (buffer[0] == NX_KEYTYPE_SOUND_DOWN) {
-		bool key_down = ! (buffer[1] & 0x01);
-
-		// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
-		CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-
-		CGEventRef nx_event = CGEventCreateKeyboardEvent(src, kVK_VolumeDown, key_down);
-		CGEventSetFlags(nx_event, CGEventGetFlags(event_ref));
-
-		if (key_down) {
-			process_key_pressed(timestamp, nx_event);
-		}
-		else {
-			process_key_released(timestamp, nx_event);
-		}
-
-		CFRelease(nx_event);
-		CFRelease(src);
-	}
-
-	free(buffer);
-	CFRelease(data);
 }
+
 
 static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_ref, uint16_t button) {
 	// Track the number of clicks.

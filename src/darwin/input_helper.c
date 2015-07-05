@@ -120,6 +120,7 @@ bool is_accessibility_enabled() {
 	return is_enabled;
 }
 
+
 UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
 	UniCharCount count = 0;
 	
@@ -396,7 +397,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 141 */	{ VC_UNDEFINED,			kVK_ANSI_KeypadEquals	},	// 0x8D
 	/* 142 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x8E
 	/* 143 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x8F
-	/* 144 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x90
+	/* 144 */	{ VC_UNDEFINED,			kVK_MEDIA_Previous		},	// 0x90
 	/* 145 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x91
 	/* 146 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x92
 	/* 147 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x93
@@ -405,7 +406,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 150 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x96
 	/* 151 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x97
 	/* 152 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x98
-	/* 153 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x99
+	/* 153 */	{ VC_UNDEFINED,			kVK_MEDIA_Next			},	// 0x99
 	/* 154 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x9A
 	/* 155 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x9B
 	/* 156 */	{ VC_UNDEFINED,			kVK_ANSI_KeypadEnter	},	// 0x9C
@@ -414,7 +415,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 159 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x9F
 	/* 160 */	{ VC_UNDEFINED,			kVK_Mute				},	// 0xA0
 	/* 161 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA1
-	/* 162 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA2
+	/* 162 */	{ VC_UNDEFINED,			kVK_MEDIA_Play			},	// 0xA2
 	/* 163 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA3
 	/* 164 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA4
 	/* 165 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA5
@@ -424,7 +425,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 169 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA9
 	/* 170 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAA
 	/* 171 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAB
-	/* 172 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAC
+	/* 172 */	{ VC_UNDEFINED,			kVK_NX_Eject			},	// 0xAC
 	/* 173 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAD
 	/* 174 */	{ VC_UNDEFINED,			kVK_VolumeDown			},	// 0xAE
 	/* 175 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAF
@@ -474,7 +475,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 219 */	{ VC_UNDEFINED,			kVK_Command				},	// 0xDB
 	/* 220 */	{ VC_UNDEFINED,			kVK_RightCommand		},	// 0xDC
 	/* 221 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDD
-	/* 222 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDE
+	/* 222 */	{ VC_UNDEFINED,			kVK_NX_Power			},	// 0xDE
 	/* 223 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDF
 	/* 224 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE0
 	/* 225 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE1
@@ -482,7 +483,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 227 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE3
 	/* 228 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE4
 	/* 229 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE5
-	/* 230 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE6
+	/* 230 */	{ VC_POWER,				kVK_Undefined			},	// 0xE6
 	/* 231 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE7
 	/* 232 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE8
 	/* 233 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE9
@@ -490,11 +491,11 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 235 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEB
 	/* 236 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEC
 	/* 237 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xED
-	/* 238 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEE
+	/* 238 */	{ VC_MEDIA_EJECT,		kVK_Undefined			},	// 0xEE
 	/* 239 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEF
-	/* 240 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF0
-	/* 241 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF1
-	/* 242 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF2
+	/* 240 */	{ VC_MEDIA_PLAY,		kVK_Undefined			},	// 0xF0
+	/* 241 */	{ VC_MEDIA_NEXT,		kVK_Undefined			},	// 0xF1
+	/* 242 */	{ VC_MEDIA_PREVIOUS,	kVK_Undefined			},	// 0xF2
 	/* 243 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF3
 	/* 244 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF4
 	/* 245 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF5
@@ -513,7 +514,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 uint16_t keycode_to_scancode(UInt64 keycode) {
 	uint16_t scancode = VC_UNDEFINED;
 
-	// Bound check 0 <= keycode < 128
+	// Bound check 0 <= keycode < 256
 	if (keycode < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 		scancode = keycode_scancode_table[keycode][0];
 	}

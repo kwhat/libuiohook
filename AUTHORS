@@ -4,7 +4,7 @@ Anthony Liguori <anthony@codemonkey.ws>
 	original version of the keycode_to_scancode function in x11/input_helper.c
 
 Iván Munsuri Ibáñez <munsuri@gmail.com>
-	contributed patches to include support for media keys and objective-c callbacks.
+	contributed patches to include support for media keys and objective-c callbacks in x11/input_hook.c
 
 Fabrice Bellard <fabrice@bellard.org>
 	xfree86_keycode_to_scancode_table lookup in x11/input_helper.c

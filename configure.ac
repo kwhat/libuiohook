@@ -176,6 +176,11 @@ AC_ARG_ENABLE([iokit],
 	[enable_iokit="$enableval"],
 	[enable_iokit="yes"])
 
+AC_ARG_ENABLE([objc],
+	AS_HELP_STRING([--without-objc],	[Disable objective-c (default: enabled)]),
+	[enable_objc="$enableval"],
+	[enable_objc="yes"])
+
 AC_ARG_ENABLE([weak-import],
 	AS_HELP_STRING([--enable-weak-import], [Enable support for weakly-linked symbols (default: disabled)]),
 	[enable_weak_import="$enableval"],
@@ -207,6 +212,11 @@ AS_IF(
 		AS_IF([test "x$enable_iokit" = "xyes"], [
 			AC_DEFINE([USE_IOKIT], 1, [Enable IOKit framework])
 			LIBS="${LIBS} -framework IOKit"
+		])
+
+		AS_IF([test "x$enable_objc" = "xyes"], [
+			AC_DEFINE([USE_OBJC], 1, [Enable objective-c])
+			LIBS="${LIBS} -lobjc"
 		])
 
 		AS_IF([test "x$enable_weak_import" = "xyes"], [

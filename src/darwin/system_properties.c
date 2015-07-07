@@ -30,13 +30,16 @@
 #include <IOKit/hidsystem/IOHIDLib.h>
 #include <IOKit/hidsystem/IOHIDParameter.h>
 #endif
+#ifdef USE_OBJC
+#include <objc/objc.h>
+#include <objc/objc-runtime.h>
+#endif
 #include <stdbool.h>
 #include <uiohook.h>
 
 #include "copyright.h"
 #include "logger.h"
 #include "input_helper.h"
-
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this

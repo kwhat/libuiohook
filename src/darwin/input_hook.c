@@ -23,6 +23,10 @@
 #ifndef USE_WEAK_IMPORT
 #include <dlfcn.h>
 #endif
+#ifdef USE_OBJC
+#include <objc/objc.h>
+#include <objc/objc-runtime.h>
+#endif
 #include <pthread.h>
 #include <stdbool.h>
 #include <sys/time.h>
@@ -36,6 +40,10 @@ typedef struct _hook_info {
 	CFRunLoopSourceRef source;
 	CFRunLoopObserverRef observer;
 } hook_info;
+
+#ifdef USE_OBJC
+static id auto_release_pool;
+#endif
 
 // Event runloop reference.
 CFRunLoopRef event_loop;
@@ -597,17 +605,28 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
  */
 static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) {
 	if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
+		#ifdef USE_OBJC
+		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com>
+		id event_data = objc_msgSend((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
+        int subtype = (int) objc_msgSend(event_data, sel_registerName("subtype"));
+        #else
 		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
 		//CFIndex len = CFDataGetLength(data);
-
 		UInt8 *buffer = malloc(12);
-		CFDataGetBytes(data, CFRangeMake(108, 12), buffer);
-
+		CFDataGetBytes(cf_data, CFRangeMake(108, 12), buffer);
 		UInt32 subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+        #endif
 		if (subtype == 8) {
-			bool key_down = ! (buffer[10] & 0x01);
+			#ifdef USE_OBJC
+			int data = (int) objc_msgSend(event_data, sel_registerName("data1"));
+			#endif
 
-			if (buffer[9] == NX_KEYTYPE_CAPS_LOCK) {
+			int key_code = (data & 0xFFFF0000) >> 16;
+			int key_flags = (data & 0xFFFF);
+			//int key_state = (key_flags & 0xFF00) >> 8;
+			bool key_down = (key_flags & 0x1) > 0;
+
+			if (key_code == NX_KEYTYPE_CAPS_LOCK) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_CapsLock, key_down);
@@ -623,7 +642,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-			else if (buffer[9] == NX_KEYTYPE_SOUND_UP) {
+			else if (key_code == NX_KEYTYPE_SOUND_UP) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_VolumeUp, key_down);
@@ -639,7 +658,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-			else if (buffer[9] == NX_KEYTYPE_SOUND_DOWN) {
+			else if (key_code == NX_KEYTYPE_SOUND_DOWN) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_VolumeDown, key_down);
@@ -655,7 +674,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-			else if (buffer[9] == NX_KEYTYPE_MUTE) {
+			else if (key_code == NX_KEYTYPE_MUTE) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_Mute, key_down);
@@ -672,7 +691,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(src);
 			}
 
-			else if (buffer[9] == NX_KEYTYPE_EJECT) {
+			else if (key_code == NX_KEYTYPE_EJECT) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_NX_Eject, key_down);
@@ -688,7 +707,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-			else if (buffer[9] == NX_KEYTYPE_PLAY) {
+			else if (key_code == NX_KEYTYPE_PLAY) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Play, key_down);
@@ -704,7 +723,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-			else if (buffer[9] == NX_KEYTYPE_NEXT) {
+			else if (key_code == NX_KEYTYPE_FAST) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Next, key_down);
@@ -720,7 +739,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-			else if (buffer[9] == NX_KEYTYPE_PREVIOUS) {
+			else if (key_code == NX_KEYTYPE_REWIND) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Previous, key_down);
@@ -736,49 +755,12 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 				CFRelease(ns_event);
 				CFRelease(src);
 			}
-
-			/*
-			else if (buffer[9] == NX_KEYTYPE_FAST) {
-				bool key_down = ! (buffer[1] & 0x01);
-
-				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
-				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Fast, key_down);
-				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
-
-				if (key_down) {
-					process_key_pressed(timestamp, ns_event);
-				}
-				else {
-					process_key_released(timestamp, ns_event);
-				}
-
-				CFRelease(ns_event);
-				CFRelease(src);
-			}
-			else if (buffer[9] == NX_KEYTYPE_REWIND) {
-				bool key_down = ! (buffer[1] & 0x01);
-
-				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
-				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
-				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Rewind, key_down);
-				CGEventSetFlags(ns_event, CGEventGetFlags(event_ref));
-
-				if (key_down) {
-					process_key_pressed(timestamp, ns_event);
-				}
-				else {
-					process_key_released(timestamp, ns_event);
-				}
-
-				CFRelease(ns_event);
-				CFRelease(src);
-			}
-			*/
 		}
 
+		#ifndef USE_OBJC
 		free(buffer);
 		CFRelease(data);
+		#endif
 	}
 }
 
@@ -1224,10 +1206,22 @@ UIOHOOK_API int hook_run() {
 									CFRunLoopAddSource(event_loop, hook->source, kCFRunLoopDefaultMode);
 									CFRunLoopAddObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
 
+									#ifdef USE_OBJC
+									// Create a garbage collector to handle Cocoa events correctly.
+									Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
+									id pool = class_createInstance(NSAutoreleasePool_class, 0);
+									auto_release_pool = objc_msgSend(pool, sel_registerName("init"));
+									#endif
+
 									// Start the hook thread runloop.
 									CFRunLoopRun();
-									
-									
+
+
+									#ifdef USE_OBJC
+									//objc_msgSend(auto_release_pool, sel_registerName("drain"));
+									objc_msgSend(auto_release_pool, sel_registerName("release"));
+									#endif
+
 									// Lock back up until we are done processing the exit.
 									if (CFRunLoopContainsObserver(event_loop, hook->observer, kCFRunLoopDefaultMode)) {
 										CFRunLoopRemoveObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);

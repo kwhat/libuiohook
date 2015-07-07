@@ -608,14 +608,14 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		#ifdef USE_OBJC
 		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com>
 		id event_data = objc_msgSend((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
-        int subtype = (int) objc_msgSend(event_data, sel_registerName("subtype"));
-        #else
+		int subtype = (int) objc_msgSend(event_data, sel_registerName("subtype"));
+		#else
 		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
 		//CFIndex len = CFDataGetLength(data);
 		UInt8 *buffer = malloc(12);
 		CFDataGetBytes(cf_data, CFRangeMake(108, 12), buffer);
 		UInt32 subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
-        #endif
+		#endif
 		if (subtype == 8) {
 			#ifdef USE_OBJC
 			int data = (int) objc_msgSend(event_data, sel_registerName("data1"));

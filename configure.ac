@@ -58,13 +58,13 @@ AC_CANONICAL_TARGET
 # Initialize automake.
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
+# Checks for programs.
+AC_PROG_CC
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+
 # Checks for language.
 AC_LANG([C])
 AC_PROG_CC_C99
-
-# Checks for programs.
-#AC_PROG_CC([gcc clang])
-m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 # Checks for header files
 AC_C_CONST

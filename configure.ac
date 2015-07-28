@@ -39,7 +39,7 @@ LTLDFLAGS="-version-info ${lt_current}:${lt_revision}:${lt_age}"
 # Initialize autoconf.
 AC_INIT([uiohook], [UIOHOOK_VERSION_STRING], [UIOHOOK_BUGS])
 
-AC_PREREQ(2.64)
+AC_PREREQ(2.65)
 
 AC_CONFIG_SRCDIR([include/uiohook.h])
 AC_CONFIG_FILES([

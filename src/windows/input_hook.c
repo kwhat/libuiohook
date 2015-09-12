@@ -164,6 +164,25 @@ static inline uint64_t get_unix_timestamp() {
 	return timestamp;
 }
 
+void unregister_running_hooks() {
+	// Stop the event hook and any timer still running.
+	if (win_event_hhook != NULL) {
+		UnhookWinEvent(win_event_hhook);
+		win_event_hhook = NULL;
+	}
+
+	// Destroy the native hooks.
+	if (keyboard_event_hhook != NULL) {
+		UnhookWindowsHookEx(keyboard_event_hhook);
+		keyboard_event_hhook = NULL;
+	}
+
+	if (mouse_event_hhook != NULL) {
+		UnhookWindowsHookEx(mouse_event_hhook);
+		mouse_event_hhook = NULL;
+	}
+}
+
 void hook_start_proc() {
 	// Get the local system time in UNIX epoch form.
 	uint64_t timestamp = get_unix_timestamp();
@@ -653,8 +672,6 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 }
 
 
-// FIXME Do something else with this extern DLL main call.
-extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 
@@ -667,16 +684,16 @@ UIOHOOK_API int hook_run() {
 		logger(LOG_LEVEL_INFO,	"%s [%u]: hInst was not set by DllMain().\n",
 				__FUNCTION__, __LINE__);
 
-		HINSTANCE hInstPE = GetModuleHandle(NULL);
-
-		if (hInstPE != NULL) {
-			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
+		hInst = GetModuleHandle(NULL);
+		if (hInst != NULL) {
+			// Initialize native input helper functions.
+            load_input_helper();
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
 					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 
-			status = FALSE;
+			status = UIOHOOK_ERROR_GET_MODULE_HANDLE;
 		}
 	}
 
@@ -727,22 +744,8 @@ UIOHOOK_API int hook_run() {
 	}
 	
 	
-	// Stop the event hook and any timer still running.
-	if (win_event_hhook != NULL) {
-		UnhookWinEvent(win_event_hhook);
-		win_event_hhook = NULL;
-	}
-
-	// Destroy the native hooks.
-	if (keyboard_event_hhook != NULL) {
-		UnhookWindowsHookEx(keyboard_event_hhook);
-		keyboard_event_hhook = NULL;
-	}
-
-	if (mouse_event_hhook != NULL) {
-		UnhookWindowsHookEx(mouse_event_hhook);
-		mouse_event_hhook = NULL;
-	}
+	// Unregister any hooks that may still be installed.
+	unregister_running_hooks();
 
 	// We must explicitly call the cleanup handler because Windows does not
 	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.

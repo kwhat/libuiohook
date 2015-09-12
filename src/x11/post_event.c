@@ -33,7 +33,7 @@
 #include "input_helper.h"
 #include "logger.h"
 
-extern Display *disp;
+extern Display *properties_disp;
 
 // This lookup table must be in the same order the masks are defined.
 #ifdef USE_XTEST
@@ -80,13 +80,13 @@ static inline XKeyEvent * create_key_event() {
 
 	event->serial = 0x00;
 	event->send_event = False;
-	event->display = disp;
+	event->display = properties_disp;
 	event->time = CurrentTime;
 	event->same_screen = True;
 
 	unsigned int mask;
-	if (!XQueryPointer(disp, DefaultRootWindow(disp), &(event->root), &(event->subwindow), &(event->x_root), &(event->y_root), &(event->x), &(event->y), &mask)) {
-		event->root = DefaultRootWindow(disp);
+	if (!XQueryPointer(properties_disp, DefaultRootWindow(properties_disp), &(event->root), &(event->subwindow), &(event->x_root), &(event->y_root), &(event->x), &(event->y), &mask)) {
+		event->root = DefaultRootWindow(properties_disp);
 		event->window = event->root;
 		event->subwindow = None;
 
@@ -108,11 +108,11 @@ static inline XButtonEvent * create_button_event() {
 
 	event->serial = 0x00;
 	event->send_event = False;
-	event->display = disp;
+	event->display = properties_disp;
 	event->time = CurrentTime;
 	event->same_screen = True;
 
-	event->root = DefaultRootWindow(disp);
+	event->root = DefaultRootWindow(properties_disp);
 	event->window = event->root;
 	event->subwindow = None;
 
@@ -132,11 +132,11 @@ static inline XMotionEvent * create_motion_event() {
 
 	event->serial = MotionNotify;
 	event->send_event = False;
-	event->display = disp;
+	event->display = properties_disp;
 	event->time = CurrentTime;
 	event->same_screen = True;
 	event->is_hint = NotifyNormal,
-	event->root = DefaultRootWindow(disp);
+	event->root = DefaultRootWindow(properties_disp);
 	event->window = event->root;
 	event->subwindow = None;
 
@@ -157,20 +157,20 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	// appropriate modifier keys.
 	for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(KeySym); i++) {
 		if (event->mask & 1 << i) {
-			XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, keymask_lookup[i]), True, 0);
+			XTestFakeKeyEvent(properties_disp, XKeysymToKeycode(properties_disp, keymask_lookup[i]), True, 0);
 		}
 	}
 
 	for (unsigned int i = 0; i < sizeof(btnmask_lookup) / sizeof(unsigned int); i++) {
 		if (event->mask & btnmask_lookup[i]) {
-			XTestFakeButtonEvent(disp, i + 1, True, 0);
+			XTestFakeButtonEvent(properties_disp, i + 1, True, 0);
 		}
 	}
 
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			XTestFakeKeyEvent(
-				disp,
+				properties_disp,
 				scancode_to_keycode(event->data.keyboard.keycode),
 				True,
 				0);
@@ -178,7 +178,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 		case EVENT_KEY_RELEASED:
 			XTestFakeKeyEvent(
-				disp,
+				properties_disp,
 				scancode_to_keycode(event->data.keyboard.keycode),
 				False,
 				0);
@@ -186,23 +186,23 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 
 		case EVENT_MOUSE_PRESSED:
-			XTestFakeButtonEvent(disp, event->data.mouse.button, True, 0);
+			XTestFakeButtonEvent(properties_disp, event->data.mouse.button, True, 0);
 			break;
 
 		case EVENT_MOUSE_RELEASED:
-			XTestFakeButtonEvent(disp, event->data.mouse.button, False, 0);
+			XTestFakeButtonEvent(properties_disp, event->data.mouse.button, False, 0);
 			break;
 
 		case EVENT_MOUSE_WHEEL:
 			// Wheel events should be the same as click events on X11.
 			// type, amount and rotation
 			if (event->data.wheel.rotation < 0) {
-				XTestFakeButtonEvent(disp, WheelUp, True, 0);
-				XTestFakeButtonEvent(disp, WheelUp, False, 0);
+				XTestFakeButtonEvent(properties_disp, WheelUp, True, 0);
+				XTestFakeButtonEvent(properties_disp, WheelUp, False, 0);
 			}
 			else {
-				XTestFakeButtonEvent(disp, WheelDown, True, 0);
-				XTestFakeButtonEvent(disp, WheelDown, False, 0);
+				XTestFakeButtonEvent(properties_disp, WheelDown, True, 0);
+				XTestFakeButtonEvent(properties_disp, WheelDown, False, 0);
 			}
 			break;
 
@@ -211,7 +211,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// The button masks are all applied with the modifier masks.
 
 		case EVENT_MOUSE_MOVED:
-			XTestFakeMotionEvent(disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
+			XTestFakeMotionEvent(properties_disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
 			break;
 
 
@@ -233,13 +233,13 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	// Release the previously held modifier keys used to fake the event mask.
 	for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(KeySym); i++) {
 		if (event->mask & 1 << i) {
-			XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, keymask_lookup[i]), False, 0);
+			XTestFakeKeyEvent(properties_disp, XKeysymToKeycode(properties_disp, keymask_lookup[i]), False, 0);
 		}
 	}
 
 	for (unsigned int i = 0; i < sizeof(btnmask_lookup) / sizeof(unsigned int); i++) {
 		if (event->mask & btnmask_lookup[i]) {
-			XTestFakeButtonEvent(disp, i + 1, False, 0);
+			XTestFakeButtonEvent(properties_disp, i + 1, False, 0);
 		}
 	}
 	#else
@@ -257,15 +257,15 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			x_event = (XEvent *) create_key_event();
 
 			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
+			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(properties_disp, scancode_to_keycode(event->data.keyboard.keycode));
 
 			if (event->type == EVENT_KEY_PRESSED) {
 				((XKeyEvent *) x_event)->type = KeyPress;
-				XSendEvent(disp, InputFocus, False, KeyPressMask, x_event);
+				XSendEvent(properties_disp, InputFocus, False, KeyPressMask, x_event);
 			}
 			else {
 				((XKeyEvent *) x_event)->type = KeyRelease;
-				XSendEvent(disp, InputFocus, False, KeyReleaseMask, x_event);
+				XSendEvent(properties_disp, InputFocus, False, KeyReleaseMask, x_event);
 			}
 
 			free(x_event);
@@ -309,16 +309,16 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				else {
 					((XButtonEvent *) x_event)->button = WheelDown;
 				}
-				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
+				XSendEvent(properties_disp, InputFocus, False, ButtonPressMask, x_event);
 			}
 
 			if (event->type == EVENT_KEY_PRESSED) {
 				((XButtonEvent *) x_event)->type = ButtonPress;
-				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
+				XSendEvent(properties_disp, InputFocus, False, ButtonPressMask, x_event);
 			}
 			else {
 				((XButtonEvent *) x_event)->type = ButtonRelease;
-				XSendEvent(disp, InputFocus, False, ButtonReleaseMask, x_event);
+				XSendEvent(properties_disp, InputFocus, False, ButtonReleaseMask, x_event);
 			}
 
 			free(x_event);
@@ -386,7 +386,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			}
 
 			// NOTE x_mask = NoEventMask.
-			XSendEvent(disp, InputFocus, False, x_mask, x_event);
+			XSendEvent(properties_disp, InputFocus, False, x_mask, x_event);
 			free(x_event);
 			break;
 
@@ -410,5 +410,5 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	#endif
 
 	// Don't forget to flush!
-	XFlush(disp);
+	XFlush(properties_disp);
 }

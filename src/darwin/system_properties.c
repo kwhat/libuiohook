@@ -33,7 +33,6 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
-#include "copyright.h"
 #include "logger.h"
 #include "input_helper.h"
 
@@ -448,9 +447,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
-	// Display the copyright on library load.
-	COPYRIGHT();
-
 	// Initialize Native Input Functions.
 	load_input_helper();
 }
@@ -458,6 +454,9 @@ void on_library_load() {
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
+	// Disable the event hook.
+	//hook_stop();
+
 	// Cleanup native input functions.
 	unload_input_helper();
 }

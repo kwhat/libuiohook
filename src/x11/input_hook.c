@@ -48,7 +48,6 @@
 #include "logger.h"
 #include "input_helper.h"
 
-
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
 static bool running;
@@ -893,8 +892,8 @@ UIOHOOK_API int hook_stop() {
 
 					// See Bug 42356 for more information.
 					// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-					XFlush(hook->ctrl.display);
-					//XSync(hook->ctrl.display, True);
+					//XFlush(hook->ctrl.display);
+					XSync(hook->ctrl.display, False);
 
 					status = UIOHOOK_SUCCESS;
 				}

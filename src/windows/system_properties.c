@@ -23,12 +23,14 @@
 #include <uiohook.h>
 #include <windows.h>
 
-#include "copyright.h"
 #include "logger.h"
 #include "input_helper.h"
 
-// Global Variables.
-HINSTANCE hInst = NULL;
+// The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
+HINSTANCE hInst;
+
+// input_hook.c
+extern void unregister_running_hooks();
 
 
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
@@ -121,9 +123,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 	switch (fdwReason) {
 		case DLL_PROCESS_ATTACH:
-			// Display the copyright on library load.
-			COPYRIGHT();
-
 			// Save the DLL address.
 			hInst = hInstDLL;
 
@@ -132,6 +131,9 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved) {
 			break;
 
 		case DLL_PROCESS_DETACH:
+			// Unregister any hooks that may still be installed.
+			unregister_running_hooks();
+
 			// Deinitialize native input helper functions.
 			unload_input_helper();
 			break;

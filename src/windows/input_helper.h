@@ -47,12 +47,7 @@
 #include <limits.h>
 #include <windows.h>
 
-/* Assume that any compiler defining _MSC_VER knows about LPFN_ISWOW64PROCESS.
- * This assertion has not been tested.  If you are using a compiler that
- * defines _MSC_VER but does not define LPFN_ISWOW64PROCESS, such as ICC for
- * windows, please file a bug report.
- */
-#ifndef _MSC_VER
+#ifndef LPFN_ISWOW64PROCESS
 typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 #endif
 

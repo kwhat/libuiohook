@@ -60,7 +60,7 @@ int main() {
 		fprintf(stdout,	"Auto Repeat Delay:\t%ld\n", repeat_delay);
 	}
 	else {
-		fprintf(stderr,	"Failed to aquire keyboard auto repeat delay!\n");
+		fprintf(stderr,	"Failed to acquire keyboard auto repeat delay!\n");
 	}
 
 	// Retrieves the mouse acceleration multiplier.
@@ -69,7 +69,7 @@ int main() {
 		fprintf(stdout,	"Mouse Acceleration Multiplier:\t%ld\n", acceleration_multiplier);
 	}
 	else {
-		fprintf(stderr,	"Failed to aquire mouse acceleration multiplier!\n");
+		fprintf(stderr,	"Failed to acquire mouse acceleration multiplier!\n");
 	}
 
 	// Retrieves the mouse acceleration threshold.
@@ -78,7 +78,7 @@ int main() {
 		fprintf(stdout,	"Mouse Acceleration Threshold:\t%ld\n", acceleration_threshold);
 	}
 	else {
-		fprintf(stderr,	"Failed to aquire mouse acceleration threshold!\n");
+		fprintf(stderr,	"Failed to acquire mouse acceleration threshold!\n");
 	}
 
 	// Retrieves the mouse sensitivity.
@@ -87,7 +87,7 @@ int main() {
 		fprintf(stdout,	"Mouse Sensitivity:\t%ld\n", sensitivity);
 	}
 	else {
-		fprintf(stderr,	"Failed to aquire keyboard auto repeat rate!\n");
+		fprintf(stderr,	"Failed to acquire keyboard auto repeat rate!\n");
 	}
 
 	// Retrieves the double/triple click interval.
@@ -96,7 +96,7 @@ int main() {
 		fprintf(stdout,	"Multi-Click Time:\t%ld\n", click_time);
 	}
 	else {
-		fprintf(stderr,	"Failed to aquire keyboard auto repeat rate!\n");
+		fprintf(stderr,	"Failed to acquire keyboard auto repeat rate!\n");
 	}
 
 	return EXIT_SUCCESS;

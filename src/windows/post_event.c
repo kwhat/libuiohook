@@ -180,13 +180,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
-	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -223,13 +220,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
-	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -242,9 +236,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// type, amount and rotation?
 			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
 			
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
-			
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
+
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -256,13 +251,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_MOVED:
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
-	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;

@@ -29,6 +29,7 @@
 #include <sys/time.h>
 #include <uiohook.h>
 #ifdef USE_XKB
+#include <xcb/xkb.h>
 #include <X11/XKBlib.h>
 #endif
 #include <X11/keysym.h>
@@ -44,6 +45,13 @@
 #pragma message("*** Warning: Xinerama or XRandR support is required to produce cross-platform mouse coordinates for multi-head configurations!")
 #pragma message("... Assuming single-head display.")
 #endif
+
+#include <xkbcommon/xkbcommon.h>
+#include <X11/Xlib-xcb.h>
+#include <xkbcommon/xkbcommon-x11.h>
+#include <X11/extensions/XKBrules.h>
+
+static xcb_connection_t *xcb_conn;
 
 #include "logger.h"
 #include "input_helper.h"
@@ -67,6 +75,11 @@ typedef struct _hook_info {
 	} ctrl;
 } hook_info;
 static hook_info *hook;
+
+
+struct xkb_context *xkb_ctx;
+// XKB State for xkbcommon.
+struct xkb_state *state;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -202,6 +215,7 @@ static void initialize_modifiers() {
 }
 
 
+
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
@@ -238,7 +252,88 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		if (data->type == KeyPress) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
+
+			int32_t device_id = xkb_x11_get_core_keyboard_device_id(xcb_conn);
+			if (false && device_id >= 0) {
+				struct xkb_keymap *keymap = xkb_x11_keymap_new_from_device(xkb_ctx, xcb_conn, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+    			struct xkb_state *state = xkb_x11_state_new_from_device(keymap, xcb_conn, device_id);
+
+    			KeySym keysym = xkb_state_key_get_one_sym(state, keycode);
+				logger(LOG_LEVEL_ERROR,
+					"%s [%u]: KEYSYM TEST 1 %d\n",
+					__FUNCTION__, __LINE__, keysym);
+
+				// If the pressed event was not consumed...
+				if (event.reserved ^ 0x01) {
+					char buffer[8];
+    				int size = xkb_state_key_get_utf8(state, keycode, buffer, 8);
+    				if (size > 0) {
+						logger(LOG_LEVEL_ERROR,
+							"%s [%u]: KEY CHAR TEST 1 %d %s\n",
+							__FUNCTION__, __LINE__, size, buffer);
+    				}
+    			}
+			}
+			else {
+				// Evdev fallback
+				logger(LOG_LEVEL_ERROR,
+            					"%s [%u]: Unable to retrieve core keyboard device id! (%d)\n",
+            					__FUNCTION__, __LINE__, device_id);
+
+			    XkbRF_VarDefsRec xkb_rf;
+                struct xkb_rule_names names = {
+                    .rules = "base",
+                    .model = "us",
+                    .layout = "pc105",
+                    .variant = NULL,
+                    .options = NULL
+                };
+
+				char *tmp;
+            	Bool success = XkbRF_GetNamesProp(hook->ctrl.display, &tmp, &xkb_rf);
+                if (success) {
+            		names.rules = tmp;
+            		names.model = xkb_rf.model;
+            		names.layout = xkb_rf.layout;
+            		names.variant = xkb_rf.variant;
+            		names.options = xkb_rf.options;
+
+            		logger(LOG_LEVEL_ERROR,
+                    		"%s [%u]: SUCCESS:\n%s \n%s \n%s \n%s \n%s \n%d\n",
+                    		__FUNCTION__, __LINE__, names.rules, names.model, names.layout, names.variant, names.options, xkb_rf.num_extra);
+                }
+                else {
+					logger(LOG_LEVEL_ERROR,
+						"%s [%u]: ERRROR REEREROR\n",
+						__FUNCTION__, __LINE__, device_id);
+                }
+
+				struct xkb_keymap *keymap = xkb_keymap_new_from_names(xkb_ctx, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
+				struct xkb_state *state = xkb_state_new(keymap);
+
+    			KeySym keysym = xkb_state_key_get_one_sym(state, keycode);
+				logger(LOG_LEVEL_ERROR,
+					"%s [%u]: KEYSYM TEST 3 %d\n",
+					__FUNCTION__, __LINE__, keysym);
+
+				// If the pressed event was not consumed...
+				if (event.reserved ^ 0x01) {
+					char buffer[8];
+    				int size = xkb_state_key_get_utf8(state, keycode, buffer, 8);
+    				if (size > 0) {
+						logger(LOG_LEVEL_ERROR,
+							"%s [%u]: KEY CHAR TEST 3 %d %s\n",
+							__FUNCTION__, __LINE__, size, buffer);
+    				}
+    			}
+			}
+
+
 			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+			logger(LOG_LEVEL_ERROR,
+				"%s [%u]: KEYSYM TEST 2 %d\n",
+				__FUNCTION__, __LINE__, keysym);
+
 			unsigned short int scancode = keycode_to_scancode(keycode);
 
 			// TODO If you have a better suggestion for this ugly, let me know.
@@ -275,6 +370,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				// Check to make sure the key is printable.
 				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
 				if (count > 0) {
+					logger(LOG_LEVEL_ERROR,
+						"%s [%u]: KEY CHAR TEST 1 %d %lc\n",
+						__FUNCTION__, __LINE__, count, buffer[0]);
+
 					// NOTE This will currently always be a single iteration.
 					//for (unsigned int i = 0; i < count; i++) {
 						// Populate key typed event.
@@ -674,186 +773,245 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 }
 
 
+static inline bool enable_key_repeate() {
+	// Attempt to setup detectable autorepeat.
+	// NOTE: is_auto_repeat is NOT stdbool!
+	Bool is_auto_repeat = False;
+	#ifdef USE_XKB
+	// Enable detectable auto-repeat.
+	XkbSetDetectableAutoRepeat(hook->ctrl.display, True, &is_auto_repeat);
+	#else
+	XAutoRepeatOn(hook->ctrl.display);
+
+	XKeyboardState kb_state;
+	XGetKeyboardControl(hook->ctrl.display, &kb_state);
+
+	is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
+	#endif
+
+	return is_auto_repeat;
+}
+
+
+static inline int xrecord_block() {
+	int status = UIOHOOK_FAILURE;
+
+	// Save the data display associated with this hook so it is passed to each event.
+	//XPointer closeure = (XPointer) (ctrl_display);
+	XPointer closeure = NULL;
+
+	#ifdef USE_XRECORD_ASYNC
+	// Async requires that we loop so that our thread does not return.
+	if (XRecordEnableContextAsync(hook->data.display, context, hook_event_proc, closeure) != 0) {
+		// Time in MS to sleep the runloop.
+		int timesleep = 100;
+
+		// Allow the thread loop to block.
+		pthread_mutex_lock(&hook_xrecord_mutex);
+		running = true;
+
+		do {
+			// Unlock the mutex from the previous iteration.
+			pthread_mutex_unlock(&hook_xrecord_mutex);
+
+			XRecordProcessReplies(hook->data.display);
+
+			// Prevent 100% CPU utilization.
+			struct timeval tv;
+			gettimeofday(&tv, NULL);
+
+			struct timespec ts;
+			ts.tv_sec = time(NULL) + timesleep / 1000;
+			ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (timesleep % 1000);
+			ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
+			ts.tv_nsec %= (1000 * 1000 * 1000);
+
+			pthread_mutex_lock(&hook_xrecord_mutex);
+			pthread_cond_timedwait(&hook_xrecord_cond, &hook_xrecord_mutex, &ts);
+		} while (running);
+
+		// Unlock after loop exit.
+		pthread_mutex_unlock(&hook_xrecord_mutex);
+
+		// Set the exit status.
+		status = NULL;
+	}
+	#else
+	// Sync blocks until XRecordDisableContext() is called.
+	if (XRecordEnableContext(hook->data.display, hook->ctrl.context, hook_event_proc, closeure) != 0) {
+		status = UIOHOOK_SUCCESS;
+	}
+	#endif
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordEnableContext failure!\n",
+			__FUNCTION__, __LINE__);
+
+		#ifdef USE_XRECORD_ASYNC
+		// Reset the running state.
+		pthread_mutex_lock(&hook_xrecord_mutex);
+		running = false;
+		pthread_mutex_unlock(&hook_xrecord_mutex);
+		#endif
+
+		// Set the exit status.
+		status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
+	}
+
+	return status;
+}
+
+static inline int xrecord_alloc() {
+	int status = UIOHOOK_FAILURE;
+
+	// Make sure the data display is synchronized to prevent late event delivery!
+	// See Bug 42356 for more information.
+	// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
+	XSynchronize(hook->data.display, True);
+
+	// Setup XRecord range.
+	XRecordClientSpec clients = XRecordAllClients;
+	hook->data.range = XRecordAllocRange();
+	if (hook->data.range != NULL) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n",
+				__FUNCTION__, __LINE__);
+
+		// Create XRecord Context.
+		hook->data.range->device_events.first = KeyPress;
+		hook->data.range->device_events.last = MotionNotify;
+
+		// Note that the documentation for this function is incorrect,
+		// hook->data.display should be used!
+		// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
+		hook->ctrl.context = XRecordCreateContext(hook->data.display, XRecordFromServerTime, &clients, 1, &hook->data.range, 1);
+		if (hook->ctrl.context != 0) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
+					__FUNCTION__, __LINE__);
+
+			// Block until hook_stop() is called.
+			status = xrecord_block();
+
+			// Free up the context if it was set.
+			XRecordFreeContext(hook->data.display, hook->ctrl.context);
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
+					__FUNCTION__, __LINE__);
+
+			// Set the exit status.
+			status = UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
+		}
+
+		// Free the XRecord range if it was set.
+		XFree(hook->data.range);
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordAllocRange failure!\n",
+				__FUNCTION__, __LINE__);
+
+		// Set the exit status.
+		status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
+	}
+
+	return status;
+}
+
+static inline int xrecord_query() {
+	int status = UIOHOOK_FAILURE;
+
+	// Check to make sure XRecord is installed and enabled.
+	int major, minor;
+	if (XRecordQueryVersion(hook->ctrl.display, &major, &minor) != 0) {
+		logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n",
+				__FUNCTION__, __LINE__, major, minor);
+
+		status = xrecord_alloc();
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecord is not currently available!\n",
+				__FUNCTION__, __LINE__);
+
+		status = UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
+	}
+
+	return status;
+}
+
+static inline int xrecord_start() {
+	int status = UIOHOOK_FAILURE;
+
+	// Open the control display for XRecord.
+	hook->ctrl.display = XOpenDisplay(NULL);
+
+	// Open a data display for XRecord.
+	// NOTE This display must be opened on the same thread as XRecord.
+	hook->data.display = XOpenDisplay(NULL);
+	if (hook->ctrl.display != NULL && hook->data.display != NULL) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
+				__FUNCTION__, __LINE__);
+
+		bool is_auto_repeat = enable_key_repeate();
+		if (is_auto_repeat) {
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
+					__FUNCTION__, __LINE__);
+		}
+		else {
+			logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
+					__FUNCTION__, __LINE__);
+		}
+
+		// Initialize starting modifiers.
+		initialize_modifiers();
+
+		// Open XCB Connection
+		xcb_conn = XGetXCBConnection(hook->ctrl.display);
+		int xcb_status = xcb_connection_has_error(xcb_conn);
+		if (xcb_status <= 0) {
+			// Initialize xkbcommon context.
+			xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+			if (xkb_ctx != NULL) {
+				status = xrecord_query();
+			}
+			else {
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: xkb_context_new failure!\n",
+						__FUNCTION__, __LINE__);
+			}
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: xcb_connect failure! (%d)\n",
+					__FUNCTION__, __LINE__, xcb_status);
+		}
+
+        xcb_disconnect(xcb_conn);
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
+				__FUNCTION__, __LINE__);
+
+		status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
+	}
+
+	// Close down the XRecord data display.
+	if (hook->data.display != NULL) {
+		XCloseDisplay(hook->data.display);
+		hook->data.display = NULL;
+	}
+
+	// Close down the XRecord control display.
+	if (hook->ctrl.display) {
+		XCloseDisplay(hook->ctrl.display);
+		hook->ctrl.display = NULL;
+	}
+
+	return status;
+}
+
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 
 	// Hook data for future cleanup.
 	hook = malloc(sizeof(hook_info));
 	if (hook != NULL) {
-		// Open the control display for XRecord.
-		hook->ctrl.display = XOpenDisplay(NULL);
-
-		// Open a data display for XRecord.
-		// NOTE This display must be opened on the same thread as XRecord.
-		hook->data.display = XOpenDisplay(NULL);
-		if (hook->ctrl.display != NULL && hook->data.display != NULL) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
-					__FUNCTION__, __LINE__);
-
-			// Attempt to setup detectable autorepeat.
-			// NOTE: is_auto_repeat is NOT stdbool!
-			Bool is_auto_repeat = False;
-			#ifdef USE_XKB
-			// Enable detectable autorepeat.
-			XkbSetDetectableAutoRepeat(hook->ctrl.display, True, &is_auto_repeat);
-			#else
-			XAutoRepeatOn(hook->ctrl.display);
-
-			XKeyboardState kb_state;
-			XGetKeyboardControl(hook->ctrl.display, &kb_state);
-
-			is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
-			#endif
-
-			if (is_auto_repeat) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successfully enabled detectable autorepeat.\n",
-						__FUNCTION__, __LINE__);
-			}
-			else {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
-						__FUNCTION__, __LINE__);
-			}
-
-			// Initialize starting modifiers.
-			initialize_modifiers();
-
-			// Check to make sure XRecord is installed and enabled.
-			int major, minor;
-			if (XRecordQueryVersion(hook->ctrl.display, &major, &minor) != 0) {
-				logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n",
-						__FUNCTION__, __LINE__, major, minor);
-
-				// Make sure the data display is synchronized to prevent late event delivery!
-				// See Bug 42356 for more information.
-				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-				XSynchronize(hook->data.display, True);
-
-				// Setup XRecord range.
-				XRecordClientSpec clients = XRecordAllClients;
-				hook->data.range = XRecordAllocRange();
-				if (hook->data.range != NULL) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n",
-							__FUNCTION__, __LINE__);
-
-					// Create XRecord Context.
-					hook->data.range->device_events.first = KeyPress;
-					hook->data.range->device_events.last = MotionNotify;
-
-					// Note that the documentation for this function is incorrect,
-					// hook->data.display should be used!
-					// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
-					hook->ctrl.context = XRecordCreateContext(hook->data.display, XRecordFromServerTime, &clients, 1, &hook->data.range, 1);
-					if (hook->ctrl.context != 0) {
-						logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
-								__FUNCTION__, __LINE__);
-
-						// Save the data display associated with this hook so it is passed to each event.
-						//XPointer closeure = (XPointer) (ctrl_display);
-						XPointer closeure = NULL;
-
-						#ifdef USE_XRECORD_ASYNC
-						// Async requires that we loop so that our thread does not return.
-						if (XRecordEnableContextAsync(hook->data.display, context, hook_event_proc, closeure) != 0) {
-							// Time in MS to sleep the runloop.
-							int timesleep = 100;
-
-							// Allow the thread loop to block.
-							pthread_mutex_lock(&hook_xrecord_mutex);
-							running = true;
-
-							do {
-								// Unlock the mutex from the previous iteration.
-								pthread_mutex_unlock(&hook_xrecord_mutex);
-
-								XRecordProcessReplies(hook->data.display);
-
-								// Prevent 100% CPU utilization.
-								struct timeval tv;
-								gettimeofday(&tv, NULL);
-
-								struct timespec ts;
-								ts.tv_sec = time(NULL) + timesleep / 1000;
-								ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (timesleep % 1000);
-								ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-								ts.tv_nsec %= (1000 * 1000 * 1000);
-
-								pthread_mutex_lock(&hook_xrecord_mutex);
-								pthread_cond_timedwait(&hook_xrecord_cond, &hook_xrecord_mutex, &ts);
-							} while (running);
-
-							// Unlock after loop exit.
-							pthread_mutex_unlock(&hook_xrecord_mutex);
-
-							// Set the exit status.
-							status = NULL;
-						}
-						#else
-						// Sync blocks until XRecordDisableContext() is called.
-						if (XRecordEnableContext(hook->data.display, hook->ctrl.context, hook_event_proc, closeure) != 0) {
-							status = UIOHOOK_SUCCESS;
-						}
-						#endif
-						else {
-							logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordEnableContext failure!\n",
-								__FUNCTION__, __LINE__);
-
-							#ifdef USE_XRECORD_ASYNC
-							// Reset the running state.
-							pthread_mutex_lock(&hook_xrecord_mutex);
-							running = false;
-							pthread_mutex_unlock(&hook_xrecord_mutex);
-							#endif
-
-							// Set the exit status.
-							status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
-						}
-
-						// Free up the context if it was set.
-						XRecordFreeContext(hook->data.display, hook->ctrl.context);
-					}
-					else {
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordCreateContext failure!\n",
-								__FUNCTION__, __LINE__);
-
-						// Set the exit status.
-						status = UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
-					}
-
-					// Free the XRecord range if it was set.
-					XFree(hook->data.range);
-				}
-				else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordAllocRange failure!\n",
-							__FUNCTION__, __LINE__);
-
-					// Set the exit status.
-					status = UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE;
-				}
-			}
-			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecord is not currently available!\n",
-						__FUNCTION__, __LINE__);
-
-				status = UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
-			}
-
-			// Close down the XRecord data display.
-			if (hook->data.display != NULL) {
-				XCloseDisplay(hook->data.display);
-			}
-
-			// Close down any open displays.
-			if (hook->ctrl.display) {
-				XCloseDisplay(hook->ctrl.display);
-			}
-		}
-		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
-					__FUNCTION__, __LINE__);
-
-			// Set the exit status.
-			status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
-		}
+		status = xrecord_start();
 
 		// Free data associated with this hook.
 		free(hook);
@@ -865,7 +1023,6 @@ UIOHOOK_API int hook_run() {
 
 		status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 	}
-
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);

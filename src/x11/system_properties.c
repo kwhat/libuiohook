@@ -446,6 +446,9 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
+	// Make sure we are initialized for threading.
+	XInitThreads();
+
 	// Open local display.
 	properties_disp = XOpenDisplay(XDisplayName(NULL));
 	if (properties_disp == NULL) {

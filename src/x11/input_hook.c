@@ -31,6 +31,7 @@
 #ifdef USE_XKB
 #include <X11/XKBlib.h>
 #endif
+#include <X11/keysym.h>
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
@@ -46,7 +47,6 @@
 
 #include "logger.h"
 #include "input_helper.h"
-
 
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
@@ -66,6 +66,7 @@ typedef struct _hook_info {
 		XRecordContext context;
 	} ctrl;
 } hook_info;
+static hook_info *hook;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -88,8 +89,6 @@ static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
-static Time previous_time = (Time) (~0x00);
-static uint64_t offset_time = 0;
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -134,33 +133,81 @@ static inline uint16_t get_modifiers() {
 	return current_modifiers;
 }
 
+// Initialize the modifier mask to the current modifiers.
+static void initialize_modifiers() {
+	current_modifiers = 0x0000;
 
-static inline uint64_t get_event_timestamp(XRecordInterceptData *recorded_data) {
-	// Check for event clock reset.
-	if (previous_time > recorded_data->server_time) {
-		// Get the local system time in UTC.
-		gettimeofday(&system_time, NULL);
+	KeyCode keycode;
+	char keymap[32];
+	XQueryKeymap(hook->ctrl.display, keymap);
 
-		// Convert the local system time to a Unix epoch in MS.
-		uint64_t epoch_time = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+  	Window unused_win;
+    int unused_int;
+	unsigned int mask;
+	if (XQueryPointer(hook->ctrl.display, DefaultRootWindow(hook->ctrl.display), &unused_win, &unused_win, &unused_int, &unused_int, &unused_int, &unused_int, &mask)) {
+		if (mask & ShiftMask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R);	}
+		}
+		if (mask & ControlMask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);	}
+		}
+		if (mask & Mod1Mask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);	}
+		}
+		if (mask & Mod4Mask) {
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_L);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);	}
+			keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_R);
+			if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);	}
+		}
 
-		// Calculate the offset based on the system and hook times.
-		offset_time = epoch_time - recorded_data->server_time;
-
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
-				__FUNCTION__, __LINE__, offset_time);
+		if (mask & Button1Mask)	{ set_modifier_mask(MASK_BUTTON1);	}
+		if (mask & Button2Mask)	{ set_modifier_mask(MASK_BUTTON2);	}
+		if (mask & Button3Mask)	{ set_modifier_mask(MASK_BUTTON3);	}
+		if (mask & Button4Mask)	{ set_modifier_mask(MASK_BUTTON4);	}
+		if (mask & Button5Mask)	{ set_modifier_mask(MASK_BUTTON5);	}
 	}
-	// Set the previous event time for click reset check above.
-	previous_time = recorded_data->server_time;
+	else {
+		logger(LOG_LEVEL_WARN, "%s [%u]: XQueryPointer failed to get current modifiers!\n",
+				__FUNCTION__, __LINE__);
 
-	// Set the event time to the server time + offset.
-	return recorded_data->server_time + offset_time;
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_L);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);	}
+		keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_R);
+		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);	}
+	}
+
+	// FIXME Add check for lock masks!
 }
 
 
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp(recorded_data);
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
 
 	if (recorded_data->category == XRecordStartOfData) {
 		// Populate the hook start event.
@@ -187,7 +234,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	else if (recorded_data->category == XRecordFromServer || recorded_data->category == XRecordFromClient) {
 		// Get XRecord data.
 		XRecordDatum *data = (XRecordDatum *) recorded_data->data;
-	
+
 		if (data->type == KeyPress) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
@@ -224,7 +271,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
 				wchar_t buffer[1];
-				
+
 				// Check to make sure the key is printable.
 				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
 				if (count > 0) {
@@ -316,7 +363,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.wheel.x -= screens[0].x;
 					event.data.wheel.y -= screens[0].y;
 				}
-				
+
 				if (screens != NULL) {
 					free(screens);
 				}
@@ -432,7 +479,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.mouse.x -= screens[0].x;
 					event.data.mouse.y -= screens[0].y;
 				}
-				
+
 				if (screens != NULL) {
 					free(screens);
 				}
@@ -484,7 +531,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						// Do not set modifier masks past button MASK_BUTTON5.
 						break;
 				}
-				
+
 				// Populate mouse released event.
 				event.time = timestamp;
 				event.reserved = 0x00;
@@ -504,7 +551,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.mouse.x -= screens[0].x;
 					event.data.mouse.y -= screens[0].y;
 				}
-				
+
 				if (screens != NULL) {
 					free(screens);
 				}
@@ -539,7 +586,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 						event.data.mouse.x -= screens[0].x;
 						event.data.mouse.y -= screens[0].y;
 					}
-					
+
 					if (screens != NULL) {
 						free(screens);
 					}
@@ -553,14 +600,20 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					// Fire mouse clicked event.
 					dispatch_event(&event);
 				}
+
+				// Reset the number of clicks.
+				if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+					// Reset the click count.
+					click_count = 0;
+				}
 			}
 		}
 		else if (data->type == MotionNotify) {
 			// Reset the click count.
-			if (click_count != 0 && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+			if (click_count != 0 && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
 				click_count = 0;
 			}
-
+			
 			// Populate mouse move event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -586,10 +639,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
 			uint8_t count;
-			screen_data *screens = hook_get_screen_info(&count);
+			screen_data *screens = hook_create_screen_info(&count);
 			if (count > 1) {
 				event.data.mouse.x -= screens[0].x;
 				event.data.mouse.y -= screens[0].y;
+			}
+
+			if (screens != NULL) {
+				free(screens);
 			}
 			#endif
 
@@ -602,7 +659,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		}
 		else {
 			// In theory this *should* never execute.
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled X11 event! (%#X)\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled X11 event: %#X.\n",
 					__FUNCTION__, __LINE__, (unsigned int) data->type);
 		}
 	}
@@ -616,10 +673,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	XRecordFreeData(recorded_data);
 }
 
-static hook_info *hook;
+
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
-	
+
 	// Hook data for future cleanup.
 	hook = malloc(sizeof(hook_info));
 	if (hook != NULL) {
@@ -632,7 +689,7 @@ UIOHOOK_API int hook_run() {
 		if (hook->ctrl.display != NULL && hook->data.display != NULL) {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: XOpenDisplay successful.\n",
 					__FUNCTION__, __LINE__);
-			
+
 			// Attempt to setup detectable autorepeat.
 			// NOTE: is_auto_repeat is NOT stdbool!
 			Bool is_auto_repeat = False;
@@ -656,14 +713,16 @@ UIOHOOK_API int hook_run() {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: Could not enable detectable auto-repeat!\n",
 						__FUNCTION__, __LINE__);
 			}
-			
-			
+
+			// Initialize starting modifiers.
+			initialize_modifiers();
+
 			// Check to make sure XRecord is installed and enabled.
 			int major, minor;
 			if (XRecordQueryVersion(hook->ctrl.display, &major, &minor) != 0) {
 				logger(LOG_LEVEL_INFO,	"%s [%u]: XRecord version: %i.%i.\n",
 						__FUNCTION__, __LINE__, major, minor);
-				
+
 				// Make sure the data display is synchronized to prevent late event delivery!
 				// See Bug 42356 for more information.
 				// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
@@ -679,7 +738,7 @@ UIOHOOK_API int hook_run() {
 					// Create XRecord Context.
 					hook->data.range->device_events.first = KeyPress;
 					hook->data.range->device_events.last = MotionNotify;
-					
+
 					// Note that the documentation for this function is incorrect,
 					// hook->data.display should be used!
 					// See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
@@ -687,7 +746,7 @@ UIOHOOK_API int hook_run() {
 					if (hook->ctrl.context != 0) {
 						logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordCreateContext successful.\n",
 								__FUNCTION__, __LINE__);
-						
+
 						// Save the data display associated with this hook so it is passed to each event.
 						//XPointer closeure = (XPointer) (ctrl_display);
 						XPointer closeure = NULL;
@@ -748,7 +807,7 @@ UIOHOOK_API int hook_run() {
 							// Set the exit status.
 							status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
 						}
-						
+
 						// Free up the context if it was set.
 						XRecordFreeContext(hook->data.display, hook->ctrl.context);
 					}
@@ -788,7 +847,7 @@ UIOHOOK_API int hook_run() {
 				XCloseDisplay(hook->ctrl.display);
 			}
 		}
-		else {	
+		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
 					__FUNCTION__, __LINE__);
 
@@ -798,12 +857,12 @@ UIOHOOK_API int hook_run() {
 
 		// Free data associated with this hook.
 		free(hook);
-		hook = NULL;	
+		hook = NULL;
 	}
-	else {	
+	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to allocate memory for hook structure!\n",
 				__FUNCTION__, __LINE__);
-		
+
 		status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 	}
 
@@ -833,8 +892,8 @@ UIOHOOK_API int hook_stop() {
 
 					// See Bug 42356 for more information.
 					// https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
-					XFlush(hook->ctrl.display);
-					//XSync(hook->ctrl.display, True);
+					//XFlush(hook->ctrl.display);
+					XSync(hook->ctrl.display, False);
 
 					status = UIOHOOK_SUCCESS;
 				}
@@ -842,19 +901,19 @@ UIOHOOK_API int hook_stop() {
 			else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: XRecordGetContext failure!\n",
 						__FUNCTION__, __LINE__);
-										
+
 				status = UIOHOOK_ERROR_X_RECORD_GET_CONTEXT;
 			}
 
 			free(state);
 		}
-		else {	
+		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to allocate memory for XRecordState!\n",
 				__FUNCTION__, __LINE__);
-					
+
 			status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 		}
-		
+
 		return status;
 	}
 

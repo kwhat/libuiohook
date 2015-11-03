@@ -41,6 +41,7 @@
 
 // Windows specific errors.
 #define UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX		0x30
+#define UIOHOOK_ERROR_GET_MODULE_HANDLE			0x31
 
 // Darwin specific errors.
 #define UIOHOOK_ERROR_AXAPI_DISABLED			0x40
@@ -76,14 +77,6 @@ typedef enum _event_type {
 	EVENT_MOUSE_DRAGGED,
 	EVENT_MOUSE_WHEEL
 } event_type;
-
-typedef struct _screen_data {
-	uint8_t number;
-	int16_t x;
-	int16_t y;
-	uint16_t width;
-	uint16_t height;
-} screen_data;
 
 typedef struct _keyboard_event_data {
 	uint16_t keycode;
@@ -407,9 +400,6 @@ extern "C" {
 	// Withdraw the event hook.
 	UIOHOOK_API int hook_stop();
 
-	// Retrieves an array of screen data for each available monitor.
-	UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count);
-
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();
 
@@ -427,7 +417,7 @@ extern "C" {
 
 	// Retrieves the double/triple click interval.
 	UIOHOOK_API long int hook_get_multi_click_time();
-	
+
 #ifdef __cplusplus
 }
 #endif

@@ -33,7 +33,7 @@
 #include "input_helper.h"
 #include "logger.h"
 
-extern Display *disp;
+extern Display *properties_disp;
 
 // This lookup table must be in the same order the masks are defined.
 #ifdef USE_XTEST
@@ -74,151 +74,300 @@ static unsigned int convert_to_native_mask(unsigned int mask) {
 
 	return native_mask;
 }
-
-static inline XKeyEvent * create_key_event() {
-	XKeyEvent *event = malloc(sizeof(XKeyEvent));
-	
-	event->serial = 0x00;
-	event->send_event = False;
-	event->display = disp;
-	event->time = CurrentTime;
-	event->same_screen = True;
-	
-	unsigned int mask;
-	if (!XQueryPointer(disp, DefaultRootWindow(disp), &(event->root), &(event->subwindow), &(event->x_root), &(event->y_root), &(event->x), &(event->y), &mask)) {
-		event->root = DefaultRootWindow(disp);
-		event->window = event->root;
-		event->subwindow = None;
-				
-		event->x_root = 0;
-		event->y_root = 0;
-		event->x = 0;
-		event->y = 0;
-	}
-
-	event->type = 0x00;
-	event->state = 0x00;
-	event->keycode = 0x00;
-	
-	return event;
-}
-
-static inline XButtonEvent * create_button_event() {
-	XButtonEvent *event = malloc(sizeof(XButtonEvent));
-	
-	event->serial = 0x00;
-	event->send_event = False;
-	event->display = disp;
-	event->time = CurrentTime;
-	event->same_screen = True;
-	
-	event->root = DefaultRootWindow(disp);
-	event->window = event->root;
-	event->subwindow = None;
-				
-	event->type = 0x00;
-	event->state = 0x00;
-	event->x_root = 0;
-	event->y_root = 0;
-	event->x = 0;
-	event->y = 0;
-	event->button = 0x00;
-	
-	return event;
-}
-
-static inline XMotionEvent * create_motion_event() {
-	XMotionEvent *event = malloc(sizeof(XMotionEvent));
-	
-	event->serial = MotionNotify;
-	event->send_event = False;
-	event->display = disp;
-	event->time = CurrentTime;
-	event->same_screen = True;
-	event->is_hint = NotifyNormal,
-	event->root = DefaultRootWindow(disp);
-	event->window = event->root;
-	event->subwindow = None;
-	
-	event->type = 0x00;
-	event->state = 0x00;
-	event->x_root = 0;
-	event->y_root = 0;
-	event->x = 0;
-	event->y = 0;
-	
-	return event;
-}
 #endif
 
+static inline void post_key_event(uiohook_event * const event) {
+	#ifdef USE_XTEST
+	// FIXME Currently ignoring EVENT_KEY_TYPED.
+	if (event->type == EVENT_KEY_PRESSED) {
+		XTestFakeKeyEvent(
+			properties_disp,
+			scancode_to_keycode(event->data.keyboard.keycode),
+			True,
+			0);
+	}
+	else if (event->type == EVENT_KEY_RELEASED) {
+		XTestFakeKeyEvent(
+			properties_disp,
+			scancode_to_keycode(event->data.keyboard.keycode),
+			False,
+			0);
+	}
+	#else
+	XKeyEvent key_event;
+
+	key_event.serial = 0x00;
+	key_event.send_event = False;
+	key_event.display = properties_disp;
+	key_event.time = CurrentTime;
+	key_event.same_screen = True;
+
+	unsigned int mask;
+	if (!XQueryPointer(properties_disp, DefaultRootWindow(properties_disp), &(key_event.root), &(key_event.subwindow), &(key_event.x_root), &(key_event.y_root), &(key_event.x), &(key_event.y), &mask)) {
+		key_event.root = DefaultRootWindow(properties_disp);
+		key_event.window = key_event.root;
+		key_event.subwindow = None;
+
+		key_event.x_root = 0;
+		key_event.y_root = 0;
+		key_event.x = 0;
+		key_event.y = 0;
+	}
+
+	key_event.state = convert_to_native_mask(event->mask);
+	key_event.keycode = XKeysymToKeycode(properties_disp, scancode_to_keycode(event->data.keyboard.keycode));
+
+	// FIXME Currently ignoring typed events.
+	if (event->type == EVENT_KEY_PRESSED) {
+		key_event.type = KeyPress;
+		XSendEvent(properties_disp, InputFocus, False, KeyPressMask, (XEvent *) &key_event);
+	}
+	else if (event->type == EVENT_KEY_RELEASED) {
+		key_event.type = KeyRelease;
+		XSendEvent(properties_disp, InputFocus, False, KeyReleaseMask, (XEvent *) &key_event);
+	}
+	#endif
+}
+
+static inline void post_mouse_button_event(uiohook_event * const event) {
+	#ifdef USE_XTEST
+	Window ret_root;
+	Window ret_child;
+	int root_x;
+	int root_y;
+	int win_x;
+	int win_y;
+	unsigned int mask;
+
+	Window win_root = XDefaultRootWindow(properties_disp);
+	Bool query_status = XQueryPointer(properties_disp, win_root, &ret_root, &ret_child, &root_x, &root_y, &win_x, &win_y, &mask);
+	if (query_status) {
+		if (event->data.mouse.x != root_x || event->data.mouse.y != root_y) {
+			// Move the pointer to the specified position.
+			XTestFakeMotionEvent(properties_disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
+		}
+		else {
+			query_status = False;
+		}
+	}
+
+	if (event->type == EVENT_MOUSE_WHEEL) {
+		// Wheel events should be the same as click events on X11.
+		// type, amount and rotation
+		if (event->data.wheel.rotation < 0) {
+			XTestFakeButtonEvent(properties_disp, WheelUp, True, 0);
+			XTestFakeButtonEvent(properties_disp, WheelUp, False, 0);
+		}
+		else {
+			XTestFakeButtonEvent(properties_disp, WheelDown, True, 0);
+			XTestFakeButtonEvent(properties_disp, WheelDown, False, 0);
+		}
+	}
+	else if (event->type == EVENT_MOUSE_PRESSED) {
+		XTestFakeButtonEvent(properties_disp, event->data.mouse.button, True, 0);
+	}
+	else if (event->type == EVENT_MOUSE_RELEASED) {
+		XTestFakeButtonEvent(properties_disp, event->data.mouse.button, False, 0);
+	}
+	else if (event->type == EVENT_MOUSE_CLICKED) {
+		XTestFakeButtonEvent(properties_disp, event->data.mouse.button, True, 0);
+		XTestFakeButtonEvent(properties_disp, event->data.mouse.button, False, 0);
+	}
+
+	if (query_status) {
+		// Move the pointer back to the original position.
+		XTestFakeMotionEvent(properties_disp, -1, root_x, root_y, 0);
+	}
+	#else
+	XButtonEvent btn_event;
+
+	btn_event.serial = 0x00;
+	btn_event.send_event = False;
+	btn_event.display = properties_disp;
+	btn_event.time = CurrentTime;
+	btn_event.same_screen = True;
+
+	btn_event.root = DefaultRootWindow(properties_disp);
+	btn_event.window = btn_event.root;
+	btn_event.subwindow = None;
+
+	btn_event.type = 0x00;
+	btn_event.state = 0x00;
+	btn_event.x_root = 0;
+	btn_event.y_root = 0;
+	btn_event.x = 0;
+	btn_event.y = 0;
+	btn_event.button = 0x00;
+
+	btn_event.state = convert_to_native_mask(event->mask);
+
+	btn_event.x = event->data.mouse.x;
+	btn_event.y = event->data.mouse.y;
+
+	#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+	uint8_t screen_count;
+	screen_data *screens = hook_create_screen_info(&screen_count);
+	if (screen_count > 1) {
+		btn_event.x += screens[0].x;
+		btn_event.y += screens[0].y;
+	}
+
+	if (screens != NULL) {
+		free(screens);
+	}
+	#endif
+
+	// These are the same because Window == Root Window.
+	btn_event.x_root = btn_event.x;
+	btn_event.y_root = btn_event.y;
+
+	if (event->type == EVENT_MOUSE_WHEEL) {
+		// type, amount and rotation
+		if (event->data.wheel.rotation < 0) {
+			btn_event.button = WheelUp;
+		}
+		else {
+			btn_event.button = WheelDown;
+		}
+	}
+
+	if (event->type != EVENT_MOUSE_RELEASED) {
+		// FIXME Where do we set event->button?
+		btn_event.type = ButtonPress;
+		XSendEvent(properties_disp, InputFocus, False, ButtonPressMask, (XEvent *) &btn_event);
+	}
+
+	if (event->type != EVENT_MOUSE_PRESSED) {
+		btn_event.type = ButtonRelease;
+		XSendEvent(properties_disp, InputFocus, False, ButtonReleaseMask, (XEvent *) &btn_event);
+	}
+	#endif
+}
+
+static inline void post_mouse_motion_event(uiohook_event * const event) {
+    #ifdef USE_XTEST
+	XTestFakeMotionEvent(properties_disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
+    #else
+	XMotionEvent mov_event;
+
+	mov_event.serial = MotionNotify;
+	mov_event.send_event = False;
+	mov_event.display = properties_disp;
+	mov_event.time = CurrentTime;
+	mov_event.same_screen = True;
+	mov_event.is_hint = NotifyNormal,
+	mov_event.root = DefaultRootWindow(properties_disp);
+	mov_event.window = mov_event.root;
+	mov_event.subwindow = None;
+
+	mov_event.type = 0x00;
+	mov_event.state = 0x00;
+	mov_event.x_root = 0;
+	mov_event.y_root = 0;
+	mov_event.x = 0;
+	mov_event.y = 0;
+
+	mov_event.state = convert_to_native_mask(event->mask);
+
+	mov_event.x = event->data.mouse.x;
+	mov_event.y = event->data.mouse.y;
+
+	#if defined(USE_XINERAMA) || defined(USE_XRANDR)
+	uint8_t screen_count;
+	screen_data *screens = hook_create_screen_info(&screen_count);
+	if (screen_count > 1) {
+		mov_event.x += screens[0].x;
+		mov_event.y += screens[0].y;
+	}
+
+	if (screens != NULL) {
+		free(screens);
+	}
+	#endif
+
+	// These are the same because Window == Root Window.
+	mov_event.x_root = mov_event.x;
+	mov_event.y_root = mov_event.y;
+
+	long int event_mask = NoEventMask;
+	if (event->type == EVENT_MOUSE_DRAGGED) {
+		#if Button1Mask == Button1MotionMask && \
+			Button2Mask == Button2MotionMask && \
+			Button3Mask == Button3MotionMask && \
+			Button4Mask == Button4MotionMask && \
+			Button5Mask == Button5MotionMask
+		// This little trick only works if Button#MotionMasks align with
+		// the Button#Masks.
+		event_mask = mov_event.state &
+				(Button1MotionMask | Button2MotionMask |
+				Button2MotionMask | Button3MotionMask | Button5MotionMask);
+		#else
+		// Fallback to some slightly larger...
+		if (event->state & Button1Mask) {
+			event_mask |= Button1MotionMask;
+		}
+
+		if (event->state & Button2Mask) {
+			event_mask |= Button2MotionMask;
+		}
+
+		if (event->state & Button3Mask) {
+			event_mask |= Button3MotionMask;
+		}
+
+		if (event->state & Button4Mask) {
+			event_mask |= Button4MotionMask;
+		}
+
+		if (event->state & Button5Mask) {
+			event_mask |= Button5MotionMask;
+		}
+		#endif
+	}
+
+	// NOTE x_mask = NoEventMask.
+	XSendEvent(properties_disp, InputFocus, False, event_mask, (XEvent *) &mov_event);
+    #endif
+}
+
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
+	XLockDisplay(properties_disp);
+
 	#ifdef USE_XTEST
 	// XTest does not have modifier support, so we fake it by depressing the
 	// appropriate modifier keys.
 	for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(KeySym); i++) {
 		if (event->mask & 1 << i) {
-			XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, keymask_lookup[i]), True, 0);
+			XTestFakeKeyEvent(properties_disp, XKeysymToKeycode(properties_disp, keymask_lookup[i]), True, 0);
 		}
 	}
 
 	for (unsigned int i = 0; i < sizeof(btnmask_lookup) / sizeof(unsigned int); i++) {
 		if (event->mask & btnmask_lookup[i]) {
-			XTestFakeButtonEvent(disp, i + 1, True, 0);
+			XTestFakeButtonEvent(properties_disp, i + 1, True, 0);
 		}
 	}
+	#endif
 
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
-			XTestFakeKeyEvent(
-				disp,
-				scancode_to_keycode(event->data.keyboard.keycode),
-				True,
-				0);
-			break;
-
 		case EVENT_KEY_RELEASED:
-			XTestFakeKeyEvent(
-				disp,
-				scancode_to_keycode(event->data.keyboard.keycode),
-				False,
-				0);
+		case EVENT_KEY_TYPED:
+			post_key_event(event);
 			break;
-
 
 		case EVENT_MOUSE_PRESSED:
-			XTestFakeButtonEvent(disp, event->data.mouse.button, True, 0);
-			break;
-
 		case EVENT_MOUSE_RELEASED:
-			XTestFakeButtonEvent(disp, event->data.mouse.button, False, 0);
-			break;
-			
 		case EVENT_MOUSE_WHEEL:
-			// Wheel events should be the same as click events on X11.
-			// type, amount and rotation
-			if (event->data.wheel.rotation < 0) {
-				XTestFakeButtonEvent(disp, WheelUp, True, 0);
-				XTestFakeButtonEvent(disp, WheelUp, False, 0);
-			}
-			else {
-				XTestFakeButtonEvent(disp, WheelDown, True, 0);
-				XTestFakeButtonEvent(disp, WheelDown, False, 0);
-			}
-			break;
-
-			
-		case EVENT_MOUSE_DRAGGED:
-			// The button masks are all applied with the modifier masks.
-
-		case EVENT_MOUSE_MOVED:
-			XTestFakeMotionEvent(disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
-			break;
-
-
 		case EVENT_MOUSE_CLICKED:
-		case EVENT_KEY_TYPED:
-			// Ignore clicked and typed events.
-			
+			post_mouse_button_event(event);
+			break;
+
+		case EVENT_MOUSE_DRAGGED:
+		case EVENT_MOUSE_MOVED:
+			post_mouse_motion_event(event);
+			break;
+
 		case EVENT_HOOK_ENABLED:
 		case EVENT_HOOK_DISABLED:
 			// Ignore hook enabled / disabled events.
@@ -230,177 +379,22 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			break;
 	}
 
+	#ifdef USE_XTEST
 	// Release the previously held modifier keys used to fake the event mask.
 	for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(KeySym); i++) {
 		if (event->mask & 1 << i) {
-			XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, keymask_lookup[i]), False, 0);
+			XTestFakeKeyEvent(properties_disp, XKeysymToKeycode(properties_disp, keymask_lookup[i]), False, 0);
 		}
 	}
 
 	for (unsigned int i = 0; i < sizeof(btnmask_lookup) / sizeof(unsigned int); i++) {
 		if (event->mask & btnmask_lookup[i]) {
-			XTestFakeButtonEvent(disp, i + 1, False, 0);
+			XTestFakeButtonEvent(properties_disp, i + 1, False, 0);
 		}
 	}
-	#else
-	XEvent *x_event;
-	
-	#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-	uint8_t screen_count;
-	screen_data *screens;
-	#endif
-
-	switch (event->type) {
-		case EVENT_KEY_PRESSED:
-		case EVENT_KEY_RELEASED:
-			// Allocate memory for XKeyEvent and pre-populate.
-			x_event = (XEvent *) create_key_event();
-			
-			((XKeyEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			((XKeyEvent *) x_event)->keycode = XKeysymToKeycode(disp, scancode_to_keycode(event->data.keyboard.keycode));
-
-			if (event->type == EVENT_KEY_PRESSED) {
-				((XKeyEvent *) x_event)->type = KeyPress;
-				XSendEvent(disp, InputFocus, False, KeyPressMask, x_event);
-			}
-			else {
-				((XKeyEvent *) x_event)->type = KeyRelease;
-				XSendEvent(disp, InputFocus, False, KeyReleaseMask, x_event);
-			}
-			
-			free(x_event);
-			break;
-
-
-		case EVENT_MOUSE_PRESSED:
-		case EVENT_MOUSE_RELEASED:
-		case EVENT_MOUSE_WHEEL:
-			// Allocate memory for XButtonEvent and pre-populate.
-			x_event = (XEvent *) create_button_event();
-			
-			((XButtonEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			
-			((XButtonEvent *) x_event)->x = event->data.mouse.x;
-			((XButtonEvent *) x_event)->y = event->data.mouse.y;
-
-			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-			screens = hook_get_screen_info(&screen_count);
-			if (screen_count > 1) {
-				((XButtonEvent *) x_event)->x += screens[0].x;
-				((XButtonEvent *) x_event)->y += screens[0].y;
-			}
-			#endif
-
-			// These are the same because Window == Root Window.
-			((XButtonEvent *) x_event)->x_root = ((XButtonEvent *) x_event)->x;
-			((XButtonEvent *) x_event)->y_root = ((XButtonEvent *) x_event)->y;
-
-			if (event->type == EVENT_MOUSE_WHEEL) {
-				((XButtonEvent *) x_event)->type = ButtonPress;
-				
-				// type, amount and rotation
-				if (event->data.wheel.rotation < 0) {
-					((XButtonEvent *) x_event)->button = WheelUp;
-				}
-				else {
-					((XButtonEvent *) x_event)->button = WheelDown;
-				}
-				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
-			}
-			
-			if (event->type == EVENT_KEY_PRESSED) {
-				((XButtonEvent *) x_event)->type = ButtonPress;
-				XSendEvent(disp, InputFocus, False, ButtonPressMask, x_event);
-			}
-			else {
-				((XButtonEvent *) x_event)->type = ButtonRelease;
-				XSendEvent(disp, InputFocus, False, ButtonReleaseMask, x_event);
-			}
-			
-			free(x_event);
-			break;
-
-		case EVENT_MOUSE_MOVED:
-		case EVENT_MOUSE_DRAGGED:
-			x_event = (XEvent *) create_motion_event();
-			
-			((XMotionEvent *) x_event)->state = convert_to_native_mask(event->mask);
-			
-			((XButtonEvent *) x_event)->x = event->data.mouse.x;
-			((XButtonEvent *) x_event)->y = event->data.mouse.y;
-
-			#if defined(USE_XINERAMA) || defined(USE_XRANDR)
-			screens = hook_get_screen_info(&screen_count);
-			if (screen_count > 1) {
-				((XButtonEvent *) x_event)->x += screens[0].x;
-				((XButtonEvent *) x_event)->y += screens[0].y;
-			}
-			#endif
-
-			// These are the same because Window == Root Window.
-			((XButtonEvent *) x_event)->x_root = ((XButtonEvent *) x_event)->x;
-			((XButtonEvent *) x_event)->y_root = ((XButtonEvent *) x_event)->y;
-			
-			long int x_mask = NoEventMask;
-			if (event->type == EVENT_MOUSE_DRAGGED) {
-				#if Button1Mask == Button1MotionMask && \
-					Button2Mask == Button2MotionMask && \
-					Button3Mask == Button3MotionMask && \
-					Button4Mask == Button4MotionMask && \
-					Button5Mask == Button5MotionMask
-				// This little trick only works if Button#MotionMasks align with
-				// the Button#Masks.
-				x_mask = ((XMotionEvent *) x_event)->state &
-						(Button1MotionMask | Button2MotionMask |
-						Button2MotionMask | Button3MotionMask | Button5MotionMask);
-				#else
-				// Fallback to some slightly larger...
-				if (((XMotionEvent *) x_event)->state & Button1Mask) {
-					x_mask |= Button1MotionMask;
-				}
-
-				if (((XMotionEvent *) x_event)->state & Button2Mask) {
-					x_mask |= Button2MotionMask;
-				}
-
-				if (((XMotionEvent *) x_event)->state & Button3Mask) {
-					x_mask |= Button3MotionMask;
-				}
-
-				if (((XMotionEvent *) x_event)->state & Button4Mask) {
-					x_mask |= Button4MotionMask;
-				}
-
-				if (((XMotionEvent *) x_event)->state & Button5Mask) {
-					x_mask |= Button5MotionMask;
-				}
-				#endif
-			}
-			
-			// NOTE x_mask = NoEventMask.
-			XSendEvent(disp, InputFocus, False, x_mask, x_event);
-			free(x_event);
-			break;
-
-
-		case EVENT_MOUSE_CLICKED:
-		case EVENT_KEY_TYPED:
-			// Ignore clicked and typed events.
-			
-		case EVENT_HOOK_ENABLED:
-		case EVENT_HOOK_DISABLED:
-			// Ignore hook enabled / disabled events.
-
-		default:
-			// Ignore any other garbage.
-			logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
-				__FUNCTION__, __LINE__, event->type);
-			break;
-	}
-
-
 	#endif
 
 	// Don't forget to flush!
-	XFlush(disp);
+	XSync(properties_disp, True);
+	XUnlockDisplay(properties_disp);
 }

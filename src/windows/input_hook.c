@@ -40,8 +40,6 @@ static unsigned short int current_modifiers = 0x0000;
 
 // Structure for the current Unix epoch in milliseconds.
 static FILETIME system_time;
-static DWORD previous_time = (DWORD) ~0x00;
-static uint64_t offset_time = 0;
 
 // Click count globals.
 static unsigned short click_count = 0;
@@ -76,6 +74,7 @@ static inline void dispatch_event(uiohook_event *const event) {
 	}
 }
 
+
 // Set the native modifier mask for future events.
 static inline void set_modifier_mask(unsigned short int mask) {
 	current_modifiers |= mask;
@@ -90,6 +89,30 @@ static inline void unset_modifier_mask(unsigned short int mask) {
 static inline unsigned short int get_modifiers() {
 	return current_modifiers;
 }
+
+// Initialize the modifier mask to the current modifiers.
+static void initialize_modifiers() {
+	current_modifiers = 0x0000;
+
+	// NOTE We are checking the high order bit, so it will be < 0 for a singed short.
+	if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
+	if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
+	if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
+	if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
+	if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
+	if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
+	if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
+	if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
+
+	if (GetKeyState(VK_LBUTTON)	 < 0)	{ set_modifier_mask(MASK_BUTTON1);	}
+	if (GetKeyState(VK_RBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON2);	}
+	if (GetKeyState(VK_MBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON3);	}
+	if (GetKeyState(VK_XBUTTON1) < 0)	{ set_modifier_mask(MASK_BUTTON4);	}
+	if (GetKeyState(VK_XBUTTON2) < 0)	{ set_modifier_mask(MASK_BUTTON5);	}
+
+	// FIXME Add check for lock masks!
+}
+
 
 /* Retrieves the mouse wheel scroll type. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
@@ -127,39 +150,45 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
-static inline uint64_t get_event_timestamp() {
-	// Grab the system uptime in MS.
-	// NOTE This value rolls every 49.7 days.
-	DWORD hook_time = GetTickCount();
+static inline uint64_t get_unix_timestamp() {
+	// Get the local system time in UTC.
+	GetSystemTimeAsFileTime(&system_time);
 
-	// Check for event clock reset.
-	if (previous_time > hook_time) {
-		// Get the local system time in UTC.
-		GetSystemTimeAsFileTime(&system_time);
+	// Convert the local system time to a Unix epoch in MS.
+	// milliseconds = 100-nanoseconds / 10000
+	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
 
-		// Convert the local system time to a Unix epoch in MS.
-		// milliseconds = 100-nanoseconds / 10000
-		uint64_t epoch_time = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+	// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
+    timestamp -= 11644473600000;
 
-		// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
-		epoch_time -= 11644473600000;
+	return timestamp;
+}
 
-		// Calculate the offset based on the system and hook times.
-		offset_time = epoch_time - hook_time;
-
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Resynchronizing event clock. (%" PRIu64 ")\n",
-				__FUNCTION__, __LINE__, offset_time);
+void unregister_running_hooks() {
+	// Stop the event hook and any timer still running.
+	if (win_event_hhook != NULL) {
+		UnhookWinEvent(win_event_hhook);
+		win_event_hhook = NULL;
 	}
-	// Set the previous event time for click reset check above.
-	previous_time = hook_time;
 
-	// Set the event time to the server time + offset.
-	return hook_time + offset_time;
+	// Destroy the native hooks.
+	if (keyboard_event_hhook != NULL) {
+		UnhookWindowsHookEx(keyboard_event_hhook);
+		keyboard_event_hhook = NULL;
+	}
+
+	if (mouse_event_hhook != NULL) {
+		UnhookWindowsHookEx(mouse_event_hhook);
+		mouse_event_hhook = NULL;
+	}
 }
 
 void hook_start_proc() {
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
+
 	// Populate the hook start event.
-	event.time = get_event_timestamp();
+	event.time = timestamp;
 	event.reserved = 0x00;
 
 	event.type = EVENT_HOOK_ENABLED;
@@ -170,8 +199,11 @@ void hook_start_proc() {
 }
 
 void hook_stop_proc() {
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
+
 	// Populate the hook stop event.
-	event.time = get_event_timestamp();
+	event.time = timestamp;
 	event.reserved = 0x00;
 
 	event.type = EVENT_HOOK_DISABLED;
@@ -267,8 +299,8 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp();
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
 
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
 	switch (wParam) {
@@ -280,6 +312,12 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 		case WM_KEYUP:
 		case WM_SYSKEYUP:
 			process_key_released(timestamp, kbhook);
+			break;
+
+		default:
+			// In theory this *should* never execute.
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows keyboard event: %#X.\n",
+					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}
 
@@ -366,8 +404,7 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	dispatch_event(&event);
 
 	// If the pressed event was not consumed...
-	if (event.reserved ^ 0x01
-			&& last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
+	if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
 		// Populate mouse clicked event.
 		event.time = timestamp;
 		event.reserved = 0x00;
@@ -387,17 +424,23 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 		// Fire mouse clicked event.
 		dispatch_event(&event);
 	}
+
+	// Reset the number of clicks.
+	if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+		// Reset the click count.
+		click_count = 0;
+	}
 }
 
 static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
-	// Reset the click count.
-	if (click_count != 0 && (long) (event.time - click_time) > hook_get_multi_click_time()) {
-		click_count = 0;
-	}
-
 	// We received a mouse move event with the mouse actually moving.
 	// This verifies that the mouse was moved after being depressed.
 	if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
+		// Reset the click count.
+		if (click_count != 0 && (long) (timestamp - click_time) > hook_get_multi_click_time()) {
+			click_count = 0;
+		}
+
 		// Populate mouse move event.
 		event.time = timestamp;
 		event.reserved = 0x00;
@@ -465,8 +508,8 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Calculate Unix epoch from native time source.
-	uint64_t timestamp = get_event_timestamp();
+	// Get the local system time in UNIX epoch form.
+	uint64_t timestamp = get_unix_timestamp();
 
 	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
 	switch (wParam) {
@@ -571,7 +614,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 		
 		default:
 			// In theory this *should* never execute.
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled Windows mouse event! (%#X)\n",
+			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows mouse event: %#X.\n",
 					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}
@@ -608,6 +651,12 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 			// Restart the event hooks.
 			keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
 			mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
+			
+			// Re-initialize modifier masks.
+			initialize_modifiers();
+			
+			// FIXME We should compare the modifier mask before and after the restart 
+			// to determine if we should synthesize missing events.
 	
 			// Check for event hook error.
 			if (keyboard_event_hhook == NULL || mouse_event_hhook == NULL) {
@@ -617,26 +666,12 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 			break;
 			
 		default:
-			logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled Windows window event: %#X.\n",
+			logger(LOG_LEVEL_INFO, "%s [%u]: Unhandled Windows window event: %#X.\n",
 					__FUNCTION__, __LINE__, event);
 	}
 }
 
-void initialize_modifiers() {
-	current_modifiers = 0x0000;
 
-	if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
-	if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
-	if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
-	if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
-	if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
-	if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
-	if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
-	if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
-}
-
-// FIXME Do something else with this extern DLL main call.
-extern BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpReserved);
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 
@@ -649,16 +684,16 @@ UIOHOOK_API int hook_run() {
 		logger(LOG_LEVEL_INFO,	"%s [%u]: hInst was not set by DllMain().\n",
 				__FUNCTION__, __LINE__);
 
-		HINSTANCE hInstPE = GetModuleHandle(NULL);
-
-		if (hInstPE != NULL) {
-			DllMain(hInstPE, DLL_PROCESS_ATTACH, NULL);
+		hInst = GetModuleHandle(NULL);
+		if (hInst != NULL) {
+			// Initialize native input helper functions.
+            load_input_helper();
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
 					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 
-			status = FALSE;
+			status = UIOHOOK_ERROR_GET_MODULE_HANDLE;
 		}
 	}
 
@@ -709,22 +744,8 @@ UIOHOOK_API int hook_run() {
 	}
 	
 	
-	// Stop the event hook and any timer still running.
-	if (win_event_hhook != NULL) {
-		UnhookWinEvent(win_event_hhook);
-		win_event_hhook = NULL;
-	}
-
-	// Destroy the native hooks.
-	if (keyboard_event_hhook != NULL) {
-		UnhookWindowsHookEx(keyboard_event_hhook);
-		keyboard_event_hhook = NULL;
-	}
-
-	if (mouse_event_hhook != NULL) {
-		UnhookWindowsHookEx(mouse_event_hhook);
-		mouse_event_hhook = NULL;
-	}
+	// Unregister any hooks that may still be installed.
+	unregister_running_hooks();
 
 	// We must explicitly call the cleanup handler because Windows does not
 	// provide a thread cleanup method like POSIX pthread_cleanup_push/pop.

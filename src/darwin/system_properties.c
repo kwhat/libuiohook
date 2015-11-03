@@ -33,88 +33,8 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
-#include "copyright.h"
 #include "logger.h"
 #include "input_helper.h"
-
-/* The following function was contributed by Anthony Liguori Jan 18 2015.
- * https://github.com/kwhat/libuiohook/pull/18
- */
-UIOHOOK_API screen_data* hook_create_screen_info(uint8_t *count) {
-	CGError status = kCGErrorFailure;
-	screen_data* screens = NULL;
-	
-	// Initialize count to zero.
-	*count = 0;
-	
-	// Allocate memory to hold each display id.  We will just allocate our MAX 
-	// because its only about 1K of memory.
-	// TODO This can probably be realistically cut to something like 16 or 32....
-	// If you have more than 32 monitors, send me a picture and make a donation ;)
-	CGDirectDisplayID *display_ids = malloc(sizeof(CGDirectDisplayID) * UCHAR_MAX);
-	if (display_ids != NULL) {
-		// NOTE Pass UCHAR_MAX to make sure uint32_t doesn't overflow uint8_t.
-		// TOOD Test/Check whether CGGetOnlineDisplayList is more suitable...
-		status = CGGetActiveDisplayList(UCHAR_MAX, display_ids, (uint32_t *) count);
-	
-		// If there is no error and at least one monitor.
-		if (status == kCGErrorSuccess && *count > 0) {
-			logger(LOG_LEVEL_INFO,	"%s [%u]: CGGetActiveDisplayList: %li.\n",
-					__FUNCTION__, __LINE__, *count);
-
-			// Allocate memory for the number of screens found.
-			screens = malloc(sizeof(screen_data) * (*count));
-			if (screens != NULL) {
-				for (uint8_t i = 0; i < *count; i++) {
-					//size_t width = CGDisplayPixelsWide(display_ids[i]);
-					//size_t height = CGDisplayPixelsHigh(display_ids[i]);
-					CGRect boundsDisp = CGDisplayBounds(display_ids[i]);
-					if (boundsDisp.size.width > 0 && boundsDisp.size.height > 0) {
-						screens[i] = (screen_data) {
-							.number = i + 1,
-							//TODO: make sure we follow the same convention for the origin
-							//in all other platform implementations (upper-left)
-							//TODO: document the approach with examples in order to show different
-							//cases -> different resolutions (secondary monitors origin might be
-							//negative)
-							.x = boundsDisp.origin.x,
-							.y = boundsDisp.origin.y,
-							.width = boundsDisp.size.width,
-							.height = boundsDisp.size.height
-						};
-					}
-				}
-			}
-		}
-		else {
-			logger(LOG_LEVEL_INFO,	"%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
-					__FUNCTION__, __LINE__, status);
-			
-			size_t width = CGDisplayPixelsWide(CGMainDisplayID());
-			size_t height = CGDisplayPixelsHigh(CGMainDisplayID());
-
-			if (width > 0 && height > 0) {
-				screens = malloc(sizeof(screen_data));
-
-				if (screens != NULL) {
-					*count = 1;
-					screens[0] = (screen_data) {
-						.number = 1,
-						.x = 0,
-						.y = 0,
-						.width = width,
-						.height = height
-					};
-				}
-			}
-		}
-		
-		// Free the id's after we are done.
-		free(display_ids);
-	}
-
-	return screens;
-}
 
 /*
  * Apple's documentation is not very good.  I was finally able to find this
@@ -527,9 +447,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
-	// Display the copyright on library load.
-	COPYRIGHT();
-
 	// Initialize Native Input Functions.
 	load_input_helper();
 }
@@ -537,6 +454,9 @@ void on_library_load() {
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
+	// Disable the event hook.
+	//hook_stop();
+
 	// Cleanup native input functions.
 	unload_input_helper();
 }

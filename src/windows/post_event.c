@@ -114,33 +114,36 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			events[events_size].type = INPUT_KEYBOARD;
-			events[events_size].ki.dwFlags = 0x0000; // KEYEVENTF_KEYDOWN
-			events[events_size].ki.wVk = MapVirtualKey(event->data.keyboard.keycode, MAPVK_VK_TO_VSC_EX);
+			events[events_size].ki.dwFlags = KEYEVENTF_KEYDOWN;
+			events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
 			events[events_size].ki.wScan = event->data.keyboard.keycode;
 			events[events_size].ki.dwFlags = KEYEVENTF_SCANCODE;
 
 			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
 					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
-				//Key is an extended key.
+
+				// Key is an extended key.
 				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
 			}
-			events[events_size].ki.time = 0; //GetSystemTime()
+
+			events[events_size].ki.time = 0; // GetSystemTime()
 			events_size++;
 			break;
 			
 		case EVENT_KEY_RELEASED:
 			events[events_size].type = INPUT_KEYBOARD;
 			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
-			events[events_size].ki.wVk = MapVirtualKey(event->data.keyboard.keycode, MAPVK_VK_TO_VSC_EX);
+			events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
 			events[events_size].ki.wScan = event->data.keyboard.keycode;
 			events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
 
 			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
 					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
-				//Key is an extended key.
+				// Key is an extended key.
 				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
 			}
-			events[events_size].ki.time = 0; //GetSystemTime()
+
+			events[events_size].ki.time = 0; // GetSystemTime()
 			events_size++;
 			break;
 
@@ -177,13 +180,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
-	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -220,13 +220,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
-	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -239,9 +236,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// type, amount and rotation?
 			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
 			
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
-			
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
+
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -253,13 +251,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_MOVED:
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
-			events[events_size].mi.dx = event->data.mouse.x;
-			events[events_size].mi.dy = event->data.mouse.y;
+			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
-	//TODO: why does try to move it?!?!? it should do an action and/or append mov, not override
-	//events[events_size].>mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-	//TODO: events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE;
+			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
 			break;
@@ -300,9 +295,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events[events_size].mi.mouseData = 0x00;
 		events[events_size].mi.time = 0; // Use current system time.
 
-		//http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
-		// If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP, 
+		// If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP,
 		// then mouseData should be zero.
+		// http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
 		if (event->mask & MASK_BUTTON1) {
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_LEFTUP;
 		}
@@ -328,9 +323,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events_size++;
 	}
 
-	//Create the key release input
-	//memcpy(key_events + 1, key_events, sizeof(INPUT));
-	//key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+	// Create the key release input
+	// memcpy(key_events + 1, key_events, sizeof(INPUT));
+	// key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
 
 	if (! SendInput(events_size, events, sizeof(INPUT)) ) {
 		logger(LOG_LEVEL_ERROR, "%s [%u]: SendInput() failed! (%#lX)\n",

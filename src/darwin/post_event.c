@@ -67,190 +67,177 @@ static inline CGEventFlags get_key_event_mask(uiohook_event * const event) {
 	return native_mask;
 }
 
-UIOHOOK_API void hook_post_event(uiohook_event * const event) {
-	CGEventRef cg_event;
+static inline void post_key_event(uiohook_event * const event) {
+	bool is_pressed = event->type == EVENT_KEY_PRESSED;
 
-	CGEventTapLocation loc = kCGHIDEventTap; // kCGSessionEventTap also works.
 	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	CGEventRef cg_event = CGEventCreateKeyboardEvent(src,
+		(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
+		is_pressed);
 
+	CGEventSetFlags(cg_event, get_key_event_mask(event));
+	CGEventPost(kCGHIDEventTap, cg_event);	// kCGSessionEventTap also works.
+	CFRelease(cg_event);
+	CFRelease(src);
+}
+
+static inline void post_mouse_button_event(uiohook_event * const event, bool is_pressed) {
+	CGMouseButton mouse_button;
+	CGEventType mouse_type;
+	if (event->data.mouse.button == MOUSE_BUTTON1) {
+		if (is_pressed) {
+			mouse_type = kCGEventLeftMouseDown;
+		}
+		else {
+			mouse_type = kCGEventLeftMouseUp;
+		}
+		mouse_button = kCGMouseButtonLeft;
+	}
+	else if (event->data.mouse.button == MOUSE_BUTTON2) {
+		if (is_pressed) {
+			mouse_type = kCGEventRightMouseDown;
+		}
+		else {
+			mouse_type = kCGEventRightMouseUp;
+		}
+		mouse_button = kCGMouseButtonRight;
+	}
+	else {
+		if (is_pressed) {
+			mouse_type = kCGEventOtherMouseDown;
+		}
+		else {
+			mouse_type = kCGEventOtherMouseUp;
+		}
+        mouse_button = event->data.mouse.button - 1;
+	}
+
+	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	CGEventRef cg_event = CGEventCreateMouseEvent(src,
+		mouse_type,
+		CGPointMake(
+			(CGFloat) event->data.mouse.x,
+			(CGFloat) event->data.mouse.y
+		),
+        mouse_button
+	);
+	CGEventPost(kCGHIDEventTap, cg_event);	// kCGSessionEventTap also works.
+	CFRelease(cg_event);
+	CFRelease(src);
+}
+
+static inline void post_mouse_wheel_event(uiohook_event * const event) {
+	// FIXME Should I create a source event with the coords?
+	// It seems to automagically use the current location of the cursor.
+	// Two options: Query the mouse, move it to x/y, scroll, then move back
+	// OR disable x/y for scroll events on Windows & X11.
+	CGScrollEventUnit scroll_unit;
+	if (event->data.wheel.type == WHEEL_BLOCK_SCROLL) {
+		// Scrolling data is line-based.
+		scroll_unit = kCGScrollEventUnitLine;
+	}
+	else {
+		// Scrolling data is pixel-based.
+		scroll_unit = kCGScrollEventUnitPixel;
+	}
+
+	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	CGEventRef cg_event = CGEventCreateScrollWheelEvent(src,
+		kCGScrollEventUnitLine,
+		// TODO Currently only support 1 wheel axis.
+		(CGWheelCount) 1, // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
+		event->data.wheel.amount * event->data.wheel.rotation);
+
+	CGEventPost(kCGHIDEventTap, cg_event);	// kCGSessionEventTap also works.
+	CFRelease(cg_event);
+	CFRelease(src);
+}
+
+static inline void post_mouse_motion_event(uiohook_event * const event) {
+	CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+	CGEventRef cg_event;
+	if (event->mask >> 8 == 0x00) {
+		// No mouse flags.
+		cg_event = CGEventCreateMouseEvent(src,
+			kCGEventMouseMoved,
+			CGPointMake(
+				(CGFloat) event->data.mouse.x,
+				(CGFloat) event->data.mouse.y
+			),
+			0
+		);
+	}
+	else if (event->mask & MASK_BUTTON1) {
+		cg_event = CGEventCreateMouseEvent(src,
+			kCGEventLeftMouseDragged,
+			CGPointMake(
+				(CGFloat) event->data.mouse.x,
+				(CGFloat) event->data.mouse.y
+			),
+			kCGMouseButtonLeft
+		);
+	}
+	else if (event->mask & MASK_BUTTON2) {
+		cg_event = CGEventCreateMouseEvent(src,
+			kCGEventRightMouseDragged,
+			CGPointMake(
+				(CGFloat) event->data.mouse.x,
+				(CGFloat) event->data.mouse.y
+			),
+			kCGMouseButtonRight
+		);
+	}
+	else {
+		cg_event = CGEventCreateMouseEvent(src,
+			kCGEventOtherMouseDragged,
+			CGPointMake(
+				(CGFloat) event->data.mouse.x,
+				(CGFloat) event->data.mouse.y
+			),
+			(event->mask >> 8) - 1
+		);
+	}
+
+	// kCGSessionEventTap also works.
+	CGEventPost(kCGHIDEventTap, cg_event);
+	CFRelease(cg_event);
+	CFRelease(src);
+}
+
+UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
-			cg_event = CGEventCreateKeyboardEvent(src,
-					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
-					true);
-			
-			CGEventSetFlags(cg_event, get_key_event_mask(event));
-			CGEventPost(loc, cg_event);
-			CFRelease(cg_event);
-			break;
-
 		case EVENT_KEY_RELEASED:
-			cg_event = CGEventCreateKeyboardEvent(src,
-					(CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode),
-					false);
-			
-			CGEventSetFlags(cg_event, get_key_event_mask(event));
-			CGEventPost(loc, cg_event);
-			CFRelease(cg_event);
+			post_key_event(event);
 			break;
 
-			
+
 		case EVENT_MOUSE_PRESSED:
-			if (event->data.mouse.button == MOUSE_BUTTON1) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventLeftMouseDown,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					kCGMouseButtonLeft
-				);				
-				CGEventPost(loc, cg_event);
-				CFRelease(cg_event);
-			}
-			else if (event->data.mouse.button == MOUSE_BUTTON2) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventRightMouseDown,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					kCGMouseButtonRight
-				);
-				CGEventPost(loc, cg_event);
-				CFRelease(cg_event);
-			}
-			else if (event->data.mouse.button > 0) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventOtherMouseDown,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					event->data.mouse.button - 1
-				);
-				CGEventPost(loc, cg_event);
-				CFRelease(cg_event);
-			}
+			post_mouse_button_event(event, true);
 			break;
 						
 		case EVENT_MOUSE_RELEASED:
-			if (event->data.mouse.button == MOUSE_BUTTON1) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventLeftMouseUp,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					kCGMouseButtonLeft
-				);
-				CGEventPost(loc, cg_event);
-				CFRelease(cg_event);
-			}
-			else if (event->data.mouse.button == MOUSE_BUTTON2) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventRightMouseUp,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					kCGMouseButtonRight
-				);
-				CGEventPost(loc, cg_event);
-				CFRelease(cg_event);
-			}
-			else if (event->data.mouse.button > 0) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventOtherMouseUp,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					event->data.mouse.button - 1
-				);
-				CGEventPost(loc, cg_event);
-				CFRelease(cg_event);
-			}
+			post_mouse_button_event(event, false);
 			break;
 
+		case EVENT_MOUSE_CLICKED:
+			post_mouse_button_event(event, true);
+			post_mouse_button_event(event, false);
+			break;
 
 		case EVENT_MOUSE_WHEEL:
-			// FIXME Should I create a source event with the coords?
-			// It seems to use automagically the current location of the cursor.
-			// Two options: Query the mouse, move it to x/y, scroll, then move back 
-			// OR disable x/y for scroll events on Windows & X11.
-			if (event->data.wheel.type == WHEEL_BLOCK_SCROLL) {
-				// Scrolling data is line-based.
-				cg_event = CGEventCreateScrollWheelEvent(src,
-					kCGScrollEventUnitLine,
-					// TODO Currently only support 1 wheel axis.
-					(CGWheelCount) 1, // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
-					event->data.wheel.amount * event->data.wheel.rotation);
-			}
-			else {
-				// Scrolling data is pixel-based.
-				cg_event = CGEventCreateScrollWheelEvent(src,
-					kCGScrollEventUnitPixel,
-					// TODO Currently only support 1 wheel axis.
-					(CGWheelCount) 1, // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
-					event->data.wheel.amount * event->data.wheel.rotation);
-			}
-			CGEventPost(loc, cg_event);
-			CFRelease(cg_event);
+            post_mouse_wheel_event(event);
 			break;
 
 
 		case EVENT_MOUSE_MOVED:
 		case EVENT_MOUSE_DRAGGED:
-			if (event->mask >> 8 == 0x00) {
-				// No mouse flags.
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventMouseMoved,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					0
-				);
-			}
-			else if (event->mask & MASK_BUTTON1) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventLeftMouseDragged,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					kCGMouseButtonLeft
-				);
-			}
-			else if (event->mask & MASK_BUTTON2) {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventRightMouseDragged,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					kCGMouseButtonRight
-				);
-			}
-			else {
-				cg_event = CGEventCreateMouseEvent(src,
-					kCGEventOtherMouseDragged,
-					CGPointMake(
-						(CGFloat) event->data.mouse.x,
-						(CGFloat) event->data.mouse.y
-					),
-					(event->mask >> 8) - 1
-				);
-			}
-			CGEventPost(loc, cg_event);
-			CFRelease(cg_event);
+			post_mouse_motion_event(event);
 			break;
 
 
-		case EVENT_MOUSE_CLICKED:
 		case EVENT_KEY_TYPED:
-			// Ignore clicked and typed events.
+			// FIXME Ignoreing EVENT_KEY_TYPED events.
 			
 		case EVENT_HOOK_ENABLED:
 		case EVENT_HOOK_DISABLED:
@@ -262,6 +249,4 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					__FUNCTION__, __LINE__, event->type);
 			break;
 	}
-
-	CFRelease(src);
 }

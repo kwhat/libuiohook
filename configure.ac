@@ -39,7 +39,7 @@ LTLDFLAGS="-version-info ${lt_current}:${lt_revision}:${lt_age}"
 # Initialize autoconf.
 AC_INIT([uiohook], [UIOHOOK_VERSION_STRING], [UIOHOOK_BUGS])
 
-AC_PREREQ(2.64)
+AC_PREREQ(2.65)
 
 AC_CONFIG_SRCDIR([include/uiohook.h])
 AC_CONFIG_FILES([
@@ -58,13 +58,13 @@ AC_CANONICAL_TARGET
 # Initialize automake.
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 
+# Checks for programs.
+AC_PROG_CC
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+
 # Checks for language.
 AC_LANG([C])
 AC_PROG_CC_C99
-
-# Checks for programs.
-#AC_PROG_CC([gcc clang])
-m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 
 # Checks for header files
 AC_C_CONST
@@ -176,6 +176,11 @@ AC_ARG_ENABLE([iokit],
 	[enable_iokit="$enableval"],
 	[enable_iokit="yes"])
 
+AC_ARG_ENABLE([objc],
+	AS_HELP_STRING([--without-objc],	[Disable objective-c (default: enabled)]),
+	[enable_objc="$enableval"],
+	[enable_objc="yes"])
+
 AC_ARG_ENABLE([weak-import],
 	AS_HELP_STRING([--enable-weak-import], [Enable support for weakly-linked symbols (default: disabled)]),
 	[enable_weak_import="$enableval"],
@@ -207,6 +212,11 @@ AS_IF(
 		AS_IF([test "x$enable_iokit" = "xyes"], [
 			AC_DEFINE([USE_IOKIT], 1, [Enable IOKit framework])
 			LIBS="${LIBS} -framework IOKit"
+		])
+
+		AS_IF([test "x$enable_objc" = "xyes"], [
+			AC_DEFINE([USE_OBJC], 1, [Enable objective-c])
+			LIBS="${LIBS} -lobjc"
 		])
 
 		AS_IF([test "x$enable_weak_import" = "xyes"], [

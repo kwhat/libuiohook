@@ -50,7 +50,6 @@ extern Boolean AXIsProcessTrustedWithOptions(CFDictionaryRef options) __attribut
 extern CFStringRef kAXTrustedCheckOptionPrompt __attribute__((weak_import));
 #else
 static Boolean (*AXIsProcessTrustedWithOptions_t)(CFDictionaryRef);
-static Boolean (*AXAPIEnabled_t)(void);
 #endif
 
 bool is_accessibility_enabled() {
@@ -73,85 +72,55 @@ bool is_accessibility_enabled() {
 
 		is_enabled = AXIsProcessTrustedWithOptions(options);
 	}
+	#else
+	// Dynamically load the application services framework for examination.
+	*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(RTLD_DEFAULT, "AXIsProcessTrustedWithOptions");
+	const char *dlError = dlerror();
+	if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
+		// Check for property CFStringRef kAXTrustedCheckOptionPrompt
+		void ** kAXTrustedCheckOptionPrompt_t = dlsym(RTLD_DEFAULT, "kAXTrustedCheckOptionPrompt");
+
+		dlError = dlerror();
+		if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
+			// New accessibility API 10.9 and later.
+			const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
+			const void * values[] = { kCFBooleanTrue };
+
+			CFDictionaryRef options = CFDictionaryCreate(
+					kCFAllocatorDefault,
+					keys,
+					values,
+					sizeof(keys) / sizeof(*keys),
+					&kCFCopyStringDictionaryKeyCallBacks,
+					&kCFTypeDictionaryValueCallBacks);
+
+			is_enabled = (*AXIsProcessTrustedWithOptions_t)(options);
+		}
+	}
+	#endif
 	else {
+		#ifndef USE_WEAK_IMPORT
+		if (dlError != NULL) {
+			// Could not load the AXIsProcessTrustedWithOptions function!
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+					__FUNCTION__, __LINE__, dlError);
+		}
+		#endif
+		
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Weak import AXIsProcessTrustedWithOptions not found.\n",
+					__FUNCTION__, __LINE__, dlError);
+
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to AXAPIEnabled().\n",
+				__FUNCTION__, __LINE__, dlError);
+		
 		// Old accessibility check 10.8 and older.
 		is_enabled = AXAPIEnabled();
 	}
-	#else
-	// Dynamically load the application services framework for examination.
-	const char *dlError = NULL;
-	void *libApplicaitonServices = dlopen("/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices", RTLD_LAZY);
-	dlError = dlerror();
-	if (libApplicaitonServices != NULL && dlError == NULL) {
-		// Check for the new function AXIsProcessTrustedWithOptions().
-		*(void **) (&AXIsProcessTrustedWithOptions_t) = dlsym(libApplicaitonServices, "AXIsProcessTrustedWithOptions");
-		dlError = dlerror();
-		if (AXIsProcessTrustedWithOptions_t != NULL && dlError == NULL) {
-			// Check for property CFStringRef kAXTrustedCheckOptionPrompt
-			void ** kAXTrustedCheckOptionPrompt_t = dlsym(libApplicaitonServices, "kAXTrustedCheckOptionPrompt");
-
-			dlError = dlerror();
-			if (kAXTrustedCheckOptionPrompt_t != NULL && dlError == NULL) {
-				// New accessibility API 10.9 and later.
-				const void * keys[] = { *kAXTrustedCheckOptionPrompt_t };
-				const void * values[] = { kCFBooleanTrue };
-
-				CFDictionaryRef options = CFDictionaryCreate(
-						kCFAllocatorDefault,
-						keys,
-						values,
-						sizeof(keys) / sizeof(*keys),
-						&kCFCopyStringDictionaryKeyCallBacks,
-						&kCFTypeDictionaryValueCallBacks);
-
-				is_enabled = (*AXIsProcessTrustedWithOptions_t)(options);
-			}
-		}
-		else {
-			// Could not load the AXIsProcessTrustedWithOptions function!
-			if (dlError != NULL) {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
-						__FUNCTION__, __LINE__, dlError);
-			}
-			
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Falling back to AXAPIEnabled().\n",
-					__FUNCTION__, __LINE__, dlError);
-
-			// Check for the fallback function AXAPIEnabled().
-			*(void **) (&AXAPIEnabled_t) = dlsym(libApplicaitonServices, "AXAPIEnabled");
-			dlError = dlerror();
-			if (AXAPIEnabled_t != NULL && dlError == NULL) {
-				// Old accessibility check 10.8 and older.
-				is_enabled = (*AXAPIEnabled_t)();
-			}
-			else {
-				// Could not load the AXAPIEnabled function!
-				if (dlError != NULL) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
-							__FUNCTION__, __LINE__, dlError);
-				}
-			
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to locate AXAPIEnabled()!\n",
-						__FUNCTION__, __LINE__);
-			}
-		}
-
-		dlclose(libApplicaitonServices);
-	}
-	else {
-		// Could not load the ApplicationServices framework!
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to lazy load the ApplicationServices framework! (%s)\n",
-				__FUNCTION__, __LINE__, dlError);
-	}
-	#endif
 
 	return is_enabled;
 }
 
-// NOTE This method must be executed from the main runloop,
-// Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) to avoid 
-// Exception detected while handling key input and TSMProcessRawKeyCode failed 
-// (-192) errors.
+
 UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
 	UniCharCount count = 0;
 	
@@ -164,29 +133,35 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 		}
 	}
 	#elif defined(USE_COREFOUNDATION)
-	TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
 	CFDataRef inputData = NULL;
-	if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
-		CFDataRef data = (CFDataRef) TISGetInputSourceProperty(curr_keyboard_layout, kTISPropertyUnicodeKeyLayoutData);
-		if (data != NULL && CFGetTypeID(data) == CFDataGetTypeID() && CFDataGetLength(data) > 0) {
-			inputData = (CFDataRef) data;
+	if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
+		// NOTE The following block must execute on the main runloop,
+		// Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain()) to avoid 
+		// Exception detected while handling key input and TSMProcessRawKeyCode failed 
+		// (-192) errors.
+		TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
+		if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
+			CFDataRef data = (CFDataRef) TISGetInputSourceProperty(curr_keyboard_layout, kTISPropertyUnicodeKeyLayoutData);
+			if (data != NULL && CFGetTypeID(data) == CFDataGetTypeID() && CFDataGetLength(data) > 0) {
+				inputData = (CFDataRef) data;
+			}
 		}
-	}
+		
+		// Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
+		if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
+			deadkey_state = 0x00;
+		}
 
-	// Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
-	if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
-		deadkey_state = 0x00;
-	}
+		// Release the previous keyboard layout.
+		if (prev_keyboard_layout != NULL) {
+			CFRelease(prev_keyboard_layout);
+			prev_keyboard_layout = NULL;
+		}
 
-	// Release the previous keyboard layout.
-	if (prev_keyboard_layout != NULL) {
-		CFRelease(prev_keyboard_layout);
-		prev_keyboard_layout = NULL;
-	}
-
-	// Set the previous keyboard layout to the current layout.
-	if (curr_keyboard_layout != NULL) {
-		prev_keyboard_layout = curr_keyboard_layout;
+		// Set the previous keyboard layout to the current layout.
+		if (curr_keyboard_layout != NULL) {
+			prev_keyboard_layout = curr_keyboard_layout;
+		}
 	}
 	#endif
 
@@ -264,6 +239,7 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 			case 0x10:		// Function Keys
 			case 0x0B:		// Page Up
 			case 0x0C:		// Page Down
+			case 0x1F:		// Volume Up
 				count = 0;
 		}
 	}
@@ -421,7 +397,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 141 */	{ VC_UNDEFINED,			kVK_ANSI_KeypadEquals	},	// 0x8D
 	/* 142 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x8E
 	/* 143 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x8F
-	/* 144 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x90
+	/* 144 */	{ VC_UNDEFINED,			kVK_MEDIA_Previous		},	// 0x90
 	/* 145 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x91
 	/* 146 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x92
 	/* 147 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x93
@@ -430,7 +406,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 150 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x96
 	/* 151 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x97
 	/* 152 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x98
-	/* 153 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x99
+	/* 153 */	{ VC_UNDEFINED,			kVK_MEDIA_Next			},	// 0x99
 	/* 154 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x9A
 	/* 155 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x9B
 	/* 156 */	{ VC_UNDEFINED,			kVK_ANSI_KeypadEnter	},	// 0x9C
@@ -439,7 +415,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 159 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0x9F
 	/* 160 */	{ VC_UNDEFINED,			kVK_Mute				},	// 0xA0
 	/* 161 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA1
-	/* 162 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA2
+	/* 162 */	{ VC_UNDEFINED,			kVK_MEDIA_Play			},	// 0xA2
 	/* 163 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA3
 	/* 164 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA4
 	/* 165 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA5
@@ -449,7 +425,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 169 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xA9
 	/* 170 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAA
 	/* 171 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAB
-	/* 172 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAC
+	/* 172 */	{ VC_UNDEFINED,			kVK_NX_Eject			},	// 0xAC
 	/* 173 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAD
 	/* 174 */	{ VC_UNDEFINED,			kVK_VolumeDown			},	// 0xAE
 	/* 175 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xAF
@@ -499,7 +475,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 219 */	{ VC_UNDEFINED,			kVK_Command				},	// 0xDB
 	/* 220 */	{ VC_UNDEFINED,			kVK_RightCommand		},	// 0xDC
 	/* 221 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDD
-	/* 222 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDE
+	/* 222 */	{ VC_UNDEFINED,			kVK_NX_Power			},	// 0xDE
 	/* 223 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDF
 	/* 224 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE0
 	/* 225 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE1
@@ -507,7 +483,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 227 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE3
 	/* 228 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE4
 	/* 229 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE5
-	/* 230 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE6
+	/* 230 */	{ VC_POWER,				kVK_Undefined			},	// 0xE6
 	/* 231 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE7
 	/* 232 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE8
 	/* 233 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE9
@@ -515,11 +491,11 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 235 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEB
 	/* 236 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEC
 	/* 237 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xED
-	/* 238 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEE
+	/* 238 */	{ VC_MEDIA_EJECT,		kVK_Undefined			},	// 0xEE
 	/* 239 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xEF
-	/* 240 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF0
-	/* 241 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF1
-	/* 242 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF2
+	/* 240 */	{ VC_MEDIA_PLAY,		kVK_Undefined			},	// 0xF0
+	/* 241 */	{ VC_MEDIA_NEXT,		kVK_Undefined			},	// 0xF1
+	/* 242 */	{ VC_MEDIA_PREVIOUS,	kVK_Undefined			},	// 0xF2
 	/* 243 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF3
 	/* 244 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF4
 	/* 245 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xF5
@@ -538,7 +514,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 uint16_t keycode_to_scancode(UInt64 keycode) {
 	uint16_t scancode = VC_UNDEFINED;
 
-	// Bound check 0 <= keycode < 128
+	// Bound check 0 <= keycode < 256
 	if (keycode < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 		scancode = keycode_scancode_table[keycode][0];
 	}

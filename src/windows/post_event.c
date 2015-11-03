@@ -50,6 +50,8 @@
 #define KEYEVENTF_KEYDOWN		0x0000
 #endif
 
+#define MAX_WINDOWS_COORD_VALUE 65535
+
 static UINT keymask_lookup[8] = {
 	VK_LSHIFT,
 	VK_LCONTROL,
@@ -63,6 +65,10 @@ static UINT keymask_lookup[8] = {
 };
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
+	//FIXME implement multiple monitor support
+	uint16_t screen_width   = GetSystemMetrics( SM_CXSCREEN ); 
+	uint16_t screen_height  = GetSystemMetrics( SM_CYSCREEN );
+
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
 
@@ -77,39 +83,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			}
 		}
 	}
-
-	if (event->mask & (MASK_BUTTON1 | MASK_BUTTON2 | MASK_BUTTON3 | MASK_BUTTON4 | MASK_BUTTON5)) {
-		events[events_size].type = INPUT_MOUSE;
-		events[events_size].mi.dx = 0;	// Relative mouse movement due to
-		events[events_size].mi.dy = 0;	// MOUSEEVENTF_ABSOLUTE not being set.
-		events[events_size].mi.mouseData = 0x00;
-		events[events_size].mi.time = 0; // Use current system time.
-
-		if (event->mask & MASK_BUTTON1) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_LEFTDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON2) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_RIGHTDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON3) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_MIDDLEDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON4) {
-			events[events_size].mi.mouseData = XBUTTON1;
-			events[events_size].mi.mouseData |= MOUSEEVENTF_XDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON5) {
-			events[events_size].mi.mouseData = XBUTTON2;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_XDOWN;
-		}
-
-		events_size++;
-	}
-
 
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
@@ -180,8 +153,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
-			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
+			events[events_size].mi.dx = event->data.mouse.x * (MAX_WINDOWS_COORD_VALUE / screen_width) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (MAX_WINDOWS_COORD_VALUE / screen_height) + 1;
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
@@ -220,8 +193,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
-			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
+			events[events_size].mi.dx = event->data.mouse.x * (MAX_WINDOWS_COORD_VALUE / screen_width) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (MAX_WINDOWS_COORD_VALUE / screen_height) + 1;
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
@@ -236,9 +209,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// type, amount and rotation?
 			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
 			
-			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
-			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
-
+			events[events_size].mi.dx = event->data.mouse.x * (MAX_WINDOWS_COORD_VALUE / screen_width) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (MAX_WINDOWS_COORD_VALUE / screen_height) + 1;
+			
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()
 			events_size++;
@@ -251,8 +224,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_MOVED:
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
-			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
-			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
+
+			events[events_size].mi.dx = event->data.mouse.x * (MAX_WINDOWS_COORD_VALUE / screen_width) + 1;
+			events[events_size].mi.dy = event->data.mouse.y * (MAX_WINDOWS_COORD_VALUE / screen_height) + 1;
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; //GetSystemTime()

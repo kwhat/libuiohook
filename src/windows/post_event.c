@@ -184,7 +184,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.time = 0; //GetSystemTime()
+			events[events_size].mi.time = 0; // GetSystemTime()
 			events_size++;
 			break;
 			
@@ -224,7 +224,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.time = 0; //GetSystemTime()
+			events[events_size].mi.time = 0; // GetSystemTime()
 			events_size++;
 			break;
 
@@ -236,11 +236,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// type, amount and rotation?
 			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
 			
-			events[events_size].mi.dx = event->data.mouse.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
-			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
-
+			events[events_size].mi.dx = event->data.wheel.x * (65536 / GetSystemMetrics(SM_CXSCREEN)) + 1;
+			events[events_size].mi.dy = event->data.wheel.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.time = 0; //GetSystemTime()
+			events[events_size].mi.time = 0; // GetSystemTime()
 			events_size++;
 			break;
 
@@ -255,7 +254,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].mi.dy = event->data.mouse.y * (65536 / GetSystemMetrics(SM_CYSCREEN)) + 1;
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-			events[events_size].mi.time = 0; //GetSystemTime()
+			events[events_size].mi.time = 0; // GetSystemTime()
 			events_size++;
 			break;
 

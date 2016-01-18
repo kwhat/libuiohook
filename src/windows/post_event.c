@@ -120,8 +120,9 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].ki.wScan = event->data.keyboard.keycode;
 			events[events_size].ki.dwFlags = KEYEVENTF_SCANCODE;
 
-			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
-					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
+			if (events[events_size].ki.wVk & 0xE000
+					|| (events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46)
+					|| (events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
 
 				// Key is an extended key.
 				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
@@ -138,8 +139,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].ki.wScan = event->data.keyboard.keycode;
 			events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
 
-			if ((events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46) ||
-					(events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
+			if (events[events_size].ki.wVk & 0xE000
+					|| (events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46)
+					|| (events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
+
 				// Key is an extended key.
 				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
 			}

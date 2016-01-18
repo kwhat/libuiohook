@@ -117,6 +117,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		events_size++;
 	}
 
+
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			events[events_size].type = INPUT_KEYBOARD;

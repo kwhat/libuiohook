@@ -160,7 +160,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_PRESSED:
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
-			
+
 			switch (event->data.mouse.button) {
 				case MOUSE_BUTTON1:
 					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
@@ -194,6 +194,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()
+
 			events_size++;
 			break;
 			
@@ -336,6 +337,11 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	// Create the key release input
 	// memcpy(key_events + 1, key_events, sizeof(INPUT));
 	// key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+
+	for (int i = 0; i < events_size; i++) {
+		logger(LOG_LEVEL_WARN, "%s [%u]: TEST Type: %#X\n",
+    		__FUNCTION__, __LINE__, events[i].type);
+	}
 
 	if (! SendInput(events_size, events, sizeof(INPUT)) ) {
 		logger(LOG_LEVEL_ERROR, "%s [%u]: SendInput() failed! (%#lX)\n",

@@ -75,7 +75,6 @@ AC_TYPE_UINT64_T
 # Initialize libtool.
 AC_PROG_LIBTOOL
 
-
 # Check for operating system.
 AC_MSG_CHECKING(operating system)
 AS_CASE([$host],
@@ -130,6 +129,21 @@ AC_ARG_ENABLE([evdev],
 	[enable_evdev="yes"])
 
 # Linux & Unix Options
+AC_ARG_ENABLE([xkbcommon],
+	AS_HELP_STRING([--without-xkbcommon], [Disable X Keyboard Common Extension (default: enabled)]),
+	[enable_xkbcommon="$enableval"],
+	[enable_xkbcommon="yes"])
+	
+AC_ARG_ENABLE([xkbfile],
+	AS_HELP_STRING([--without-xkbfile], [Disable X Keyboard File Extension (default: enabled)]),
+	[enable_xkbfile="$enableval"],
+	[enable_xkbfile="yes"])
+
+AC_ARG_ENABLE([xcb],
+	AS_HELP_STRING([--without-xcb], [Disable X protocol C-language Binding (default: enabled)]),
+	[enable_xcb="$enableval"],
+	[enable_xcb="yes"])
+
 AC_ARG_ENABLE([xkb],
 	AS_HELP_STRING([--without-xkb], [Disable X Keyboard Extension (default: enabled)]),
 	[enable_xkb="$enableval"],
@@ -351,6 +365,39 @@ AS_IF(
 				DEMO_LIBS="$PTHREAD_LIBS $LIBS"
 				DEMO_CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
 			])
+		])
+
+
+		AS_IF([test "x$enable_xkbcommon" = "xyes"], [
+			PKG_CHECK_MODULES([X11_XCB], [x11-xcb])
+			LIBS="$X11_XCB_LIBS $LIBS"
+			CFLAGS="$X11_XCB_CFLAGS $CFLAGS"
+			REQUIRE="$REQUIRE x11-xcb"
+
+			PKG_CHECK_MODULES([XKBCOMMON], [xkbcommon])
+			LIBS="$XKBCOMMON_LIBS $LIBS"
+			CFLAGS="$XKBCOMMON_CFLAGS $CFLAGS"
+			REQUIRE="$REQUIRE xkbcommon"
+
+			PKG_CHECK_MODULES([XKBCOMMON_X11], [xkbcommon-x11])
+			LIBS="$XKBCOMMON_X11_LIBS $LIBS"
+			#CFLAGS="$XKBCOMMON_X11_CFLAGS $CFLAGS"
+			REQUIRE="$REQUIRE xkbcommon-x11"
+
+			AC_DEFINE([USE_XKBCOMMON], 1, [Enable XKB Common Extension])
+		])
+
+		AS_IF([test "x$enable_xkbfile" = "xyes"], [
+			AS_IF([test "x$enable_kxbcommon" = "xno"], [
+				AC_MSG_ERROR([XKB Common is required for XKB File support!])
+			])
+
+			PKG_CHECK_MODULES([XKBFILE], [xkbfile])
+			LIBS="$XKBFILE_LIBS $LIBS"
+			#CFLAGS="$XKBFILE_CFLAGS $CFLAGS"
+			REQUIRE="$REQUIRE xkbfile"
+
+			AC_DEFINE([USE_XKBFILE], 1, [Enable XKB File Extension])
 		])
 
 		LDFLAGS="$LDFLAGS -Wl,--no-undefined"

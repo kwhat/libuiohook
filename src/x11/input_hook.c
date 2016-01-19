@@ -46,13 +46,6 @@
 #pragma message("... Assuming single-head display.")
 #endif
 
-#include <xkbcommon/xkbcommon.h>
-#include <X11/Xlib-xcb.h>
-#include <xkbcommon/xkbcommon-x11.h>
-#include <X11/extensions/XKBrules.h>
-
-static xcb_connection_t *xcb_conn;
-
 #include "logger.h"
 #include "input_helper.h"
 
@@ -76,10 +69,6 @@ typedef struct _hook_info {
 } hook_info;
 static hook_info *hook;
 
-
-struct xkb_context *xkb_ctx;
-// XKB State for xkbcommon.
-struct xkb_state *state;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
@@ -253,85 +242,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
 
-			int32_t device_id = xkb_x11_get_core_keyboard_device_id(xcb_conn);
-			if (false && device_id >= 0) {
-				struct xkb_keymap *keymap = xkb_x11_keymap_new_from_device(xkb_ctx, xcb_conn, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-    			struct xkb_state *state = xkb_x11_state_new_from_device(keymap, xcb_conn, device_id);
-
-    			KeySym keysym = xkb_state_key_get_one_sym(state, keycode);
-				logger(LOG_LEVEL_ERROR,
-					"%s [%u]: KEYSYM TEST 1 %d\n",
-					__FUNCTION__, __LINE__, keysym);
-
-				// If the pressed event was not consumed...
-				if (event.reserved ^ 0x01) {
-					char buffer[8];
-    				int size = xkb_state_key_get_utf8(state, keycode, buffer, 8);
-    				if (size > 0) {
-						logger(LOG_LEVEL_ERROR,
-							"%s [%u]: KEY CHAR TEST 1 %d %s\n",
-							__FUNCTION__, __LINE__, size, buffer);
-    				}
-    			}
-			}
-			else {
-				// Evdev fallback
-				logger(LOG_LEVEL_ERROR,
-            					"%s [%u]: Unable to retrieve core keyboard device id! (%d)\n",
-            					__FUNCTION__, __LINE__, device_id);
-
-			    XkbRF_VarDefsRec xkb_rf;
-                struct xkb_rule_names names = {
-                    .rules = "base",
-                    .model = "us",
-                    .layout = "pc105",
-                    .variant = NULL,
-                    .options = NULL
-                };
-
-				char *tmp;
-            	Bool success = XkbRF_GetNamesProp(hook->ctrl.display, &tmp, &xkb_rf);
-                if (success) {
-            		names.rules = tmp;
-            		names.model = xkb_rf.model;
-            		names.layout = xkb_rf.layout;
-            		names.variant = xkb_rf.variant;
-            		names.options = xkb_rf.options;
-
-            		logger(LOG_LEVEL_ERROR,
-                    		"%s [%u]: SUCCESS:\n%s \n%s \n%s \n%s \n%s \n%d\n",
-                    		__FUNCTION__, __LINE__, names.rules, names.model, names.layout, names.variant, names.options, xkb_rf.num_extra);
-                }
-                else {
-					logger(LOG_LEVEL_ERROR,
-						"%s [%u]: ERRROR REEREROR\n",
-						__FUNCTION__, __LINE__, device_id);
-                }
-
-				struct xkb_keymap *keymap = xkb_keymap_new_from_names(xkb_ctx, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
-				struct xkb_state *state = xkb_state_new(keymap);
-
-    			KeySym keysym = xkb_state_key_get_one_sym(state, keycode);
-				logger(LOG_LEVEL_ERROR,
-					"%s [%u]: KEYSYM TEST 3 %d\n",
-					__FUNCTION__, __LINE__, keysym);
-
-				// If the pressed event was not consumed...
-				if (event.reserved ^ 0x01) {
-					char buffer[8];
-    				int size = xkb_state_key_get_utf8(state, keycode, buffer, 8);
-    				if (size > 0) {
-						logger(LOG_LEVEL_ERROR,
-							"%s [%u]: KEY CHAR TEST 3 %d %s\n",
-							__FUNCTION__, __LINE__, size, buffer);
-    				}
-    			}
-			}
-
-
 			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
-			logger(LOG_LEVEL_ERROR,
-				"%s [%u]: KEYSYM TEST 2 %d\n",
+			logger(LOG_LEVEL_ERROR, "%s [%u]: KEYSYM TEST 3 %d\n",
 				__FUNCTION__, __LINE__, keysym);
 
 			unsigned short int scancode = keycode_to_scancode(keycode);
@@ -365,35 +277,32 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
-				wchar_t buffer[1];
-
 				// Check to make sure the key is printable.
+				#ifdef USE_XKBCOMMON
+				char buffer[2];
+				size_t count = keycode_to_unicode(keycode, buffer, sizeof(buffer));
+				#else
+				wchar_t buffer[1];
 				size_t count = keysym_to_unicode(keysym, buffer, sizeof(buffer));
-				if (count > 0) {
-					logger(LOG_LEVEL_ERROR,
-						"%s [%u]: KEY CHAR TEST 1 %d %lc\n",
-						__FUNCTION__, __LINE__, count, buffer[0]);
+				#endif
 
-					// NOTE This will currently always be a single iteration.
-					//for (unsigned int i = 0; i < count; i++) {
-						// Populate key typed event.
-						event.time = timestamp;
-						event.reserved = 0x00;
+				for (unsigned int i = 0; i < count; i++) {
+					// Populate key typed event.
+					event.time = timestamp;
+					event.reserved = 0x00;
 
-						event.type = EVENT_KEY_TYPED;
-						event.mask = get_modifiers();
+					event.type = EVENT_KEY_TYPED;
+					event.mask = get_modifiers();
 
-						event.data.keyboard.keycode = VC_UNDEFINED;
-						event.data.keyboard.rawcode = keysym;
-						//event.data.keyboard.keychar = buffer[i];
-						event.data.keyboard.keychar = buffer[0];
+					event.data.keyboard.keycode = VC_UNDEFINED;
+					event.data.keyboard.rawcode = keysym;
+					event.data.keyboard.keychar = buffer[i];
 
-						logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-								__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+					logger(LOG_LEVEL_ERROR,	"%s [%u]: Key %#X typed. (%lc)\n",
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 
-						// Fire key typed event.
-						dispatch_event(&event);
-					//}
+					// Fire key typed event.
+					dispatch_event(&event);
 				}
 			}
 		}
@@ -962,26 +871,7 @@ static inline int xrecord_start() {
 		// Initialize starting modifiers.
 		initialize_modifiers();
 
-		// Open XCB Connection
-		xcb_conn = XGetXCBConnection(hook->ctrl.display);
-		int xcb_status = xcb_connection_has_error(xcb_conn);
-		if (xcb_status <= 0) {
-			// Initialize xkbcommon context.
-			xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-			if (xkb_ctx != NULL) {
-				status = xrecord_query();
-			}
-			else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: xkb_context_new failure!\n",
-						__FUNCTION__, __LINE__);
-			}
-		}
-		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: xcb_connect failure! (%d)\n",
-					__FUNCTION__, __LINE__, xcb_status);
-		}
-
-        xcb_disconnect(xcb_conn);
+		status = xrecord_query();
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",
@@ -1066,7 +956,7 @@ UIOHOOK_API int hook_stop() {
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to allocate memory for XRecordState!\n",
-				__FUNCTION__, __LINE__);
+					__FUNCTION__, __LINE__);
 
 			status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 		}

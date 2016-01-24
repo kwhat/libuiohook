@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
@@ -1459,10 +1460,6 @@ static inline struct xkb_state *get_xkb_state() {
 
 		keymap = xkb_keymap_new_from_names(xkb_ctx, &xkb_names, XKB_KEYMAP_COMPILE_NO_FLAGS);
 		state = xkb_state_new(keymap);
-
-		//KeySym keysym = xkb_state_key_get_one_sym(state, keycode);
-		//logger(LOG_LEVEL_ERROR, "%s [%u]: KEYSYM TEST 2 %d\n",
-		//		__FUNCTION__, __LINE__, keysym);
 	}
 	#endif
 
@@ -1517,6 +1514,23 @@ KeySym unicode_to_keysym(wchar_t unicode) {
 	// No matching KeySym value found, return UCS2 with bit set.
 	return unicode | 0x01000000;
 }
+
+#ifdef USE_XKBCOMMON
+size_t keycode_to_unicode(KeyCode keycode, wchar_t *buffer, size_t size) {
+	char *tmpbuff = malloc(sizeof(wchar_t) * size);
+	size_t count = 0;
+
+	struct xkb_state *state = get_xkb_state();
+    if (state != NULL) {
+		count = xkb_state_key_get_utf8(state, keycode, tmpbuff, size);
+	}
+
+	count = mbstowcs(buffer, tmpbuff, count);
+    free(tmpbuff);
+
+    return count;
+}
+#endif
 
 /***********************************************************************
  * The following function converts KeySym values into the corresponding
@@ -1590,20 +1604,6 @@ size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size) {
     // No matching Unicode value found!
     return count;
 }
-
-#ifdef USE_XKBCOMMON
-size_t keycode_to_unicode(KeyCode keycode, char *buffer, size_t size) {
-	size_t count = 0;
-
-	struct xkb_state *state = get_xkb_state();
-    if (state != NULL) {
-		count = xkb_state_key_get_utf8(state, keycode, buffer, size);
-	}
-
-    // No matching Unicode value found!
-    return count;
-}
-#endif
 
 
 /* The following code is based on vncdisplaykeymap.c under the following terms:

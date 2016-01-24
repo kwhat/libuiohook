@@ -1705,12 +1705,10 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 	KeySym keysym = NoSymbol;
 
 	#if defined(USE_XKBCOMMON)
+	// TODO Make xkb a runtime dependency.
 	struct xkb_state *state = state = get_xkb_state();
 	if (state != NULL) {
 		keysym = xkb_state_key_get_one_sym(state, keycode);
-
-		logger(LOG_LEVEL_ERROR, "%s [%u]: KEYSYM TEST 1 %d\n",
-			__FUNCTION__, __LINE__, keysym);
 	}
 	#elif defined(USE_XKB)
 	if (keyboard_map != NULL) {

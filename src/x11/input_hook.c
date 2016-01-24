@@ -243,8 +243,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
 
 			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
-			logger(LOG_LEVEL_ERROR, "%s [%u]: KEYSYM TEST 3 %d\n",
-				__FUNCTION__, __LINE__, keysym);
 
 			unsigned short int scancode = keycode_to_scancode(keycode);
 

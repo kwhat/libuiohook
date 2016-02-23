@@ -213,7 +213,7 @@ void hook_stop_proc() {
 	dispatch_event(&event);
 }
 
-static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
+static inline void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
 	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);	}
 	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);	}
@@ -225,7 +225,7 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 	else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);	}
 
 	// Populate key pressed event.
-	event.time = timestamp;
+	event.time = kbhook->time;
 	event.reserved = 0x00;
 
 	event.type = EVENT_KEY_PRESSED;
@@ -269,7 +269,7 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 	}
 }
 
-static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
+static inline void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
 	if		(kbhook->vkCode == VK_LSHIFT)	{ unset_modifier_mask(MASK_SHIFT_L);	}
 	else if (kbhook->vkCode == VK_RSHIFT)	{ unset_modifier_mask(MASK_SHIFT_R);	}
@@ -280,8 +280,8 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 	else if (kbhook->vkCode == VK_LWIN)		{ unset_modifier_mask(MASK_META_L);		}
 	else if (kbhook->vkCode == VK_RWIN)		{ unset_modifier_mask(MASK_META_R);		}
 
-	// Populate key released event.
-	event.time = timestamp;
+	// Populate key pressed event.
+	event.time = kbhook->time;
 	event.reserved = 0x00;
 
 	event.type = EVENT_KEY_RELEASED;
@@ -299,19 +299,16 @@ static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbh
 }
 
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Get the local system time in UNIX epoch form.
-	uint64_t timestamp = get_unix_timestamp();
-
 	KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
 	switch (wParam) {
 		case WM_KEYDOWN:
 		case WM_SYSKEYDOWN:
-			process_key_pressed(timestamp, kbhook);
+			process_key_pressed(kbhook);
 			break;
 
 		case WM_KEYUP:
 		case WM_SYSKEYUP:
-			process_key_released(timestamp, kbhook);
+			process_key_released(kbhook);
 			break;
 
 		default:
@@ -334,7 +331,9 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 }
 
 
-static inline void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t button) {
+static inline void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
+	uint64_t timestamp = GetMessageTime();
+
 	// Track the number of clicks, the button must match the previous button.
 	if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
 		if (click_count < USHRT_MAX) {
@@ -381,9 +380,9 @@ static inline void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *ms
 	dispatch_event(&event);
 }
 
-static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t button) {
+static inline void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	// Populate mouse released event.
-	event.time = timestamp;
+	event.time = GetMessageTime();
 	event.reserved = 0x00;
 
 	event.type = EVENT_MOUSE_RELEASED;
@@ -406,7 +405,7 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	// If the pressed event was not consumed...
 	if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
 		// Populate mouse clicked event.
-		event.time = timestamp;
+		event.time = GetMessageTime();
 		event.reserved = 0x00;
 
 		event.type = EVENT_MOUSE_CLICKED;
@@ -432,7 +431,9 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	}
 }
 
-static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
+static inline void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
+	uint64_t timestamp = GetMessageTime();
+
 	// We received a mouse move event with the mouse actually moving.
 	// This verifies that the mouse was moved after being depressed.
 	if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
@@ -472,14 +473,14 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 	}
 }
 
-static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
+static inline void process_mouse_wheel(MSLLHOOKSTRUCT *mshook) {
 	// Track the number of clicks.
 	// Reset the click count and previous button.
 	click_count = 1;
 	click_button = MOUSE_NOBUTTON;
 
 	// Populate mouse wheel event.
-	event.time = timestamp;
+	event.time = GetMessageTime();
 	event.reserved = 0x00;
 
 	event.type = EVENT_MOUSE_WHEEL;
@@ -508,35 +509,32 @@ static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
-	// Get the local system time in UNIX epoch form.
-	uint64_t timestamp = get_unix_timestamp();
-
 	MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
 	switch (wParam) {
 		case WM_LBUTTONDOWN:
 			set_modifier_mask(MASK_BUTTON1);
-			process_button_pressed(timestamp, mshook, MOUSE_BUTTON1);
+			process_button_pressed(mshook, MOUSE_BUTTON1);
 			break;
 
 		case WM_RBUTTONDOWN:
 			set_modifier_mask(MASK_BUTTON2);
-			process_button_pressed(timestamp, mshook, MOUSE_BUTTON2);
+			process_button_pressed(mshook, MOUSE_BUTTON2);
 			break;
 
 		case WM_MBUTTONDOWN:
 			set_modifier_mask(MASK_BUTTON3);
-			process_button_pressed(timestamp, mshook, MOUSE_BUTTON3);
+			process_button_pressed(mshook, MOUSE_BUTTON3);
 			break;
 
 		case WM_XBUTTONDOWN:
 		case WM_NCXBUTTONDOWN:
 			if (HIWORD(mshook->mouseData) == XBUTTON1) {
 				set_modifier_mask(MASK_BUTTON4);
-				process_button_pressed(timestamp, mshook, MOUSE_BUTTON4);
+				process_button_pressed(mshook, MOUSE_BUTTON4);
 			}
 			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
 				set_modifier_mask(MASK_BUTTON5);
-				process_button_pressed(timestamp, mshook, MOUSE_BUTTON5);
+				process_button_pressed(mshook, MOUSE_BUTTON5);
 			}
 			else {
 				// Extra mouse buttons.
@@ -550,35 +548,35 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 					set_modifier_mask(MOUSE_BUTTON5);
 				}
 
-				process_button_pressed(timestamp, mshook, button);
+				process_button_pressed(mshook, button);
 			}
 			break;
 
 
 		case WM_LBUTTONUP:
 			unset_modifier_mask(MASK_BUTTON1);
-			process_button_released(timestamp, mshook, MOUSE_BUTTON1);
+			process_button_released(mshook, MOUSE_BUTTON1);
 			break;
 
 		case WM_RBUTTONUP:
 			unset_modifier_mask(MASK_BUTTON2);
-			process_button_released(timestamp, mshook, MOUSE_BUTTON2);
+			process_button_released(mshook, MOUSE_BUTTON2);
 			break;
 
 		case WM_MBUTTONUP:
 			unset_modifier_mask(MASK_BUTTON3);
-			process_button_released(timestamp, mshook, MOUSE_BUTTON3);
+			process_button_released(mshook, MOUSE_BUTTON3);
 			break;
 
 		case WM_XBUTTONUP:
 		case WM_NCXBUTTONUP:
 			if (HIWORD(mshook->mouseData) == XBUTTON1) {
 				unset_modifier_mask(MASK_BUTTON4);
-				process_button_released(timestamp, mshook, MOUSE_BUTTON4);
+				process_button_released(mshook, MOUSE_BUTTON4);
 			}
 			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
 				unset_modifier_mask(MASK_BUTTON5);
-				process_button_released(timestamp, mshook, MOUSE_BUTTON5);
+				process_button_released(mshook, MOUSE_BUTTON5);
 			}
 			else {
 				// Extra mouse buttons.
@@ -592,23 +590,23 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 					unset_modifier_mask(MOUSE_BUTTON5);
 				}
 
-				process_button_released(timestamp, mshook, MOUSE_BUTTON5);
+				process_button_released(mshook, MOUSE_BUTTON5);
 			}
 			break;
 
 		case WM_MOUSEMOVE:
-			process_mouse_moved(timestamp, mshook);
+			process_mouse_moved(mshook);
 			break;
 
 		case WM_MOUSEWHEEL:
-			process_mouse_wheel(timestamp, mshook);
+			process_mouse_wheel(mshook);
 			break;
 
 		/* For horizontal scroll wheel support.
 		 * NOTE Windows >= Vista
 		 * case 0x020E:
 		case WM_MOUSEHWHEEL:
-			process_mouse_wheel(timestamp, mshook);
+			process_mouse_wheel(mshook);
 			break;				
 		*/
 		

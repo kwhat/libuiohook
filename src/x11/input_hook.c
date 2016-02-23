@@ -206,11 +206,7 @@ static void initialize_modifiers() {
 
 
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
-	// Get the local system time in UTC.
-	gettimeofday(&system_time, NULL);
-
-	// Convert the local system time to a Unix epoch in MS.
-	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	uint64_t timestamp = (uint64_t) recorded_data->server_time;
 
 	if (recorded_data->category == XRecordStartOfData) {
 		// Populate the hook start event.
@@ -770,7 +766,7 @@ static inline int xrecord_block() {
 	return status;
 }
 
-static inline int xrecord_alloc() {
+static int xrecord_alloc() {
 	int status = UIOHOOK_FAILURE;
 
 	// Make sure the data display is synchronized to prevent late event delivery!
@@ -825,7 +821,7 @@ static inline int xrecord_alloc() {
 	return status;
 }
 
-static inline int xrecord_query() {
+static int xrecord_query() {
 	int status = UIOHOOK_FAILURE;
 
 	// Check to make sure XRecord is installed and enabled.
@@ -846,7 +842,7 @@ static inline int xrecord_query() {
 	return status;
 }
 
-static inline int xrecord_start() {
+static int xrecord_start() {
 	int status = UIOHOOK_FAILURE;
 
 	// Open the control display for XRecord.

@@ -315,11 +315,12 @@ static void stop_message_port_runloop() {
 #endif
 
 static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-	// Get the local system time in UTC.
-	gettimeofday(&system_time, NULL);
+	uint64_t timestamp = 0;
 
 	// Convert the local system time to a Unix epoch in MS.
-	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	if (sysinfo(&sys_info) == 0) {
+		timestamp = sys_info.uptime;
+	}
 
 	switch (activity) {
 		case kCFRunLoopEntry:
@@ -947,8 +948,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 
-	// Convert the local system time to a Unix epoch in MS.
-	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+	// Grab the native event timestap for use later..
+	uint64_t timestamp = (uint64_t) CGEventGetTimestamp(event_ref);
 
 	// Get the event class.
 	switch (type) {

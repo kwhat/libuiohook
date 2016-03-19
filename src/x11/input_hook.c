@@ -58,6 +58,7 @@ static pthread_mutex_t hook_xrecord_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 typedef struct _hook_info {
+	uint16_t mask;
 	struct _data {
 		Display *display;
 		XRecordRange *range;
@@ -66,12 +67,19 @@ typedef struct _hook_info {
 		Display *display;
 		XRecordContext context;
 	} ctrl;
+	struct _input {
+		uint16_t mask;
+		struct _mouse {
+			bool is_dragged;
+			struct _click {
+				unsigned short int count;
+				long int time;
+				unsigned short int button;
+			} click;
+		} mouse;
+	} input;
 } hook_info;
 static hook_info *hook;
-
-
-// Modifiers for tracking key masks.
-static uint16_t current_modifiers = 0x0000;
 
 // For this struct, refer to libxnee, requires Xlibint.h
 typedef union {
@@ -83,11 +91,6 @@ typedef union {
 	xConnSetupPrefix	setup;
 } XRecordDatum;
 
-// Mouse globals.
-static unsigned short int click_count = 0;
-static long int click_time = 0;
-static unsigned short int click_button = MOUSE_NOBUTTON;
-static bool mouse_dragged = false;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
@@ -122,22 +125,22 @@ static inline void dispatch_event(uiohook_event *const event) {
 
 // Set the native modifier mask for future events.
 static inline void set_modifier_mask(uint16_t mask) {
-	current_modifiers |= mask;
+	hook->input.mask |= mask;
 }
 
 // Unset the native modifier mask for future events.
 static inline void unset_modifier_mask(uint16_t mask) {
-	current_modifiers ^= mask;
+	hook->input.mask ^= mask;
 }
 
 // Get the current native modifier mask state.
 static inline uint16_t get_modifiers() {
-	return current_modifiers;
+	return hook->input.mask;
 }
 
 // Initialize the modifier mask to the current modifiers.
 static void initialize_modifiers() {
-	current_modifiers = 0x0000;
+	hook->input.mask = 0x0000;
 
 	KeyCode keycode;
 	char keymap[32];
@@ -340,8 +343,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			// X11 handles wheel events as button events.
 			if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelDown) {
 				// Reset the click count and previous button.
-				click_count = 1;
-				click_button = MOUSE_NOBUTTON;
+				hook->input.mouse.click.count = 1;
+				hook->input.mouse.click.button = MOUSE_NOBUTTON;
 
 				/* Scroll wheel release events.
 				 * Scroll type: WHEEL_UNIT_SCROLL
@@ -357,7 +360,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				event.type = EVENT_MOUSE_WHEEL;
 				event.mask = get_modifiers();
 
-				event.data.wheel.clicks = click_count;
+				event.data.wheel.clicks = hook->input.mouse.click.count;
 				event.data.wheel.x = data->event.u.keyButtonPointer.rootX;
 				event.data.wheel.y = data->event.u.keyButtonPointer.rootY;
 
@@ -444,9 +447,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 
 				// Track the number of clicks, the button must match the previous button.
-				if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
-					if (click_count < USHRT_MAX) {
-						click_count++;
+				if (button == hook->input.mouse.click.button && (long int) (timestamp - hook->input.mouse.click.time) <= hook_get_multi_click_time()) {
+					if (hook->input.mouse.click.count < USHRT_MAX) {
+						hook->input.mouse.click.count++;
 					}
 					else {
 						logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
@@ -455,14 +458,14 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				}
 				else {
 					// Reset the click count.
-					click_count = 1;
+					hook->input.mouse.click.count = 1;
 
 					// Set the previous button.
-					click_button = button;
+					hook->input.mouse.click.button = button;
 				}
 
-				// Save this events time to calculate the click_count.
-				click_time = timestamp;
+				// Save this events time to calculate the hook->input.mouse.click.count.
+				hook->input.mouse.click.time = timestamp;
 
 
 				// Populate mouse pressed event.
@@ -473,7 +476,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				event.mask = get_modifiers();
 
 				event.data.mouse.button = button;
-				event.data.mouse.clicks = click_count;
+				event.data.mouse.clicks = hook->input.mouse.click.count;
 				event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
 				event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
 
@@ -545,7 +548,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				event.mask = get_modifiers();
 
 				event.data.mouse.button = button;
-				event.data.mouse.clicks = click_count;
+				event.data.mouse.clicks = hook->input.mouse.click.count;
 				event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
 				event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
 
@@ -571,7 +574,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				dispatch_event(&event);
 
 				// If the pressed event was not consumed...
-				if (event.reserved ^ 0x01 && mouse_dragged != true) {
+				if (event.reserved ^ 0x01 && hook->input.mouse.is_dragged != true) {
 					// Populate mouse clicked event.
 					event.time = timestamp;
 					event.reserved = 0x00;
@@ -580,7 +583,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.mask = get_modifiers();
 
 					event.data.mouse.button = button;
-					event.data.mouse.clicks = click_count;
+					event.data.mouse.clicks = hook->input.mouse.click.count;
 					event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
 					event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
 
@@ -607,16 +610,16 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				}
 
 				// Reset the number of clicks.
-				if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+				if (button == hook->input.mouse.click.button && (long int) (event.time - hook->input.mouse.click.time) > hook_get_multi_click_time()) {
 					// Reset the click count.
-					click_count = 0;
+					hook->input.mouse.click.count = 0;
 				}
 			}
 		}
 		else if (data->type == MotionNotify) {
 			// Reset the click count.
-			if (click_count != 0 && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
-				click_count = 0;
+			if (hook->input.mouse.click.count != 0 && (long int) (timestamp - hook->input.mouse.click.time) > hook_get_multi_click_time()) {
+				hook->input.mouse.click.count = 0;
 			}
 			
 			// Populate mouse move event.
@@ -627,8 +630,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			// Check the upper half of virtual modifiers for non-zero
 			// values and set the mouse dragged flag.
-			mouse_dragged = (event.mask >> 8 > 0);
-			if (mouse_dragged) {
+			hook->input.mouse.is_dragged = (event.mask >> 8 > 0);
+			if (hook->input.mouse.is_dragged) {
 				// Create Mouse Dragged event.
 				event.type = EVENT_MOUSE_DRAGGED;
 			}
@@ -638,7 +641,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			}
 
 			event.data.mouse.button = MOUSE_NOBUTTON;
-			event.data.mouse.clicks = click_count;
+			event.data.mouse.clicks = hook->input.mouse.click.count;
 			event.data.mouse.x = data->event.u.keyButtonPointer.rootX;
 			event.data.mouse.y = data->event.u.keyButtonPointer.rootY;
 
@@ -656,7 +659,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			#endif
 
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %i, %i. (%#X)\n",
-					__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
+					__FUNCTION__, __LINE__, hook->input.mouse.is_dragged ? "dragged" : "moved",
 					event.data.mouse.x, event.data.mouse.y, event.mask);
 
 			// Fire mouse move event.
@@ -892,12 +895,18 @@ static int xrecord_start() {
 	return status;
 }
 
-UIOHOOK_API int hook_run() {
+UIOHOOK_API int hook_run(uint16_t hook_listen_mask) {
 	int status = UIOHOOK_FAILURE;
 
 	// Hook data for future cleanup.
 	hook = malloc(sizeof(hook_info));
 	if (hook != NULL) {
+		hook->input.mask = 0x0000;
+		hook->input.mouse.is_dragged = false;
+		hook->input.mouse.click.count = 0;
+		hook->input.mouse.click.time = 0;
+		hook->input.mouse.click.button = MOUSE_NOBUTTON;
+
 		status = xrecord_start();
 
 		// Free data associated with this hook.

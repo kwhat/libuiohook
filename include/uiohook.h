@@ -122,6 +122,30 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 /* End Virtual Event Types and Data Structures */
 
 
+/* Begin Hook Listen Masks */
+#define UIOHOOK_LISTEN_HOOK_ENABLED_MASK		1 << 0
+#define UIOHOOK_LISTEN_HOOK_DISABLED_MASK		1 << 1
+#define UIOHOOK_LISTEN_KEY_TYPED_MASK           1 << 2
+#define UIOHOOK_LISTEN_KEY_PRESS_MASK			1 << 3
+#define UIOHOOK_LISTEN_KEY_RELEASED_MASK		1 << 4
+#define UIOHOOK_LISTEN_MOUSE_CLICKED			1 << 5
+#define UIOHOOK_LISTEN_MOUSE_PRESSED			1 << 6
+#define UIOHOOK_LISTEN_MOUSE_RELEASED			1 << 7
+#define UIOHOOK_LISTEN_MOUSE_MOVED				1 << 8
+#define UIOHOOK_LISTEN_MOUSE_DRAGGED			1 << 9
+#define UIOHOOK_LISTEN_MOUSE_WHEEL				1 << 10
+#define UIOHOOK_ALL_LISTEN_MASK					UIOHOOK_LISTEN_HOOK_ENABLED_MASK \
+													& UIOHOOK_LISTEN_HOOK_DISABLED_MASK \
+													& UIOHOOK_LISTEN_KEY_TYPED_MASK \
+													& UIOHOOK_LISTEN_MOUSE_CLICKED \
+													& UIOHOOK_LISTEN_MOUSE_PRESSED \
+													& UIOHOOK_LISTEN_MOUSE_RELEASED \
+													& UIOHOOK_LISTEN_MOUSE_MOVED \
+													& UIOHOOK_LISTEN_MOUSE_DRAGGED \
+													& UIOHOOK_LISTEN_MOUSE_WHEEL
+/* End Hook Listen Masks */
+
+
 /* Begin Virtual Key Codes */
 #define VC_ESCAPE								0x0001
 
@@ -395,7 +419,7 @@ extern "C" {
 	UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc);
 
 	// Insert the event hook.
-	UIOHOOK_API int hook_run();
+	UIOHOOK_API int hook_run(uint16_t listen_mask);
 
 	// Withdraw the event hook.
 	UIOHOOK_API int hook_stop();

@@ -45,7 +45,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/*   9 */	{ VC_TAB,				0x0038					},	// 0x09 VK_TAB
 	/*  10 */	{ VC_UNDEFINED,			0x0039					},	// 0x0A							Reserved
 	/*  11 */	{ VC_UNDEFINED,			0x0030					},	// 0x0B							Reserved
-	/*  12 */	{ VC_UNDEFINED,			VK_OEM_MINUS			},	// 0x0C VK_CLEAR
+	/*  12 */	{ VC_CLEAR,				VK_OEM_MINUS			},	// 0x0C VK_CLEAR
 	/*  13 */	{ VC_ENTER,				VK_OEM_PLUS				},	// 0x0D VK_RETURN
 	/*  14 */	{ VC_UNDEFINED,			VK_BACK					},	// 0x0E							Undefined
 	/*  15 */	{ VC_UNDEFINED,			VK_TAB					},	// 0x0F							Undefined
@@ -126,7 +126,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/*  90 */	{ VC_Z,					0x0000					},	// 0x5A							Z key
 	/*  91 */	{ VC_META_L,			VK_F13					},	// 0x5B VK_LWIN 				Left Windows key (Natural keyboard)
 	/*  92 */	{ VC_META_R,			VK_F14					},	// 0x5C VK_RWIN					Right Windows key (Natural keyboard)
-	/*  93 */	{ VC_UNDEFINED,			VK_F15					},	// 0x5D VK_APPS					Applications key (Natural keyboard)
+	/*  93 */	{ VC_CONTEXT_MENU,		VK_F15					},	// 0x5D VK_APPS					Applications key (Natural keyboard)
 	/*  94 */	{ VC_UNDEFINED,			0x0000					},	// 0x5E Reserved
 	/*  95 */	{ VC_SLEEP,				0x0000					},	// 0x5F VK_SLEEP				Computer Sleep key
 	/*  96 */	{ VC_KP_0,				0x0000					},	// 0x60 VK_NUMPAD0				Numeric keypad 0 key
@@ -240,7 +240,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 201 */	{ VC_UNDEFINED,			VK_PRIOR				},	// 0xC9							Reserved
 	/* 202 */	{ VC_UNDEFINED,			0x0000					},	// 0xCA							Reserved
 	/* 203 */	{ VC_UNDEFINED,			VK_LEFT					},	// 0xCB							Reserved
-	/* 204 */	{ VC_UNDEFINED,			0x0000					},	// 0xCC							Reserved
+	/* 204 */	{ VC_UNDEFINED,			VK_CLEAR				},	// 0xCC							Reserved
 	/* 205 */	{ VC_UNDEFINED,			VK_RIGHT				},	// 0xCD							Reserved
 	/* 206 */	{ VC_UNDEFINED,			0x0000					},	// 0xCE							Reserved
 	/* 207 */	{ VC_UNDEFINED,			VK_END					},	// 0xCF							Reserved
@@ -257,7 +257,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 218 */	{ VC_UNDEFINED,			0x0000					},	// 0xDA							Unassigned
 	/* 219 */	{ VC_OPEN_BRACKET,		VK_LWIN					},	// 0xDB VK_OEM_4				Varies by keyboard. For the US standard keyboard, the '[{' key
 	/* 220 */	{ VC_BACK_SLASH,		VK_RWIN					},	// 0xDC VK_OEM_5				Varies by keyboard. For the US standard keyboard, the '\|' key
-	/* 221 */	{ VC_CLOSE_BRACKET,		0x0000					},	// 0xDD VK_OEM_6				Varies by keyboard. For the US standard keyboard, the ']}' key
+	/* 221 */	{ VC_CLOSE_BRACKET,		VK_APPS					},	// 0xDD VK_OEM_6				Varies by keyboard. For the US standard keyboard, the ']}' key
 	/* 222 */	{ VC_QUOTE,				0x0000					},	// 0xDE VK_OEM_7				Varies by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
 	/* 223 */	{ VC_YEN,				VK_SLEEP				},	// 0xDF VK_OEM_8				Varies by keyboard.
 	/* 224 */	{ VC_UNDEFINED,			0x0000					},	// 0xE0							Reserved
@@ -290,7 +290,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 251 */	{ VC_UNDEFINED,			0x0000					},	// 0xFB VK_ZOOM					Zoom key
 	/* 252 */	{ VC_UNDEFINED,			0x0000					},	// 0xFC VK_NONAME				Reserved
 	/* 253 */	{ VC_UNDEFINED,			0x0000					},	// 0xFD
-	/* 254 */	{ VC_UNDEFINED,			0x0000					},	// 0xFE VK_OEM_CLEAR			Clear key
+	/* 254 */	{ VC_CLEAR,				0x0000					},	// 0xFE VK_OEM_CLEAR			Clear key
 	/* 255 */	{ VC_UNDEFINED,			0x0000					}	// 0xFE							Unassigned
 };
 

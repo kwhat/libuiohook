@@ -260,6 +260,7 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 // Begin Cursor Key Zone
 #define VC_UP									0xE048
 #define VC_LEFT									0xE04B
+#define VC_CLEAR								0xE04C
 #define VC_RIGHT								0xE04D
 #define VC_DOWN									0xE050
 // End Cursor Key Zone

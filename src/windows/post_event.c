@@ -67,7 +67,7 @@ static UINT keymask_lookup[8] = {
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	//FIXME implement multiple monitor support
-	uint16_t screen_width   = GetSystemMetrics( SM_CXSCREEN ); 
+	uint16_t screen_width   = GetSystemMetrics( SM_CXSCREEN );
 	uint16_t screen_height  = GetSystemMetrics( SM_CYSCREEN );
 
 	unsigned char events_size = 0, events_max = 28;
@@ -338,11 +338,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	// Create the key release input
 	// memcpy(key_events + 1, key_events, sizeof(INPUT));
 	// key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;
-
-	for (int i = 0; i < events_size; i++) {
-		logger(LOG_LEVEL_WARN, "%s [%u]: TEST Type: %#X\n",
-    		__FUNCTION__, __LINE__, events[i].type);
-	}
 
 	if (! SendInput(events_size, events, sizeof(INPUT)) ) {
 		logger(LOG_LEVEL_ERROR, "%s [%u]: SendInput() failed! (%#lX)\n",

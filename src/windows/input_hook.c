@@ -38,9 +38,6 @@ extern HINSTANCE hInst;
 // Modifiers for tracking key masks.
 static unsigned short int current_modifiers = 0x0000;
 
-// Structure for the current Unix epoch in milliseconds.
-static FILETIME system_time;
-
 // Click count globals.
 static unsigned short click_count = 0;
 static DWORD click_time = 0;
@@ -150,20 +147,6 @@ static inline unsigned short int get_scroll_wheel_amount() {
 	return value;
 }
 
-static inline uint64_t get_unix_timestamp() {
-	// Get the local system time in UTC.
-	GetSystemTimeAsFileTime(&system_time);
-
-	// Convert the local system time to a Unix epoch in MS.
-	// milliseconds = 100-nanoseconds / 10000
-	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
-
-	// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
-    timestamp -= 11644473600000;
-
-	return timestamp;
-}
-
 void unregister_running_hooks() {
 	// Stop the event hook and any timer still running.
 	if (win_event_hhook != NULL) {
@@ -185,7 +168,7 @@ void unregister_running_hooks() {
 
 void hook_start_proc() {
 	// Get the local system time in UNIX epoch form.
-	uint64_t timestamp = get_unix_timestamp();
+	uint64_t timestamp = GetMessageTime();
 
 	// Populate the hook start event.
 	event.time = timestamp;
@@ -200,7 +183,7 @@ void hook_start_proc() {
 
 void hook_stop_proc() {
 	// Get the local system time in UNIX epoch form.
-	uint64_t timestamp = get_unix_timestamp();
+	uint64_t timestamp = GetMessageTime();
 
 	// Populate the hook stop event.
 	event.time = timestamp;
@@ -250,7 +233,7 @@ static inline void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 		SIZE_T count = keycode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
 		for (unsigned int i = 0; i < count; i++) {
 			// Populate key typed event.
-			event.time = timestamp;
+			event.time = kbhook->time;
 			event.reserved = 0x00;
 
 			event.type = EVENT_KEY_TYPED;

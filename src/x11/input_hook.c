@@ -26,7 +26,6 @@
 #include <pthread.h>
 #endif
 #include <stdint.h>
-#include <sys/time.h>
 #include <uiohook.h>
 #ifdef USE_XKB
 #include <xcb/xkb.h>
@@ -58,7 +57,6 @@ static pthread_mutex_t hook_xrecord_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 typedef struct _hook_info {
-	uint16_t mask;
 	struct _data {
 		Display *display;
 		XRecordRange *range;
@@ -91,9 +89,6 @@ typedef union {
 	xConnSetupPrefix	setup;
 } XRecordDatum;
 
-
-// Structure for the current Unix epoch in milliseconds.
-static struct timeval system_time;
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -207,7 +202,6 @@ static void initialize_modifiers() {
 }
 
 
-
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	uint64_t timestamp = (uint64_t) recorded_data->server_time;
 
@@ -240,9 +234,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		if (data->type == KeyPress) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
-
 			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
-
 			unsigned short int scancode = keycode_to_scancode(keycode);
 
 			// TODO If you have a better suggestion for this ugly, let me know.
@@ -779,12 +771,12 @@ static int xrecord_alloc() {
 
 	// Setup XRecord range.
 	XRecordClientSpec clients = XRecordAllClients;
+
 	hook->data.range = XRecordAllocRange();
 	if (hook->data.range != NULL) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: XRecordAllocRange successful.\n",
 				__FUNCTION__, __LINE__);
 
-		// Create XRecord Context.
 		hook->data.range->device_events.first = KeyPress;
 		hook->data.range->device_events.last = MotionNotify;
 
@@ -810,7 +802,7 @@ static int xrecord_alloc() {
 			status = UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT;
 		}
 
-		// Free the XRecord range if it was set.
+		// Free the XRecord range.
 		XFree(hook->data.range);
 	}
 	else {
@@ -895,7 +887,7 @@ static int xrecord_start() {
 	return status;
 }
 
-UIOHOOK_API int hook_run(uint16_t hook_listen_mask) {
+UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_FAILURE;
 
 	// Hook data for future cleanup.

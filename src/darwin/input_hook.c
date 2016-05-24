@@ -23,6 +23,7 @@
 #ifndef USE_WEAK_IMPORT
 #include <dlfcn.h>
 #endif
+#include <mach/mach_time.h>
 #ifdef USE_OBJC
 #include <objc/objc.h>
 #include <objc/objc-runtime.h>
@@ -315,12 +316,7 @@ static void stop_message_port_runloop() {
 #endif
 
 static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-	uint64_t timestamp = 0;
-
-	// Convert the local system time to a Unix epoch in MS.
-	if (sysinfo(&sys_info) == 0) {
-		timestamp = sys_info.uptime;
-	}
+	uint64_t timestamp = mach_absolute_time();
 
 	switch (activity) {
 		case kCFRunLoopEntry:

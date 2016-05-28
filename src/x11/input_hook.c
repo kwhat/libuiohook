@@ -333,7 +333,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		}
 		else if (data->type == ButtonPress) {
 			// X11 handles wheel events as button events.
-			if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelDown) {
+			if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelDown
+					|| data->event.u.u.detail == WheelLeft || data->event.u.u.detail == WheelRight) {
+
 				// Reset the click count and previous button.
 				hook->input.mouse.click.count = 1;
 				hook->input.mouse.click.button = MOUSE_NOBUTTON;
@@ -383,7 +385,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 				 */
 				event.data.wheel.amount = 3;
 
-				if (data->event.u.u.detail == WheelUp) {
+				if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelLeft) {
 					// Wheel Rotated Up and Away.
 					event.data.wheel.rotation = -1;
 				}
@@ -392,10 +394,20 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.wheel.rotation = 1;
 				}
 
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
+				if (data->event.u.u.detail == WheelUp || data->event.u.u.detail == WheelDown) {
+					// Wheel Rotated Up or Down.
+					event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
+				}
+				else { // data->event.u.u.detail == WheelLeft || data->event.u.u.detail == WheelRight
+					// Wheel Rotated Left or Right.
+					event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
+				}
+
+				logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
 						__FUNCTION__, __LINE__, event.data.wheel.type,
 						event.data.wheel.amount * event.data.wheel.rotation,
-						event.data.wheel.x, event.data.wheel.y );
+                        event.data.wheel.direction,
+						event.data.wheel.x, event.data.wheel.y);
 
 				// Fire mouse wheel event.
 				dispatch_event(&event);

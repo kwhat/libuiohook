@@ -53,9 +53,13 @@ typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 
 typedef void* (CALLBACK *KbdLayerDescriptor) (VOID);
 
-#define CAPLOK		0x01
-#define WCH_NONE	0xF000
-#define WCH_DEAD	0xF001
+#define CAPLOK			0x01
+#define WCH_NONE		0xF000
+#define WCH_DEAD		0xF001
+
+#ifndef
+#define WM_MOUSEHWHEEL	0x020E
+#endif
 
 typedef struct _VK_TO_WCHARS {
 	BYTE VirtualKey;

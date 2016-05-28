@@ -456,7 +456,7 @@ static inline void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 	}
 }
 
-static inline void process_mouse_wheel(MSLLHOOKSTRUCT *mshook) {
+static inline void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 	// Track the number of clicks.
 	// Reset the click count and previous button.
 	click_count = 1;
@@ -483,9 +483,14 @@ static inline void process_mouse_wheel(MSLLHOOKSTRUCT *mshook) {
 	 * click is defined as WHEEL_DELTA, which is 120. */
 	event.data.wheel.rotation = ((int16_t) HIWORD(mshook->mouseData) / WHEEL_DELTA) * -1;
 
-	logger(LOG_LEVEL_INFO, "%s [%u]: Mouse wheel type %u, rotated %i units at %u, %u.\n",
-			__FUNCTION__, __LINE__, event.data.wheel.type, event.data.wheel.amount *
-			event.data.wheel.rotation, event.data.wheel.x, event.data.wheel.y);
+	// Set the direction based on what event was received.
+	event.data.wheel.direction = direction;
+
+	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+			__FUNCTION__, __LINE__, event.data.wheel.type,
+			event.data.wheel.amount * event.data.wheel.rotation,
+			event.data.wheel.direction,
+			event.data.wheel.x, event.data.wheel.y);
 
 	// Fire mouse wheel event.
 	dispatch_event(&event);
@@ -582,17 +587,17 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 			break;
 
 		case WM_MOUSEWHEEL:
-			process_mouse_wheel(mshook);
+			process_mouse_wheel(mshook, WHEEL_VERTICAL_DIRECTION);
 			break;
 
 		/* For horizontal scroll wheel support.
 		 * NOTE Windows >= Vista
 		 * case 0x020E:
+		 */
 		case WM_MOUSEHWHEEL:
-			process_mouse_wheel(mshook);
+			process_mouse_wheel(mshook, WHEEL_HORIZONTAL_DIRECTION);
 			break;				
-		*/
-		
+
 		default:
 			// In theory this *should* never execute.
 			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows mouse event: %#X.\n",

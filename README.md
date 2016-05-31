@@ -10,7 +10,7 @@ Prerequisites: autotools, pkg-config, libtool, gcc, clang or msys2/mingw32
     ./configure
     make && make install
 
-## Useage
+## Usage
 * [Hook Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_hook.c)
 * [Async Hook Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_hook_async.c)
 * [Event Post Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_post.c)

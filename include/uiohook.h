@@ -221,7 +221,7 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 
 #define VC_PRINTSCREEN							0x0E37
 #define VC_SCROLL_LOCK							0x0046
-#define VC_PAUSE								0x0E45	// FIXME Testing needed on Windows!
+#define VC_PAUSE								0x0E45
 
 
 // Begin Edit Key Zone
@@ -263,6 +263,18 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 #define VC_KP_8									0x0048
 #define VC_KP_9									0x0049
 #define VC_KP_0									0x0052
+
+#define VC_KP_END								0xEE00 | VC_KP_1
+#define VC_KP_DOWN								0xEE00 | VC_KP_2
+#define VC_KP_PAGE_DOWN							0xEE00 | VC_KP_3
+#define VC_KP_LEFT								0xEE00 | VC_KP_4
+#define VC_KP_CLEAR								0xEE00 | VC_KP_5
+#define VC_KP_RIGHT								0xEE00 | VC_KP_6
+#define VC_KP_HOME								0xEE00 | VC_KP_7
+#define VC_KP_UP								0xEE00 | VC_KP_8
+#define VC_KP_PAGE_UP							0xEE00 | VC_KP_9
+#define VC_KP_INSERT							0xEE00 | VC_KP_0
+#define VC_KP_DELETE							0xEE00 | VC_KP_SEPARATOR
 // End Numeric Zone
 
 

@@ -294,13 +294,30 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 255 */	{ VC_UNDEFINED,			0x0000					}	// 0xFE							Unassigned
 };
 
-unsigned short keycode_to_scancode(DWORD vk_code) {
+unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 	unsigned short scancode = VC_UNDEFINED;
 
 	// Check the vk_code is in range.
 	// NOTE vk_code >= 0 is assumed because DWORD is unsigned.
 	if (vk_code < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 		scancode = keycode_scancode_table[vk_code][0];
+
+		if (vk_code & 0x20 && flags ^ LLKHF_EXTENDED) {
+			switch (vk_code) {
+				case VK_PRIOR:
+				case VK_NEXT:
+				case VK_END:
+				case VK_HOME:
+				case VK_LEFT:
+				case VK_UP:
+				case VK_RIGHT:
+				case VK_DOWN:
+
+				case VK_INSERT:
+				case VK_DELETE:
+					scancode |= 0xEE00;
+			}
+		}
 	}
 
 	return scancode;
@@ -316,7 +333,6 @@ DWORD scancode_to_keycode(unsigned short scancode) {
 	}
 	else {
 		// Calculate the upper offset based on the lower half of the scancode + 128.
-		// NOTE Bit-mask should be faster than adding.
 		unsigned short int i = (scancode & 0x007F) | 0x80;
 
 		if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[1])) {

@@ -114,7 +114,7 @@ static void initialize_modifiers() {
 /* Retrieves the mouse wheel scroll type. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
  */
-static inline unsigned short int get_scroll_wheel_type() {
+static unsigned short int get_scroll_wheel_type() {
 	unsigned short int value;
 	UINT wheel_type;
 
@@ -132,7 +132,7 @@ static inline unsigned short int get_scroll_wheel_type() {
 /* Retrieves the mouse wheel scroll amount. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
  */
-static inline unsigned short int get_scroll_wheel_amount() {
+static unsigned short int get_scroll_wheel_amount() {
 	unsigned short int value;
 	UINT wheel_amount;
 
@@ -196,7 +196,7 @@ void hook_stop_proc() {
 	dispatch_event(&event);
 }
 
-static inline void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
+static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
 	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);	}
 	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);	}
@@ -214,7 +214,7 @@ static inline void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 	event.type = EVENT_KEY_PRESSED;
 	event.mask = get_modifiers();
 
-	event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
+	event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode, kbhook->flags);
 	event.data.keyboard.rawcode = kbhook->vkCode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
@@ -252,7 +252,7 @@ static inline void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 	}
 }
 
-static inline void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
+static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
 	if		(kbhook->vkCode == VK_LSHIFT)	{ unset_modifier_mask(MASK_SHIFT_L);	}
 	else if (kbhook->vkCode == VK_RSHIFT)	{ unset_modifier_mask(MASK_SHIFT_R);	}
@@ -270,7 +270,7 @@ static inline void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
 	event.type = EVENT_KEY_RELEASED;
 	event.mask = get_modifiers();
 
-	event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode);
+	event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode, kbhook->flags);
 	event.data.keyboard.rawcode = kbhook->vkCode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
@@ -314,7 +314,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 }
 
 
-static inline void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
+static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	uint64_t timestamp = GetMessageTime();
 
 	// Track the number of clicks, the button must match the previous button.
@@ -363,7 +363,7 @@ static inline void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t butto
 	dispatch_event(&event);
 }
 
-static inline void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
+static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	// Populate mouse released event.
 	event.time = GetMessageTime();
 	event.reserved = 0x00;
@@ -414,7 +414,7 @@ static inline void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t butt
 	}
 }
 
-static inline void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
+static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 	uint64_t timestamp = GetMessageTime();
 
 	// We received a mouse move event with the mouse actually moving.
@@ -456,7 +456,7 @@ static inline void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 	}
 }
 
-static inline void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
+static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 	// Track the number of clicks.
 	// Reset the click count and previous button.
 	click_count = 1;

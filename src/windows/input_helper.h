@@ -57,7 +57,7 @@ typedef void* (CALLBACK *KbdLayerDescriptor) (VOID);
 #define WCH_NONE		0xF000
 #define WCH_DEAD		0xF001
 
-#ifndef
+#ifndef WM_MOUSEHWHEEL
 #define WM_MOUSEHWHEEL	0x020E
 #endif
 
@@ -130,7 +130,7 @@ extern SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
 
 //extern DWORD unicode_to_keycode(wchar_t unicode);
 
-extern unsigned short keycode_to_scancode(DWORD vk_code);
+extern unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags);
 
 extern DWORD scancode_to_keycode(unsigned short scancode);
 

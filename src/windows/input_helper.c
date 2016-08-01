@@ -302,7 +302,7 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 	if (vk_code < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
 		scancode = keycode_scancode_table[vk_code][0];
 
-		if (vk_code & 0x20 && flags ^ LLKHF_EXTENDED) {
+		if (flags & LLKHF_EXTENDED) {
 			switch (vk_code) {
 				case VK_PRIOR:
 				case VK_NEXT:
@@ -316,6 +316,11 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 				case VK_INSERT:
 				case VK_DELETE:
 					scancode |= 0xEE00;
+					break;
+
+				case VK_RETURN:
+					scancode |= 0x0E00;
+					break;
 			}
 		}
 	}

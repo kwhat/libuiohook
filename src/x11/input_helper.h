@@ -22,6 +22,13 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
 
+#ifdef USE_XKBCOMMON
+#include <X11/Xlib-xcb.h>
+#include <xkbcommon/xkbcommon.h>
+#include <xkbcommon/xkbcommon-x11.h>
+#endif
+
+
 // Virtual button codes that are not defined by X11.
 #define Button1			1
 #define Button2			2
@@ -43,6 +50,7 @@ typedef struct _screen_data {
 	uint16_t height;
 } screen_data;
 
+
 /* Create an array of screen_data structures and return the number of
  * populated elements to count.  You are responsible for freeing the returned
  * memory.
@@ -55,12 +63,6 @@ extern screen_data* hook_create_screen_info(uint8_t *count);
  */
 extern size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size);
 
-#ifdef USE_XKBCOMMON
-/* Converts an X11 key code to a Unicode character sequence.  libXKBCommon support
- * is required for this method.
- */
-extern size_t keycode_to_unicode(KeyCode keycode, wchar_t *buffer, size_t size);
-#endif
 
 /* Convert a single Unicode character to an X11 key symbol.  This function
  * provides a better translation than XStringToKeysym() for Unicode characters.
@@ -75,11 +77,31 @@ extern uint16_t keycode_to_scancode(KeyCode keycode);
  */
 extern KeyCode scancode_to_keycode(uint16_t scancode);
 
+
+#ifdef USE_XKBCOMMON
+
+/* Converts an X11 key code to a Unicode character sequence.  libXKBCommon support
+ * is required for this method.
+ */
+extern size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, wchar_t *buffer, size_t size);
+
+/* Create a xkb_state structure and return a pointer to it.
+ */
+extern struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection);
+
+/* Release xkb_state structure created by create_xkb_state().
+ */
+extern void destroy_xkb_state(struct xkb_state* state);
+
+#else
+
 /* Converts an X11 key code and event mask to the appropriate X11 key symbol.
  * This functions in much the same way as XKeycodeToKeysym() but allows for a
  * faster and more flexible lookup.
  */
 extern KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask);
+
+#endif
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be

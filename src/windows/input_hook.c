@@ -92,22 +92,24 @@ static void initialize_modifiers() {
 	current_modifiers = 0x0000;
 
 	// NOTE We are checking the high order bit, so it will be < 0 for a singed short.
-	if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);	}
-	if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);	}
-	if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);	}
-	if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);	}
-	if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);	}
-	if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);	}
-	if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);	}
-	if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);	}
+	if (GetKeyState(VK_LSHIFT)	 < 0)	{ set_modifier_mask(MASK_SHIFT_L);		}
+	if (GetKeyState(VK_RSHIFT)   < 0)	{ set_modifier_mask(MASK_SHIFT_R);		}
+	if (GetKeyState(VK_LCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_L);		}
+	if (GetKeyState(VK_RCONTROL) < 0)	{ set_modifier_mask(MASK_CTRL_R);		}
+	if (GetKeyState(VK_LMENU)    < 0)	{ set_modifier_mask(MASK_ALT_L);		}
+	if (GetKeyState(VK_RMENU)    < 0)	{ set_modifier_mask(MASK_ALT_R);		}
+	if (GetKeyState(VK_LWIN)     < 0)	{ set_modifier_mask(MASK_META_L);		}
+	if (GetKeyState(VK_RWIN)     < 0)	{ set_modifier_mask(MASK_META_R);		}
 
-	if (GetKeyState(VK_LBUTTON)	 < 0)	{ set_modifier_mask(MASK_BUTTON1);	}
-	if (GetKeyState(VK_RBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON2);	}
-	if (GetKeyState(VK_MBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON3);	}
-	if (GetKeyState(VK_XBUTTON1) < 0)	{ set_modifier_mask(MASK_BUTTON4);	}
-	if (GetKeyState(VK_XBUTTON2) < 0)	{ set_modifier_mask(MASK_BUTTON5);	}
+	if (GetKeyState(VK_LBUTTON)	 < 0)	{ set_modifier_mask(MASK_BUTTON1);		}
+	if (GetKeyState(VK_RBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON2);		}
+	if (GetKeyState(VK_MBUTTON)  < 0)	{ set_modifier_mask(MASK_BUTTON3);		}
+	if (GetKeyState(VK_XBUTTON1) < 0)	{ set_modifier_mask(MASK_BUTTON4);		}
+	if (GetKeyState(VK_XBUTTON2) < 0)	{ set_modifier_mask(MASK_BUTTON5);		}
 
-	// FIXME Add check for lock masks!
+	if (GetKeyState(VK_NUMLOCK)  < 0)	{ set_modifier_mask(MASK_NUM_LOCK);		}
+	if (GetKeyState(VK_CAPITAL)  < 0)	{ set_modifier_mask(MASK_CAPS_LOCK);	}
+	if (GetKeyState(VK_SCROLL)   < 0)	{ set_modifier_mask(MASK_SCROLL_LOCK);	}
 }
 
 
@@ -198,14 +200,17 @@ void hook_stop_proc() {
 
 static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
-	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);	}
-	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);	}
-	else if (kbhook->vkCode == VK_LCONTROL)	{ set_modifier_mask(MASK_CTRL_L);	}
-	else if (kbhook->vkCode == VK_RCONTROL)	{ set_modifier_mask(MASK_CTRL_R);	}
-	else if (kbhook->vkCode == VK_LMENU)	{ set_modifier_mask(MASK_ALT_L);	}
-	else if (kbhook->vkCode == VK_RMENU)	{ set_modifier_mask(MASK_ALT_R);	}
-	else if (kbhook->vkCode == VK_LWIN)		{ set_modifier_mask(MASK_META_L);	}
-	else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);	}
+	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);		}
+	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);		}
+	else if (kbhook->vkCode == VK_LCONTROL)	{ set_modifier_mask(MASK_CTRL_L);		}
+	else if (kbhook->vkCode == VK_RCONTROL)	{ set_modifier_mask(MASK_CTRL_R);		}
+	else if (kbhook->vkCode == VK_LMENU)	{ set_modifier_mask(MASK_ALT_L);		}
+	else if (kbhook->vkCode == VK_RMENU)	{ set_modifier_mask(MASK_ALT_R);		}
+	else if (kbhook->vkCode == VK_LWIN)		{ set_modifier_mask(MASK_META_L);		}
+	else if (kbhook->vkCode == VK_RWIN)		{ set_modifier_mask(MASK_META_R);		}
+	else if (kbhook->vkCode == VK_NUMLOCK)	{ set_modifier_mask(MASK_NUM_LOCK);		}
+	else if (kbhook->vkCode == VK_CAPITAL)	{ set_modifier_mask(MASK_CAPS_LOCK);	}
+	else if (kbhook->vkCode == VK_SCROLL)	{ set_modifier_mask(MASK_SCROLL_LOCK);	}
 
 	// Populate key pressed event.
 	event.time = kbhook->time;
@@ -254,14 +259,17 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 
 static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
-	if		(kbhook->vkCode == VK_LSHIFT)	{ unset_modifier_mask(MASK_SHIFT_L);	}
-	else if (kbhook->vkCode == VK_RSHIFT)	{ unset_modifier_mask(MASK_SHIFT_R);	}
-	else if (kbhook->vkCode == VK_LCONTROL)	{ unset_modifier_mask(MASK_CTRL_L);		}
-	else if (kbhook->vkCode == VK_RCONTROL)	{ unset_modifier_mask(MASK_CTRL_R);		}
-	else if (kbhook->vkCode == VK_LMENU)	{ unset_modifier_mask(MASK_ALT_L);		}
-	else if (kbhook->vkCode == VK_RMENU)	{ unset_modifier_mask(MASK_ALT_R);		}
-	else if (kbhook->vkCode == VK_LWIN)		{ unset_modifier_mask(MASK_META_L);		}
-	else if (kbhook->vkCode == VK_RWIN)		{ unset_modifier_mask(MASK_META_R);		}
+	if		(kbhook->vkCode == VK_LSHIFT)	{ unset_modifier_mask(MASK_SHIFT_L);		}
+	else if (kbhook->vkCode == VK_RSHIFT)	{ unset_modifier_mask(MASK_SHIFT_R);		}
+	else if (kbhook->vkCode == VK_LCONTROL)	{ unset_modifier_mask(MASK_CTRL_L);			}
+	else if (kbhook->vkCode == VK_RCONTROL)	{ unset_modifier_mask(MASK_CTRL_R);			}
+	else if (kbhook->vkCode == VK_LMENU)	{ unset_modifier_mask(MASK_ALT_L);			}
+	else if (kbhook->vkCode == VK_RMENU)	{ unset_modifier_mask(MASK_ALT_R);			}
+	else if (kbhook->vkCode == VK_LWIN)		{ unset_modifier_mask(MASK_META_L);			}
+	else if (kbhook->vkCode == VK_RWIN)		{ unset_modifier_mask(MASK_META_R);			}
+	else if (kbhook->vkCode == VK_NUMLOCK)	{ unset_modifier_mask(MASK_NUM_LOCK);		}
+	else if (kbhook->vkCode == VK_CAPITAL)	{ unset_modifier_mask(MASK_CAPS_LOCK);		}
+	else if (kbhook->vkCode == VK_SCROLL)	{ unset_modifier_mask(MASK_SCROLL_LOCK);	}
 
 	// Populate key pressed event.
 	event.time = kbhook->time;

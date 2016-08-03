@@ -66,6 +66,10 @@ typedef struct _hook_info {
 		XRecordContext context;
 	} ctrl;
 	struct _input {
+		#ifdef USE_XKBCOMMON
+   		xcb_connection_t *connection;
+   		struct xkb_context *context;
+    	#endif
 		uint16_t mask;
 		struct _mouse {
 			bool is_dragged;
@@ -116,7 +120,6 @@ static inline void dispatch_event(uiohook_event *const event) {
 				__FUNCTION__, __LINE__);
 	}
 }
-
 
 // Set the native modifier mask for future events.
 static inline void set_modifier_mask(uint16_t mask) {
@@ -198,9 +201,13 @@ static void initialize_modifiers() {
 		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);	}
 	}
 
-	// FIXME Add check for lock masks!
+	unsigned int led_mask = 0x00;;
+	if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &led_mask) == Success) {
+		if	(led_mask & 0x01) { set_modifier_mask(MASK_CAPS_LOCK); }
+		if	(led_mask & 0x02) { set_modifier_mask(MASK_NUM_LOCK); }
+		if	(led_mask & 0x04) { set_modifier_mask(MASK_SCROLL_LOCK); }
+	}
 }
-
 
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 	uint64_t timestamp = (uint64_t) recorded_data->server_time;
@@ -234,18 +241,31 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		if (data->type == KeyPress) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
-			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+            KeySym keysym = 0x00;
+			#if defined(USE_XKBCOMMON)
+			struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
+			if (state != NULL) {
+				keysym = xkb_state_key_get_one_sym(state, keycode);
+				destroy_xkb_state(state);
+			}
+			#else
+			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+			#endif
+
 			unsigned short int scancode = keycode_to_scancode(keycode);
 
 			// TODO If you have a better suggestion for this ugly, let me know.
-			if		(scancode == VC_SHIFT_L)	{ set_modifier_mask(MASK_SHIFT_L);	}
-			else if (scancode == VC_SHIFT_R)	{ set_modifier_mask(MASK_SHIFT_R);	}
-			else if (scancode == VC_CONTROL_L)	{ set_modifier_mask(MASK_CTRL_L);	}
-			else if (scancode == VC_CONTROL_R)	{ set_modifier_mask(MASK_CTRL_R);	}
-			else if (scancode == VC_ALT_L)		{ set_modifier_mask(MASK_ALT_L);	}
-			else if (scancode == VC_ALT_R)		{ set_modifier_mask(MASK_ALT_R);	}
-			else if (scancode == VC_META_L)		{ set_modifier_mask(MASK_META_L);	}
-			else if (scancode == VC_META_R)		{ set_modifier_mask(MASK_META_R);	}
+			if		(scancode == VC_SHIFT_L)		{ set_modifier_mask(MASK_SHIFT_L);		}
+			else if (scancode == VC_SHIFT_R)		{ set_modifier_mask(MASK_SHIFT_R);		}
+			else if (scancode == VC_CONTROL_L)		{ set_modifier_mask(MASK_CTRL_L);		}
+			else if (scancode == VC_CONTROL_R)		{ set_modifier_mask(MASK_CTRL_R);		}
+			else if (scancode == VC_ALT_L)			{ set_modifier_mask(MASK_ALT_L);		}
+			else if (scancode == VC_ALT_R)			{ set_modifier_mask(MASK_ALT_R);		}
+			else if (scancode == VC_META_L)			{ set_modifier_mask(MASK_META_L);		}
+			else if (scancode == VC_META_R)			{ set_modifier_mask(MASK_META_R);		}
+			else if (scancode == VC_NUM_LOCK)		{ set_modifier_mask(MASK_NUM_LOCK);		}
+			else if (scancode == VC_CAPS_LOCK)		{ set_modifier_mask(MASK_CAPS_LOCK);	}
+			else if (scancode == VC_SCROLL_LOCK)	{ set_modifier_mask(MASK_SCROLL_LOCK);	}
 
 			// Populate key pressed event.
 			event.time = timestamp;
@@ -271,12 +291,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 				// Check to make sure the key is printable.
 				#ifdef USE_XKBCOMMON
-				count = keycode_to_unicode(keycode, buffer, sizeof(buffer) / sizeof(wchar_t));
+				count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(wchar_t));
+				#else
+				count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(wchar_t));
 				#endif
-
-				if (count == 0) {
-					count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(wchar_t));
-				}
 
 				for (unsigned int i = 0; i < count; i++) {
 					// Populate key typed event.
@@ -301,18 +319,31 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		else if (data->type == KeyRelease) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
-			KeySym keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+            KeySym keysym = 0x00;
+			#if defined(USE_XKBCOMMON)
+			struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
+			if (state != NULL) {
+				keysym = xkb_state_key_get_one_sym(state, keycode);
+				destroy_xkb_state(state);
+			}
+			#else
+			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+			#endif
+
 			unsigned short int scancode = keycode_to_scancode(keycode);
 
 			// TODO If you have a better suggestion for this ugly, let me know.
-			if		(scancode == VC_SHIFT_L)	{ unset_modifier_mask(MASK_SHIFT_L);	}
-			else if (scancode == VC_SHIFT_R)	{ unset_modifier_mask(MASK_SHIFT_R);	}
-			else if (scancode == VC_CONTROL_L)	{ unset_modifier_mask(MASK_CTRL_L);		}
-			else if (scancode == VC_CONTROL_R)	{ unset_modifier_mask(MASK_CTRL_R);		}
-			else if (scancode == VC_ALT_L)		{ unset_modifier_mask(MASK_ALT_L);		}
-			else if (scancode == VC_ALT_R)		{ unset_modifier_mask(MASK_ALT_R);		}
-			else if (scancode == VC_META_L)		{ unset_modifier_mask(MASK_META_L);		}
-			else if (scancode == VC_META_R)		{ unset_modifier_mask(MASK_META_R);		}
+			if		(scancode == VC_SHIFT_L)		{ unset_modifier_mask(MASK_SHIFT_L);		}
+			else if (scancode == VC_SHIFT_R)		{ unset_modifier_mask(MASK_SHIFT_R);		}
+			else if (scancode == VC_CONTROL_L)		{ unset_modifier_mask(MASK_CTRL_L);			}
+			else if (scancode == VC_CONTROL_R)		{ unset_modifier_mask(MASK_CTRL_R);			}
+			else if (scancode == VC_ALT_L)			{ unset_modifier_mask(MASK_ALT_L);			}
+			else if (scancode == VC_ALT_R)			{ unset_modifier_mask(MASK_ALT_R);			}
+			else if (scancode == VC_META_L)			{ unset_modifier_mask(MASK_META_L);			}
+			else if (scancode == VC_META_R)			{ unset_modifier_mask(MASK_META_R);			}
+			else if (scancode == VC_NUM_LOCK)		{ unset_modifier_mask(MASK_NUM_LOCK);		}
+			else if (scancode == VC_CAPS_LOCK)		{ unset_modifier_mask(MASK_CAPS_LOCK);		}
+			else if (scancode == VC_SCROLL_LOCK)	{ unset_modifier_mask(MASK_SCROLL_LOCK);	}
 
 			// Populate key released event.
 			event.time = timestamp;
@@ -872,10 +903,44 @@ static int xrecord_start() {
 					__FUNCTION__, __LINE__);
 		}
 
+		 #if defined(USE_XKBCOMMON)
+		// Open XCB Connection
+		hook->input.connection = XGetXCBConnection(hook->ctrl.display);
+		int xcb_status = xcb_connection_has_error(hook->input.connection);
+		if (xcb_status <= 0) {
+			// Initialize xkbcommon context.
+			struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
+			if (context != NULL) {
+				hook->input.context = xkb_context_ref(context);
+			}
+			else {
+				logger(LOG_LEVEL_ERROR,	"%s [%u]: xkb_context_new failure!\n",
+						__FUNCTION__, __LINE__);
+			}
+		}
+		else {
+			logger(LOG_LEVEL_ERROR,	"%s [%u]: xcb_connect failure! (%d)\n",
+					__FUNCTION__, __LINE__, xcb_status);
+		}
+		#endif
+
 		// Initialize starting modifiers.
 		initialize_modifiers();
 
 		status = xrecord_query();
+
+		#ifdef USE_XKBCOMMON
+		if (hook->input.context != NULL) {
+			xkb_context_unref(hook->input.context);
+			hook->input.context = NULL;
+		}
+
+		if (hook->input.connection != NULL) {
+			xcb_disconnect(hook->input.connection);
+			hook->input.connection = NULL;
+		}
+		#endif
 	}
 	else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: XOpenDisplay failure!\n",

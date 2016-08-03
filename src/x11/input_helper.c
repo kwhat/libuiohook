@@ -59,8 +59,6 @@ static struct xkb_rule_names xkb_names = {
 };
 #endif
 
-static xcb_connection_t *xcb_conn = NULL;
-struct xkb_context *xkb_ctx;
 #endif
 
 #include "logger.h"
@@ -1441,32 +1439,6 @@ static struct codepair {
   { 0x20AC, 0x20AC }, /*                    EuroSign € EURO SIGN */
 };
 
-
-#ifdef USE_XKBCOMMON
-static inline struct xkb_state *get_xkb_state() {
-	struct xkb_keymap *keymap;
-	struct xkb_state *state = NULL;
-
-	int32_t device_id = xkb_x11_get_core_keyboard_device_id(xcb_conn);
-	if (device_id >= 0) {
-		keymap = xkb_x11_keymap_new_from_device(xkb_ctx, xcb_conn, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-		state = xkb_x11_state_new_from_device(keymap, xcb_conn, device_id);
-	}
-	#ifdef USE_XKBFILE
-	else {
-		// Evdev fallback,
-		logger(LOG_LEVEL_WARN, "%s [%u]: Unable to retrieve core keyboard device id! (%d)\n",
-				__FUNCTION__, __LINE__, device_id);
-
-		keymap = xkb_keymap_new_from_names(xkb_ctx, &xkb_names, XKB_KEYMAP_COMPILE_NO_FLAGS);
-		state = xkb_state_new(keymap);
-	}
-	#endif
-
-	return state;
-}
-#endif
-
 /***********************************************************************
  * The following function converts ISO 10646-1 (UCS, Unicode) values to
  * their corresponding KeySym values.
@@ -1515,22 +1487,6 @@ KeySym unicode_to_keysym(wchar_t unicode) {
 	return unicode | 0x01000000;
 }
 
-#ifdef USE_XKBCOMMON
-size_t keycode_to_unicode(KeyCode keycode, wchar_t *buffer, size_t size) {
-	char *tmpbuff = malloc(sizeof(wchar_t) * size);
-	size_t count = 0;
-
-	struct xkb_state *state = get_xkb_state();
-    if (state != NULL) {
-		count = xkb_state_key_get_utf8(state, keycode, tmpbuff, size);
-	}
-
-	count = mbstowcs(buffer, tmpbuff, count);
-    free(tmpbuff);
-
-    return count;
-}
-#endif
 
 /***********************************************************************
  * The following function converts KeySym values into the corresponding
@@ -1700,17 +1656,54 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	return keycode;
 }
 
+
+#ifdef USE_XKBCOMMON
+struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection) {
+	struct xkb_keymap *keymap;
+	struct xkb_state *state;
+
+	int32_t device_id = xkb_x11_get_core_keyboard_device_id(connection);
+	if (device_id >= 0) {
+		keymap = xkb_x11_keymap_new_from_device(context, connection, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+		state = xkb_x11_state_new_from_device(keymap, connection, device_id);
+	}
+	#ifdef USE_XKBFILE
+	else {
+		// Evdev fallback,
+		logger(LOG_LEVEL_WARN, "%s [%u]: Unable to retrieve core keyboard device id! (%d)\n",
+				__FUNCTION__, __LINE__, device_id);
+
+		keymap = xkb_keymap_new_from_names(context, &xkb_names, XKB_KEYMAP_COMPILE_NO_FLAGS);
+		state = xkb_state_new(keymap);
+	}
+	#endif
+
+	xkb_map_unref(keymap);
+	return xkb_state_ref(state);
+}
+
+void destroy_xkb_state(struct xkb_state* state) {
+	xkb_state_unref(state);
+}
+
+size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, wchar_t *buffer, size_t size) {
+	size_t count = 0;
+
+	if (state != NULL) {
+		char *tmpbuff = malloc(sizeof(wchar_t) * size);
+		count = xkb_state_key_get_utf8(state, keycode, tmpbuff, size);
+		count = mbstowcs(buffer, tmpbuff, count);
+		free(tmpbuff);
+	}
+
+    return count;
+}
+#else
 // Faster more flexible alternative to XKeycodeToKeysym...
 KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 	KeySym keysym = NoSymbol;
 
-	#if defined(USE_XKBCOMMON)
-	// TODO Make xkb a runtime dependency.
-	struct xkb_state *state = state = get_xkb_state();
-	if (state != NULL) {
-		keysym = xkb_state_key_get_one_sym(state, keycode);
-	}
-	#elif defined(USE_XKB)
+	#if defined(USE_XKB)
 	if (keyboard_map != NULL) {
 		// Get the range and number of symbols groups bound to the key.
 		unsigned char info = XkbKeyGroupInfo(keyboard_map, keycode);
@@ -1859,25 +1852,10 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 
 	return keysym;
 }
+#endif
 
 void load_input_helper(Display *disp) {
-	#if defined(USE_XKBCOMMON)
-	// Open XCB Connection
-	xcb_conn = XGetXCBConnection(disp);
-	int xcb_status = xcb_connection_has_error(xcb_conn);
-	if (xcb_status <= 0) {
-		// Initialize xkbcommon context.
-		xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-		if (xkb_ctx == NULL) {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: xkb_context_new failure!\n",
-					__FUNCTION__, __LINE__);
-		}
-	}
-	else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: xcb_connect failure! (%d)\n",
-				__FUNCTION__, __LINE__, xcb_status);
-	}
-    #elif defined(USE_XKB)
+    #ifdef USE_XKB
 	/* The following code block is based on vncdisplaykeymap.c under the terms:
 	 *
 	 * Copyright (C) 2008  Anthony Liguori <anthony codemonkey ws>
@@ -1982,14 +1960,9 @@ void load_input_helper(Display *disp) {
 	#endif
 }
 
+
 void unload_input_helper() {
 	if (keyboard_map) {
-		#ifdef USE_XKBCOMMON
-		if (xcb_conn != NULL) {
-			xcb_disconnect(xcb_conn);
-		}
-		#endif
-
 		#ifdef USE_XKB
 		XkbFreeClientMap(keyboard_map, XkbAllClientInfoMask, true);
 		#if defined(USE_EVDEV) && defined(USE_XKB)

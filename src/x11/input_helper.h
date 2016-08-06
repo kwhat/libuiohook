@@ -63,7 +63,6 @@ extern screen_data* hook_create_screen_info(uint8_t *count);
  */
 extern size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size);
 
-
 /* Convert a single Unicode character to an X11 key symbol.  This function
  * provides a better translation than XStringToKeysym() for Unicode characters.
  */

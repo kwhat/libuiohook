@@ -1656,7 +1656,6 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 	return keycode;
 }
 
-
 #ifdef USE_XKBCOMMON
 struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection) {
 	struct xkb_keymap *keymap;
@@ -1703,7 +1702,7 @@ size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, wchar_t *buf
 KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 	KeySym keysym = NoSymbol;
 
-	#if defined(USE_XKB)
+	#ifdef USE_XKB
 	if (keyboard_map != NULL) {
 		// Get the range and number of symbols groups bound to the key.
 		unsigned char info = XkbKeyGroupInfo(keyboard_map, keycode);
@@ -1855,7 +1854,7 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 #endif
 
 void load_input_helper(Display *disp) {
-    #ifdef USE_XKB
+	#ifdef USE_XKB
 	/* The following code block is based on vncdisplaykeymap.c under the terms:
 	 *
 	 * Copyright (C) 2008  Anthony Liguori <anthony codemonkey ws>
@@ -1959,7 +1958,6 @@ void load_input_helper(Display *disp) {
 	}
 	#endif
 }
-
 
 void unload_input_helper() {
 	if (keyboard_map) {

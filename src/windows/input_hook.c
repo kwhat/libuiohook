@@ -494,7 +494,7 @@ static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 	// Set the direction based on what event was received.
 	event.data.wheel.direction = direction;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+	logger(LOG_LEVEL_INFO, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
 			__FUNCTION__, __LINE__, event.data.wheel.type,
 			event.data.wheel.amount * event.data.wheel.rotation,
 			event.data.wheel.direction,

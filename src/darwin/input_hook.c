@@ -182,7 +182,12 @@ static void initialize_modifiers() {
 		set_modifier_mask(MASK_BUTTON5);
 	}
 
-	// FIXME Add check for lock masks!
+	if (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState, kCGEventFlagMaskAlphaShift)) {
+		set_modifier_mask(MASK_CAPS_LOCK);
+	}
+	// Best I can tell, OS X does not support Num or Scroll lock.
+	unset_modifier_mask(MASK_NUM_LOCK);
+	unset_modifier_mask(MASK_SCROLL_LOCK);
 }
 
 

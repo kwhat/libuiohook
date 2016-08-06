@@ -67,8 +67,8 @@ typedef struct _hook_info {
 	} ctrl;
 	struct _input {
 		#ifdef USE_XKBCOMMON
-   		xcb_connection_t *connection;
-   		struct xkb_context *context;
+		xcb_connection_t *connection;
+		struct xkb_context *context;
     	#endif
 		uint16_t mask;
 		struct _mouse {
@@ -244,9 +244,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             KeySym keysym = 0x00;
 			#if defined(USE_XKBCOMMON)
 			struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
-			if (state != NULL) {
+		   	if (state != NULL) {
 				keysym = xkb_state_key_get_one_sym(state, keycode);
-				destroy_xkb_state(state);
 			}
 			#else
 			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
@@ -291,7 +290,10 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 				// Check to make sure the key is printable.
 				#ifdef USE_XKBCOMMON
-				count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(wchar_t));
+				struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
+				if (state != NULL) {
+					count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(wchar_t));
+				}
 				#else
 				count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(wchar_t));
 				#endif
@@ -315,11 +317,15 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					dispatch_event(&event);
 				}
 			}
+
+			#ifdef USE_XKBCOMMON
+			destroy_xkb_state(state);
+			#endif
 		}
 		else if (data->type == KeyRelease) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
-            KeySym keysym = 0x00;
+			KeySym keysym = 0x00;
 			#if defined(USE_XKBCOMMON)
 			struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
 			if (state != NULL) {

@@ -1467,6 +1467,7 @@ KeySym unicode_to_keysym(wchar_t unicode) {
 	return unicode | 0x01000000;
 }
 
+
 /***********************************************************************
  * The following function converts KeySym values into the corresponding
  * ISO 10646-1 (UCS, Unicode) values.
@@ -1485,20 +1486,20 @@ KeySym unicode_to_keysym(wchar_t unicode) {
  ***********************************************************************/
 size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size) {
 	size_t count = 0;
-	
+
 	int min = 0;
 	int max = sizeof(keysym_unicode_table) / sizeof(struct codepair) - 1;
 	int mid;
 
 	#ifdef XK_LATIN1
-    // First check for Latin-1 characters. (1:1 mapping)
-	if ((keysym >= 0x0020 && keysym <= 0x007E) 
+	// First check for Latin-1 characters. (1:1 mapping)
+	if ((keysym >= 0x0020 && keysym <= 0x007E)
 			|| (keysym >= 0x00A0 && keysym <= 0x00FF)) {
-		
+
 		if (count < size) {
 			buffer[count++] = keysym;
 		}
-		
+
 		return count;
 	}
 	#endif
@@ -1508,17 +1509,17 @@ size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size) {
 		defined(XK_ARMENIAN) || defined(XK_GEORGIAN) || defined(XK_CAUCASUS) || \
 		defined(XK_VIETNAMESE) || defined(XK_CURRENCY) || \
 		defined(XK_MATHEMATICAL) || defined(XK_BRAILLE) || defined(XK_SINHALA)
-    if ((keysym & 0xFF000000) == 0x01000000) {
+	if ((keysym & 0xFF000000) == 0x01000000) {
 		if (count < size) {
 			buffer[count++] = keysym & 0x00FFFFFF;
 		}
-		
+
 		return count;
 	}
 	#endif
 
-    // Binary search in table.
-    while (max >= min) {
+	// Binary search in table.
+	while (max >= min) {
 		mid = (min + max) / 2;
 		if (keysym_unicode_table[mid].keysym < keysym) {
 			min = mid + 1;
@@ -1531,10 +1532,10 @@ size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size) {
 			if (count < size) {
 				buffer[count++] = keysym_unicode_table[mid].unicode;
 			}
-		
+
 			return count;
 		}
-    }
+	}
 
     // No matching Unicode value found!
     return count;

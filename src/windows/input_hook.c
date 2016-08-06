@@ -117,7 +117,7 @@ static void initialize_modifiers() {
 /* Retrieves the mouse wheel scroll type. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
  */
-static inline unsigned short int get_scroll_wheel_type() {
+static unsigned short int get_scroll_wheel_type() {
 	unsigned short int value;
 	UINT wheel_type;
 
@@ -135,7 +135,7 @@ static inline unsigned short int get_scroll_wheel_type() {
 /* Retrieves the mouse wheel scroll amount. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
  */
-static inline unsigned short int get_scroll_wheel_amount() {
+static unsigned short int get_scroll_wheel_amount() {
 	unsigned short int value;
 	UINT wheel_amount;
 
@@ -213,7 +213,7 @@ void hook_stop_proc() {
 	dispatch_event(&event);
 }
 
-static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
+static void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
 	if		(kbhook->vkCode == VK_LSHIFT)	{ set_modifier_mask(MASK_SHIFT_L);	}
 	else if (kbhook->vkCode == VK_RSHIFT)	{ set_modifier_mask(MASK_SHIFT_R);	}
@@ -269,7 +269,7 @@ static inline void process_key_pressed(uint64_t timestamp, KBDLLHOOKSTRUCT *kbho
 	}
 }
 
-static inline void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
+static void process_key_released(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
 	// Check and setup modifiers.
 	if		(kbhook->vkCode == VK_LSHIFT)	{ unset_modifier_mask(MASK_SHIFT_L);	}
 	else if (kbhook->vkCode == VK_RSHIFT)	{ unset_modifier_mask(MASK_SHIFT_R);	}
@@ -334,7 +334,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 }
 
 
-static inline void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t button) {
+static void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	// Track the number of clicks, the button must match the previous button.
 	if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
 		if (click_count < USHRT_MAX) {
@@ -381,7 +381,7 @@ static inline void process_button_pressed(uint64_t timestamp, MSLLHOOKSTRUCT *ms
 	dispatch_event(&event);
 }
 
-static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t button) {
+static void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	// Populate mouse released event.
 	event.time = timestamp;
 	event.reserved = 0x00;
@@ -432,7 +432,7 @@ static inline void process_button_released(uint64_t timestamp, MSLLHOOKSTRUCT *m
 	}
 }
 
-static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
+static void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
 	// We received a mouse move event with the mouse actually moving.
 	// This verifies that the mouse was moved after being depressed.
 	if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
@@ -472,7 +472,7 @@ static inline void process_mouse_moved(uint64_t timestamp, MSLLHOOKSTRUCT *mshoo
 	}
 }
 
-static inline void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
+static void process_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
 	// Track the number of clicks.
 	// Reset the click count and previous button.
 	click_count = 1;
@@ -604,13 +604,6 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 			process_mouse_wheel(timestamp, mshook);
 			break;
 
-		/* For horizontal scroll wheel support.
-		 * NOTE Windows >= Vista
-		 * case 0x020E:
-		case WM_MOUSEHWHEEL:
-			process_mouse_wheel(timestamp, mshook);
-			break;				
-		*/
 		
 		default:
 			// In theory this *should* never execute.

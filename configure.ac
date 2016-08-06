@@ -75,7 +75,6 @@ AC_TYPE_UINT64_T
 # Initialize libtool.
 AC_PROG_LIBTOOL
 
-
 # Check for operating system.
 AC_MSG_CHECKING(operating system)
 AS_CASE([$host],

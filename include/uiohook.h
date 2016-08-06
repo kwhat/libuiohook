@@ -220,7 +220,7 @@ typedef void (*dispatcher_t)(uiohook_event *const);
 
 #define VC_PRINTSCREEN							0x0E37
 #define VC_SCROLL_LOCK							0x0046
-#define VC_PAUSE								0x0E45	// FIXME Testing needed on Windows!
+#define VC_PAUSE								0x0E45
 
 
 // Begin Edit Key Zone

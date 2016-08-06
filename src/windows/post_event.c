@@ -67,7 +67,7 @@ static UINT keymask_lookup[8] = {
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 	//FIXME implement multiple monitor support
-	uint16_t screen_width   = GetSystemMetrics( SM_CXSCREEN ); 
+	uint16_t screen_width   = GetSystemMetrics( SM_CXSCREEN );
 	uint16_t screen_height  = GetSystemMetrics( SM_CYSCREEN );
 
 	unsigned char events_size = 0, events_max = 28;
@@ -161,7 +161,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		case EVENT_MOUSE_PRESSED:
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_XDOWN;
-			
+
 			switch (event->data.mouse.button) {
 				case MOUSE_BUTTON1:
 					events[events_size].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
@@ -195,6 +195,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()
+
 			events_size++;
 			break;
 			
@@ -248,7 +249,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			
 			events[events_size].mi.dx = event->data.wheel.x * (MAX_WINDOWS_COORD_VALUE / screen_width) + 1;
 			events[events_size].mi.dy = event->data.wheel.y * (MAX_WINDOWS_COORD_VALUE / screen_height) + 1;
-			
+
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()
 			events_size++;

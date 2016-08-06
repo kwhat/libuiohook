@@ -43,6 +43,7 @@ typedef struct _screen_data {
 	uint16_t height;
 } screen_data;
 
+
 /* Create an array of screen_data structures and return the number of
  * populated elements to count.  You are responsible for freeing the returned
  * memory.

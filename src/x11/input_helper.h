@@ -40,24 +40,6 @@
 #define XButton1		8
 #define XButton2		9
 
-// Structure to represent screen info.
-// NOTE This has been moved to public API as of 1.1.
-typedef struct _screen_data {
-	uint8_t number;
-	int16_t x;
-	int16_t y;
-	uint16_t width;
-	uint16_t height;
-} screen_data;
-
-
-/* Create an array of screen_data structures and return the number of
- * populated elements to count.  You are responsible for freeing the returned
- * memory.
- * NOTE This has been moved to public API as of 1.1.
- */
-extern screen_data* hook_create_screen_info(uint8_t *count);
-
 /* Converts an X11 key symbol to a single Unicode character.  No direct X11
  * functionality exists to provide this information.
  */

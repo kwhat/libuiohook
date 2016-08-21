@@ -126,7 +126,7 @@ static void *settings_thread_proc(void *arg) {
 }
 #endif
 
-screen_data* hook_create_screen_info(uint8_t *count) {
+UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 	*count = 0;
 	screen_data *screens = NULL;
 

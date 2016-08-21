@@ -78,6 +78,14 @@ typedef enum _event_type {
 	EVENT_MOUSE_WHEEL
 } event_type;
 
+typedef struct _screen_data {
+	uint8_t number;
+	int16_t x;
+	int16_t y;
+	uint16_t width;
+	uint16_t height;
+} screen_data;
+
 typedef struct _keyboard_event_data {
 	uint16_t keycode;
 	uint16_t rawcode;
@@ -420,6 +428,9 @@ extern "C" {
 
 	// Withdraw the event hook.
 	UIOHOOK_API int hook_stop();
+
+	// Retrieves an array of screen data for each available monitor.
+	UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count);
 
 	// Retrieves the keyboard auto repeat rate.
 	UIOHOOK_API long int hook_get_auto_repeat_rate();

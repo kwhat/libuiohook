@@ -182,7 +182,7 @@ static void initialize_modifiers() {
 		set_modifier_mask(MASK_BUTTON5);
 	}
 
-	if (CGEventSourceFlagsState(kCGEventFlagMaskAlphaShift)) {
+	if (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & kCGEventFlagMaskAlphaShift) {
 		set_modifier_mask(MASK_CAPS_LOCK);
 	}
 	// Best I can tell, OS X does not support Num or Scroll lock.

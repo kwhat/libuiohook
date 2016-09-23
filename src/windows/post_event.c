@@ -120,41 +120,36 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
-			events[events_size].type = INPUT_KEYBOARD;
-			events[events_size].ki.dwFlags = KEYEVENTF_KEYDOWN;
 			events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
-			events[events_size].ki.wScan = event->data.keyboard.keycode;
-			events[events_size].ki.dwFlags = KEYEVENTF_SCANCODE;
-
-			if (events[events_size].ki.wVk & 0xE000
-					|| (events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46)
-					|| (events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
-
-				// Key is an extended key.
-				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+			if (events[events_size].ki.wVk != 0x0000) {
+				events[events_size].type = INPUT_KEYBOARD;
+				events[events_size].ki.dwFlags = KEYEVENTF_KEYDOWN; // |= KEYEVENTF_SCANCODE;
+				events[events_size].ki.wScan = 0; // event->data.keyboard.keycode;
+				events[events_size].ki.time = 0; // GetSystemTime()
+				events_size++;
 			}
-
-			events[events_size].ki.time = 0; // GetSystemTime()
-			events_size++;
+			else {
+				logger(LOG_LEVEL_INFO, "%s [%u]: Unable to lookup scancode: %li\n",
+						__FUNCTION__, __LINE__,
+						event->data.keyboard.keycode);
+			}
 			break;
 			
 		case EVENT_KEY_RELEASED:
-			events[events_size].type = INPUT_KEYBOARD;
-			events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
 			events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
-			events[events_size].ki.wScan = event->data.keyboard.keycode;
-			events[events_size].ki.dwFlags |= KEYEVENTF_SCANCODE;
-
-			if (events[events_size].ki.wVk & 0xE000
-					|| (events[events_size].ki.wVk >= 33 && events[events_size].ki.wVk <= 46)
-					|| (events[events_size].ki.wVk >= 91 && events[events_size].ki.wVk <= 93)) {
-
-				// Key is an extended key.
-				events[events_size].ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+			if (events[events_size].ki.wVk != 0x0000) {
+				events[events_size].type = INPUT_KEYBOARD;
+				events[events_size].ki.dwFlags = KEYEVENTF_KEYUP; // |= KEYEVENTF_SCANCODE;
+				events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
+				events[events_size].ki.wScan = 0; // event->data.keyboard.keycode;
+				events[events_size].ki.time = 0; // GetSystemTime()
+				events_size++;
 			}
-
-			events[events_size].ki.time = 0; // GetSystemTime()
-			events_size++;
+			else {
+				logger(LOG_LEVEL_INFO, "%s [%u]: Unable to lookup scancode: %li\n",
+						__FUNCTION__, __LINE__,
+						event->data.keyboard.keycode);
+			}
 			break;
 
 		
@@ -283,7 +278,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		default:
 			// Ignore any other garbage.
 			logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
-				__FUNCTION__, __LINE__, event->type);
+					__FUNCTION__, __LINE__, event->type);
 			break;
 	}
 

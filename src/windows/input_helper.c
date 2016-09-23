@@ -224,7 +224,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 185 */	{ VC_UNDEFINED,			0x0000					},	// 0xB9							Reserved
 	/* 186 */	{ VC_SEMICOLON,			0x0000					},	// 0xBA VK_OEM_1				Varies by keyboard. For the US standard keyboard, the ';:' key
 	/* 187 */	{ VC_EQUALS,			0x0000					},	// 0xBB VK_OEM_PLUS				For any country/region, the '+' key
-	/* 188 */	{ VC_COMMA,				0x0000					},	// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
+	/* 188 */	{ VC_COMMA,				0x00E6					},	// 0xBC VK_OEM_COMMA			For any country/region, the ',' key
 	/* 189 */	{ VC_MINUS,				0x0000					},	// 0xBD VK_OEM_MINUS			For any country/region, the '-' key
 	/* 190 */	{ VC_PERIOD,			0x0000					},	// 0xBE VK_OEM_PERIOD			For any country/region, the '.' key
 	/* 191 */	{ VC_SLASH,				0x0000					},	// 0xBF VK_OEM_2				Varies by keyboard. For the US standard keyboard, the '/?' key
@@ -264,9 +264,9 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 225 */	{ VC_UNDEFINED,			0x0000					},	// 0xE1							OEM specific
 	/* 226 */	{ VC_UNDEFINED,			0x0000					},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
 	/* 227 */	{ VC_UNDEFINED,			0x0000					},	// 0xE3							OEM specific
-	/* 228 */	{ VC_UNDEFINED,			0x0000					},	// 0xE4							OEM specific
-	/* 229 */	{ VC_UNDEFINED,			VK_BROWSER_SEARCH		},	// 0xE5 VK_PROCESSKEY			IME PROCESS key
-	/* 230 */	{ VC_UNDEFINED,			VK_BROWSER_FAVORITES	},	// 0xE6							OEM specific
+	/* 228 */	{ VC_UNDEFINED,			0x00E5					},	// 0xE4	VC_APP_PICTURES 		OEM specific
+	/* 229 */	{ VC_APP_PICTURES,		VK_BROWSER_SEARCH		},	// 0xE5 VK_PROCESSKEY			IME PROCESS key
+	/* 230 */	{ VC_APP_MUSIC,			VK_BROWSER_FAVORITES	},	// 0xE6							OEM specific
 	/* 231 */	{ VC_UNDEFINED,			VK_BROWSER_REFRESH		},	// 0xE7 VK_PACKET				Used to pass Unicode characters as if they were keystrokes. The VK_PACKET key is the low word of a 32-bit Virtual Key value used for non-keyboard input methods.
 	/* 232 */	{ VC_UNDEFINED,			VK_BROWSER_STOP			},	// 0xE8							Unassigned
 	/* 233 */	{ VC_UNDEFINED,			VK_BROWSER_FORWARD		},	// 0xE9							OEM specific
@@ -303,6 +303,9 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 		scancode = keycode_scancode_table[vk_code][0];
 
 		if (flags & LLKHF_EXTENDED) {
+			logger(LOG_LEVEL_WARN,	"%s [%u]: EXTD2, vk_code %li\n",
+					__FUNCTION__, __LINE__, vk_code);
+
 			switch (vk_code) {
 				case VK_PRIOR:
 				case VK_NEXT:
@@ -322,6 +325,10 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 					scancode |= 0x0E00;
 					break;
 			}
+		}
+		else {
+						logger(LOG_LEVEL_WARN,	"%s [%u]: Test2, vk_code %li\n",
+            					__FUNCTION__, __LINE__, vk_code);
 		}
 	}
 

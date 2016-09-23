@@ -932,11 +932,28 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 		// Calculate the amount based on the Point Delta / Event Delta.  Integer sign should always be homogeneous resulting in a positive result.
 		// NOTE kCGScrollWheelEventFixedPtDeltaAxis1 a floating point value (+0.1/-0.1) that takes acceleration into account.
 		// NOTE kCGScrollWheelEventPointDeltaAxis1 will not build on OS X < 10.5
-		event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
-		// Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
-		event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
+        if(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
+            event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1);
 
+            // Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
+            event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
+
+        }
+        else if(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
+            event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2);
+
+            // Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
+            event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) * -1;
+        }
+        else {
+            //Fail Silently if a 3rd axis gets added without changing this section of code.
+            event.data.wheel.amount = 0;
+            event.data.wheel.rotation = 0;
+        }
+
+
+		
 		if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
 			// Wheel Rotated Up or Down.
 			event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;

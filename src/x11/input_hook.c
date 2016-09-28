@@ -93,6 +93,9 @@ typedef union {
 	xConnSetupPrefix	setup;
 } XRecordDatum;
 
+#if defined(USE_XKBCOMMON)
+static struct xkb_state *state = NULL;
+#endif
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -128,12 +131,67 @@ static inline void set_modifier_mask(uint16_t mask) {
 
 // Unset the native modifier mask for future events.
 static inline void unset_modifier_mask(uint16_t mask) {
-	hook->input.mask ^= mask;
+	hook->input.mask &= ~mask;
 }
 
 // Get the current native modifier mask state.
 static inline uint16_t get_modifiers() {
 	return hook->input.mask;
+}
+
+// Initialize the modifier lock masks.
+static void initialize_locks() {
+	#ifdef USE_XKBCOMMON
+
+	if (xkb_state_led_name_is_active(state, XKB_LED_NAME_CAPS)) {
+		set_modifier_mask(MASK_CAPS_LOCK);
+	}
+	else {
+		unset_modifier_mask(MASK_CAPS_LOCK);
+	}
+
+	if (xkb_state_led_name_is_active(state, XKB_LED_NAME_NUM)) {
+		set_modifier_mask(MASK_NUM_LOCK);
+	}
+	else {
+		unset_modifier_mask(MASK_NUM_LOCK);
+	}
+
+	if (xkb_state_led_name_is_active(state, XKB_LED_NAME_SCROLL)) {
+		set_modifier_mask(MASK_SCROLL_LOCK);
+	}
+	else {
+		unset_modifier_mask(MASK_SCROLL_LOCK);
+	}
+	#else
+	unsigned int led_mask = 0x00;
+	if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &led_mask) == Success) {
+		if (led_mask & 0x01) {
+			set_modifier_mask(MASK_CAPS_LOCK);
+		}
+		else {
+			unset_modifier_mask(MASK_CAPS_LOCK);
+		}
+
+		if (led_mask & 0x02) {
+			set_modifier_mask(MASK_NUM_LOCK);
+		}
+		else {
+			unset_modifier_mask(MASK_NUM_LOCK);
+		}
+
+		if (led_mask & 0x04) {
+			set_modifier_mask(MASK_SCROLL_LOCK);
+		}
+		else {
+			unset_modifier_mask(MASK_SCROLL_LOCK);
+		}
+	}
+	else {
+		logger(LOG_LEVEL_WARN, "%s [%u]: XkbGetIndicatorState failed to get current led mask!\n",
+				__FUNCTION__, __LINE__);
+	}
+	#endif
 }
 
 // Initialize the modifier mask to the current modifiers.
@@ -201,12 +259,7 @@ static void initialize_modifiers() {
 		if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);	}
 	}
 
-	unsigned int led_mask = 0x00;;
-	if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &led_mask) == Success) {
-		if	(led_mask & 0x01) { set_modifier_mask(MASK_CAPS_LOCK); }
-		if	(led_mask & 0x02) { set_modifier_mask(MASK_NUM_LOCK); }
-		if	(led_mask & 0x04) { set_modifier_mask(MASK_SCROLL_LOCK); }
-	}
+	initialize_locks();
 }
 
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
@@ -243,7 +296,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
 			#if defined(USE_XKBCOMMON)
-			struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
 		   	if (state != NULL) {
 				keysym = xkb_state_key_get_one_sym(state, keycode);
 			}
@@ -262,9 +314,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)			{ set_modifier_mask(MASK_ALT_R);		}
 			else if (scancode == VC_META_L)			{ set_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)			{ set_modifier_mask(MASK_META_R);		}
-			else if (scancode == VC_NUM_LOCK)		{ set_modifier_mask(MASK_NUM_LOCK);		}
-			else if (scancode == VC_CAPS_LOCK)		{ set_modifier_mask(MASK_CAPS_LOCK);	}
-			else if (scancode == VC_SCROLL_LOCK)	{ set_modifier_mask(MASK_SCROLL_LOCK);	}
+			xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
+			initialize_locks();
 
 			// Populate key pressed event.
 			event.time = timestamp;
@@ -290,7 +341,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 				// Check to make sure the key is printable.
 				#ifdef USE_XKBCOMMON
-				struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
 				if (state != NULL) {
 					count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(wchar_t));
 				}
@@ -317,20 +367,16 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					dispatch_event(&event);
 				}
 			}
-
-			#ifdef USE_XKBCOMMON
-			destroy_xkb_state(state);
-			#endif
 		}
 		else if (data->type == KeyRelease) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
 			KeySym keysym = 0x00;
 			#if defined(USE_XKBCOMMON)
-			struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
+			//struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
 			if (state != NULL) {
-				keysym = xkb_state_key_get_one_sym(state, keycode);
-				destroy_xkb_state(state);
+				keysym = xkb_state_key_get_one_sym(xkb_state_ref(state), keycode);
+				//destroy_xkb_state(state);
 			}
 			#else
 			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
@@ -347,9 +393,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)			{ unset_modifier_mask(MASK_ALT_R);			}
 			else if (scancode == VC_META_L)			{ unset_modifier_mask(MASK_META_L);			}
 			else if (scancode == VC_META_R)			{ unset_modifier_mask(MASK_META_R);			}
-			else if (scancode == VC_NUM_LOCK)		{ unset_modifier_mask(MASK_NUM_LOCK);		}
-			else if (scancode == VC_CAPS_LOCK)		{ unset_modifier_mask(MASK_CAPS_LOCK);		}
-			else if (scancode == VC_SCROLL_LOCK)	{ unset_modifier_mask(MASK_SCROLL_LOCK);	}
+			xkb_state_update_key(state, keycode, XKB_KEY_UP);
+			initialize_locks();
 
 			// Populate key released event.
 			event.time = timestamp;
@@ -931,12 +976,20 @@ static int xrecord_start() {
 		}
 		#endif
 
+		#ifdef USE_XKBCOMMON
+		state = create_xkb_state(hook->input.context, hook->input.connection);
+		#endif
+
 		// Initialize starting modifiers.
 		initialize_modifiers();
 
 		status = xrecord_query();
 
 		#ifdef USE_XKBCOMMON
+		if (state != NULL) {
+			destroy_xkb_state(state);
+		}
+
 		if (hook->input.context != NULL) {
 			xkb_context_unref(hook->input.context);
 			hook->input.context = NULL;

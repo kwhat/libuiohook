@@ -372,11 +372,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			// The X11 KeyCode associated with this event.
 			KeyCode keycode = (KeyCode) data->event.u.u.detail;
 			KeySym keysym = 0x00;
-			#if defined(USE_XKBCOMMON)
-			//struct xkb_state *state = create_xkb_state(hook->input.context, hook->input.connection);
+			#ifdef USE_XKBCOMMON
 			if (state != NULL) {
-				keysym = xkb_state_key_get_one_sym(xkb_state_ref(state), keycode);
-				//destroy_xkb_state(state);
+				keysym = xkb_state_key_get_one_sym(state, keycode);
 			}
 			#else
 			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);

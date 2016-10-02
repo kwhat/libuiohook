@@ -751,7 +751,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 		}
 		else {
 			// In theory this *should* never execute.
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled X11 event: %#X.\n",
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Unhandled X11 event: %#X.\n",
 					__FUNCTION__, __LINE__, (unsigned int) data->type);
 		}
 	}

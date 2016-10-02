@@ -304,7 +304,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 
 		default:
 			// In theory this *should* never execute.
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows keyboard event: %#X.\n",
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Unhandled Windows keyboard event: %#X.\n",
 					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}
@@ -608,7 +608,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 
 		default:
 			// In theory this *should* never execute.
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Unhandled Windows mouse event: %#X.\n",
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Unhandled Windows mouse event: %#X.\n",
 					__FUNCTION__, __LINE__, (unsigned int) wParam);
 			break;
 	}

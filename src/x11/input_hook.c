@@ -317,6 +317,24 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
 			initialize_locks();
 
+			if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
+                switch (scancode) {
+					case VC_KP_SEPARATOR:
+					case VC_KP_1:
+					case VC_KP_2:
+					case VC_KP_3:
+					case VC_KP_4:
+					case VC_KP_5:
+					case VC_KP_6:
+					case VC_KP_7:
+					case VC_KP_8:
+					case VC_KP_0:
+					case VC_KP_9:
+						scancode |= 0xEE00;
+						break;
+                }
+			}
+
 			// Populate key pressed event.
 			event.time = timestamp;
 			event.reserved = 0x00;
@@ -393,6 +411,24 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_META_R)			{ unset_modifier_mask(MASK_META_R);			}
 			xkb_state_update_key(state, keycode, XKB_KEY_UP);
 			initialize_locks();
+
+			if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
+                switch (scancode) {
+					case VC_KP_SEPARATOR:
+					case VC_KP_1:
+					case VC_KP_2:
+					case VC_KP_3:
+					case VC_KP_4:
+					case VC_KP_5:
+					case VC_KP_6:
+					case VC_KP_7:
+					case VC_KP_8:
+					case VC_KP_0:
+					case VC_KP_9:
+						scancode |= 0xEE00;
+						break;
+                }
+			}
 
 			// Populate key released event.
 			event.time = timestamp;

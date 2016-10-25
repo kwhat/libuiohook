@@ -22,7 +22,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <wchar.h>
 
 /* Begin Error Codes */
 #define UIOHOOK_SUCCESS							0x00
@@ -89,7 +88,7 @@ typedef struct _screen_data {
 typedef struct _keyboard_event_data {
 	uint16_t keycode;
 	uint16_t rawcode;
-	wchar_t keychar;
+	uint16_t keychar;
 } keyboard_event_data,
 		key_pressed_event_data,
 		key_released_event_data,

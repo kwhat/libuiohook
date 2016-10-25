@@ -43,12 +43,12 @@
 /* Converts an X11 key symbol to a single Unicode character.  No direct X11
  * functionality exists to provide this information.
  */
-extern size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size);
+extern size_t keysym_to_unicode(KeySym keysym, uint16_t *buffer, size_t size);
 
 /* Convert a single Unicode character to an X11 key symbol.  This function
  * provides a better translation than XStringToKeysym() for Unicode characters.
  */
-extern KeySym unicode_to_keysym(wchar_t unicode);
+extern KeySym unicode_to_keysym(uint16_t unicode);
 
 /* Converts an X11 key code to the appropriate keyboard scan code.
  */
@@ -64,7 +64,7 @@ extern KeyCode scancode_to_keycode(uint16_t scancode);
 /* Converts an X11 key code to a Unicode character sequence.  libXKBCommon support
  * is required for this method.
  */
-extern size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, wchar_t *buffer, size_t size);
+extern size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *buffer, size_t size);
 
 /* Create a xkb_state structure and return a pointer to it.
  */

@@ -1455,7 +1455,7 @@ static struct codepair {
  *
  * This software is in the public domain. Share and enjoy!
  ***********************************************************************/
-KeySym unicode_to_keysym(wchar_t unicode) {
+KeySym unicode_to_keysym(uint16_t unicode) {
 	int min = 0;
 	int max = sizeof(keysym_unicode_table) / sizeof(struct codepair) - 1;
 	int mid;
@@ -1504,7 +1504,7 @@ KeySym unicode_to_keysym(wchar_t unicode) {
  *
  * This software is in the public domain. Share and enjoy!
  ***********************************************************************/
-size_t keysym_to_unicode(KeySym keysym, wchar_t *buffer, size_t size) {
+size_t keysym_to_unicode(KeySym keysym, uint16_t *buffer, size_t size) {
 	size_t count = 0;
 
 	int min = 0;
@@ -1685,14 +1685,24 @@ void destroy_xkb_state(struct xkb_state* state) {
 	xkb_state_unref(state);
 }
 
-size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, wchar_t *buffer, size_t size) {
+size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *buffer, size_t length) {
 	size_t count = 0;
 
 	if (state != NULL) {
-		char *tmpbuff = malloc(sizeof(wchar_t) * size);
-		count = xkb_state_key_get_utf8(state, keycode, tmpbuff, size);
-		count = mbstowcs(buffer, tmpbuff, count);
-		free(tmpbuff);
+		uint32_t unicode = xkb_state_key_get_utf32(state, keycode);
+
+		if (unicode <= 0x10FFFF) {
+			if ((unicode <= 0xD7FF || (unicode >= 0xE000 && unicode <= 0xFFFF)) && length >= 1) {
+				buffer[0] = unicode;
+				count = 1;
+			}
+			else if (unicode >= 0x10000) {
+				unsigned int code = (unicode - 0x10000);
+				buffer[0] = 0xD800 | (code >> 10);
+				buffer[1] = 0xDC00 | (code & 0x3FF);
+				count = 2;
+			}
+		}
 	}
 
     return count;

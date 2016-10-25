@@ -336,16 +336,16 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
-				wchar_t buffer[2];
+				uint16_t buffer[2];
 			    size_t count =  0;
 
 				// Check to make sure the key is printable.
 				#ifdef USE_XKBCOMMON
 				if (state != NULL) {
-					count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(wchar_t));
+					count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
 				}
 				#else
-				count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(wchar_t));
+				count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
 				#endif
 
 				for (unsigned int i = 0; i < count; i++) {
@@ -361,7 +361,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					event.data.keyboard.keychar = buffer[i];
 
 					logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
-							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
+							__FUNCTION__, __LINE__, event.data.keyboard.keycode, (uint16_t) event.data.keyboard.keychar);
 
 					// Fire key typed event.
 					dispatch_event(&event);

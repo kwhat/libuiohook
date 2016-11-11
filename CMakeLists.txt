@@ -62,8 +62,8 @@ else()
 
 endif()
 
-configure_file("${PROJECT_SOURCE_DIR}/include/config.h.in"
-		"${PROJECT_BINARY_DIR}/include/config.h")
+##configure_file("${PROJECT_SOURCE_DIR}/include/config.h.in"
+##		"${PROJECT_BINARY_DIR}/include/config.h")
 
 include_directories("${PROJECT_BINARY_DIR}/include")
 
@@ -71,40 +71,39 @@ include_directories("${PROJECT_BINARY_DIR}/include")
 # Library
 add_library("uiohook" SHARED ${UIOHOOK_SRC})
 target_include_directories("uiohook" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/src")
-SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+if(WIN32 OR WIN64)
+	if("$MSVC_VERSION" VERSION_LESS "1900")
+		SET_TARGET_PROPERTIES("uiohook"  PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+	else()
+			SET_TARGET_PROPERTIES("uiohook"  PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
+	endif()
+endif()
+
+# function to generate demo project
+function (register_demo dname)
+	add_executable("${dname}" "${CMAKE_CURRENT_SOURCE_DIR}/src/${dname}.c")
+	add_dependencies("${dname}" "uiohook")
+	target_link_libraries("${dname}"  "uiohook")
+	if(WIN32 OR WIN64)
+		if("$MSVC_VERSION" VERSION_LESS "1900")
+			SET_TARGET_PROPERTIES("${dname}"  PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+		else()
+				SET_TARGET_PROPERTIES("${dname}"  PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
+		endif()
+	endif()
+endfunction()
 
 # demo_hook
-add_executable("demo_hook" "${CMAKE_CURRENT_SOURCE_DIR}/src/demo_hook.c")
-add_dependencies("demo_hook" "uiohook")
-target_link_libraries("demo_hook" "uiohook")
-if(WIN32 OR WIN64)
-	SET_TARGET_PROPERTIES("demo_hook" PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-endif()
+register_demo("demo_hook")
 
 # demo_hook_async
-add_executable("demo_hook_async" "${CMAKE_CURRENT_SOURCE_DIR}/src/demo_hook_async.c")
-add_dependencies("demo_hook_async" "uiohook")
-target_link_libraries("demo_hook_async" "uiohook")
-if(WIN32 OR WIN64)
-	SET_TARGET_PROPERTIES("demo_hook_async" PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-endif()
+register_demo("demo_hook_async")
 
 #demo_post
-add_executable("demo_post" "${CMAKE_CURRENT_SOURCE_DIR}/src/demo_post.c")
-add_dependencies("demo_post" "uiohook")
-target_link_libraries("demo_post" "uiohook") 
-if(WIN32 OR WIN64)
-	SET_TARGET_PROPERTIES("demo_post" PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-endif()
+register_demo("demo_post")
 
 # demo_properties
-add_executable("demo_properties" "${CMAKE_CURRENT_SOURCE_DIR}/src/demo_properties.c")
-add_dependencies("demo_properties" "uiohook")
-target_link_libraries("demo_properties" "uiohook") 
-if(WIN32 OR WIN64)
-	SET_TARGET_PROPERTIES("demo_properties" PROPERTIES COMPILE_FLAGS "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-endif()
-
+register_demo("demo_properties")
 
 # all demo
 add_custom_target("all_demo" 

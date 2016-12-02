@@ -2,6 +2,7 @@
 /build/
 /autom4te.cache/
 /config/
+/cmake/
 /include/config.h.in*
 /m4/ltoptions.m4
 /m4/ltversion.m4

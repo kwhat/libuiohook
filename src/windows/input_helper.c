@@ -303,7 +303,7 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 		scancode = keycode_scancode_table[vk_code][0];
 
 		if (flags & LLKHF_EXTENDED) {
-			logger(LOG_LEVEL_WARN,	"%s [%u]: EXTD2, vk_code %li\n",
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using extended lookup for vk_code: %li\n",
 					__FUNCTION__, __LINE__, vk_code);
 
 			switch (vk_code) {
@@ -327,8 +327,8 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 			}
 		}
 		else {
-						logger(LOG_LEVEL_WARN,	"%s [%u]: Test2, vk_code %li\n",
-            					__FUNCTION__, __LINE__, vk_code);
+			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using normal lookup for vk_code: %li\n",
+					__FUNCTION__, __LINE__, vk_code);
 		}
 	}
 

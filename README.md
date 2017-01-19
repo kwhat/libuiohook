@@ -1,7 +1,7 @@
 libuiohook
 ==========
 
-A multi-platform C library to provide global input/ouput hooking from userland.
+A multi-platform C library to provide global keyboard and mouse hooks from userland.
 
 ## Compiling
 Prerequisites: autotools, pkg-config, libtool, gcc, clang or msys2/mingw32

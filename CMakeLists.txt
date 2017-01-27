@@ -33,7 +33,7 @@ else()
 	if(LINUX)
         option(USE_EVDEV "Disable generic Linux input driver (default: enabled)" ON)
 	endif()
-	
+
 	option(USE_XKB "Disable X Keyboard Extension (default: enabled)" ON)
 	option(USE_XKBCOMMON "Disable X Keyboard Common Extension (default: enabled)" ON)
 	option(USE_XKBFILE "Disable X Keyboard File Extension (default: enabled)" ON)
@@ -47,20 +47,20 @@ else()
 	option(USE_XRECORD_ASYNC "Enable XRecord Asynchronous API (default: disabled)" OFF)
 
 	find_package(PkgConfig REQUIRED)
-	
+
 	pkg_check_modules(PC_X11 REQUIRED x11)
 	pkg_check_modules(PC_XTST REQUIRED xtst)
-	
+
 	include(CheckLibraryExists)
 	check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)
-	
+
 	if (USE_XT)
         pkg_check_modules(PC_XT REQUIRED xt)
     endif()
-	
-	
+
+
 	find_path(XRecord_H X11/extensions/record.h HINTS ${PC_X11_INCLUDEDIR} ${PC_XTST_INCLUDEDIR})
-	
+
 	# Use pkg-config to get hints about paths
     #pkg_check_modules(Magick++_PKGCONF ImageMagick++)
 
@@ -75,8 +75,8 @@ else()
     NAMES Magick++
     PATHS ${Magick++_PKGCONF_LIBRARY_DIRS}
     )
-	
-	
+
+
 	find_package(LibXML++ REQUIRED)
     include_directories(${LibXML++_INCLUDE_DIRS})
     set(LIBS ${LIBS} ${LibXML++_LIBRARIES})

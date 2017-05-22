@@ -404,8 +404,8 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found keyboard layout \"%s\".\n",
 				__FUNCTION__, __LINE__, kbdName);
 
-        #define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
-        size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
+		#define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
+		size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
 		char *kbdKeyPath = (char *) malloc(keySize);
 		if (kbdKeyPath != NULL) {
 			snprintf(kbdKeyPath, keySize, REG_KEYBOARD_LAYOUTS, kbdName);
@@ -431,6 +431,7 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 	}
 
 	return status;
+}
 
 static int refresh_locale_list() {
 	int count = 0;

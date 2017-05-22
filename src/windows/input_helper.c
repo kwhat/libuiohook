@@ -432,10 +432,11 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found keyboard layout \"%s\".\n",
 				__FUNCTION__, __LINE__, kbdName);
 
-		const char *kbdKeyBase = "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s";
-		char *kbdKeyPath = (char *) malloc(sizeof(kbdKeyBase) + KL_NAMELENGTH);
+        #define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
+        size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH
+		char *kbdKeyPath = (char *) malloc(keySize);
 		if (kbdKeyPath != NULL) {
-			snprintf(kbdKeyPath, sizeof(kbdKeyBase) + KL_NAMELENGTH, "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s", kbdName);
+			snprintf(kbdKeyPath, keySize, REG_KEYBOARD_LAYOUTS, kbdName);
 
 			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
 				const char *kbdKey =  "Layout File";
@@ -444,12 +445,12 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 					status = UIOHOOK_SUCCESS;
 				}
 				else {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
+					logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
 							__FUNCTION__, __LINE__, kbdKey);
 				}
 			}
 			else {
-				logger(LOG_LEVEL_DEBUG,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
+				logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
 						__FUNCTION__, __LINE__, kbdKeyPath);
 			}
 

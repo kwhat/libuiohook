@@ -433,7 +433,7 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 				__FUNCTION__, __LINE__, kbdName);
 
         #define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
-        size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH
+        size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
 		char *kbdKeyPath = (char *) malloc(keySize);
 		if (kbdKeyPath != NULL) {
 			snprintf(kbdKeyPath, keySize, REG_KEYBOARD_LAYOUTS, kbdName);

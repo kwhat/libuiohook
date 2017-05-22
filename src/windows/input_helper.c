@@ -401,19 +401,36 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 
 	char kbdName[KL_NAMELENGTH];
 	if (GetKeyboardLayoutName(kbdName)) {
-		char kbdKeyPath[51 + KL_NAMELENGTH];
-		snprintf(kbdKeyPath, 51 + KL_NAMELENGTH, "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s", kbdName);
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found keyboard layout \"%s\".\n",
+				__FUNCTION__, __LINE__, kbdName);
 
-		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
-			if (RegQueryValueEx(hKey, "Layout File", NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
-				RegCloseKey(hKey);
-				status = UIOHOOK_SUCCESS;
+        #define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
+        size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH
+		char *kbdKeyPath = (char *) malloc(keySize);
+		if (kbdKeyPath != NULL) {
+			snprintf(kbdKeyPath, keySize, REG_KEYBOARD_LAYOUTS, kbdName);
+
+			if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
+				const char *kbdKey =  "Layout File";
+				if (RegQueryValueEx(hKey, kbdKey, NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
+					RegCloseKey(hKey);
+					status = UIOHOOK_SUCCESS;
+				}
+				else {
+					logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
+							__FUNCTION__, __LINE__, kbdKey);
+				}
 			}
+			else {
+				logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
+						__FUNCTION__, __LINE__, kbdKeyPath);
+			}
+
+			free(kbdKeyPath);
 		}
 	}
 
 	return status;
-}
 
 static int refresh_locale_list() {
 	int count = 0;

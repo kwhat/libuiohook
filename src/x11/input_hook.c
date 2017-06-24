@@ -303,6 +303,18 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
 			#endif
 
+			// Check to make sure the key is printable.
+			uint16_t buffer[2];
+			size_t count =  0;
+			#ifdef USE_XKBCOMMON
+			if (state != NULL) {
+				count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
+			}
+			#else
+			count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
+			#endif
+
+
 			unsigned short int scancode = keycode_to_scancode(keycode);
 
 			// TODO If you have a better suggestion for this ugly, let me know.
@@ -317,8 +329,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
 			initialize_locks();
 
+
 			if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
-                switch (scancode) {
+				switch (scancode) {
 					case VC_KP_SEPARATOR:
 					case VC_KP_1:
 					case VC_KP_2:
@@ -332,7 +345,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 					case VC_KP_9:
 						scancode |= 0xEE00;
 						break;
-                }
+				}
 			}
 
 			// Populate key pressed event.
@@ -354,18 +367,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			// If the pressed event was not consumed...
 			if (event.reserved ^ 0x01) {
-				uint16_t buffer[2];
-			    size_t count =  0;
-
-				// Check to make sure the key is printable.
-				#ifdef USE_XKBCOMMON
-				if (state != NULL) {
-					count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
-				}
-				#else
-				count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
-				#endif
-
 				for (unsigned int i = 0; i < count; i++) {
 					// Populate key typed event.
 					event.time = timestamp;
@@ -396,6 +397,17 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			}
 			#else
 			keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+			#endif
+
+			// Check to make sure the key is printable.
+			uint16_t buffer[2];
+			size_t count =  0;
+			#ifdef USE_XKBCOMMON
+			if (state != NULL) {
+				count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
+			}
+			#else
+			count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
 			#endif
 
 			unsigned short int scancode = keycode_to_scancode(keycode);

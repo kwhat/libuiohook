@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2016 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -409,6 +409,14 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 				RegCloseKey(hKey);
 				status = UIOHOOK_SUCCESS;
 			}
+			else {
+				logger(LOG_LEVEL_WARN, "%s [%u]: RegQueryValueEx() failed!\n",
+						__FUNCTION__, __LINE__);
+			}
+		}
+		else {
+			logger(LOG_LEVEL_WARN, "%s [%u]: RegOpenKeyEx(%s) failed!\n",
+					__FUNCTION__, __LINE__, kbdKeyPath);
 		}
 	}
 

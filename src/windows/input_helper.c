@@ -422,8 +422,8 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 				}
 			}
 			else {
-				logger(LOG_LEVEL_WARN, "%s [%u]: RegQueryValueEx() failed!\n",
-						__FUNCTION__, __LINE__);
+				logger(LOG_LEVEL_WARN, "%s [%u]: RegQueryValueEx(%s) failed!\n",
+						__FUNCTION__, __LINE__, kbdKeyPath);
 			}
 		}
 		else {

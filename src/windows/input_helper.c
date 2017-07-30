@@ -422,13 +422,15 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 				}
 			}
 			else {
-				logger(LOG_LEVEL_WARN, "%s [%u]: RegQueryValueEx(%s) failed!\n",
+				logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
 						__FUNCTION__, __LINE__, kbdKeyPath);
 			}
+
+			free(kbdKeyPath);
 		}
 		else {
-			logger(LOG_LEVEL_WARN, "%s [%u]: RegOpenKeyEx(%s) failed!\n",
-					__FUNCTION__, __LINE__, kbdKeyPath);
+			logger(LOG_LEVEL_WARN, "%s [%u]: malloc(%u) failed!\n",
+					__FUNCTION__, __LINE__, keySize);
 		}
 	}
 

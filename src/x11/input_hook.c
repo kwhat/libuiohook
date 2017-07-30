@@ -909,7 +909,7 @@ UIOHOOK_API int hook_stop() {
 		}
 		else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to allocate memory for XRecordState!\n",
-				__FUNCTION__, __LINE__);
+					__FUNCTION__, __LINE__);
 
 			status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 		}

@@ -456,6 +456,10 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 
 			free(kbdKeyPath);
 		}
+		else {
+			logger(LOG_LEVEL_WARN, "%s [%u]: malloc(%u) failed!\n",
+					__FUNCTION__, __LINE__, keySize);
+		}
 	}
 
 	return status;

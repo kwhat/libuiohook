@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2016 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -1040,11 +1040,6 @@ static int xrecord_start() {
 			xkb_context_unref(hook->input.context);
 			hook->input.context = NULL;
 		}
-
-		if (hook->input.connection != NULL) {
-			xcb_disconnect(hook->input.connection);
-			hook->input.connection = NULL;
-		}
 		#endif
 	}
 	else {
@@ -1140,11 +1135,9 @@ UIOHOOK_API int hook_stop() {
 
 			status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 		}
-
-		return status;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
 
 	return status;

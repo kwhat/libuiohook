@@ -31,6 +31,8 @@
 #include "logger.h"
 #include "input_helper.h"
 
+#define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
+
 static const uint16_t keycode_scancode_table[][2] = {
 	/* idx		{ vk_code,				scancode				}, */
 	/*   0 */	{ VC_UNDEFINED,			0x0000					},	// 0x00
@@ -432,8 +434,7 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Found keyboard layout \"%s\".\n",
 				__FUNCTION__, __LINE__, kbdName);
 
-		#define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
-		size_t keySize = sizeof(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
+		size_t keySize = strlen(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
 		char *kbdKeyPath = (char *) malloc(keySize);
 		if (kbdKeyPath != NULL) {
 			snprintf(kbdKeyPath, keySize, REG_KEYBOARD_LAYOUTS, kbdName);
@@ -556,7 +557,7 @@ static int refresh_locale_list() {
 
 					// Try to pull the current keyboard layout DLL from the registry.
 					char layoutFile[MAX_PATH];
-					if (get_keyboard_layout_file(layoutFile, sizeof(layoutFile)) == UIOHOOK_SUCCESS) {
+					if (get_keyboard_layout_file(layoutFile, MAX_PATH) == UIOHOOK_SUCCESS) {
 						// You can't trust the %SYSPATH%, look it up manually.
 						char systemDirectory[MAX_PATH];
 						if (GetSystemDirectory(systemDirectory, MAX_PATH) != 0) {

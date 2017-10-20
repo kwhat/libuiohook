@@ -85,39 +85,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 		}
 	}
 
-	if (event->mask & (MASK_BUTTON1 | MASK_BUTTON2 | MASK_BUTTON3 | MASK_BUTTON4 | MASK_BUTTON5)) {
-		events[events_size].type = INPUT_MOUSE;
-		events[events_size].mi.dx = 0;	// Relative mouse movement due to
-		events[events_size].mi.dy = 0;	// MOUSEEVENTF_ABSOLUTE not being set.
-		events[events_size].mi.mouseData = 0x00;
-		events[events_size].mi.time = 0; // Use current system time.
-
-		if (event->mask & MASK_BUTTON1) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_LEFTDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON2) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_RIGHTDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON3) {
-			events[events_size].mi.mouseData |= MOUSEEVENTF_MIDDLEDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON4) {
-			events[events_size].mi.mouseData = XBUTTON1;
-			events[events_size].mi.mouseData |= MOUSEEVENTF_XDOWN;
-		}
-
-		if (event->mask & MASK_BUTTON5) {
-			events[events_size].mi.mouseData = XBUTTON2;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_XDOWN;
-		}
-
-		events_size++;
-	}
-
-
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
@@ -293,41 +260,6 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				events_size++;
 			}
 		}
-	}
-
-	if (event->mask & (MASK_BUTTON1 | MASK_BUTTON2 | MASK_BUTTON3 | MASK_BUTTON4 | MASK_BUTTON5)) {
-		events[events_size].type = INPUT_MOUSE;
-		events[events_size].mi.dx = 0;	// Relative mouse movement due to
-		events[events_size].mi.dy = 0;	// MOUSEEVENTF_ABSOLUTE not being set.
-		events[events_size].mi.mouseData = 0x00;
-		events[events_size].mi.time = 0; // Use current system time.
-
-		// If dwFlags does not contain MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, or MOUSEEVENTF_XUP,
-		// then mouseData should be zero.
-		// http://msdn.microsoft.com/en-us/library/windows/desktop/ms646273%28v=vs.85%29.aspx
-		if (event->mask & MASK_BUTTON1) {
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_LEFTUP;
-		}
-
-		if (event->mask & MASK_BUTTON2) {
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_RIGHTUP;
-		}
-
-		if (event->mask & MASK_BUTTON3) {
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_MIDDLEUP;
-		}
-
-		if (event->mask & MASK_BUTTON4) {
-			events[events_size].mi.mouseData = XBUTTON1;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_XUP;
-		}
-
-		if (event->mask & MASK_BUTTON5) {
-			events[events_size].mi.mouseData = XBUTTON2;
-			events[events_size].mi.dwFlags |= MOUSEEVENTF_XUP;
-		}
-
-		events_size++;
 	}
 
 	// Create the key release input

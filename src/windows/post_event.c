@@ -52,7 +52,7 @@
 #define KEYEVENTF_KEYDOWN		0x0000
 #endif
 
-#define MAX_WINDOWS_COORD_VALUE 65536
+#define MAX_WINDOWS_COORD_VALUE (1 << 16)
 
 static UINT keymask_lookup[8] = {
 	VK_LSHIFT,
@@ -67,9 +67,9 @@ static UINT keymask_lookup[8] = {
 };
 
 // See https://stackoverflow.com/a/4555214 and its comments
-int to_windows_coordinates(int coordinate, int screen_size){
+static inline int convert_to_relative_position(int coordinate, int screen_size){
 	int offset = (coordinate > 0 ? 1 : -1); // Negative coordinates appear when using multiple monitors
-	return round((coordinate * MAX_WINDOWS_COORD_VALUE) / screen_size) + offset;
+	return ((coordinate * MAX_WINDOWS_COORD_VALUE) / screen_size) + offset;
 }
 
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
@@ -159,8 +159,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = to_windows_coordinates(event->data.mouse.x, screen_width);
-			events[events_size].mi.dy = to_windows_coordinates(event->data.mouse.y, screen_height);
+			events[events_size].mi.dx = convert_to_relative_position(event->data.mouse.x, screen_width);
+			events[events_size].mi.dy = convert_to_relative_position(event->data.mouse.y, screen_height);
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()
@@ -200,8 +200,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					}
 			}
 			
-			events[events_size].mi.dx = to_windows_coordinates(event->data.mouse.x, screen_width);
-			events[events_size].mi.dy = to_windows_coordinates(event->data.mouse.y, screen_height);
+			events[events_size].mi.dx = convert_to_relative_position(event->data.mouse.x, screen_width);
+			events[events_size].mi.dy = convert_to_relative_position(event->data.mouse.y, screen_height);
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()
@@ -216,8 +216,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			// type, amount and rotation?
 			events[events_size].mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
 			
-			events[events_size].mi.dx = to_windows_coordinates(event->data.wheel.x, screen_width);
-			events[events_size].mi.dy = to_windows_coordinates(event->data.wheel.y, screen_height);
+			events[events_size].mi.dx = convert_to_relative_position(event->data.wheel.x, screen_width);
+			events[events_size].mi.dy = convert_to_relative_position(event->data.wheel.y, screen_height);
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()
@@ -232,8 +232,8 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			events[events_size].type = INPUT_MOUSE;
 			events[events_size].mi.dwFlags = MOUSEEVENTF_MOVE;
 
-			events[events_size].mi.dx = to_windows_coordinates(event->data.mouse.x, screen_width);
-			events[events_size].mi.dy = to_windows_coordinates(event->data.mouse.y, screen_height);
+			events[events_size].mi.dx = convert_to_relative_position(event->data.mouse.x, screen_width);
+			events[events_size].mi.dy = convert_to_relative_position(event->data.mouse.y, screen_height);
 
 			events[events_size].mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 			events[events_size].mi.time = 0; // GetSystemTime()

@@ -66,6 +66,20 @@ static UINT keymask_lookup[8] = {
 	VK_RMENU
 };
 
+// http://letcoderock.blogspot.fr/2011/10/sendinput-with-shift-key-not-work.html
+static UINT extend_keys[10] = {
+    VK_UP,
+    VK_DOWN,
+    VK_LEFT,
+    VK_RIGHT,
+    VK_HOME,
+    VK_END,
+    VK_PRIOR, // PgUp
+    VK_NEXT,  //  PgDn
+    VK_INSERT,
+    VK_DELETE
+};
+
 // See https://stackoverflow.com/a/4555214 and its comments
 static inline int convert_to_relative_position(int coordinate, int screen_size){
 	int offset = (coordinate > 0 ? 1 : -1); // Negative coordinates appear when using multiple monitors
@@ -79,25 +93,20 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
 	unsigned char events_size = 0, events_max = 28;
 	INPUT *events = malloc(sizeof(INPUT) * events_max);
-
-	if (event->mask & (MASK_SHIFT | MASK_CTRL | MASK_META | MASK_ALT)) {
-		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
-			if (event->mask & 1 << i) {
-				events[events_size].type = INPUT_KEYBOARD;
-				events[events_size].ki.wVk = keymask_lookup[i];
-				events[events_size].ki.dwFlags = KEYEVENTF_KEYDOWN;
-				events[events_size].ki.time = 0; // Use current system time.
-				events_size++;
-			}
-		}
-	}
-
+	
 	switch (event->type) {
 		case EVENT_KEY_PRESSED:
 			events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
 			if (events[events_size].ki.wVk != 0x0000) {
 				events[events_size].type = INPUT_KEYBOARD;
 				events[events_size].ki.dwFlags = KEYEVENTF_KEYDOWN; // |= KEYEVENTF_SCANCODE;
+				if (event->mask & MASK_SHIFT){
+					for (unsigned int i = 0; i < sizeof(extend_keys) / sizeof(UINT); i++) {
+						if (events[events_size].ki.wVk == extend_keys[i]){
+							events[events_size].ki.dwFlags = KEYEVENTF_EXTENDEDKEY;
+						}
+					}
+				}
 				events[events_size].ki.wScan = 0; // event->data.keyboard.keycode;
 				events[events_size].ki.time = 0; // GetSystemTime()
 				events_size++;
@@ -114,7 +123,13 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 			if (events[events_size].ki.wVk != 0x0000) {
 				events[events_size].type = INPUT_KEYBOARD;
 				events[events_size].ki.dwFlags = KEYEVENTF_KEYUP; // |= KEYEVENTF_SCANCODE;
-				events[events_size].ki.wVk = scancode_to_keycode(event->data.keyboard.keycode);
+				if (event->mask & MASK_SHIFT){
+					for (unsigned int i = 0; i < sizeof(extend_keys) / sizeof(UINT); i++) {
+						if (events[events_size].ki.wVk == extend_keys[i]){
+							events[events_size].ki.dwFlags = KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP;
+						}
+					}
+				}
 				events[events_size].ki.wScan = 0; // event->data.keyboard.keycode;
 				events[events_size].ki.time = 0; // GetSystemTime()
 				events_size++;
@@ -255,20 +270,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 					__FUNCTION__, __LINE__, event->type);
 			break;
 	}
-
-	// Release the previously held modifier keys used to fake the event mask.
-	if (event->mask & (MASK_SHIFT | MASK_CTRL | MASK_META | MASK_ALT)) {
-		for (unsigned int i = 0; i < sizeof(keymask_lookup) / sizeof(UINT); i++) {
-			if (event->mask & 1 << i) {
-				events[events_size].type = INPUT_KEYBOARD;
-				events[events_size].ki.wVk = keymask_lookup[i];
-				events[events_size].ki.dwFlags = KEYEVENTF_KEYUP;
-				events[events_size].ki.time = 0; // Use current system time.
-				events_size++;
-			}
-		}
-	}
-
+	
 	// Create the key release input
 	// memcpy(key_events + 1, key_events, sizeof(INPUT));
 	// key_events[1].ki.dwFlags |= KEYEVENTF_KEYUP;

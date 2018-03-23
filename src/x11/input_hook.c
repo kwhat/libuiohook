@@ -401,13 +401,12 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
 			// Check to make sure the key is printable.
 			uint16_t buffer[2];
-			size_t count =  0;
 			#ifdef USE_XKBCOMMON
 			if (state != NULL) {
-				count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
+				keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
 			}
 			#else
-			count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
+			keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
 			#endif
 
 			unsigned short int scancode = keycode_to_scancode(keycode);

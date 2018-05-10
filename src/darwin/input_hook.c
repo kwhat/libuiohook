@@ -54,6 +54,7 @@ static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
+static bool caps_down = false;
 
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
@@ -592,15 +593,16 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			process_key_released(timestamp, event_ref);
 		}
 	}
-	/* FIXME This should produce a modifier mask for the caps lock key!
 	else if (keycode == kVK_CapsLock) {
-		// Process as a key pressed event.
-		process_key_pressed(timestamp, event_ref);
-		
-		// Set the caps-lock flag for release.
-		caps_down = true;
+		if (caps_down) {
+			// Process as a key pressed event.
+			process_key_released(timestamp, event_ref);
+		} else {
+			// Process as a key released event.
+			process_key_pressed(timestamp, event_ref);
+		}
+		caps_down = !caps_down;
 	}
-	*/
 }
 
 /* These events are totally undocumented for the CGEvent type, but are required to grab media and caps-lock keys.

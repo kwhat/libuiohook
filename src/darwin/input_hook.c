@@ -394,6 +394,8 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 		#endif
 		#if ! defined(USE_CARBON_LEGACY) && defined(USE_COREFOUNDATION)
 		else if (!is_runloop_main) {
+
+
 			// Lock for code dealing with the main runloop.
 			pthread_mutex_lock(&msg_port_mutex);
 

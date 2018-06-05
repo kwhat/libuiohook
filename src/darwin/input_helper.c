@@ -108,10 +108,10 @@ bool is_accessibility_enabled() {
 		#endif
 		
 		logger(LOG_LEVEL_DEBUG, "%s [%u]: Weak import AXIsProcessTrustedWithOptions not found.\n",
-					__FUNCTION__, __LINE__, dlError);
+					__FUNCTION__, __LINE__);
 
 		logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to AXAPIEnabled().\n",
-				__FUNCTION__, __LINE__, dlError);
+				__FUNCTION__, __LINE__);
 		
 		// Old accessibility check 10.8 and older.
 		is_enabled = AXAPIEnabled();

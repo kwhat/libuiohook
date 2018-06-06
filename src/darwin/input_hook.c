@@ -1102,15 +1102,15 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 
 UIOHOOK_API int hook_run() {
 	int status = UIOHOOK_SUCCESS;
-	
-	do {
-		// Reset the restart flag...
-		restart_tap = false;
 
-		// Check for accessibility each time we start the loop.
-		if (is_accessibility_enabled()) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
-					__FUNCTION__, __LINE__);
+	// Check for accessibility before we start the loop.
+	if (is_accessibility_enabled()) {
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
+				__FUNCTION__, __LINE__);
+
+		do {
+			// Reset the restart flag...
+			restart_tap = false;
 
 			// Initialize starting modifiers.
 			initialize_modifiers();
@@ -1318,15 +1318,15 @@ UIOHOOK_API int hook_run() {
 			else {
 				status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 			}
-		}
-		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
-					__FUNCTION__, __LINE__);
+		} while (restart_tap);
+	}
+	else {
+		logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
+				__FUNCTION__, __LINE__);
 
-			// Set the exit status.
-			status = UIOHOOK_ERROR_AXAPI_DISABLED;
-		}
-	} while (restart_tap);
+		// Set the exit status.
+		status = UIOHOOK_ERROR_AXAPI_DISABLED;
+	}
 
 	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);

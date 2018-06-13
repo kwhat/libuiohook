@@ -328,7 +328,7 @@ static const uint16_t evdev_scancode_table[][2] = {
 	/* 223 */	{ VC_UNDEFINED,			0x96					}, /* 0xDF	KEY_SLEEP */
 	/* 224 */	{ VC_UNDEFINED,			0x00					}, /* 0xE0 */
 	/* 225 */	{ VC_BROWSER_SEARCH,	0x00					}, /* 0xE1 */
-	/* 226 */	{ VC_UNDEFINED,			0x00					}, /* 0xE2 */
+	/* 226 */	{ VC_LESSER_GREATER,	0x00					}, /* 0xE2 */
 	/* 227 */	{ VC_UNDEFINED,			0x00					}, /* 0xE3 */
 	/* 228 */	{ VC_UNDEFINED,			0x00					}, /* 0xE4 */
 	/* 229 */	{ VC_UNDEFINED,			0xE1					}, /* 0xE5	KEY_SEARCH */

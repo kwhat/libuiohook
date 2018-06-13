@@ -264,7 +264,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 223 */	{ VC_YEN,				VK_SLEEP				},	// 0xDF VK_OEM_8				Varies by keyboard.
 	/* 224 */	{ VC_UNDEFINED,			0x0000					},	// 0xE0							Reserved
 	/* 225 */	{ VC_UNDEFINED,			0x0000					},	// 0xE1							OEM specific
-	/* 226 */	{ VC_UNDEFINED,			0x0000					},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
+	/* 226 */	{ VC_LESSER_GREATER,	VK_OEM_102				},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
 	/* 227 */	{ VC_UNDEFINED,			0x0000					},	// 0xE3							OEM specific
 	/* 228 */	{ VC_UNDEFINED,			0x00E5					},	// 0xE4	VC_APP_PICTURES 		OEM specific
 	/* 229 */	{ VC_APP_PICTURES,		VK_BROWSER_SEARCH		},	// 0xE5 VK_PROCESSKEY			IME PROCESS key

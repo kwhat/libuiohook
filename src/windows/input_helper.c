@@ -472,7 +472,7 @@ static int refresh_locale_list() {
 	// Get the number of layouts the user has activated.
 	int hkl_size = GetKeyboardLayoutList(0, NULL);
 	if (hkl_size > 0) {
-		logger(LOG_LEVEL_INFO,	"%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
 				__FUNCTION__, __LINE__, hkl_size);
 
 		// Get the thread id that currently has focus for our default.
@@ -489,7 +489,7 @@ static int refresh_locale_list() {
 						__FUNCTION__, __LINE__, hkl_size, new_size);
 			}
 			else {
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Received %i locales.\n",
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received %i locales.\n",
 						__FUNCTION__, __LINE__, new_size);
 			}
 
@@ -861,7 +861,7 @@ int load_input_helper() {
 
 	count = refresh_locale_list();
 
-	logger(LOG_LEVEL_INFO,
+	logger(LOG_LEVEL_DEBUG,
 			"%s [%u]: refresh_locale_list() found %i locale(s).\n",
 			__FUNCTION__, __LINE__, count);
 

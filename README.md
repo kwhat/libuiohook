@@ -12,7 +12,7 @@ Prerequisites: autotools, pkg-config, libtool, gcc, clang or msys2/mingw32
 ### Note for windows compilation
 When using msys2/cygwin make sure to install dos2unix and convert the line endings in ```configure.ac``` and ```configure```
 before running the above.
-
+You can point [cmake](https://cmake.org) and let it generate files for Visual Studio.
 
 ## Usage
 * [Hook Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_hook.c)

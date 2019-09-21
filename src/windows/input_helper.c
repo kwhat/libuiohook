@@ -572,8 +572,16 @@ static int refresh_locale_list() {
 							locale_item->id = hkl_list[i];
 							locale_item->library = LoadLibrary(kbdLayoutFilePath);
 
+							#if __GNUC__
+							#pragma GCC diagnostic push
+							#pragma GCC diagnostic ignored "-Wcast-function-type"
+							#endif
 							// Get the function pointer from the library to get the keyboard layer descriptor.
 							KbdLayerDescriptor pKbdLayerDescriptor = (KbdLayerDescriptor) GetProcAddress(locale_item->library, "KbdLayerDescriptor");
+							#if __GNUC__
+							#pragma GCC diagnostic pop
+							#endif
+
 							if (pKbdLayerDescriptor != NULL) {
 								PKBDTABLES pKbd = pKbdLayerDescriptor();
 

@@ -323,7 +323,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 
 
 static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
-	uint64_t timestamp = GetMessageTime();
+	uint64_t timestamp = mshook->time;
 
 	// Track the number of clicks, the button must match the previous button.
 	if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
@@ -373,7 +373,7 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 
 static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	// Populate mouse released event.
-	event.time = GetMessageTime();
+	event.time = mshook->time;
 	event.reserved = 0x00;
 
 	event.type = EVENT_MOUSE_RELEASED;
@@ -396,7 +396,7 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	// If the pressed event was not consumed...
 	if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
 		// Populate mouse clicked event.
-		event.time = GetMessageTime();
+		event.time = mshook->time;
 		event.reserved = 0x00;
 
 		event.type = EVENT_MOUSE_CLICKED;
@@ -423,7 +423,7 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 }
 
 static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
-	uint64_t timestamp = GetMessageTime();
+	uint64_t timestamp = mshook->time;
 
 	// We received a mouse move event with the mouse actually moving.
 	// This verifies that the mouse was moved after being depressed.
@@ -471,7 +471,7 @@ static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 	click_button = MOUSE_NOBUTTON;
 
 	// Populate mouse wheel event.
-	event.time = GetMessageTime();
+	event.time = mshook->time;
 	event.reserved = 0x00;
 
 	event.type = EVENT_MOUSE_WHEEL;
@@ -604,7 +604,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 		 */
 		case WM_MOUSEHWHEEL:
 			process_mouse_wheel(mshook, WHEEL_HORIZONTAL_DIRECTION);
-			break;				
+			break;
 
 		default:
 			// In theory this *should* never execute.
@@ -637,7 +637,7 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 			if (keyboard_event_hhook != NULL) {
 				UnhookWindowsHookEx(keyboard_event_hhook);
 			}
-			
+
 			if (mouse_event_hhook != NULL) {
 				UnhookWindowsHookEx(mouse_event_hhook);
 			}
@@ -645,20 +645,20 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
 			// Restart the event hooks.
 			keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
 			mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
-			
+
 			// Re-initialize modifier masks.
 			initialize_modifiers();
-			
-			// FIXME We should compare the modifier mask before and after the restart 
+
+			// FIXME We should compare the modifier mask before and after the restart
 			// to determine if we should synthesize missing events.
-	
+
 			// Check for event hook error.
 			if (keyboard_event_hhook == NULL || mouse_event_hhook == NULL) {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
 						__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 			}
 			break;
-			
+
 		default:
 			logger(LOG_LEVEL_INFO, "%s [%u]: Unhandled Windows window event: %#X.\n",
 					__FUNCTION__, __LINE__, event);
@@ -697,10 +697,10 @@ UIOHOOK_API int hook_run() {
 
 	// Create a window event hook to listen for capture change.
 	win_event_hhook = SetWinEventHook(
-			EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE, 
-			NULL, 
-			win_hook_event_proc, 
-			0, 0, 
+			EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE,
+			NULL,
+			win_hook_event_proc,
+			0, 0,
 			WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
 
 	// If we did not encounter a problem, start processing events.
@@ -736,8 +736,8 @@ UIOHOOK_API int hook_run() {
 
 		status = UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX;
 	}
-	
-	
+
+
 	// Unregister any hooks that may still be installed.
 	unregister_running_hooks();
 

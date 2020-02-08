@@ -264,7 +264,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 223 */	{ VC_YEN,				VK_SLEEP				},	// 0xDF VK_OEM_8				Varies by keyboard.
 	/* 224 */	{ VC_UNDEFINED,			0x0000					},	// 0xE0							Reserved
 	/* 225 */	{ VC_UNDEFINED,			0x0000					},	// 0xE1							OEM specific
-	/* 226 */	{ VC_UNDEFINED,			0x0000					},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
+	/* 226 */	{ VC_LESSER_GREATER,	VK_OEM_102				},	// 0xE2 VK_OEM_102				Either the angle bracket key or the backslash key on the RT 102-key keyboard
 	/* 227 */	{ VC_UNDEFINED,			0x0000					},	// 0xE3							OEM specific
 	/* 228 */	{ VC_UNDEFINED,			0x00E5					},	// 0xE4	VC_APP_PICTURES 		OEM specific
 	/* 229 */	{ VC_APP_PICTURES,		VK_BROWSER_SEARCH		},	// 0xE5 VK_PROCESSKEY			IME PROCESS key
@@ -472,7 +472,7 @@ static int refresh_locale_list() {
 	// Get the number of layouts the user has activated.
 	int hkl_size = GetKeyboardLayoutList(0, NULL);
 	if (hkl_size > 0) {
-		logger(LOG_LEVEL_INFO,	"%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
+		logger(LOG_LEVEL_DEBUG,	"%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
 				__FUNCTION__, __LINE__, hkl_size);
 
 		// Get the thread id that currently has focus for our default.
@@ -489,7 +489,7 @@ static int refresh_locale_list() {
 						__FUNCTION__, __LINE__, hkl_size, new_size);
 			}
 			else {
-				logger(LOG_LEVEL_INFO,	"%s [%u]: Received %i locales.\n",
+				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received %i locales.\n",
 						__FUNCTION__, __LINE__, new_size);
 			}
 
@@ -869,7 +869,7 @@ int load_input_helper() {
 
 	count = refresh_locale_list();
 
-	logger(LOG_LEVEL_INFO,
+	logger(LOG_LEVEL_DEBUG,
 			"%s [%u]: refresh_locale_list() found %i locale(s).\n",
 			__FUNCTION__, __LINE__, count);
 

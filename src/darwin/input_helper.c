@@ -462,7 +462,7 @@ static const uint16_t keycode_scancode_table[][2] = {
 	/* 223 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xDF
 	/* 224 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE0
 	/* 225 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE1
-	/* 226 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE2
+	/* 226 */	{ VC_LESSER_GREATER,	kVK_Undefined			},	// 0xE2
 	/* 227 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE3
 	/* 228 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE4
 	/* 229 */	{ VC_UNDEFINED,			kVK_Undefined			},	// 0xE5

@@ -52,7 +52,6 @@ static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
-static bool caps_down = false;
 
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
@@ -581,14 +580,15 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 		}
 	}
 	else if (keycode == kVK_CapsLock) {
-		if (caps_down) {
+		if (current_modifiers & MASK_CAPS_LOCK) {
 			// Process as a key pressed event.
+			unset_modifier_mask(MASK_CAPS_LOCK);
 			process_key_released(timestamp, event_ref);
 		} else {
 			// Process as a key released event.
+			set_modifier_mask(MASK_CAPS_LOCK);
 			process_key_pressed(timestamp, event_ref);
 		}
-		caps_down = !caps_down;
 	}
 }
 

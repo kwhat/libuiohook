@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <uiohook.h>
+#include <wchar.h
 
 #ifdef _WIN32
 #include <windows.h>

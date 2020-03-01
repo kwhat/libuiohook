@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <uiohook.h>
+#include <wchar.h>
 
 bool logger_proc(unsigned int level, const char *format, ...) {
 	bool status = false;

@@ -5,18 +5,17 @@ A multi-platform C library to provide global keyboard and mouse hooks from userl
 
 ## Compiling
 Prerequisites: 
- * autotools
- * pkg-config 
- * libtool 
- * gcc, clang or msys2/mingw32
+ * [cmake](https://cmake.org)
+ * pkg-config
+ * gcc, clang or msvc
+ * X11, XCB, XKB Common when building for X11
 ```
-./bootstrap.sh
-./configure
-make && make install
+$ git clone https://github.com/kwhat/libuiohook
+$ cd libuiohook
+$ mkdir build && cd build
+$ cmake ..
+$ make
 ```
-### Note for windows compilation
-When using msys2/cygwin make sure to install dos2unix and convert the line endings in ```configure.ac``` and ```configure```
-before running the above.
 
 ## Usage
 * [Hook Demo](demo/demo_hook.c)

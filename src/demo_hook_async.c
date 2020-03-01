@@ -27,7 +27,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <uiohook.h>
+<<<<<<< HEAD
 #include <wchar.h>
+=======
+#include <wchar.h
+>>>>>>> a19d521... fix kwhat/libuiohook#64
 
 #ifdef _WIN32
 #include <windows.h>

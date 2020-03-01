@@ -55,6 +55,10 @@ static Boolean restart_tap = false;
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
 
+// Strong typed version of objc_msgSend to fix issue #67
+typedef void *(*send_type)(void *, SEL, void *);
+static send_type objc_msgSend_ = (send_type) objc_msgSend;
+
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
 #define KEY_BUFFER_SIZE 4
@@ -585,6 +589,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) {
 	if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
 		#ifdef USE_OBJC
+<<<<<<< HEAD
 		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
         id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
         id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
@@ -592,6 +597,11 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		int (*eventWithoutCGEvent)(id, SEL) = (int (*)(id, SEL)) objc_msgSend;
         int subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
 
+=======
+		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com>
+		id event_data = (id) objc_msgSend_((void *) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
+		int subtype = (int) objc_msgSend_((void *) event_data, sel_registerName("subtype"), NULL);
+>>>>>>> e3853cf... fixed compile error on newer XCode versions
 		#else
 		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
 		//CFIndex len = CFDataGetLength(data);
@@ -602,8 +612,12 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 		if (subtype == 8) {
 			#ifdef USE_OBJC
+<<<<<<< HEAD
 			// Contributed by Alex <universailp@web.de>
 			int data = eventWithoutCGEvent(event_data, sel_registerName("data1"));
+=======
+			int data = (int) objc_msgSend_((void *) event_data, sel_registerName("data1"), NULL);
+>>>>>>> e3853cf... fixed compile error on newer XCode versions
 			#endif
 
 			int key_code = (data & 0xFFFF0000) >> 16;
@@ -1201,9 +1215,13 @@ UIOHOOK_API int hook_run() {
 									// Create a garbage collector to handle Cocoa events correctly.
 									Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
 									id pool = class_createInstance(NSAutoreleasePool_class, 0);
+<<<<<<< HEAD
 									// Contributed by Alex <universailp@web.de>
 									id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
 									auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
+=======
+									auto_release_pool = (id) objc_msgSend_((void *) pool, sel_registerName("init"), NULL);
+>>>>>>> e3853cf... fixed compile error on newer XCode versions
 									#endif
 
 									// Start the hook thread runloop.
@@ -1211,8 +1229,13 @@ UIOHOOK_API int hook_run() {
 
 
 									#ifdef USE_OBJC
+<<<<<<< HEAD
 									// Contributed by Alex <universailp@web.de>
 									eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
+=======
+									//objc_msgSend(auto_release_pool, sel_registerName("drain"));
+									objc_msgSend_((void *) auto_release_pool, sel_registerName("release"), NULL);
+>>>>>>> e3853cf... fixed compile error on newer XCode versions
 									#endif
 
 									// Lock back up until we are done processing the exit.

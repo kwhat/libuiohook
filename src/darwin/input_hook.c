@@ -36,6 +36,12 @@
 #include "input_helper.h"
 #include "logger.h"
 
+// Contributed by Alex <universailp@web.de>
+// Macros to cast objc_msgSend with either three arguments
+// and return type id, or two arguments and a custom return type
+#define objc_msgSend_(a, b, c) (((id (*)(id, SEL, CGEventRef)) objc_msgSend)(a, b, c))
+#define objc_msgSend2_(a, b, t) (((t (*)(id, SEL)) objc_msgSend)(a, b))
+ 
 typedef struct _hook_info {
 	CFMachPortRef port;
 	CFRunLoopSourceRef source;
@@ -54,10 +60,6 @@ static Boolean restart_tap = false;
 
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
-
-// Strong typed version of objc_msgSend to fix issue #67
-typedef void *(*send_type)(void *, SEL, void *);
-static send_type objc_msgSend_ = (send_type) objc_msgSend;
 
 // Required to transport messages between the main runloop and our thread for
 // Unicode lookups.
@@ -590,6 +592,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 	if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
 		#ifdef USE_OBJC
 <<<<<<< HEAD
+<<<<<<< HEAD
 		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
         id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
         id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
@@ -602,6 +605,11 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		id event_data = (id) objc_msgSend_((void *) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
 		int subtype = (int) objc_msgSend_((void *) event_data, sel_registerName("subtype"), NULL);
 >>>>>>> e3853cf... fixed compile error on newer XCode versions
+=======
+		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
+		id event_data = objc_msgSend_(objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
+		int subtype = objc_msgSend2_(event_data, sel_registerName("subtype"), int);
+>>>>>>> 59fd566... use macro and cast instead of typedef for objc_msgSend
 		#else
 		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
 		//CFIndex len = CFDataGetLength(data);
@@ -613,11 +621,16 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		if (subtype == 8) {
 			#ifdef USE_OBJC
 <<<<<<< HEAD
+<<<<<<< HEAD
 			// Contributed by Alex <universailp@web.de>
 			int data = eventWithoutCGEvent(event_data, sel_registerName("data1"));
 =======
 			int data = (int) objc_msgSend_((void *) event_data, sel_registerName("data1"), NULL);
 >>>>>>> e3853cf... fixed compile error on newer XCode versions
+=======
+			// Contributed by Alex <universailp@web.de>
+			int data = objc_msgSend2_(event_data, sel_registerName("data1"), int);
+>>>>>>> 59fd566... use macro and cast instead of typedef for objc_msgSend
 			#endif
 
 			int key_code = (data & 0xFFFF0000) >> 16;
@@ -1216,12 +1229,17 @@ UIOHOOK_API int hook_run() {
 									Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
 									id pool = class_createInstance(NSAutoreleasePool_class, 0);
 <<<<<<< HEAD
+<<<<<<< HEAD
 									// Contributed by Alex <universailp@web.de>
 									id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
 									auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
 =======
 									auto_release_pool = (id) objc_msgSend_((void *) pool, sel_registerName("init"), NULL);
 >>>>>>> e3853cf... fixed compile error on newer XCode versions
+=======
+									// Contributed by Alex <universailp@web.de>
+									auto_release_pool = objc_msgSend2_(pool, sel_registerName("init"), id);
+>>>>>>> 59fd566... use macro and cast instead of typedef for objc_msgSend
 									#endif
 
 									// Start the hook thread runloop.
@@ -1234,8 +1252,13 @@ UIOHOOK_API int hook_run() {
 									eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
 =======
 									//objc_msgSend(auto_release_pool, sel_registerName("drain"));
+<<<<<<< HEAD
 									objc_msgSend_((void *) auto_release_pool, sel_registerName("release"), NULL);
 >>>>>>> e3853cf... fixed compile error on newer XCode versions
+=======
+									// Contributed by Alex <universailp@web.de>
+									objc_msgSend2_(auto_release_pool, sel_registerName("release"), void);
+>>>>>>> 59fd566... use macro and cast instead of typedef for objc_msgSend
 									#endif
 
 									// Lock back up until we are done processing the exit.

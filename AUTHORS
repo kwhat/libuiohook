@@ -20,5 +20,9 @@ Markus G. Kuhn <mkuhn@acm.org>
 	original version of the keysym_to_unicode function in x11/input_helper.c
 
 Alex <universailp@web.de>
+<<<<<<< HEAD
 	updated objc_msgSend for newer XCode versions
+=======
+	updated objc_sendMsg for newer XCode versions
+>>>>>>> 59fd566... use macro and cast instead of typedef for objc_msgSend
 	in darwin/input_hook.c

@@ -1,123 +1,153 @@
-/* include/config.h.in.  Generated from configure.ac by autoheader.  */
-
 /* Define to 1 if you have the <dlfcn.h> header file. */
-#undef HAVE_DLFCN_H
+#cmakedefine HAVE_DLFCN_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
-#undef HAVE_INTTYPES_H
+#cmakedefine HAVE_INTTYPES_H
 
 /* Define to 1 if you have the `Xtst' library (-lXtst). */
-#undef HAVE_LIBXTST
+#cmakedefine HAVE_LIBXTST
 
 /* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
+#cmakedefine HAVE_MEMORY_H
 
 /* Define if you have POSIX threads libraries and header files. */
-#undef HAVE_PTHREAD
+#cmakedefine HAVE_PTHREAD
 
 /* Have PTHREAD_PRIO_INHERIT. */
-#undef HAVE_PTHREAD_PRIO_INHERIT
+#cmakedefine HAVE_PTHREAD_PRIO_INHERIT
 
 /* Define to 1 if stdbool.h conforms to C99. */
-#undef HAVE_STDBOOL_H
+#cmakedefine HAVE_STDBOOL_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
-#undef HAVE_STDINT_H
+#cmakedefine HAVE_STDINT_H
 
 /* Define to 1 if you have the <stdlib.h> header file. */
-#undef HAVE_STDLIB_H
+#cmakedefine HAVE_STDLIB_H
 
 /* Define to 1 if you have the <strings.h> header file. */
-#undef HAVE_STRINGS_H
+#cmakedefine HAVE_STRINGS_H
 
 /* Define to 1 if you have the <string.h> header file. */
-#undef HAVE_STRING_H
+#cmakedefine HAVE_STRING_H
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
-#undef HAVE_SYS_STAT_H
+#cmakedefine HAVE_SYS_STAT_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
-#undef HAVE_SYS_TYPES_H
+#cmakedefine HAVE_SYS_TYPES_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#undef HAVE_UNISTD_H
+#cmakedefine HAVE_UNISTD_H
 
 /* Define to 1 if you have the <X11/extensions/record.h> header file. */
-#undef HAVE_X11_EXTENSIONS_RECORD_H
+#cmakedefine HAVE_X11_EXTENSIONS_RECORD_H
 
 /* Define to 1 if you have the <X11/extensions/XTest.h> header file. */
-#undef HAVE_X11_EXTENSIONS_XTEST_H
+#cmakedefine HAVE_X11_EXTENSIONS_XTEST_H
 
 /* Define to 1 if the system has the type `_Bool'. */
-#undef HAVE__BOOL
+#cmakedefine HAVE__BOOL
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
-#undef LT_OBJDIR
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#cmakedefine LT_OBJDIR
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-#undef NO_MINUS_C_MINUS_O
+/* Set minimum OS X version to 10.5 */
+#cmakedefine MAC_OS_X_VERSION_MIN_REQUIRED
 
 /* Name of package */
-#undef PACKAGE
+#cmakedefine PACKAGE
 
 /* Define to the address where bug reports for this package should be sent. */
-#undef PACKAGE_BUGREPORT
+#cmakedefine PACKAGE_BUGREPORT
 
 /* Define to the full name of this package. */
-#undef PACKAGE_NAME
+#cmakedefine PACKAGE_NAME
 
 /* Define to the full name and version of this package. */
-#undef PACKAGE_STRING
+#cmakedefine PACKAGE_STRING
 
 /* Define to the one symbol short name of this package. */
-#undef PACKAGE_TARNAME
+#cmakedefine PACKAGE_TARNAME
 
 /* Define to the home page for this package. */
-#undef PACKAGE_URL
+#cmakedefine PACKAGE_URL
 
 /* Define to the version of this package. */
-#undef PACKAGE_VERSION
+#cmakedefine PACKAGE_VERSION
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
-#undef PTHREAD_CREATE_JOINABLE
+#cmakedefine PTHREAD_CREATE_JOINABLE
 
 /* Define to 1 if you have the ANSI C header files. */
-#undef STDC_HEADERS
+#cmakedefine STDC_HEADERS
 
 /* Enable Carbon framework legacy functionality */
-#undef USE_CARBON_LEGACY
+#cmakedefine USE_CARBON_LEGACY
 
 /* Enable CoreFoundation framework */
-#undef USE_COREFOUNDATION
+#cmakedefine USE_COREFOUNDATION
 
 /* Enable Debug Output */
-#undef USE_DEBUG
+#cmakedefine USE_DEBUG
+
+/* Enable generic Linux input driver */
+#cmakedefine USE_EVDEV
 
 /* Enable IOKit framework */
-#undef USE_IOKIT
+#cmakedefine USE_IOKIT
+
+/* Enable objective-c */
+#cmakedefine USE_OBJC
+
+/* Enable Copyright Suppression */
+#cmakedefine USE_QUIET
+
+/* Enable support for weakly-linked symbols */
+#cmakedefine USE_WEAK_IMPORT
 
 /* Enable XFree86-Misc X Extension */
-#undef USE_XF86MISC
+#cmakedefine USE_XF86MISC
+
+/* Enable Xinerama Extension */
+#cmakedefine USE_XINERAMA
 
 /* Enable X Keyboard Extension */
-#undef USE_XKB
+#cmakedefine USE_XKB
+
+/* Enable XKB Common Extension */
+#cmakedefine USE_XKBCOMMON
+
+/* Enable XKB File Extension */
+#cmakedefine USE_XKBFILE
+
+/* Enable XRandR Extension */
+#cmakedefine USE_XRANDR
 
 /* Enable XRecord Asynchronous API */
-#undef USE_XRECORD_ASYNC
+#cmakedefine USE_XRECORD_ASYNC
 
 /* Enable X Toolkit Intrinsics */
-#undef USE_XT
+#cmakedefine USE_XT
 
 /* Enable XTest Extension */
-#undef USE_XTEST
+#cmakedefine USE_XTEST
 
 /* Version number of package */
-#undef VERSION
+#cmakedefine VERSION
+
+/* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#cmakedefine _UINT64_T
 
 /* Set minimum Windows version to Windows 2000 */
-#undef _WIN32_WINNT
+#cmakedefine _WIN32_WINNT
 
 /* Define to empty if `const' does not conform to ANSI C. */
-#undef const
+#cmakedefine const
+
+/* Define to the type of an unsigned integer type of width exactly 64 bits if
+   such a type exists and the standard includes do not define it. */
+#cmakedefine uint64_t

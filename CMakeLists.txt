@@ -130,7 +130,46 @@ if (UNIX AND NOT APPLE)
         target_include_directories(uiohook PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
         target_compile_options(uiohook PUBLIC ${XKBCOMMON_DEFINITIONS})
     endif()
+else()
+    set(CMAKE_MACOSX_RPATH 1)
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.8")
 
+	macro_option(USE_COREFOUNDATION "Disable CoreFoundation framework (default: ON)" ON)
+	macro_option(USE_IOKIT "Disable IOKit framework (default: ON)" ON)
+	macro_option(USE_OBJC "Disable Objective-C API (default: ON)" ON)
+
+	macro_option(USE_CARBON_LEGACY "Enable legacy Carbon framework functionality (default: OFF)" OFF)
+	macro_option(USE_WEAK_IMPORT "Enable weakly-linked symbols (default: OFF)" OFF)
+
+    find_library(CARBON Carbon)
+    target_link_libraries(uiohook ${CARBON})
+    target_include_directories(uiohook PRIVATE ${CARBON})
+
+	if (USE_COREFOUNDATION)
+        find_library(APPLICATIONSERVICES ApplicationServices)
+        target_link_libraries(uiohook ${APPLICATIONSERVICES})
+        target_include_directories(uiohook PRIVATE ${APPLICATIONSERVICES})
+    endif()
+
+    if (USE_IOKIT)
+        find_library(IOKIT IOKit)
+        target_link_libraries(uiohook ${IOKIT})
+        target_include_directories(uiohook PRIVATE ${IOKIT})
+	endif()
+
+	if (USE_OBJC)
+        find_library(OBJC objc)
+        target_link_libraries(uiohook ${OBJC})
+        target_include_directories(uiohook PRIVATE ${OBJC})
+	endif()
+
+    if (USE_CARBON_LEGACY)
+    	message(DEPRECATION "Legacy Carbon functionality has been deprecated.")
+
+    	if (USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    		message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
+    	endif()
+	endif()
 endif()
 
 include_directories("./include")

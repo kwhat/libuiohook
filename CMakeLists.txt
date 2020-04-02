@@ -4,7 +4,22 @@ project(libuiohook)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-# Creates CMake options which will be set as macros if enabled
+# Gnerates a demo project
+function (register_demo dname)
+    add_executable("${dname}" "./demos/${dname}.c")
+    add_dependencies("${dname}" "uiohook")
+    target_link_libraries("${dname}" "uiohook")
+
+    if(MSVC AND MSVC_VERSION LESS "1900")
+        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+    else()
+        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
+    endif()
+endfunction()
+
+# Creates a CMake option which will be set as macros if enabled
 function (macro_option opt desc default)
     option(${opt} ${desc} ${default})
     if (${opt})
@@ -12,7 +27,7 @@ function (macro_option opt desc default)
     endif()
 endfunction()
 
-
+# Creates a CMake option for X11 libraries 
 function (x11_option opt val desc default)
     macro_option(${opt} ${desc} ${default})
 
@@ -58,6 +73,31 @@ set(UIOHOOK_SRC
 
 add_library("uiohook" SHARED ${UIOHOOK_SRC})
 
+if (ENABLE_DEMOS)
+    register_demo("demo_hook")
+    register_demo("demo_hook_async")
+    register_demo("demo_post")
+    register_demo("demo_properties")
+
+    add_custom_target("all_demos" DEPENDS
+        "demo_hook"
+        "demo_hook_async"
+        "demo_post"
+        "demo_properties")
+endif()
+
+if (ENABLE_TESTS)
+    add_executable(uiohook_tests
+        "./test/input_helper_test.c"
+	"./test/system_properties_test.c"
+	"./test/minunit.h"
+	"./test/uiohook_test.c")
+    add_dependencies(uiohook_tests "uiohook")
+    target_include_directories(uiohook_tests PRIVATE
+	"./src/${UIOHOOK_SOURCE_DIR}")
+    target_link_libraries(uiohook_tests "uiohook")
+endif()
+
 if (UNIX)
     find_package(Threads REQUIRED)
     target_link_libraries(uiohook ${THREADS_LIBRARIES})
@@ -89,6 +129,11 @@ if (UNIX AND NOT APPLE)
 
     include(CheckIncludeFile)
     check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
+    
+    if (ENABLE_TESTS)
+        target_link_libraries(uiohook_tests ${X11_LIBRARIES})
+        target_include_directories(uiohook_tests PRIVATE ${X11_INCLUDE_DIRS})
+    endif()
 
     if (USE_XCB)
         find_package(XCB REQUIRED)
@@ -121,20 +166,20 @@ if (UNIX AND NOT APPLE)
     endif()
 elseif (APPLE)
     set(CMAKE_MACOSX_RPATH 1)
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.8")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.8")
 
-	macro_option(USE_COREFOUNDATION "Disable CoreFoundation framework (default: ON)" ON)
-	macro_option(USE_IOKIT "Disable IOKit framework (default: ON)" ON)
-	macro_option(USE_OBJC "Disable Objective-C API (default: ON)" ON)
+    macro_option(USE_COREFOUNDATION "Disable CoreFoundation framework (default: ON)" ON)
+    macro_option(USE_IOKIT "Disable IOKit framework (default: ON)" ON)
+    macro_option(USE_OBJC "Disable Objective-C API (default: ON)" ON)
 
-	macro_option(USE_CARBON_LEGACY "Enable legacy Carbon framework functionality (default: OFF)" OFF)
-	macro_option(USE_WEAK_IMPORT "Enable weakly-linked symbols (default: OFF)" OFF)
+    macro_option(USE_CARBON_LEGACY "Enable legacy Carbon framework functionality (default: OFF)" OFF)
+    macro_option(USE_WEAK_IMPORT "Enable weakly-linked symbols (default: OFF)" OFF)
 
     find_library(CARBON Carbon)
     target_link_libraries(uiohook ${CARBON})
     target_include_directories(uiohook PRIVATE ${CARBON})
 
-	if (USE_COREFOUNDATION)
+    if (USE_COREFOUNDATION)
         find_library(APPLICATIONSERVICES ApplicationServices)
         target_link_libraries(uiohook ${APPLICATIONSERVICES})
         target_include_directories(uiohook PRIVATE ${APPLICATIONSERVICES})
@@ -144,21 +189,21 @@ elseif (APPLE)
         find_library(IOKIT IOKit)
         target_link_libraries(uiohook ${IOKIT})
         target_include_directories(uiohook PRIVATE ${IOKIT})
-	endif()
+    endif()
 
-	if (USE_OBJC)
+    if (USE_OBJC)
         find_library(OBJC objc)
         target_link_libraries(uiohook ${OBJC})
         target_include_directories(uiohook PRIVATE ${OBJC})
-	endif()
+    endif()
 
     if (USE_CARBON_LEGACY)
     	message(DEPRECATION "Legacy Carbon functionality has been deprecated.")
 
     	if (USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-    		message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
+            message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
     	endif()
-	endif()
+    endif()
 endif()
 
 include_directories("./include")
@@ -175,34 +220,3 @@ else()
         "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
 endif()
 
-# function to generate demo project
-function (register_demo dname)
-    add_executable("${dname}" "./demos/${dname}.c")
-    add_dependencies("${dname}" "uiohook")
-    target_link_libraries("${dname}" "uiohook")
-
-    if(MSVC AND MSVC_VERSION LESS "1900")
-        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-    else()
-        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-    endif()
-endfunction()
-
-if (ENABLE_DEMOS)
-    register_demo("demo_hook")
-    register_demo("demo_hook_async")
-    register_demo("demo_post")
-    register_demo("demo_properties")
-
-    add_custom_target("all_demos" DEPENDS
-        "demo_hook"
-        "demo_hook_async"
-        "demo_post"
-        "demo_properties")
-endif()
-
-if (ENABLE_TEST)
-    # TODO: tests
-endif()

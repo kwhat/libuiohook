@@ -5,6 +5,7 @@ A multi-platform C library to provide global keyboard and mouse hooks from userl
 
 ## Compiling
 Prerequisites: 
+ * [cmake](https://cmake.org)
  * pkg-config
  * gcc, clang or msvc
  * X11, XCB, XKB Common when building for X11

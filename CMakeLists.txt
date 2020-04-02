@@ -39,33 +39,22 @@ if (ENABLE_DEBUG)
 endif()
 
 if (WIN32 OR WIN64)
-    set(UIOHOOK_SRC
-        "./include/uiohook.h"
-        "./src/logger.c"
-        "./src/logger.h"
-        "./src/windows/input_helper.h"
-        "./src/windows/input_helper.c"
-        "./src/windows/input_hook.c"
-        "./src/windows/post_event.c"
-        "./src/windows/system_properties.c")
+    set(UIOHOOK_SOURCE_DIR "windows")
 elseif (APPLE)
-    set(UIOHOOK_SRC
-        "include/uiohook.h"
-        "src/logger.c"
-        "src/logger.h"
-        "src/darwin/*.h"
-        "src/darwin/*.c")
+    set(UIOHOOK_SOURCE_DIR "darwin")
 else()
-    set(UIOHOOK_SRC
-        "./include/uiohook.h"
-        "./src/logger.c"
-        "./src/logger.h"
-        "./src/x11/input_helper.h"
-        "./src/x11/input_helper.c"
-        "./src/x11/input_hook.c"
-        "./src/x11/post_event.c"
-        "./src/x11/system_properties.c")
+    set(UIOHOOK_SOURCE_DIR "x11")
 endif()
+
+set(UIOHOOK_SRC
+    "./include/uiohook.h"
+    "./src/logger.c"
+    "./src/logger.h"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.h"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/system_properties.c")
 
 add_library("uiohook" SHARED ${UIOHOOK_SRC})
 
@@ -130,7 +119,7 @@ if (UNIX AND NOT APPLE)
         target_include_directories(uiohook PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
         target_compile_options(uiohook PUBLIC ${XKBCOMMON_DEFINITIONS})
     endif()
-else()
+elseif (APPLE)
     set(CMAKE_MACOSX_RPATH 1)
 	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.8")
 

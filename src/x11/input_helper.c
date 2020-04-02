@@ -1,4 +1,4 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
  * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
@@ -1464,11 +1464,9 @@ KeySym unicode_to_keysym(uint16_t unicode) {
 		mid = (min + max) / 2;
 		if (keysym_unicode_table[mid].unicode < unicode) {
 			min = mid + 1;
-		}
-		else if (keysym_unicode_table[mid].unicode > unicode) {
+		} else if (keysym_unicode_table[mid].unicode > unicode) {
 			max = mid - 1;
-		}
-		else {
+		} else {
 			// Found it.
 			return keysym_unicode_table[mid].keysym;
 		}
@@ -1534,11 +1532,9 @@ size_t keysym_to_unicode(KeySym keysym, uint16_t *buffer, size_t size) {
 		mid = (min + max) / 2;
 		if (keysym_unicode_table[mid].keysym < keysym) {
 			min = mid + 1;
-		}
-		else if (keysym_unicode_table[mid].keysym > keysym) {
+		} else if (keysym_unicode_table[mid].keysym > keysym) {
 			max = mid - 1;
-		}
-		else {
+		} else {
 			// Found it.
 			if (count < size) {
 				buffer[count++] = keysym_unicode_table[mid].unicode;
@@ -1629,8 +1625,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 			// but math is generally slower than memory and we cannot save any
 			// extra space in the lookup table due to binary padding.
 			keycode = xfree86_scancode_table[scancode][1];
-		}
-		else {
+		} else {
 			// Offset: lower order bits + 128 (If no size optimization!)
 			scancode = (scancode & 0x007F) | 0x80;
 
@@ -1684,8 +1679,7 @@ size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *bu
 			if ((unicode <= 0xD7FF || (unicode >= 0xE000 && unicode <= 0xFFFF)) && length >= 1) {
 				buffer[0] = unicode;
 				count = 1;
-			}
-			else if (unicode >= 0x10000) {
+			} else if (unicode >= 0x10000) {
 				unsigned int code = (unicode - 0x10000);
 				buffer[0] = 0xD800 | (code >> 10);
 				buffer[1] = 0xDC00 | (code & 0x3FF);

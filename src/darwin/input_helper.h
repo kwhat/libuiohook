@@ -1,4 +1,4 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
  * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *

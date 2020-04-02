@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -497,8 +497,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_SHIFT_L);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_SHIFT_L);
 			process_key_released(timestamp, event_ref);
@@ -508,8 +507,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_CTRL_L);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_CTRL_L);
 			process_key_released(timestamp, event_ref);
@@ -545,8 +543,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			unset_modifier_mask(MASK_SHIFT_R);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_RightControl) {
+	} else if (keycode == kVK_RightControl) {
 		if (event_mask & kCGEventFlagMaskControl) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_CTRL_R);
@@ -556,8 +553,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			unset_modifier_mask(MASK_CTRL_R);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_RightCommand) {
+	} else if (keycode == kVK_RightCommand) {
 		if (event_mask & kCGEventFlagMaskCommand) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_META_R);
@@ -625,15 +621,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-			else if (key_code == NX_KEYTYPE_SOUND_UP) {
+			} else if (key_code == NX_KEYTYPE_SOUND_UP) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_VolumeUp, key_down);
@@ -641,15 +635,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-			else if (key_code == NX_KEYTYPE_SOUND_DOWN) {
+			} else if (key_code == NX_KEYTYPE_SOUND_DOWN) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_VolumeDown, key_down);
@@ -657,15 +649,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-			else if (key_code == NX_KEYTYPE_MUTE) {
+			} else if (key_code == NX_KEYTYPE_MUTE) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_Mute, key_down);
@@ -673,16 +663,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-
-			else if (key_code == NX_KEYTYPE_EJECT) {
+			} else if (key_code == NX_KEYTYPE_EJECT) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_NX_Eject, key_down);
@@ -690,15 +677,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-			else if (key_code == NX_KEYTYPE_PLAY) {
+			} else if (key_code == NX_KEYTYPE_PLAY) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Play, key_down);
@@ -706,15 +691,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-			else if (key_code == NX_KEYTYPE_FAST) {
+			} else if (key_code == NX_KEYTYPE_FAST) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Next, key_down);
@@ -722,15 +705,13 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
 				CFRelease(ns_event);
 				CFRelease(src);
-			}
-			else if (key_code == NX_KEYTYPE_REWIND) {
+			} else if (key_code == NX_KEYTYPE_REWIND) {
 				// It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
 				CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
 				CGEventRef ns_event = CGEventCreateKeyboardEvent(src, kVK_MEDIA_Previous, key_down);
@@ -738,8 +719,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 				if (key_down) {
 					process_key_pressed(timestamp, ns_event);
-				}
-				else {
+				} else {
 					process_key_released(timestamp, ns_event);
 				}
 
@@ -766,8 +746,7 @@ static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_r
 			logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
 					__FUNCTION__, __LINE__);
 		}
-	}
-	else {
+	} else {
 		// Reset the click count.
 		click_count = 1;
 
@@ -911,8 +890,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 		if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) == 0) {
 			// Scrolling data is line-based.
 			event.data.wheel.type = WHEEL_BLOCK_SCROLL;
-		}
-		else {
+		} else {
 			// Scrolling data is pixel-based.
 			event.data.wheel.type = WHEEL_UNIT_SCROLL;
 		}
@@ -928,26 +906,22 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
             // Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
             event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) * -1;
 
-        }
-        else if(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
+        } else if(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
             event.data.wheel.amount = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) / CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2);
 
             // Scrolling data uses a fixed-point 16.16 signed integer format (Ex: 1.0 = 0x00010000).
             event.data.wheel.rotation = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) * -1;
-        }
-        else {
+        } else {
             //Fail Silently if a 3rd axis gets added without changing this section of code.
             event.data.wheel.amount = 0;
             event.data.wheel.rotation = 0;
         }
 
-
 		
 		if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
 			// Wheel Rotated Up or Down.
 			event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-		}
-		else { // data->event.u.u.detail == WheelLeft || data->event.u.u.detail == WheelRight
+		} else { // data->event.u.u.detail == WheelLeft || data->event.u.u.detail == WheelRight
 			// Wheel Rotated Left or Right.
 			event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
 		}
@@ -1262,8 +1236,7 @@ UIOHOOK_API int hook_run() {
 									
 									// Free the TIS Message.
 									free(tis_message);
-								}
-								else {
+								} else {
 									logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
 											__FUNCTION__, __LINE__);
 
@@ -1274,8 +1247,7 @@ UIOHOOK_API int hook_run() {
 								// Invalidate and free hook observer.
 								CFRunLoopObserverInvalidate(hook->observer);
 								CFRelease(hook->observer);
-							}
-							else {
+							} else {
 								// We cant do a whole lot of anything if we cant
 								// create run loop observer.
 								logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
@@ -1284,8 +1256,7 @@ UIOHOOK_API int hook_run() {
 								// Set the exit status.
 								status = UIOHOOK_ERROR_CREATE_OBSERVER;
 							}
-						}
-						else {
+						} else {
 							logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
 									__FUNCTION__, __LINE__);
 
@@ -1295,8 +1266,7 @@ UIOHOOK_API int hook_run() {
 						
 						// Clean up the event source.
 						CFRelease(hook->source);
-					}
-					else {
+					} else {
 						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
 								__FUNCTION__, __LINE__);
 
@@ -1307,8 +1277,7 @@ UIOHOOK_API int hook_run() {
 					// Stop the CFMachPort from receiving any more messages.
 					CFMachPortInvalidate(hook->port);
 					CFRelease(hook->port);
-				}
-				else {
+				} else {
 					logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
 							__FUNCTION__, __LINE__);
 
@@ -1318,13 +1287,11 @@ UIOHOOK_API int hook_run() {
 				
 				// Free the hook structure.
 				free(hook);
-			}
-			else {
+			} else {
 				status = UIOHOOK_ERROR_OUT_OF_MEMORY;
 			}
 		} while (restart_tap);
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
 				__FUNCTION__, __LINE__);
 

@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -23,13 +23,16 @@
 #ifdef USE_CARBON_LEGACY
 #include <Carbon/Carbon.h>
 #endif
+
 #ifdef USE_COREFOUNDATION
 #include <CoreFoundation/CoreFoundation.h>
 #endif
+
 #ifdef USE_IOKIT
 #include <IOKit/hidsystem/IOHIDLib.h>
 #include <IOKit/hidsystem/IOHIDParameter.h>
 #endif
+
 #include <stdbool.h>
 #include <uiohook.h>
 
@@ -88,8 +91,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 				}
 				}
 			}
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_INFO,	"%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
 					__FUNCTION__, __LINE__, status);
 

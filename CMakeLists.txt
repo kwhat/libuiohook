@@ -39,33 +39,22 @@ if (ENABLE_DEBUG)
 endif()
 
 if (WIN32 OR WIN64)
-    set(UIOHOOK_SRC
-        "./include/uiohook.h"
-        "./src/logger.c"
-        "./src/logger.h"
-        "./src/windows/input_helper.h"
-        "./src/windows/input_helper.c"
-        "./src/windows/input_hook.c"
-        "./src/windows/post_event.c"
-        "./src/windows/system_properties.c")
+    set(UIOHOOK_SOURCE_DIR "windows")
 elseif (APPLE)
-    set(UIOHOOK_SRC
-        "include/uiohook.h"
-        "src/logger.c"
-        "src/logger.h"
-        "src/darwin/*.h"
-        "src/darwin/*.c")
+    set(UIOHOOK_SOURCE_DIR "darwin")
 else()
-    set(UIOHOOK_SRC
-        "./include/uiohook.h"
-        "./src/logger.c"
-        "./src/logger.h"
-        "./src/x11/input_helper.h"
-        "./src/x11/input_helper.c"
-        "./src/x11/input_hook.c"
-        "./src/x11/post_event.c"
-        "./src/x11/system_properties.c")
+    set(UIOHOOK_SOURCE_DIR "x11")
 endif()
+
+set(UIOHOOK_SRC
+    "./include/uiohook.h"
+    "./src/logger.c"
+    "./src/logger.h"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.h"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/system_properties.c")
 
 add_library("uiohook" SHARED ${UIOHOOK_SRC})
 
@@ -130,7 +119,46 @@ if (UNIX AND NOT APPLE)
         target_include_directories(uiohook PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
         target_compile_options(uiohook PUBLIC ${XKBCOMMON_DEFINITIONS})
     endif()
+elseif (APPLE)
+    set(CMAKE_MACOSX_RPATH 1)
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.8")
 
+	macro_option(USE_COREFOUNDATION "Disable CoreFoundation framework (default: ON)" ON)
+	macro_option(USE_IOKIT "Disable IOKit framework (default: ON)" ON)
+	macro_option(USE_OBJC "Disable Objective-C API (default: ON)" ON)
+
+	macro_option(USE_CARBON_LEGACY "Enable legacy Carbon framework functionality (default: OFF)" OFF)
+	macro_option(USE_WEAK_IMPORT "Enable weakly-linked symbols (default: OFF)" OFF)
+
+    find_library(CARBON Carbon)
+    target_link_libraries(uiohook ${CARBON})
+    target_include_directories(uiohook PRIVATE ${CARBON})
+
+	if (USE_COREFOUNDATION)
+        find_library(APPLICATIONSERVICES ApplicationServices)
+        target_link_libraries(uiohook ${APPLICATIONSERVICES})
+        target_include_directories(uiohook PRIVATE ${APPLICATIONSERVICES})
+    endif()
+
+    if (USE_IOKIT)
+        find_library(IOKIT IOKit)
+        target_link_libraries(uiohook ${IOKIT})
+        target_include_directories(uiohook PRIVATE ${IOKIT})
+	endif()
+
+	if (USE_OBJC)
+        find_library(OBJC objc)
+        target_link_libraries(uiohook ${OBJC})
+        target_include_directories(uiohook PRIVATE ${OBJC})
+	endif()
+
+    if (USE_CARBON_LEGACY)
+    	message(DEPRECATION "Legacy Carbon functionality has been deprecated.")
+
+    	if (USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    		message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
+    	endif()
+	endif()
 endif()
 
 include_directories("./include")
@@ -139,14 +167,12 @@ target_include_directories("uiohook" PUBLIC
     "./include"
     "./src")
 
-if(WIN32 OR WIN64)
-    if("$MSVC_VERSION" VERSION_LESS "1900")
-        SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-    else()
-        SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-    endif()
+if(MSVC AND MSVC_VERSION LESS "1900")
+    SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
+        "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+else()
+    SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
+        "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
 endif()
 
 # function to generate demo project
@@ -155,14 +181,12 @@ function (register_demo dname)
     add_dependencies("${dname}" "uiohook")
     target_link_libraries("${dname}" "uiohook")
 
-    if(WIN32 OR WIN64)
-        if("$MSVC_VERSION" VERSION_LESS "1900")
-            SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
-                "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-        else()
-            SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
-                "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-        endif()
+    if(MSVC AND MSVC_VERSION LESS "1900")
+        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+    else()
+        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
     endif()
 endfunction()
 

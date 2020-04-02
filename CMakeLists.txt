@@ -139,14 +139,12 @@ target_include_directories("uiohook" PUBLIC
     "./include"
     "./src")
 
-if(WIN32 OR WIN64)
-    if(MSVC_VERSION LESS "1900")
-        SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-    else()
-        SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-    endif()
+if(MSVC AND MSVC_VERSION LESS "1900")
+    SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
+        "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+else()
+    SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
+        "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
 endif()
 
 # function to generate demo project
@@ -155,14 +153,12 @@ function (register_demo dname)
     add_dependencies("${dname}" "uiohook")
     target_link_libraries("${dname}" "uiohook")
 
-    if(WIN32 OR WIN64)
-        if(MSVC_VERSION LESS "1900")
-            SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
-                "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-        else()
-            SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
-                "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-        endif()
+    if(MSVC AND MSVC_VERSION LESS "1900")
+        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
+    else()
+        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
     endif()
 endfunction()
 

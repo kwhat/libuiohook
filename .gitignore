@@ -12,3 +12,5 @@
 /Makefile.in
 /configure
 /aclocal.m4
+/build*/
+/*.txt.user

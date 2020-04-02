@@ -4,7 +4,7 @@ project(libuiohook)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
-# Gnerates a demo project
+# Generates a demo project
 function (register_demo dname)
     add_executable("${dname}" "./demos/${dname}.c")
     add_dependencies("${dname}" "uiohook")
@@ -19,7 +19,7 @@ function (register_demo dname)
     endif()
 endfunction()
 
-# Creates a CMake option which will be set as macros if enabled
+# Creates a CMake option which will be set as a macro if enabled
 function (macro_option opt desc default)
     option(${opt} ${desc} ${default})
     if (${opt})
@@ -27,7 +27,7 @@ function (macro_option opt desc default)
     endif()
 endfunction()
 
-# Creates a CMake option for X11 libraries 
+# Creates a CMake option for X11 libraries including 
 function (x11_option opt val desc default)
     macro_option(${opt} ${desc} ${default})
 

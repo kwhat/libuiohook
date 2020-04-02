@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -25,19 +25,20 @@
 #include <stdlib.h>
 #include <uiohook.h>
 #include <X11/Xlib.h>
-#ifdef USE_XKB
 #include <X11/XKBlib.h>
-#endif
+
 #ifdef USE_XF86MISC
 #include <X11/extensions/xf86misc.h>
 #include <X11/extensions/xf86mscstr.h>
 #endif
+
 #if defined(USE_XINERAMA) && !defined(USE_XRANDR)
 #include <X11/extensions/Xinerama.h>
 #elif defined(USE_XRANDR)
 #include <pthread.h>
 #include <X11/extensions/Xrandr.h>
 #endif
+
 #ifdef USE_XT
 #include <X11/Intrinsic.h>
 
@@ -231,7 +232,6 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 
 	// Check and make sure we could connect to the x server.
 	if (properties_disp != NULL) {
-		#ifdef USE_XKB
 		// Attempt to acquire the keyboard auto repeat rate using the XKB extension.
 		if (!successful) {
 			successful = XkbGetAutoRepeatRate(properties_disp, XkbUseCoreKbd, &delay, &rate);
@@ -241,7 +241,6 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 						__FUNCTION__, __LINE__, rate);
 			}
 		}
-		#endif
 
 		#ifdef USE_XF86MISC
 		// Fallback to the XF86 Misc extension if available and other efforts failed.
@@ -277,7 +276,6 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 
 	// Check and make sure we could connect to the x server.
 	if (properties_disp != NULL) {
-		#ifdef USE_XKB
 		// Attempt to acquire the keyboard auto repeat rate using the XKB extension.
 		if (!successful) {
 			successful = XkbGetAutoRepeatRate(properties_disp, XkbUseCoreKbd, &delay, &rate);
@@ -287,7 +285,6 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 						__FUNCTION__, __LINE__, delay);
 			}
 		}
-		#endif
 
 		#ifdef USE_XF86MISC
 		// Fallback to the XF86 Misc extension if available and other efforts failed.
@@ -303,8 +300,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 			}
 		}
 		#endif
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}
@@ -329,8 +325,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 
 			value = (long int) accel_denominator;
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}
@@ -351,8 +346,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 
 			value = (long int) threshold;
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}
@@ -373,8 +367,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 
 			value = (long int) accel_numerator;
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}
@@ -401,8 +394,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 				successful = true;
 			}
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}
@@ -430,8 +422,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 				successful = true;
 			}
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: %s\n",
 				__FUNCTION__, __LINE__, "XOpenDisplay failure!");
 	}

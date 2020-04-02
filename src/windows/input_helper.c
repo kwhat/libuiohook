@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -327,8 +327,7 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 					scancode |= 0x0E00;
 					break;
 			}
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using normal lookup for vk_code: %li\n",
 					__FUNCTION__, __LINE__, vk_code);
 		}
@@ -344,8 +343,7 @@ DWORD scancode_to_keycode(unsigned short scancode) {
 	// NOTE vk_code >= 0 is assumed because the scancode is unsigned.
 	if (scancode < 128) {
 		keycode = keycode_scancode_table[scancode][1];
-	}
-	else {
+	} else {
 		// Calculate the upper offset based on the lower half of the scancode + 128.
 		unsigned short int i = (scancode & 0x007F) | 0x80;
 
@@ -444,20 +442,17 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 				if (RegQueryValueEx(hKey, kbdKey, NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
 					RegCloseKey(hKey);
 					status = UIOHOOK_SUCCESS;
-				}
-				else {
+				} else {
 					logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
 							__FUNCTION__, __LINE__, kbdKey);
 				}
-			}
-			else {
+			} else {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
 						__FUNCTION__, __LINE__, kbdKeyPath);
 			}
 
 			free(kbdKeyPath);
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_WARN, "%s [%u]: malloc(%u) failed!\n",
 					__FUNCTION__, __LINE__, keySize);
 		}
@@ -487,8 +482,7 @@ static int refresh_locale_list() {
 				logger(LOG_LEVEL_WARN,	"%s [%u]: Locale size mismatch!  "
 						"Expected %i, received %i!\n",
 						__FUNCTION__, __LINE__, hkl_size, new_size);
-			}
-			else {
+			} else {
 				logger(LOG_LEVEL_DEBUG,	"%s [%u]: Received %i locales.\n",
 						__FUNCTION__, __LINE__, new_size);
 			}
@@ -523,8 +517,7 @@ static int refresh_locale_list() {
 					}
 
 					count++;
-				}
-				else {
+				} else {
 					logger(LOG_LEVEL_DEBUG,	"%s [%u]: Removing locale ID %#p from the cache.\n",
 							__FUNCTION__, __LINE__, locale_item->id);
 
@@ -604,8 +597,7 @@ static int refresh_locale_list() {
 								if (locale_previous == NULL) {
 									// If nothing came before, the list is empty.
 									locale_first = locale_item;
-								}
-								else {
+								} else {
 									// Append the new locale to the end of the list.
 									locale_previous->next = locale_item;
 								}
@@ -619,8 +611,7 @@ static int refresh_locale_list() {
 								locale_previous = locale_item;
 
 								count++;
-							}
-							else {
+							} else {
 								logger(LOG_LEVEL_ERROR,
 										"%s [%u]: GetProcAddress() failed for KbdLayerDescriptor!\n",
 										__FUNCTION__, __LINE__);
@@ -629,22 +620,19 @@ static int refresh_locale_list() {
 								free(locale_item);
 								locale_item = NULL;
 							}
-						}
-						else {
+						} else {
 							logger(LOG_LEVEL_ERROR,
 									"%s [%u]: GetSystemDirectory() failed!\n",
 									__FUNCTION__, __LINE__);
 						}
-					}
-					else {
+					} else {
 						logger(LOG_LEVEL_ERROR,
 								"%s [%u]: Could not find keyboard map for locale %#p!\n",
 								__FUNCTION__, __LINE__, hkl_list[i]);
 					}
 				}
 			}
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_ERROR,
 					"%s [%u]: GetKeyboardLayoutList() failed!\n",
 					__FUNCTION__, __LINE__);
@@ -689,8 +677,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 			// If they layout changes the dead key state needs to be reset.
 			// This is consistent with the way Windows handles locale changes.
 			deadChar = WCH_NONE;
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_DEBUG,
 					"%s [%u]: Refreshing locale cache.\n",
 					__FUNCTION__, __LINE__);
@@ -730,11 +717,9 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 			if (state & ~SHRT_MAX) {
 				if (pVkToBit[i].Vk == VK_SHIFT) {
 					is_shift = true;
-				}
-				else if (pVkToBit[i].Vk == VK_CONTROL) {
+				} else if (pVkToBit[i].Vk == VK_CONTROL) {
 					is_ctrl = true;
-				}
-				else if (pVkToBit[i].Vk == VK_MENU) {
+				} else if (pVkToBit[i].Vk == VK_MENU) {
 					is_alt = true;
 				}
 			}
@@ -781,8 +766,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 						if ((((PVK_TO_WCHARS) pCurrentVkToWchars)->Attributes == CAPLOK) && capsLock) {
 							if (is_shift && mod > 0) {
 								mod -= 1;
-							}
-							else {
+							} else {
 								mod += 1;
 							}
 						}
@@ -800,8 +784,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 								// No previous dead key was set so cache the next 
 								// wchar so we know what to do next time its pressed.
 								deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
-							}
-							else {
+							} else {
 								if (size >= 2) {
 									// Received a second dead key.
 									memset(buffer, deadChar, 2);
@@ -812,8 +795,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 									charCount = 2;
 								}
 							}
-						}
-						else if (unicode != WCH_NONE) {
+						} else if (unicode != WCH_NONE) {
 							// We are not WCH_NONE or WCH_DEAD
 							if (size >= 1) {
 								buffer[0] = unicode;
@@ -822,8 +804,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 						}
 
 						break;
-					}
-					else {
+					} else {
 						// Add sizeof WCHAR because we are really an array of WCHAR[n] not WCHAR[]
 						pCurrentVkToWchars += sizeof(VK_TO_WCHARS) + (sizeof(WCHAR) * n);
 					}

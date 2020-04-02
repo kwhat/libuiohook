@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -64,8 +64,7 @@ static inline void dispatch_event(uiohook_event *const event) {
 				__FUNCTION__, __LINE__, event->type);
 
 		dispatcher(event);
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_WARN,	"%s [%u]: No dispatch callback set!\n",
 				__FUNCTION__, __LINE__);
 	}
@@ -123,8 +122,7 @@ static unsigned short int get_scroll_wheel_type() {
 	SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_type, 0);
 	if (wheel_type == WHEEL_PAGESCROLL) {
 		value = WHEEL_BLOCK_SCROLL;
-	}
-	else {
+	} else {
 		value = WHEEL_UNIT_SCROLL;
 	}
 
@@ -141,8 +139,7 @@ static unsigned short int get_scroll_wheel_amount() {
 	SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_amount, 0);
 	if (wheel_amount == WHEEL_PAGESCROLL) {
 		value = 1;
-	}
-	else {
+	} else {
 		value = (unsigned short int) wheel_amount;
 	}
 
@@ -312,8 +309,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 	LRESULT hook_result = -1;
 	if (nCode < 0 || event.reserved ^ 0x01) {
 		hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%li)\n",
 				__FUNCTION__, __LINE__, (long) hook_result);
 	}
@@ -329,13 +325,11 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 	if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
 		if (click_count < USHRT_MAX) {
 			click_count++;
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
 					__FUNCTION__, __LINE__);
 		}
-	}
-	else {
+	} else {
 		// Reset the click count.
 		click_count = 1;
 
@@ -444,8 +438,7 @@ static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 		if (mouse_dragged) {
 			// Create Mouse Dragged event.
 			event.type = EVENT_MOUSE_DRAGGED;
-		}
-		else {
+		} else {
 			// Create a Mouse Moved event.
 			event.type = EVENT_MOUSE_MOVED;
 		}
@@ -527,20 +520,17 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 			if (HIWORD(mshook->mouseData) == XBUTTON1) {
 				set_modifier_mask(MASK_BUTTON4);
 				process_button_pressed(mshook, MOUSE_BUTTON4);
-			}
-			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
+			} else if (HIWORD(mshook->mouseData) == XBUTTON2) {
 				set_modifier_mask(MASK_BUTTON5);
 				process_button_pressed(mshook, MOUSE_BUTTON5);
-			}
-			else {
+			} else {
 				// Extra mouse buttons.
 				uint16_t button = HIWORD(mshook->mouseData);
 
 				// Add support for mouse 4 & 5.
 				if (button == 4) {
 					set_modifier_mask(MOUSE_BUTTON4);
-				}
-				else if (button == 5) {
+				} else if (button == 5) {
 					set_modifier_mask(MOUSE_BUTTON5);
 				}
 
@@ -569,20 +559,17 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 			if (HIWORD(mshook->mouseData) == XBUTTON1) {
 				unset_modifier_mask(MASK_BUTTON4);
 				process_button_released(mshook, MOUSE_BUTTON4);
-			}
-			else if (HIWORD(mshook->mouseData) == XBUTTON2) {
+			} else if (HIWORD(mshook->mouseData) == XBUTTON2) {
 				unset_modifier_mask(MASK_BUTTON5);
 				process_button_released(mshook, MOUSE_BUTTON5);
-			}
-			else {
+			} else {
 				// Extra mouse buttons.
 				uint16_t button = HIWORD(mshook->mouseData);
 
 				// Add support for mouse 4 & 5.
 				if (button == 4) {
 					unset_modifier_mask(MOUSE_BUTTON4);
-				}
-				else if (button == 5) {
+				} else if (button == 5) {
 					unset_modifier_mask(MOUSE_BUTTON5);
 				}
 
@@ -616,8 +603,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 	LRESULT hook_result = -1;
 	if (nCode < 0 || event.reserved ^ 0x01) {
 		hook_result = CallNextHookEx(mouse_event_hhook, nCode, wParam, lParam);
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%li)\n",
 				__FUNCTION__, __LINE__, (long) hook_result);
 	}
@@ -682,8 +668,7 @@ UIOHOOK_API int hook_run() {
 		if (hInst != NULL) {
 			// Initialize native input helper functions.
             load_input_helper();
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: Could not determine hInst for SetWindowsHookEx()! (%#lX)\n",
 					__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 
@@ -729,8 +714,7 @@ UIOHOOK_API int hook_run() {
 			TranslateMessage(&message);
 			DispatchMessage(&message);
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,	"%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
 				__FUNCTION__, __LINE__, (unsigned long) GetLastError());
 

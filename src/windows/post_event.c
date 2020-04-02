@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -127,8 +127,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				events[events_size].ki.wScan = 0; // event->data.keyboard.keycode;
 				events[events_size].ki.time = 0; // GetSystemTime()
 				events_size++;
-			}
-			else {
+			} else {
 				logger(LOG_LEVEL_INFO, "%s [%u]: Unable to lookup scancode: %li\n",
 						__FUNCTION__, __LINE__,
 						event->data.keyboard.keycode);
@@ -144,8 +143,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 				events[events_size].ki.wScan = 0; // event->data.keyboard.keycode;
 				events[events_size].ki.time = 0; // GetSystemTime()
 				events_size++;
-			}
-			else {
+			} else {
 				logger(LOG_LEVEL_INFO, "%s [%u]: Unable to lookup scancode: %li\n",
 						__FUNCTION__, __LINE__,
 						event->data.keyboard.keycode);

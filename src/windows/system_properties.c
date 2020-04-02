@@ -1,5 +1,5 @@
-/* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -59,8 +59,7 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
 
 		if (screens->data == NULL) {
 			screens->data = (screen_data *) malloc(sizeof(screen_data));
-		}
-		else {
+		} else {
 			screens->data = (screen_data *) realloc(screens, sizeof(screen_data) * screens->count);
 		}
 
@@ -117,8 +116,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 				};
 			}
 		}
-	}
-	else {
+	} else {
 		// Populate the count.
 		*count = screens.count;
 	}

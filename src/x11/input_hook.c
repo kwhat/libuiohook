@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -22,19 +22,22 @@
 
 #include <inttypes.h>
 #include <limits.h>
+
 #ifdef USE_XRECORD_ASYNC
 #include <pthread.h>
 #endif
+
 #include <stdint.h>
 #include <uiohook.h>
-#ifdef USE_XKB
+
 #include <xcb/xkb.h>
 #include <X11/XKBlib.h>
-#endif
+
 #include <X11/keysym.h>
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/record.h>
+
 #if defined(USE_XINERAMA) && !defined(USE_XRANDR)
 #include <X11/extensions/Xinerama.h>
 #elif defined(USE_XRANDR)
@@ -142,7 +145,6 @@ static inline uint16_t get_modifiers() {
 // Initialize the modifier lock masks.
 static void initialize_locks() {
 	#ifdef USE_XKBCOMMON
-
 	if (xkb_state_led_name_is_active(state, XKB_LED_NAME_CAPS)) {
 		set_modifier_mask(MASK_CAPS_LOCK);
 	}
@@ -326,7 +328,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)			{ set_modifier_mask(MASK_ALT_R);		}
 			else if (scancode == VC_META_L)			{ set_modifier_mask(MASK_META_L);		}
 			else if (scancode == VC_META_R)			{ set_modifier_mask(MASK_META_R);		}
+			#ifdef USE_XKBCOMMON
 			xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
+			#endif
 			initialize_locks();
 
 
@@ -420,7 +424,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 			else if (scancode == VC_ALT_R)			{ unset_modifier_mask(MASK_ALT_R);			}
 			else if (scancode == VC_META_L)			{ unset_modifier_mask(MASK_META_L);			}
 			else if (scancode == VC_META_R)			{ unset_modifier_mask(MASK_META_R);			}
+			#ifdef USE_XKBCOMMON
 			xkb_state_update_key(state, keycode, XKB_KEY_UP);
+			#endif
 			initialize_locks();
 
 			if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
@@ -817,17 +823,9 @@ static inline bool enable_key_repeate() {
 	// Attempt to setup detectable autorepeat.
 	// NOTE: is_auto_repeat is NOT stdbool!
 	Bool is_auto_repeat = False;
-	#ifdef USE_XKB
+
 	// Enable detectable auto-repeat.
 	XkbSetDetectableAutoRepeat(hook->ctrl.display, True, &is_auto_repeat);
-	#else
-	XAutoRepeatOn(hook->ctrl.display);
-
-	XKeyboardState kb_state;
-	XGetKeyboardControl(hook->ctrl.display, &kb_state);
-
-	is_auto_repeat = (kb_state.global_auto_repeat == AutoRepeatModeOn);
-	#endif
 
 	return is_auto_repeat;
 }

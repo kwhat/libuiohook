@@ -22,10 +22,12 @@
 
 #include <dlfcn.h>
 #include <mach/mach_time.h>
+
 #ifdef USE_OBJC
 #include <objc/objc.h>
 #include <objc/objc-runtime.h>
 #endif
+
 #include <pthread.h>
 #include <stdbool.h>
 #include <sys/time.h>
@@ -145,18 +147,21 @@ static void initialize_modifiers() {
 	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightShift)) {
 		set_modifier_mask(MASK_SHIFT_R);
 	}
+
 	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Control)) {
 		set_modifier_mask(MASK_CTRL_L);
 	}
 	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightControl)) {
 		set_modifier_mask(MASK_CTRL_R);
 	}
+
 	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Option)) {
 		set_modifier_mask(MASK_ALT_L);
 	}
 	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightOption)) {
 		set_modifier_mask(MASK_ALT_R);
 	}
+
 	if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Command)) {
 		set_modifier_mask(MASK_META_L);
 	}
@@ -170,6 +175,7 @@ static void initialize_modifiers() {
  	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_RBUTTON)) {
 		set_modifier_mask(MASK_BUTTON2);
 	}
+
 	if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_MBUTTON)) {
 		set_modifier_mask(MASK_BUTTON3);
 	}
@@ -272,8 +278,7 @@ static int start_message_port_runloop() {
 						__FUNCTION__, __LINE__);
 				
 				status = UIOHOOK_SUCCESS;
-			}
-			else {
+			} else {
 				logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopSourceCreate failure!\n",
 						__FUNCTION__, __LINE__);
 
@@ -281,15 +286,13 @@ static int start_message_port_runloop() {
 			}
 
 			pthread_mutex_unlock(&msg_port_mutex);
-		}
-		else {
+		} else {
 			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
 					__FUNCTION__, __LINE__);
 			
 			status = UIOHOOK_ERROR_CREATE_OBSERVER;
 		}
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR, "%s [%u]: No available TIS Message pointer.\n",
 				__FUNCTION__, __LINE__);
 	}
@@ -500,8 +503,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			unset_modifier_mask(MASK_SHIFT_L);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_Control) {
+	} else if (keycode == kVK_Control) {
 		if (event_mask & kCGEventFlagMaskControl) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_CTRL_L);
@@ -512,14 +514,12 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			unset_modifier_mask(MASK_CTRL_L);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_Command) {
+	} else if (keycode == kVK_Command) {
 		if (event_mask & kCGEventFlagMaskCommand) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_META_L);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_META_L);
 			process_key_released(timestamp, event_ref);
@@ -530,20 +530,17 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_ALT_L);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_ALT_L);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_RightShift) {
+	} else if (keycode == kVK_RightShift) {
 		if (event_mask & kCGEventFlagMaskShift) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_SHIFT_R);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_SHIFT_R);
 			process_key_released(timestamp, event_ref);
@@ -554,8 +551,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_CTRL_R);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_CTRL_R);
 			process_key_released(timestamp, event_ref);
@@ -566,26 +562,22 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_META_R);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_META_R);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_RightOption) {
+	} else if (keycode == kVK_RightOption) {
 		if (event_mask & kCGEventFlagMaskAlternate) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_ALT_R);
 			process_key_pressed(timestamp, event_ref);
-		}
-		else {
+		} else {
 			// Process as a key released event.
 			unset_modifier_mask(MASK_ALT_R);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_CapsLock) {
+	} else if (keycode == kVK_CapsLock) {
 		if (current_modifiers & MASK_CAPS_LOCK) {
 			// Process as a key pressed event.
 			unset_modifier_mask(MASK_CAPS_LOCK);
@@ -610,9 +602,10 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
 		//CFIndex len = CFDataGetLength(data);
 		UInt8 *buffer = malloc(12);
-		CFDataGetBytes(cf_data, CFRangeMake(108, 12), buffer);
+		CFDataGetBytes(data, CFRangeMake(108, 12), buffer);
 		UInt32 subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
 		#endif
+
 		if (subtype == 8) {
 			#ifdef USE_OBJC
 			// Contributed by Alex <universailp@web.de>

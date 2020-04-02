@@ -1,5 +1,5 @@
 # libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
-# Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+# Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
 # https://github.com/kwhat/libuiohook/
 #
 # libUIOHook is free software: you can redistribute it and/or modify
@@ -77,7 +77,7 @@ AC_PROG_LIBTOOL
 
 # Check for operating system.
 AC_MSG_CHECKING(operating system)
-AS_CASE([$host],
+AS_CASE([$target],
 	[*-darwin*], [
 		AC_MSG_RESULT([$host (Mac OS X Compatible)])
 		backend="darwin"
@@ -123,38 +123,33 @@ AC_ARG_ENABLE([quiet],
 	[enable_quiet="no"])
 
 # Linux Options
-AC_ARG_ENABLE([evdev],
+AC_ARG_WITH([evdev],
 	AS_HELP_STRING([--without-evdev], [Disable generic Linux input driver (default: enabled)]),
 	[enable_evdev="$enableval"],
 	[enable_evdev="yes"])
 
 # Linux & Unix Options
-AC_ARG_ENABLE([xkbcommon],
+AC_ARG_WITH([xkbcommon],
 	AS_HELP_STRING([--without-xkbcommon], [Disable X Keyboard Common Extension (default: enabled)]),
 	[enable_xkbcommon="$enableval"],
 	[enable_xkbcommon="yes"])
-	
-AC_ARG_ENABLE([xkbfile],
+
+AC_ARG_WITH([xkbfile],
 	AS_HELP_STRING([--without-xkbfile], [Disable X Keyboard File Extension (default: enabled)]),
 	[enable_xkbfile="$enableval"],
 	[enable_xkbfile="yes"])
 
-AC_ARG_ENABLE([xcb],
+AC_ARG_WITH([xcb],
 	AS_HELP_STRING([--without-xcb], [Disable X protocol C-language Binding (default: enabled)]),
 	[enable_xcb="$enableval"],
 	[enable_xcb="yes"])
 
-AC_ARG_ENABLE([xkb],
-	AS_HELP_STRING([--without-xkb], [Disable X Keyboard Extension (default: enabled)]),
-	[enable_xkb="$enableval"],
-	[enable_xkb="yes"])
-
-AC_ARG_ENABLE([xt],
+AC_ARG_WITH([xt],
 	AS_HELP_STRING([--without-xt], [Disable X Toolkit Intrinsics (default: enabled)]),
 	[enable_xt="$enableval"],
 	[enable_xt="yes"])
 
-AC_ARG_ENABLE([xf86misc],
+AC_ARG_WITH([xf86misc],
 	AS_HELP_STRING([--with-xf86misc], [Enable XFree86-Misc X Extension (default: disabled)]),
 	[enable_xf86misc="$enableval"],
 	[enable_xf86misc="no"])
@@ -164,17 +159,17 @@ AC_ARG_ENABLE([xrecord-async],
 	[enable_xrecord_async="$enableval"],
 	[enable_xrecord_async="no"])
 
-AC_ARG_ENABLE([xtest],
+AC_ARG_WITH([xtest],
 	AS_HELP_STRING([--without-xtest], [Disable XTest Extension (default: enabled)]),
 	[enable_xtest="$enableval"],
 	[enable_xtest="yes"])
 
-AC_ARG_ENABLE([xinerama],
+AC_ARG_WITH([xinerama],
 	AS_HELP_STRING([--without-xinerama], [Disable Xinerama Extension (default: enabled)]),
 	[enable_xinerama="$enableval"],
 	[enable_xinerama="yes"])
 
-AC_ARG_ENABLE([xrandr],
+AC_ARG_WITH([xrandr],
 	AS_HELP_STRING([--with-xrandr], [Enable XRandR Extension (default: disabled)]),
 	[enable_xrandr="$enableval"],
 	[enable_xrandr="no"])
@@ -204,6 +199,7 @@ AC_ARG_ENABLE([carbon-legacy],
 	AS_HELP_STRING([--with-carbon-legacy], [Enable legacy Carbon framework functionality (default: disabled)]),
 	[enable_carbon_legacy="$enableval"],
 	[enable_carbon_legacy="no"])
+
 
 AS_IF([test "x$enable_debug" = "xyes"], [
 	AC_DEFINE([USE_DEBUG], 1, [Enable Debug Output])
@@ -273,6 +269,7 @@ AS_IF(
 		LIBS="$X11_LIBS $LIBS"
 		#CFLAGS="$X11_CFLAGS $CFLAGS"
 		REQUIRE="$REQUIRE x11"
+		#AC_MSG_ERROR([$LIBS])
 
 		PKG_CHECK_MODULES([XTST], [xtst])
 		LIBS="$XTST_LIBS $LIBS"
@@ -285,7 +282,7 @@ AS_IF(
 			$LIBS)
 
 		AC_CHECK_HEADERS([X11/extensions/record.h], [],
-			[AC_MSG_ERROR([XRecord extention header could not be found!])],
+			[AC_MSG_ERROR([XRecord extension header could not be found!])],
 			[#include <X11/Xlib.h>])
 
 		# Evdev is only available on Linux.
@@ -293,10 +290,6 @@ AS_IF(
 			AS_IF([test "x$enable_evdev" = "xyes"], [
 				AC_DEFINE([USE_EVDEV], 1, [Enable generic Linux input driver])
 			])
-		])
-
-		AS_IF([test "x$enable_xkb" = "xyes"], [
-			AC_DEFINE([USE_XKB], 1, [Enable X Keyboard Extension])
 		])
 
 		AS_IF([test "x$enable_xt" = "xyes"], [

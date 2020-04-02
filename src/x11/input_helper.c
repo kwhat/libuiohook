@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
- * Copyright (C) 2006-2017 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -27,7 +27,6 @@
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 
-#ifdef USE_XKB
 #ifdef USE_EVDEV
 #include <linux/input.h>
 static bool is_evdev = false;
@@ -35,12 +34,6 @@ static bool is_evdev = false;
 
 #include <X11/XKBlib.h>
 static XkbDescPtr keyboard_map;
-#else
-#include <X11/Xutil.h>
-static KeySym *keyboard_map;
-static int keysym_per_keycode;
-static bool is_caps_lock = false, is_shift_lock = false;
-#endif
 
 #ifdef USE_XKBCOMMON
 #include <X11/Xlib-xcb.h>
@@ -49,7 +42,6 @@ static bool is_caps_lock = false, is_shift_lock = false;
 
 #ifdef USE_XKBFILE
 #include <X11/extensions/XKBrules.h>
-
 static struct xkb_rule_names xkb_names = {
 	.rules = "base",
 	.model = "us",
@@ -58,7 +50,6 @@ static struct xkb_rule_names xkb_names = {
 	.options = NULL
 };
 #endif
-
 #endif
 
 #include "logger.h"
@@ -86,7 +77,7 @@ static struct xkb_rule_names xkb_names = {
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#if defined(USE_EVDEV) && defined(USE_XKB)
+#ifdef USE_EVDEV
 /* This table is generated based off the evdev -> scancode mapping above
  * and the keycode mappings in the following files:
  *		/usr/include/linux/input.h
@@ -1573,8 +1564,8 @@ size_t keysym_to_unicode(KeySym keysym, uint16_t *buffer, size_t size) {
 uint16_t keycode_to_scancode(KeyCode keycode) {
 	uint16_t scancode = VC_UNDEFINED;
 
-	#if defined(USE_EVDEV) && defined(USE_XKB)
-	// Check to see if evdev is enabled.
+	#ifdef USE_EVDEV
+	// Check to see if evdev is available.
 	if (is_evdev) {
 		unsigned short evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
 
@@ -1585,10 +1576,9 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 			// extra space in the lookup table due to binary padding.
 			scancode = evdev_scancode_table[keycode][0];
 		}
-	}
-	else {
-		// Evdev was disabled, fallback to XFree86.
+	} else {
 	#endif
+		// Evdev was unavailable, fallback to XFree86.
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
 		// NOTE scancodes < 97 appear to be identical between Evdev and XFree86.
@@ -1598,7 +1588,7 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 			// extra space in the lookup table due to binary padding.
 			scancode = xfree86_scancode_table[keycode][0];
 		}
-	#if defined(USE_EVDEV) && defined(USE_XKB)
+	#ifdef USE_EVDEV
 	}
 	#endif
 
@@ -1608,8 +1598,8 @@ uint16_t keycode_to_scancode(KeyCode keycode) {
 KeyCode scancode_to_keycode(uint16_t scancode) {
 	KeyCode keycode = 0x0000;
 
-	#if defined(USE_EVDEV) && defined(USE_XKB)
-	// Check to see if Evdev is enabled.
+	#ifdef USE_EVDEV
+	// Check to see if evdev is available.
 	if (is_evdev) {
 		unsigned short evdev_size = sizeof(evdev_scancode_table) / sizeof(evdev_scancode_table[0]);
 
@@ -1628,10 +1618,9 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 				keycode = evdev_scancode_table[scancode][1];
 			}
 		}
-	}
-	else {
-		// Evdev was disabled, fallback to XFree86.
+	} else {
 	#endif
+		// Evdev was unavailable, fallback to XFree86.
 		unsigned short xfree86_size = sizeof(xfree86_scancode_table) / sizeof(xfree86_scancode_table[0]);
 
 		// NOTE scancodes < 97 appear to be identical between Evdev and XFree86.
@@ -1649,7 +1638,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 				keycode = xfree86_scancode_table[scancode][1];
 			}
 		}
-	#if defined(USE_EVDEV) && defined(USE_XKB)
+	#ifdef USE_EVDEV
 	}
 	#endif
 
@@ -1658,8 +1647,8 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
 
 #ifdef USE_XKBCOMMON
 struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection) {
-	struct xkb_keymap *keymap;
-	struct xkb_state *state;
+	struct xkb_keymap *keymap = NULL;
+	struct xkb_state *state = NULL;
 
 	int32_t device_id = xkb_x11_get_core_keyboard_device_id(connection);
 	if (device_id >= 0) {
@@ -1712,7 +1701,6 @@ size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *bu
 KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 	KeySym keysym = NoSymbol;
 
-	#ifdef USE_XKB
 	if (keyboard_map != NULL) {
 		// Get the range and number of symbols groups bound to the key.
 		unsigned char info = XkbKeyGroupInfo(keyboard_map, keycode);
@@ -1769,102 +1757,12 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 
 		keysym = XkbKeySymEntry(keyboard_map, keycode, level, group);
 	}
-	#else
-	if (keyboard_map != NULL) {
-		if (modifier_mask & Mod2Mask &&
-				((keyboard_map[keycode *keysym_per_keycode + 1] >= 0xFF80 && keyboard_map[keycode *keysym_per_keycode + 1] <= 0xFFBD) ||
-				(keyboard_map[keycode *keysym_per_keycode + 1] >= 0x11000000 && keyboard_map[keycode *keysym_per_keycode + 1] <= 0x1100FFFF))
-			) {
-
-			/* If the numlock modifier is on and the second KeySym is a keypad
-			 * KeySym.  In this case, if the Shift modifier is on, or if the
-			 * Lock modifier is on and is interpreted as ShiftLock, then the
-			 * first KeySym is used, otherwise the second KeySym is used.
-			 *
-			 * The standard KeySyms with the prefix ``XK_KP_'' in their name are
-			 * called keypad KeySyms; these are KeySyms with numeric value in
-			 * the hexadecimal range 0xFF80 to 0xFFBD inclusive. In addition,
-			 * vendor-specific KeySyms in the hexadecimal range 0x11000000 to
-			 * 0x1100FFFF are also keypad KeySyms.
-			 */
-
-
-			 /* The numlock modifier is on and the second KeySym is a keypad
-			  * KeySym. In this case, if the Shift modifier is on, or if the
-			  * Lock modifier is on and is interpreted as ShiftLock, then the
-			  * first KeySym is used, otherwise the second KeySym is used.
-			  */
-			if (modifier_mask & ShiftMask || (modifier_mask & LockMask && is_shift_lock)) {
-				// i = 0
-				keysym = keyboard_map[keycode *keysym_per_keycode];
-			}
-			else {
-				// i = 1
-				keysym = keyboard_map[keycode *keysym_per_keycode + 1];
-			}
-		}
-		else if (modifier_mask ^ ShiftMask && modifier_mask ^ LockMask) {
-			/* The Shift and Lock modifiers are both off. In this case,
-			 * the first KeySym is used.
-			 */
-			// index = 0
-			keysym = keyboard_map[keycode *keysym_per_keycode];
-		}
-		else if (modifier_mask ^ ShiftMask && modifier_mask & LockMask && is_caps_lock) {
-			/* The Shift modifier is off, and the Lock modifier is on
-			 * and is interpreted as CapsLock. In this case, the first
-			 * KeySym is used, but if that KeySym is lowercase
-			 * alphabetic, then the corresponding uppercase KeySym is
-			 * used instead.
-			 */
-			// index = 0;
-			keysym = keyboard_map[keycode *keysym_per_keycode];
-
-			if (keysym >= 'a' && keysym <= 'z') {
-				// keysym is an alpha char.
-				KeySym lower_keysym, upper_keysym;
-				XConvertCase(keysym, &lower_keysym, &upper_keysym);
-				keysym = upper_keysym;
-			}
-		}
-		else if (modifier_mask & ShiftMask && modifier_mask & LockMask && is_caps_lock) {
-			/* The Shift modifier is on, and the Lock modifier is on and
-			 * is interpreted as CapsLock. In this case, the second
-			 * KeySym is used, but if that KeySym is lowercase
-			 * alphabetic, then the corresponding uppercase KeySym is
-			 * used instead.
-			 */
-			// index = 1
-			keysym = keyboard_map[keycode *keysym_per_keycode + 1];
-
-			if (keysym >= 'A' && keysym <= 'Z') {
-				// keysym is an alpha char.
-				KeySym lower_keysym, upper_keysym;
-				XConvertCase(keysym, &lower_keysym, &upper_keysym);
-				keysym = lower_keysym;
-			}
-		}
-		else if (modifier_mask & ShiftMask || (modifier_mask & LockMask && is_shift_lock) || modifier_mask & (ShiftMask + LockMask)) {
-			/* The Shift modifier is on, or the Lock modifier is on and
-			 * is interpreted as ShiftLock, or both. In this case, the
-			 * second KeySym is used.
-			 */
-			// index = 1
-			keysym = keyboard_map[keycode *keysym_per_keycode + 1];
-		}
-		else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: Unable to determine the KeySym index!\n",
-					__FUNCTION__, __LINE__);
-		}
-	}
-	#endif
 
 	return keysym;
 }
 #endif
 
 void load_input_helper(Display *disp) {
-	#ifdef USE_XKB
 	/* The following code block is based on vncdisplaykeymap.c under the terms:
 	 *
 	 * Copyright (C) 2008  Anthony Liguori <anthony codemonkey ws>
@@ -1882,7 +1780,7 @@ void load_input_helper(Display *disp) {
 				(unsigned int) desc->names->keycodes);
 
 		const char *prefix_xfree86 = "xfree86_";
-		#if defined(USE_EVDEV) && defined(USE_XKB)
+		#ifdef USE_EVDEV
 		const char *prefix_evdev = "evdev_";
 		if (strncmp(layout_name, prefix_evdev, strlen(prefix_evdev)) == 0) {
 			is_evdev = true;
@@ -1892,16 +1790,14 @@ void load_input_helper(Display *disp) {
 			logger(LOG_LEVEL_ERROR,
 					"%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
 					__FUNCTION__, __LINE__, layout_name);
-		}
-		else if (layout_name == NULL) {
+		} else if (layout_name == NULL) {
 			logger(LOG_LEVEL_ERROR,
 					"%s [%u]: X atom name failure for desc->names->keycodes!\n",
 					__FUNCTION__, __LINE__);
 		}
 
 		XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
-	}
-	else {
+	} else {
 		logger(LOG_LEVEL_ERROR,
 				"%s [%u]: XkbGetKeyboard failed to locate a valid keyboard!\n",
 				__FUNCTION__, __LINE__);
@@ -1909,75 +1805,13 @@ void load_input_helper(Display *disp) {
 
 	// Get the map.
 	keyboard_map = XkbGetMap(disp, XkbAllClientInfoMask, XkbUseCoreKbd);
-	#else
-	// No known alternative to determine scancode mapping, assume XFree86!
-	#pragma message("*** Warning: XKB support is required to accurately determine keyboard scancodes!")
-	#pragma message("... Assuming XFree86 keyboard layout.")
-
-	logger(LOG_LEVEL_WARN, "%s [%u]: Using XFree86 keyboard layout.\n",
-			__FUNCTION__, __LINE__);
-	logger(LOG_LEVEL_WARN, "%s [%u]: XKB support is required to accurately determine keyboard characters!\n",
-			__FUNCTION__, __LINE__);
-
-	int minKeyCode, maxKeyCode;
-	XDisplayKeycodes(disp, &minKeyCode, &maxKeyCode);
-
-	keyboard_map = XGetKeyboardMapping(disp, minKeyCode, (maxKeyCode - minKeyCode + 1), &keysym_per_keycode);
-	if (keyboard_map) {
-		XModifierKeymap *modifierMap = XGetModifierMapping(disp);
-
-		if (modifierMap) {
-			/* The Lock modifier is interpreted as CapsLock when the KeySym
-			 * named XK_Caps_Lock is attached to some KeyCode and that KeyCode
-			 * is attached to the Lock modifier. The Lock modifier is
-			 * interpreted as ShiftLock when the KeySym named XK_Shift_Lock is
-			 * attached to some KeyCode and that KeyCode is attached to the Lock
-			 * modifier. If the Lock modifier could be interpreted as both
-			 * CapsLock and ShiftLock, the CapsLock interpretation is used.
-			 */
-
-			KeyCode capsLock = XKeysymToKeycode(disp, XK_Caps_Lock);
-			KeyCode shiftLock = XKeysymToKeycode(disp, XK_Shift_Lock);
-			keysym_per_keycode--;
-
-			// Loop over the modifier map to find out if/where shift and caps locks are set.
-			for (int i = LockMapIndex; i < LockMapIndex + modifierMap->max_keypermod && !is_caps_lock; i++) {
-				if (capsLock != 0 && modifierMap->modifiermap[i] == capsLock) {
-					is_caps_lock = true;
-					is_shift_lock = false;
-				}
-				else if (shiftLock != 0 && modifierMap->modifiermap[i] == shiftLock) {
-					is_shift_lock = true;
-				}
-			}
-
-			XFree(modifierMap);
-		}
-		else {
-			XFree(keyboard_map);
-
-			logger(LOG_LEVEL_ERROR,
-					"%s [%u]: Unable to get modifier mapping table!\n",
-					__FUNCTION__, __LINE__);
-		}
-	}
-	else {
-		logger(LOG_LEVEL_ERROR,
-				"%s [%u]: Unable to get keyboard mapping table!\n",
-				__FUNCTION__, __LINE__);
-	}
-	#endif
 }
 
 void unload_input_helper() {
 	if (keyboard_map) {
-		#ifdef USE_XKB
 		XkbFreeClientMap(keyboard_map, XkbAllClientInfoMask, true);
-		#if defined(USE_EVDEV) && defined(USE_XKB)
+		#ifdef USE_EVDEV
 		is_evdev = false;
-		#endif
-		#else
-		XFree(keyboard_map);
 		#endif
 	}
 }

@@ -36,12 +36,6 @@
 #include "input_helper.h"
 #include "logger.h"
 
-// Contributed by Alex <universailp@web.de>
-// Macros to cast objc_msgSend with either three arguments
-// and return type id, or two arguments and a custom return type
-#define objc_msgSend_(a, b, c) (((id (*)(id, SEL, CGEventRef)) objc_msgSend)(a, b, c))
-#define objc_msgSend2_(a, b, t) (((t (*)(id, SEL)) objc_msgSend)(a, b))
- 
 typedef struct _hook_info {
 	CFMachPortRef port;
 	CFRunLoopSourceRef source;
@@ -592,8 +586,12 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 	if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
 		#ifdef USE_OBJC
 		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
-		id event_data = objc_msgSend_(objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
-		int subtype = objc_msgSend2_(event_data, sel_registerName("subtype"), int);
+        id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
+        id event_data = eventWithCGEvent(objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
+
+		int (*eventWithoutCGEvent)(id, SEL) = (int (*)(id, SEL)) objc_msgSend;
+        int subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
+
 		#else
 		CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
 		//CFIndex len = CFDataGetLength(data);
@@ -605,7 +603,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		if (subtype == 8) {
 			#ifdef USE_OBJC
 			// Contributed by Alex <universailp@web.de>
-			int data = objc_msgSend2_(event_data, sel_registerName("data1"), int);
+			int data = eventWithoutCGEvent(event_data, sel_registerName("data1"));
 			#endif
 
 			int key_code = (data & 0xFFFF0000) >> 16;
@@ -1204,7 +1202,8 @@ UIOHOOK_API int hook_run() {
 									Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
 									id pool = class_createInstance(NSAutoreleasePool_class, 0);
 									// Contributed by Alex <universailp@web.de>
-									auto_release_pool = objc_msgSend2_(pool, sel_registerName("init"), id);
+									id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
+									auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
 									#endif
 
 									// Start the hook thread runloop.
@@ -1212,9 +1211,8 @@ UIOHOOK_API int hook_run() {
 
 
 									#ifdef USE_OBJC
-									//objc_msgSend(auto_release_pool, sel_registerName("drain"));
 									// Contributed by Alex <universailp@web.de>
-									objc_msgSend2_(auto_release_pool, sel_registerName("release"), void);
+									eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
 									#endif
 
 									// Lock back up until we are done processing the exit.

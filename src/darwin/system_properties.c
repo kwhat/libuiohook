@@ -159,28 +159,34 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 
 	#ifdef USE_IOKIT
 	if (!successful) {
-		IOByteCount size = sizeof(rate);
+		io_registry_entry_t iohid_registry_entry = IORegistryEntryFromPath(kIOMasterPortDefault, "IOService:/IOResources/IOHIDSystem");
+		if (iohid_registry_entry != MACH_PORT_NULL) {
+	        CFTypeRef pref_val = IORegistryEntryCreateCFProperty(iohid_registry_entry, CFSTR(kIOHIDKeyRepeatKey), kCFAllocatorDefault, kNilOptions);
+	        if (pref_val != NULL) {
+	            rate = (SInt64) pref_val;
 
-		kern_return_t status = IOHIDGetParameter(connection, CFSTR(kIOHIDKeyRepeatKey), (IOByteCount) sizeof(rate), &rate, &size);
-		if (status == kIOReturnSuccess) {
-			/* This is in some undefined unit of time that if we happen
-			 * to multiply by 900 gives us the time in milliseconds. We
-			 * add 0.5 to the result so that when we cast to long we
-			 * actually get a rounded result.  Saves the math.h depend.
-			 *
-			 *    33,333,333.0 / 1000.0 / 1000.0 / 1000.0 == 0.033333333	* Fast *
-			 *   100,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.1
-			 *   200,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.2
-			 *   500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.5
-			 * 1,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1
-			 * 1,500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1.5
-			 * 2,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 2				* Slow *
-			 */
-			value = (long) (900.0 * ((double) rate) / 1000.0 / 1000.0 / 1000.0 + 0.5);
-			successful = true;
+				/* This is in some undefined unit of time that if we happen
+				 * to multiply by 900 gives us the time in milliseconds. We
+				 * add 0.5 to the result so that when we cast to long we
+				 * actually get a rounded result.  Saves the math.h depend.
+				 *
+				 *    33,333,333.0 / 1000.0 / 1000.0 / 1000.0 == 0.033333333	* Fast *
+				 *   100,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.1
+				 *   200,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.2
+				 *   500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.5
+				 * 1,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1
+				 * 1,500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1.5
+				 * 2,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 2				* Slow *
+				 *
+				 * TODO Try rate / 256 / 1000.0 / 1000.0 / 1000.0;
+				 */
+				value = (long) (900.0 * ((double) rate) / 1000.0 / 1000.0 / 1000.0 + 0.5);
+				successful = true;
+				CFRelease(pref_val);
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %li.\n",
-					__FUNCTION__, __LINE__, value);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+						__FUNCTION__, __LINE__, value);
+	        }
 		}
 	}
 	#endif
@@ -232,28 +238,33 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 
 	#ifdef USE_IOKIT
 	if (!successful) {
-		IOByteCount size = sizeof(delay);
+		io_registry_entry_t iohid_registry_entry = IORegistryEntryFromPath(kIOMasterPortDefault, "IOService:/IOResources/IOHIDSystem");
+		if (iohid_registry_entry != MACH_PORT_NULL) {
+	        CFTypeRef pref_val = IORegistryEntryCreateCFProperty(iohid_registry_entry, CFSTR(kIOHIDInitialKeyRepeatKey), kCFAllocatorDefault, kNilOptions);
+	        if (pref_val != NULL) {
+	            delay = (SInt64) pref_val;
 
-		kern_return_t kren_ret = IOHIDGetParameter(connection, CFSTR(kIOHIDInitialKeyRepeatKey), (IOByteCount) sizeof(delay), &delay, &size);
-		if (kren_ret == kIOReturnSuccess) {
-			/* This is in some undefined unit of time that if we happen
-			 * to multiply by 900 gives us the time in milliseconds. We
-			 * add 0.5 to the result so that when we cast to long we
-			 * actually get a rounded result.  Saves the math.h depend.
-			 *
-			 *    33,333,333.0 / 1000.0 / 1000.0 / 1000.0 == 0.033333333	* Fast *
-			 *   100,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.1
-			 *   200,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.2
-			 *   500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.5
-			 * 1,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1
-			 * 1,500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1.5
-			 * 2,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 2				* Slow *
-			 */
-			value = (long) (900.0 * ((double) delay) / 1000.0 / 1000.0 / 1000.0 + 0.5);
-			successful = true;
+				/* This is in some undefined unit of time that if we happen
+				 * to multiply by 900 gives us the time in milliseconds. We
+				 * add 0.5 to the result so that when we cast to long we
+				 * actually get a rounded result.  Saves the math.h depend.
+				 *
+				 *    33,333,333.0 / 1000.0 / 1000.0 / 1000.0 == 0.033333333	* Fast *
+				 *   100,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.1
+				 *   200,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.2
+				 *   500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.5
+				 * 1,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1
+				 * 1,500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1.5
+				 * 2,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 2				* Slow *
+				 *
+				 * TODO Try rate / 256 / 1000.0 / 1000.0 / 1000.0;
+				 */
+				value = (long) (900.0 * ((double) delay) / 1000.0 / 1000.0 / 1000.0 + 0.5);
+				successful = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %li.\n",
-					__FUNCTION__, __LINE__, value);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+						__FUNCTION__, __LINE__, value);
+			}
 		}
 	}
 	#endif
@@ -417,20 +428,23 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 
 	#ifdef USE_IOKIT
 	if (!successful) {
-		IOByteCount size = sizeof(time);
+		io_registry_entry_t iohid_registry_entry = IORegistryEntryFromPath(kIOMasterPortDefault, "IOService:/IOResources/IOHIDSystem");
+		if (iohid_registry_entry != MACH_PORT_NULL) {
+	        CFTypeRef pref_val = IORegistryEntryCreateCFProperty(iohid_registry_entry, CFSTR(kIOHIDClickTimeKey), kCFAllocatorDefault, kNilOptions);
+	        if (pref_val != NULL) {
+	            time = (SInt64) pref_val;
 
-		kern_return_t kren_ret = IOHIDGetParameter(connection, CFSTR(kIOHIDClickTimeKey), (IOByteCount) sizeof(time), &time, &size);
-		if (kren_ret == kIOReturnSuccess) {
-			/* This is in some undefined unit of time that if we happen
-			 * to multiply by 900 gives us the time in milliseconds. We
-			 * add 0.5 to the result so that when we cast to long we
-			 * actually get a rounded result.  Saves the math.h depend.
-			 */
-			value = (long) (900.0 * ((double) time) / 1000.0 / 1000.0 / 1000.0 + 0.5);
-			successful = true;
+				/* This is in some undefined unit of time that if we happen
+				 * to multiply by 900 gives us the time in milliseconds. We
+				 * add 0.5 to the result so that when we cast to long we
+				 * actually get a rounded result.  Saves the math.h depend.
+				 */
+				value = (long) (900.0 * ((double) time) / 1000.0 / 1000.0 / 1000.0 + 0.5);
+				successful = true;
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: IOHIDGetParameter: %li.\n",
-					__FUNCTION__, __LINE__, value);
+				logger(LOG_LEVEL_INFO,	"%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+						__FUNCTION__, __LINE__, value);
+			}
 		}
 	}
 	#endif

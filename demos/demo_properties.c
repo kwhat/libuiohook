@@ -25,73 +25,79 @@
 #include <stdlib.h>
 #include <uiohook.h>
 
-static bool logger_proc(unsigned int level, const char *format, ...) {
-    bool status = false;
-    
-    va_list args;
-    switch (level) {
-        case LOG_LEVEL_WARN:
-        case LOG_LEVEL_ERROR:
-            va_start(args, format);
-            status = vfprintf(stderr, format, args) >= 0;
-            va_end(args);
-            break;
-    }
-    
-    return status;
+bool logger_proc(unsigned int level, const char *format, ...) {
+	bool status = false;
+	
+	va_list args;
+	switch (level) {
+		case LOG_LEVEL_WARN:
+		case LOG_LEVEL_ERROR:
+			va_start(args, format);
+			status = vfprintf(stderr, format, args) >= 0;
+			va_end(args);
+			break;
+	}
+	
+	return status;
 }
 
 int main() {
-    // Disable the logger.
-    hook_set_logger_proc(&logger_proc);
+	// Disable the logger.
+	hook_set_logger_proc(&logger_proc);
 
-    // Retrieves the keyboard auto repeat rate.
-    long int repeat_rate = hook_get_auto_repeat_rate();
-    if (repeat_rate >= 0) {
-        fprintf(stdout, "Auto Repeat Rate:\t%ld\n", repeat_rate);
-    } else {
-        fprintf(stderr, "Failed to aquire keyboard auto repeat rate!\n");
-    }
+	// Retrieves the keyboard auto repeat rate.
+	long int repeat_rate = hook_get_auto_repeat_rate();
+	if (repeat_rate >= 0) {
+		fprintf(stdout,	"Auto Repeat Rate:\t%ld\n", repeat_rate);
+	}
+	else {
+		fprintf(stderr,	"Failed to aquire keyboard auto repeat rate!\n");
+	}
 
-    // Retrieves the keyboard auto repeat delay.
-    long int repeat_delay = hook_get_auto_repeat_delay();
-    if (repeat_delay >= 0) {
-        fprintf(stdout, "Auto Repeat Delay:\t%ld\n", repeat_delay);
-    } else {
-        fprintf(stderr, "Failed to acquire keyboard auto repeat delay!\n");
-    }
+	// Retrieves the keyboard auto repeat delay.
+	long int repeat_delay = hook_get_auto_repeat_delay();
+	if (repeat_delay >= 0) {
+		fprintf(stdout,	"Auto Repeat Delay:\t%ld\n", repeat_delay);
+	}
+	else {
+		fprintf(stderr,	"Failed to acquire keyboard auto repeat delay!\n");
+	}
 
-    // Retrieves the mouse acceleration multiplier.
-    long int acceleration_multiplier = hook_get_pointer_acceleration_multiplier();
-    if (acceleration_multiplier >= 0) {
-        fprintf(stdout, "Mouse Acceleration Multiplier:\t%ld\n", acceleration_multiplier);
-    } else {
-        fprintf(stderr, "Failed to acquire mouse acceleration multiplier!\n");
-    }
+	// Retrieves the mouse acceleration multiplier.
+	long int acceleration_multiplier = hook_get_pointer_acceleration_multiplier();
+	if (acceleration_multiplier >= 0) {
+		fprintf(stdout,	"Mouse Acceleration Multiplier:\t%ld\n", acceleration_multiplier);
+	}
+	else {
+		fprintf(stderr,	"Failed to acquire mouse acceleration multiplier!\n");
+	}
 
-    // Retrieves the mouse acceleration threshold.
-    long int acceleration_threshold = hook_get_pointer_acceleration_threshold();
-    if (acceleration_threshold >= 0) {
-        fprintf(stdout, "Mouse Acceleration Threshold:\t%ld\n", acceleration_threshold);
-    } else {
-        fprintf(stderr, "Failed to acquire mouse acceleration threshold!\n");
-    }
+	// Retrieves the mouse acceleration threshold.
+	long int acceleration_threshold = hook_get_pointer_acceleration_threshold();
+	if (acceleration_threshold >= 0) {
+		fprintf(stdout,	"Mouse Acceleration Threshold:\t%ld\n", acceleration_threshold);
+	}
+	else {
+		fprintf(stderr,	"Failed to acquire mouse acceleration threshold!\n");
+	}
 
-    // Retrieves the mouse sensitivity.
-    long int sensitivity = hook_get_pointer_sensitivity();
-    if (sensitivity >= 0) {
-        fprintf(stdout, "Mouse Sensitivity:\t%ld\n", sensitivity);
-    } else {
-        fprintf(stderr, "Failed to acquire mouse sensitivity value!\n");
-    }
+	// Retrieves the mouse sensitivity.
+	long int sensitivity = hook_get_pointer_sensitivity();
+	if (sensitivity >= 0) {
+		fprintf(stdout,	"Mouse Sensitivity:\t%ld\n", sensitivity);
+	}
+	else {
+		fprintf(stderr,	"Failed to acquire keyboard auto repeat rate!\n");
+	}
 
-    // Retrieves the double/triple click interval.
-    long int click_time = hook_get_multi_click_time();
-    if (click_time >= 0) {
-        fprintf(stdout, "Multi-Click Time:\t%ld\n", click_time);
-    } else {
-        fprintf(stderr, "Failed to acquire mouse multi-click time!\n");
-    }
+	// Retrieves the double/triple click interval.
+	long int click_time = hook_get_multi_click_time();
+	if (click_time >= 0) {
+		fprintf(stdout,	"Multi-Click Time:\t%ld\n", click_time);
+	}
+	else {
+		fprintf(stderr,	"Failed to acquire keyboard auto repeat rate!\n");
+	}
 
-    return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }

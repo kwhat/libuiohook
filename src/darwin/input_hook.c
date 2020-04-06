@@ -587,7 +587,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 		#ifdef USE_OBJC
 		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
         id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
-        id event_data = eventWithCGEvent(objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
+        id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
 
 		int (*eventWithoutCGEvent)(id, SEL) = (int (*)(id, SEL)) objc_msgSend;
         int subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));

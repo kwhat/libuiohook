@@ -586,7 +586,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 	if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
 		#ifdef USE_OBJC
 		// Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
-        id (*eventWithCGEvent)(Class _Nullable, SEL, CGEventRef) = (id (*)(Class _Nullable, SEL, CGEventRef)) objc_msgSend;
+        id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
         id event_data = eventWithCGEvent(objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
 
 		int (*eventWithoutCGEvent)(id, SEL) = (int (*)(id, SEL)) objc_msgSend;

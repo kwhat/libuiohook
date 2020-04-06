@@ -147,7 +147,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
  * CharSec = 66 / V
  * CharSec = 66 / (MS / 15)
  */
- UIOHOOK_API long int hook_get_auto_repeat_rate() {
+UIOHOOK_API long int hook_get_auto_repeat_rate() {
     #if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
     bool successful = false;
     SInt64 rate;
@@ -162,26 +162,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    CFNumberType num_type = kCFNumberSInt32Type;
-                    switch (CFNumberGetByteSize((CFNumberRef) cf_type)) {
-                        case sizeof(UInt64):
-                            num_type = kCFNumberSInt64Type;
-                            break;
-
-                        case sizeof(UInt32):
-                            num_type = kCFNumberSInt32Type;
-                            break;
-
-                        case sizeof(UInt16):
-                            num_type = kCFNumberSInt16Type;
-                            break;
-
-                        case sizeof(UInt8):
-                            num_type = kCFNumberSInt8Type;
-                            break;
-                    }
-
-                    if (CFNumberGetValue((CFNumberRef) cf_type, num_type, &rate)) {
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt64Type, &rate)) {
                         /* This is in some undefined unit of time that if we happen
                          * to multiply by 900 gives us the time in milliseconds. We
                          * add 0.5 to the result so that when we cast to long we
@@ -265,26 +246,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    CFNumberType num_type = kCFNumberSInt32Type;
-                    switch (CFNumberGetByteSize((CFNumberRef) cf_type)) {
-                        case sizeof(UInt64):
-                            num_type = kCFNumberSInt64Type;
-                            break;
-
-                        case sizeof(UInt32):
-                            num_type = kCFNumberSInt32Type;
-                            break;
-
-                        case sizeof(UInt16):
-                            num_type = kCFNumberSInt16Type;
-                            break;
-
-                        case sizeof(UInt8):
-                            num_type = kCFNumberSInt8Type;
-                            break;
-                    }
-
-                    if (CFNumberGetValue((CFNumberRef) cf_type, num_type, &delay)) {
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt64Type, &delay)) {
                         /* This is in some undefined unit of time that if we happen
                          * to multiply by 900 gives us the time in milliseconds. We
                          * add 0.5 to the result so that when we cast to long we
@@ -356,7 +318,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     #if defined USE_IOKIT || defined USE_COREFOUNDATION
     bool successful = false;
-    double multiplier;
+    SInt64 multiplier;
     #endif
 
     long int value = -1;
@@ -368,29 +330,10 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    CFNumberType num_type = kCFNumberSInt32Type;
-                    switch (CFNumberGetByteSize((CFNumberRef) cf_type)) {
-                        case sizeof(UInt64):
-                            num_type = kCFNumberSInt64Type;
-                            break;
-
-                        case sizeof(UInt32):
-                            num_type = kCFNumberSInt32Type;
-                            break;
-
-                        case sizeof(UInt16):
-                            num_type = kCFNumberSInt16Type;
-                            break;
-
-                        case sizeof(UInt8):
-                            num_type = kCFNumberSInt8Type;
-                            break;
-                    }
-
-                    if (CFNumberGetValue((CFNumberRef) cf_type, num_type, &multiplier)) {
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt64Type, &multiplier)) {
                         // Calculate the greatest common factor.
                         unsigned long denominator = 1000000, d = denominator;
-                        unsigned long numerator = multiplier * denominator, gcf = numerator;
+                        unsigned long numerator = (((double) multiplier) / 65536.0) * denominator, gcf = numerator;
 
                         while (d != 0) {
                             unsigned long i = gcf % d;
@@ -416,7 +359,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     if (!successful) {
         CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.scaling"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         if (pref_val != NULL) {
-            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &multiplier)) {
+            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt64Type, &multiplier)) {
                 value = (long) multiplier;
 
                 logger(LOG_LEVEL_INFO, "%s [%u]: CFPreferencesCopyValue: %li.\n",
@@ -461,7 +404,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 UIOHOOK_API long int hook_get_pointer_sensitivity() {
     #ifdef USE_IOKIT
     bool successful = false;
-    double sensitivity;
+    SInt32 sensitivity;
     #endif
 
     long int value = -1;
@@ -473,29 +416,10 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    CFNumberType num_type = kCFNumberSInt32Type;
-                    switch (CFNumberGetByteSize((CFNumberRef) cf_type)) {
-                        case sizeof(UInt64):
-                            num_type = kCFNumberSInt64Type;
-                            break;
-
-                        case sizeof(UInt32):
-                            num_type = kCFNumberSInt32Type;
-                            break;
-
-                        case sizeof(UInt16):
-                            num_type = kCFNumberSInt16Type;
-                            break;
-
-                        case sizeof(UInt8):
-                            num_type = kCFNumberSInt8Type;
-                            break;
-                    }
-
-                    if (CFNumberGetValue((CFNumberRef) cf_type, num_type, &sensitivity)) {
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt32Type, &sensitivity)) {
                         // Calculate the greatest common factor.
                         unsigned long denominator = 1000000, d = denominator;
-                        unsigned long numerator = sensitivity * denominator, gcf = numerator;
+                        unsigned long numerator = (((double) sensitivity) / 65536.0) * denominator, gcf = numerator;
 
                         while (d != 0) {
                             unsigned long i = gcf % d;
@@ -534,30 +458,11 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     #ifdef USE_IOKIT
     if (!successful) {
         CFTypeRef cf_type = NULL;
-        kern_return_t kern_return = IOHIDCopyCFTypeParameter(connection, CFSTR(kIOHIDMouseAccelerationType), &cf_type);
+        kern_return_t kern_return = IOHIDCopyCFTypeParameter(connection, CFSTR(kIOHIDClickTimeKey), &cf_type);
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    CFNumberType num_type = kCFNumberSInt32Type;
-                    switch (CFNumberGetByteSize((CFNumberRef) cf_type)) {
-                        case sizeof(UInt64):
-                            num_type = kCFNumberSInt64Type;
-                            break;
-
-                        case sizeof(UInt32):
-                            num_type = kCFNumberSInt32Type;
-                            break;
-
-                        case sizeof(UInt16):
-                            num_type = kCFNumberSInt16Type;
-                            break;
-
-                        case sizeof(UInt8):
-                            num_type = kCFNumberSInt8Type;
-                            break;
-                    }
-
-                    if (CFNumberGetValue((CFNumberRef) cf_type, num_type, &time)) {
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt64Type, &time)) {
                         /* This is in some undefined unit of time that if we happen
                          * to multiply by 900 gives us the time in milliseconds. We
                          * add 0.5 to the result so that when we cast to long we

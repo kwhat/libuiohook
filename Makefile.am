@@ -69,22 +69,22 @@ libuiohook_la_SOURCES = $(HOOK_SRC)
 if BUILD_DEMO
 bin_PROGRAMS += demohook demohookasync demopost demoprops
 
-demohook_SOURCES = src/demo_hook.c
+demohook_SOURCES = demo/demo_hook.c
 demohook_LDADD = $(top_builddir)/libuiohook.la
 demohook_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
 demohook_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
 
-demohookasync_SOURCES = src/demo_hook_async.c
+demohookasync_SOURCES = demo/demo_hook_async.c
 demohookasync_LDADD = $(top_builddir)/libuiohook.la
 demohookasync_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
 demohookasync_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
 
-demopost_SOURCES = src/demo_post.c
+demopost_SOURCES = demo/demo_post.c
 demopost_LDADD = $(top_builddir)/libuiohook.la
 demopost_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
 demopost_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)
 
-demoprops_SOURCES = src/demo_properties.c
+demoprops_SOURCES = demo/demo_properties.c
 demoprops_LDADD = $(top_builddir)/libuiohook.la
 demoprops_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -pedantic $(DEMO_CFLAGS) -I$(top_srcdir)/include
 demoprops_LDFLAGS = $(LTLDFLAGS) $(DEMO_LIBS)

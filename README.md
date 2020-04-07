@@ -19,9 +19,9 @@ When using msys2/cygwin make sure to install dos2unix and convert the line endin
 before running the above.
 
 ## Usage
-* [Hook Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_hook.c)
-* [Async Hook Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_hook_async.c)
-* [Event Post Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_post.c)
-* [Properties Demo](https://github.com/kwhat/libuiohook/blob/master/src/demo_properties.c)
-* [Public Interface](https://github.com/kwhat/libuiohook/blob/master/include/uiohook.h)
+* [Hook Demo](demo/demo_hook.c)
+* [Async Hook Demo](demo/demo_hook_async.c)
+* [Event Post Demo](demo/demo_post.c)
+* [Properties Demo](demo/demo_properties.c)
+* [Public Interface](include/uiohook.h)
 * Please see the man pages for function documentation.

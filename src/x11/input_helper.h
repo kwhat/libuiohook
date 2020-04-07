@@ -30,15 +30,15 @@
 
 
 // Virtual button codes that are not defined by X11.
-#define Button1			1
-#define Button2			2
-#define Button3			3
-#define WheelUp			4
-#define WheelDown		5
-#define WheelLeft		6
-#define WheelRight		7
-#define XButton1		8
-#define XButton2		9
+#define Button1         1
+#define Button2         2
+#define Button3         3
+#define WheelUp         4
+#define WheelDown       5
+#define WheelLeft       6
+#define WheelRight      7
+#define XButton1        8
+#define XButton2        9
 
 /* Converts an X11 key symbol to a single Unicode character.  No direct X11
  * functionality exists to provide this information.

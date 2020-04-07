@@ -1,4 +1,4 @@
-# libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
+# libUIOHook: Cross-platform userland keyboard and mouse hooking.
 # Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
 # https://github.com/kwhat/libuiohook/
 #
@@ -21,35 +21,35 @@ ACLOCAL_AMFLAGS = -I m4
 HOOK_SRC = src/logger.c
 TEST_SRC = test/input_helper_test.c test/system_properties_test.c test/uiohook_test.c
 MAN3_SRC = man/hook_run.man \
-	   man/hook_stop.man \
-	   man/hook_get_auto_repeat_delay.man \
-	   man/hook_get_multi_click_time.man \
-	   man/hook_get_pointer_acceleration_threshold.man \
-	   man/hook_set_dispatch_proc.man \
-	   man/hook_get_auto_repeat_rate.man \
-	   man/hook_get_pointer_acceleration_multiplier.man \
-	   man/hook_get_pointer_sensitivity.man \
-	   man/hook_set_logger_proc.man
+    man/hook_stop.man \
+    man/hook_get_auto_repeat_delay.man \
+    man/hook_get_multi_click_time.man \
+    man/hook_get_pointer_acceleration_threshold.man \
+    man/hook_set_dispatch_proc.man \
+    man/hook_get_auto_repeat_rate.man \
+    man/hook_get_pointer_acceleration_multiplier.man \
+    man/hook_get_pointer_sensitivity.man \
+    man/hook_set_logger_proc.man
 
 if BUILD_DARWIN
 HOOK_SRC += src/darwin/input_helper.c \
-	 src/darwin/input_hook.c \
-	 src/darwin/post_event.c \
-	 src/darwin/system_properties.c
+    src/darwin/input_hook.c \
+    src/darwin/post_event.c \
+    src/darwin/system_properties.c
 endif
 
 if BUILD_X11
 HOOK_SRC += src/x11/input_helper.c \
-	 src/x11/input_hook.c \
-	 src/x11/post_event.c \
-	 src/x11/system_properties.c
+    src/x11/input_hook.c \
+    src/x11/post_event.c \
+    src/x11/system_properties.c
 endif
 
 if BUILD_WINDOWS
 HOOK_SRC += src/windows/input_helper.c \
-	 src/windows/input_hook.c \
-	 src/windows/post_event.c \
-	 src/windows/system_properties.c
+    src/windows/input_hook.c \
+    src/windows/post_event.c \
+    src/windows/system_properties.c
 endif
 
 pkgconfigdir = $(libdir)/pkgconfig

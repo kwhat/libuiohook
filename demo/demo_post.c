@@ -34,22 +34,22 @@ static uiohook_event *event = NULL;
 // TODO Implement CLI options.
 //int main(int argc, char *argv[]) {
 int main() {
-	// Allocate memory for the virtual events only once.
-	event = (uiohook_event *) malloc(sizeof(uiohook_event));
+    // Allocate memory for the virtual events only once.
+    event = (uiohook_event *) malloc(sizeof(uiohook_event));
 
-	event->type = EVENT_KEY_PRESSED;
-	event->mask = 0x00;
+    event->type = EVENT_KEY_PRESSED;
+    event->mask = 0x00;
 
-	event->data.keyboard.keycode = VC_A;
-	event->data.keyboard.keychar = CHAR_UNDEFINED;
+    event->data.keyboard.keycode = VC_A;
+    event->data.keyboard.keychar = CHAR_UNDEFINED;
 
-	hook_post_event(event);
+    hook_post_event(event);
 
-	event->type = EVENT_KEY_RELEASED;
+    event->type = EVENT_KEY_RELEASED;
 
-	hook_post_event(event);
+    hook_post_event(event);
 
-	free(event);
+    free(event);
 
-	return 0;
+    return 0;
 }

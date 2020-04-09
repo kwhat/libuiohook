@@ -8,15 +8,17 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 function (register_demo dname)
     add_executable("${dname}" "./demo/${dname}.c")
     if (ENABLE_SHARED)
-        add_dependencies("${dname}" "shared")
-        target_link_libraries("${dname}" "shared")
+        add_dependencies("${dname}" shared)
+        target_link_libraries("${dname}" shared)
     elseif (ENABLE_STATIC)
-        add_dependencies("${dname}" "shared")
-        target_link_libraries("${dname}" "shared")
+        add_dependencies("${dname}" static)
+        target_link_libraries("${dname}" static)
     else()
-        add_dependencies("${dname}" "uiohook")
-        target_link_libraries("${dname}" "uiohook")
+        add_dependencies("${dname}" uiohook)
+        target_link_libraries("${dname}" uiohook)
     endif()
+
+    target_link_libraries("${dname}" "${THREADS_LIBRARIES}")
 
     if(MSVC AND MSVC_VERSION LESS "1900")
         SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
@@ -35,6 +37,23 @@ function (macro_option opt desc default)
     endif()
 endfunction()
 
+# Registers a dependency for the static, shared and normal library
+function (register_library lib include)
+    target_link_libraries(uiohook ${lib})
+    target_include_directories(uiohook PRIVATE ${include})
+
+    if (ENABLE_STATIC)
+        target_link_libraries(static ${lib})
+        target_include_directories(static PRIVATE ${include})
+    endif()
+
+    if (ENABLE_SHARED)
+        target_link_libraries(shared ${lib})
+        target_include_directories(shared PRIVATE ${include})
+    endif()
+    message(STATUS "Registering ${lib} ${include}")
+endfunction()
+
 # Creates a CMake option for X11 libraries including
 function (x11_option opt val desc default)
     macro_option(${opt} ${desc} ${default})
@@ -42,8 +61,7 @@ function (x11_option opt val desc default)
     if (${opt} AND NOT X11_${val}_FOUND)
         message(FATAL_ERROR "${opt} enabled but not found")
     elseif(${opt})
-        target_link_libraries(uiohook ${X11_${val}_LIB})
-        target_include_directories(uiohook PUBLIC ${X11_${val}_INCLUDE_PATH})
+        register_library("${X11_${val}_LIB}" "${X11_${val}_INCLUDE_PATH}")
     endif()
 endfunction()
 
@@ -73,10 +91,10 @@ endif()
 
 add_library(uiohook OBJECT
     "./src/logger.c"
-	"./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
-	"./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
-	"./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
-	"./src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+    "./src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
 set_property(TARGET uiohook PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -90,21 +108,26 @@ target_include_directories(uiohook
 )
 
 if (ENABLE_SHARED)
-	add_library(shared SHARED $<TARGET_OBJECTS:uiohook>)
-	target_link_libraries(shared "${LIBS}")
-	set_target_properties(shared PROPERTIES OUTPUT_NAME "uiohook")
-	install(TARGETS shared DESTINATION lib)
+    add_library(shared SHARED $<TARGET_OBJECTS:uiohook>)
+    target_link_libraries(shared "${LIBS}")
+    set_target_properties(shared PROPERTIES OUTPUT_NAME "uiohook")
+    install(TARGETS shared DESTINATION lib)
 endif()
 
 if (ENABLE_STATIC)
-	add_library(static STATIC $<TARGET_OBJECTS:uiohook>)
-	target_link_libraries(static "${LIBS}")
-	set_target_properties(static PROPERTIES OUTPUT_NAME "uiohook")
-	install(TARGETS static DESTINATION lib)
+    add_library(static STATIC $<TARGET_OBJECTS:uiohook>)
+    target_link_libraries(static "${LIBS}")
+    set_target_properties(static PROPERTIES OUTPUT_NAME "uiohook")
+    install(TARGETS static DESTINATION lib)
 endif()
 
 if (ENABLE_SHARED OR ENABLE_STATIC)
     install(FILES ./include/uiohook.h DESTINATION include)
+endif()
+
+if (UNIX)
+    find_package(Threads REQUIRED)
+    target_link_libraries(uiohook "${THREADS_LIBRARIES}")
 endif()
 
 if (ENABLE_DEMOS)
@@ -132,13 +155,8 @@ if (ENABLE_TESTS)
     )
     add_dependencies(uiohook_tests "uiohook")
     target_include_directories(uiohook_tests PRIVATE
-	"./src/${UIOHOOK_SOURCE_DIR}")
+    "./src/${UIOHOOK_SOURCE_DIR}")
     target_link_libraries(uiohook_tests "uiohook")
-endif()
-
-if (UNIX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(uiohook ${THREADS_LIBRARIES})
 endif()
 
 if (UNIX AND NOT APPLE)
@@ -173,17 +191,16 @@ if (UNIX AND NOT APPLE)
         target_include_directories(uiohook_tests PRIVATE ${X11_INCLUDE_DIRS})
     endif()
 
+    register_library("${X11_LIBRARIES}" "${X11_INCLUDE_DIRS}")
+
     if (USE_XCB)
         find_package(XCB REQUIRED)
         find_package(X11_XCB REQUIRED)
         if (NOT XCB_FOUND)
             message(FATAL_ERROR "XCB enabled but not found")
         endif()
-
-        target_link_libraries(uiohook ${XCB_LIBRARIES})
-        target_include_directories(uiohook PRIVATE ${XCB_INCLUDE_DIRS})
-        target_link_libraries(uiohook ${X11_XCB_LIBRARIES})
-        target_include_directories(uiohook PRIVATE ${X11_XCB_INCLUDE_DIRS})
+        register_library("${XCB_LIBRARIES}" "${XCB_INCLUDE_DIRS}")
+        register_library("${X11_XCB_LIBRARIES}" "${X11_XCB_INCLUDE_DIRS}")
         add_definitions(${X11_XCB_DEFINITIONS})
     endif()
 
@@ -194,13 +211,21 @@ if (UNIX AND NOT APPLE)
             message(FATAL_ERROR "XKBCommon enabled but not found")
         endif()
 
-        target_link_libraries(uiohook ${XKBCOMMON_X11_LIBRARIES})
-        target_include_directories(uiohook PRIVATE ${XKBCOMMON_X11_INCLUDE_DIRS})
-        target_compile_options(uiohook PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
+        register_library("${XKBCOMMON_X11_LIBRARIES}" "${XKBCOMMON_X11_INCLUDE_DIRS}")
+        register_library("${XKBCOMMON_LIBRARIES}" "${XKBCOMMON_INCLUDE_DIRS}")
 
-        target_link_libraries(uiohook ${XKBCOMMON_LIBRARIES})
-        target_include_directories(uiohook PRIVATE ${XKBCOMMON_INCLUDE_DIRS})
+        target_compile_options(uiohook PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
         target_compile_options(uiohook PUBLIC ${XKBCOMMON_DEFINITIONS})
+
+        if (ENABLE_STATIC)
+            target_compile_options(static PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
+            target_compile_options(static PUBLIC ${XKBCOMMON_DEFINITIONS})
+        endif()
+
+        if (ENABLE_SHARED)
+            target_compile_options(shared PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
+            target_compile_options(shared PUBLIC ${XKBCOMMON_DEFINITIONS})
+        endif()
     endif()
 elseif (APPLE)
     set(CMAKE_MACOSX_RPATH 1)
@@ -236,11 +261,11 @@ elseif (APPLE)
     endif()
 
     if (USE_CARBON_LEGACY)
-    	message(DEPRECATION "Legacy Carbon functionality has been deprecated.")
+        message(DEPRECATION "Legacy Carbon functionality has been deprecated.")
 
-    	if (USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+        if (USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
             message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
-    	endif()
+        endif()
     endif()
 endif()
 

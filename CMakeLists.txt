@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(libuiohook)
+project(libuiohook VERSION 1.1.0 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -40,10 +40,12 @@ function (x11_option opt val desc default)
 endfunction()
 
 # Common Options
-option(ENABLE_DEBUG "Enable debug output (default: disabled)" OFF)
-option(ENABLE_DEMOS "Enable demo applicaitons (default: disabled)" OFF)
-option(ENABLE_TESTS "Enable unit testing (default: disabled)" OFF)
-option(ENABLE_QUIET "Enable copyright suppression (default: disabled)" OFF)
+option(ENABLE_SHARED "Enable debug output (default: ON)" ON)
+option(ENABLE_STATIC "Enable debug output (default: OFF)" OFF)
+option(ENABLE_DEBUG "Enable debug output (default: OFF)" OFF)
+option(ENABLE_DEMOS "Enable demo applicaitons (default: OFF)" OFF)
+option(ENABLE_TESTS "Enable unit testing (default: OFF)" OFF)
+option(ENABLE_QUIET "Enable copyright suppression (default: OFF)" OFF)
 
 if (ENABLE_QUIET)
     add_definitions("-DUSE_QUIET")
@@ -61,17 +63,35 @@ else()
     set(UIOHOOK_SOURCE_DIR "x11")
 endif()
 
-set(UIOHOOK_SRC
-    "./include/uiohook.h"
+add_library(uiohook OBJECT
     "./src/logger.c"
-    "./src/logger.h"
-    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.h"
-    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/system_properties.c")
+	"./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+	"./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+	"./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+	"./src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
+)
+set_property(TARGET uiohook PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-add_library("uiohook" SHARED ${UIOHOOK_SRC})
+target_include_directories(uiohook
+    PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}
+)
+
+if (ENABLE_SHARED)
+	add_library(shared SHARED $<TARGET_OBJECTS:uiohook>)
+	target_link_libraries(shared "${LIBS}")
+	set_target_properties(shared PROPERTIES OUTPUT_NAME "uiohook")
+endif()
+
+if (ENABLE_STATIC)
+	add_library(static STATIC $<TARGET_OBJECTS:uiohook>)
+	target_link_libraries(static "${LIBS}")
+	set_target_properties(static PROPERTIES OUTPUT_NAME "uiohook")
+endif()
 
 if (ENABLE_DEMOS)
     register_demo("demo_hook")
@@ -89,9 +109,10 @@ endif()
 if (ENABLE_TESTS)
     add_executable(uiohook_tests
         "./test/input_helper_test.c"
-	"./test/system_properties_test.c"
-	"./test/minunit.h"
-	"./test/uiohook_test.c")
+        "./test/system_properties_test.c"
+        "./test/minunit.h"
+        "./test/uiohook_test.c"
+    )
     add_dependencies(uiohook_tests "uiohook")
     target_include_directories(uiohook_tests PRIVATE
 	"./src/${UIOHOOK_SOURCE_DIR}")
@@ -111,18 +132,18 @@ if (UNIX AND NOT APPLE)
     find_package(X11)
 
     x11_option(USE_XKB Xkb "Disable X Keyboard Extension (default: ON)" ON)
-    x11_option(USE_XKB_FILE xkbfile "Disable X Keyboard File Extension (default: enabled)" ON)
+    x11_option(USE_XKB_FILE xkbfile "Disable X Keyboard File Extension (default: ON)" ON)
 
-    x11_option(USE_XT Xt "Disable X Toolkit Intrinsics (default: enabled)" ON)
-    x11_option(USE_XTEST Xtst "Disable XTest Extension (default: enabled)" ON)
-    x11_option(USE_XINERAMA Xinerama "Disable Xinerama Extension (default: enabled)" ON)
+    x11_option(USE_XT Xt "Disable X Toolkit Intrinsics (default: ON)" ON)
+    x11_option(USE_XTEST Xtst "Disable XTest Extension (default: ON)" ON)
+    x11_option(USE_XINERAMA Xinerama "Disable Xinerama Extension (default: ON)" ON)
 
-    x11_option(USE_XF86MISC Xxf86misc "Enable XFree86-Misc X Extension (default: disabled)" OFF)
-    x11_option(USE_XRANDR Xrandr "Enable XRandR Extension (default: disabled)" OFF)
+    x11_option(USE_XF86MISC Xxf86misc "Enable XFree86-Misc X Extension (default: OFF)" OFF)
+    x11_option(USE_XRANDR Xrandr "Enable XRandR Extension (default: OFF)" OFF)
 
-    macro_option(USE_XRECORD_ASYNC "Enable XRecord Asynchronous API (default: disabled)" OFF)
-    macro_option(USE_XCB "Disable X Keyboard Extension (default: enabled)" ON)
-    macro_option(USE_XKBCOMMON "Disable X Keyboard Common Extension (default: enabled)" ON)
+    macro_option(USE_XRECORD_ASYNC "Enable XRecord Asynchronous API (default: OFF)" OFF)
+    macro_option(USE_XCB "Disable X Keyboard Extension (default: ON)" ON)
+    macro_option(USE_XKBCOMMON "Disable X Keyboard Common Extension (default: ON)" ON)
 
     include(CheckLibraryExists)
     check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)

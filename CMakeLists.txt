@@ -6,9 +6,17 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 # Generates a demo project
 function (register_demo dname)
-    add_executable("${dname}" "./demos/${dname}.c")
-    add_dependencies("${dname}" "uiohook")
-    target_link_libraries("${dname}" "uiohook")
+    add_executable("${dname}" "./demo/${dname}.c")
+    if (ENABLE_SHARED)
+        add_dependencies("${dname}" "shared")
+        target_link_libraries("${dname}" "shared")
+    elseif (ENABLE_STATIC)
+        add_dependencies("${dname}" "shared")
+        target_link_libraries("${dname}" "shared")
+    else()
+        add_dependencies("${dname}" "uiohook")
+        target_link_libraries("${dname}" "uiohook")
+    endif()
 
     if(MSVC AND MSVC_VERSION LESS "1900")
         SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
@@ -85,12 +93,18 @@ if (ENABLE_SHARED)
 	add_library(shared SHARED $<TARGET_OBJECTS:uiohook>)
 	target_link_libraries(shared "${LIBS}")
 	set_target_properties(shared PROPERTIES OUTPUT_NAME "uiohook")
+	install(TARGETS shared DESTINATION lib)
 endif()
 
 if (ENABLE_STATIC)
 	add_library(static STATIC $<TARGET_OBJECTS:uiohook>)
 	target_link_libraries(static "${LIBS}")
 	set_target_properties(static PROPERTIES OUTPUT_NAME "uiohook")
+	install(TARGETS static DESTINATION lib)
+endif()
+
+if (ENABLE_SHARED OR ENABLE_STATIC)
+    install(FILES ./include/uiohook.h DESTINATION include)
 endif()
 
 if (ENABLE_DEMOS)
@@ -103,7 +117,10 @@ if (ENABLE_DEMOS)
         "demo_hook"
         "demo_hook_async"
         "demo_post"
-        "demo_properties")
+        "demo_properties"
+    )
+
+    install(TARGETS demo_hook demo_hook_async demo_post demo_properties DESTINATION bin)
 endif()
 
 if (ENABLE_TESTS)

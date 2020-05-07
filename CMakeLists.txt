@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(libuiohook VERSION 1.1.0 LANGUAGES C)
+project(libuiohook VERSION 1.2.0 LANGUAGES C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -21,10 +21,10 @@ function (register_demo dname)
     target_link_libraries("${dname}" "${THREADS_LIBRARIES}")
 
     if(MSVC AND MSVC_VERSION LESS "1900")
-        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+        set_target_properties("${dname}" PROPERTIES COMPILE_FLAGS
             "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
     else()
-        SET_TARGET_PROPERTIES("${dname}" PROPERTIES COMPILE_FLAGS
+        set_target_properties("${dname}" PROPERTIES COMPILE_FLAGS
             "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
     endif()
 endfunction()
@@ -51,6 +51,7 @@ function (register_library lib include)
         target_link_libraries(shared ${lib})
         target_include_directories(shared PRIVATE ${include})
     endif()
+
     message(STATUS "Registering ${lib} ${include}")
 endfunction()
 
@@ -107,18 +108,20 @@ target_include_directories(uiohook
         ${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}
 )
 
+include(GNUInstallDirs)
+
 if (ENABLE_SHARED)
     add_library(shared SHARED $<TARGET_OBJECTS:uiohook>)
     target_link_libraries(shared "${LIBS}")
     set_target_properties(shared PROPERTIES OUTPUT_NAME "uiohook")
-    install(TARGETS shared DESTINATION lib)
+    install(TARGETS shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 if (ENABLE_STATIC)
     add_library(static STATIC $<TARGET_OBJECTS:uiohook>)
     target_link_libraries(static "${LIBS}")
     set_target_properties(static PROPERTIES OUTPUT_NAME "uiohook")
-    install(TARGETS static DESTINATION lib)
+    install(TARGETS static DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 if (ENABLE_SHARED OR ENABLE_STATIC)
@@ -133,7 +136,7 @@ endif()
 if (ENABLE_DEMOS)
     if (ENABLE_SHARED)
         set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     endif()
 
     register_demo("demo_hook")
@@ -165,11 +168,10 @@ if (ENABLE_TESTS)
 endif()
 
 if (UNIX AND NOT APPLE)
-    if(LINUX)
-        macro_option(USE_EVDEV "Disable generic Linux input driver (default: enabled)" ON)
-    endif()
-
     find_package(X11)
+    register_library("${X11_LIBRARIES}" "${X11_INCLUDE_DIRS}")
+    add_definitions(${X11_DEFINITIONS})
+    set(COMPILE_LIBRARIES "-lX11")
 
     x11_option(USE_XKB Xkb "Disable X Keyboard Extension (default: ON)" ON)
     x11_option(USE_XKB_FILE xkbfile "Disable X Keyboard File Extension (default: ON)" ON)
@@ -185,28 +187,25 @@ if (UNIX AND NOT APPLE)
     macro_option(USE_XCB "Disable X Keyboard Extension (default: ON)" ON)
     macro_option(USE_XKBCOMMON "Disable X Keyboard Common Extension (default: ON)" ON)
 
-    include(CheckLibraryExists)
-    check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)
-
-    include(CheckIncludeFile)
-    check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
-
-    if (ENABLE_TESTS)
-        target_link_libraries(uiohook_tests ${X11_LIBRARIES})
-        target_include_directories(uiohook_tests PRIVATE ${X11_INCLUDE_DIRS})
+    if(LINUX)
+        macro_option(USE_EVDEV "Disable generic Linux input driver (default: enabled)" ON)
     endif()
 
-    register_library("${X11_LIBRARIES}" "${X11_INCLUDE_DIRS}")
 
     if (USE_XCB)
         find_package(XCB REQUIRED)
         find_package(X11_XCB REQUIRED)
-        if (NOT XCB_FOUND)
+        if (NOT XCB_FOUND OR NOT X11_XCB_FOUND)
             message(FATAL_ERROR "XCB enabled but not found")
         endif()
+
         register_library("${XCB_LIBRARIES}" "${XCB_INCLUDE_DIRS}")
+        add_definitions(${XCB_DEFINITIONS})
+        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxcb")
+
         register_library("${X11_XCB_LIBRARIES}" "${X11_XCB_INCLUDE_DIRS}")
         add_definitions(${X11_XCB_DEFINITIONS})
+        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lx11-xcb")
     endif()
 
     if (USE_XKBCOMMON)
@@ -216,53 +215,74 @@ if (UNIX AND NOT APPLE)
             message(FATAL_ERROR "XKBCommon enabled but not found")
         endif()
 
-        register_library("${XKBCOMMON_X11_LIBRARIES}" "${XKBCOMMON_X11_INCLUDE_DIRS}")
         register_library("${XKBCOMMON_LIBRARIES}" "${XKBCOMMON_INCLUDE_DIRS}")
+        add_definitions(${XKBCOMMON_DEFINITIONS})
+        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxkbcommon")
 
-        target_compile_options(uiohook PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
-        target_compile_options(uiohook PUBLIC ${XKBCOMMON_DEFINITIONS})
+        register_library("${XKBCOMMON_X11_LIBRARIES}" "${XKBCOMMON_X11_INCLUDE_DIRS}")
+        add_definitions(${XKBCOMMON_X11_DEFINITIONS})
+        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxkbcommon-x11")
 
-        if (ENABLE_STATIC)
-            target_compile_options(static PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
-            target_compile_options(static PUBLIC ${XKBCOMMON_DEFINITIONS})
-        endif()
+        #target_compile_options(uiohook PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
+        #target_compile_options(uiohook PUBLIC ${XKBCOMMON_DEFINITIONS})
 
-        if (ENABLE_SHARED)
-            target_compile_options(shared PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
-            target_compile_options(shared PUBLIC ${XKBCOMMON_DEFINITIONS})
-        endif()
+        #if (ENABLE_STATIC)
+        #    target_compile_options(static PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
+        #    target_compile_options(static PUBLIC ${XKBCOMMON_DEFINITIONS})
+        #endif()
+
+        #if (ENABLE_SHARED)
+        #    target_compile_options(shared PUBLIC ${XKBCOMMON_X11_DEFINITIONS})
+        #    target_compile_options(shared PUBLIC ${XKBCOMMON_DEFINITIONS})
+        #endif()
     endif()
+
+    if (ENABLE_TESTS)
+        target_link_libraries(uiohook_tests ${X11_LIBRARIES})
+        target_include_directories(uiohook_tests PRIVATE ${X11_INCLUDE_DIRS})
+    endif()
+
+    include(CheckLibraryExists)
+    check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)
+
+    include(CheckIncludeFile)
+    check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
 elseif (APPLE)
     set(CMAKE_MACOSX_RPATH 1)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.8")
 
-    macro_option(USE_COREFOUNDATION "Disable CoreFoundation framework (default: ON)" ON)
+    macro_option(USE_APPLICATION_SERVICES "Disable ApplicationServices framework (default: ON)" ON)
     macro_option(USE_IOKIT "Disable IOKit framework (default: ON)" ON)
     macro_option(USE_OBJC "Disable Objective-C API (default: ON)" ON)
 
     macro_option(USE_CARBON_LEGACY "Enable legacy Carbon framework functionality (default: OFF)" OFF)
-    macro_option(USE_WEAK_IMPORT "Enable weakly-linked symbols (default: OFF)" OFF)
+    #macro_option(USE_WEAK_IMPORT "Enable weakly-linked symbols (default: OFF)" OFF)
 
     find_library(CARBON Carbon)
     target_link_libraries(uiohook ${CARBON})
     target_include_directories(uiohook PRIVATE ${CARBON})
+    set(COMPILE_LIBRARIES "-framework Carbon")
 
-    if (USE_COREFOUNDATION)
-        find_library(APPLICATIONSERVICES ApplicationServices)
-        target_link_libraries(uiohook ${APPLICATIONSERVICES})
-        target_include_directories(uiohook PRIVATE ${APPLICATIONSERVICES})
+
+    if (USE_APPLICATION_SERVICES)
+        find_library(APPLICATION_SERVICES ApplicationServices)
+        target_link_libraries(uiohook ${APPLICATION_SERVICES})
+        target_include_directories(uiohook PRIVATE ${APPLICATION_SERVICES})
+        set(COMPILE_LIBRARIES "-framework ApplicationServices")
     endif()
 
     if (USE_IOKIT)
         find_library(IOKIT IOKit)
         target_link_libraries(uiohook ${IOKIT})
         target_include_directories(uiohook PRIVATE ${IOKIT})
+        set(COMPILE_LIBRARIES "-framework IOKit")
     endif()
 
     if (USE_OBJC)
         find_library(OBJC objc)
         target_link_libraries(uiohook ${OBJC})
         target_include_directories(uiohook PRIVATE ${OBJC})
+        set(COMPILE_LIBRARIES "-lobjc")
     endif()
 
     if (USE_CARBON_LEGACY)
@@ -274,17 +294,24 @@ elseif (APPLE)
     endif()
 endif()
 
+if (UNIX)
+    set(WTF_FU "testing")
+    configure_file("pc/uiohook.pc.in" "${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pc" @ONLY)
+    install(FILES "${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+endif()
+
 include_directories("./include")
 
 target_include_directories("uiohook" PUBLIC
     "./include"
     "./src")
 
+set_target_properties("uiohook" PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 if(MSVC AND MSVC_VERSION LESS "1900")
-    SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
+    set_target_properties("uiohook" PROPERTIES COMPILE_FLAGS
         "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
 else()
-    SET_TARGET_PROPERTIES("uiohook" PROPERTIES COMPILE_FLAGS
+    set_target_properties("uiohook" PROPERTIES COMPILE_FLAGS
         "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
 endif()
 

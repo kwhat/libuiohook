@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 
 project(libuiohook VERSION 1.2.0 LANGUAGES C)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-
 # Generates a demo project
 function (register_demo dname)
     add_executable("${dname}" "./demo/${dname}.c")
@@ -18,7 +16,7 @@ function (register_demo dname)
         target_link_libraries("${dname}" uiohook)
     endif()
 
-    target_link_libraries("${dname}" "${THREADS_LIBRARIES}")
+    target_link_libraries("${dname}" "${CMAKE_THREAD_LIBS_INIT}")
 
     if(MSVC AND MSVC_VERSION LESS "1900")
         set_target_properties("${dname}" PROPERTIES COMPILE_FLAGS
@@ -130,7 +128,7 @@ endif()
 
 if (UNIX)
     find_package(Threads REQUIRED)
-    target_link_libraries(uiohook "${THREADS_LIBRARIES}")
+    target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 if (ENABLE_DEMO)
@@ -164,7 +162,7 @@ if (ENABLE_TESTS)
     add_dependencies(uiohook_tests "uiohook")
     target_include_directories(uiohook_tests PRIVATE
     "./src/${UIOHOOK_SOURCE_DIR}")
-    target_link_libraries(uiohook_tests "uiohook")
+    target_link_libraries(uiohook_tests "uiohook" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 if (UNIX AND NOT APPLE)
@@ -172,7 +170,7 @@ if (UNIX AND NOT APPLE)
     register_library("${X11_LIBRARIES}" "${X11_INCLUDE_DIRS}")
     add_definitions(${X11_DEFINITIONS})
     set(COMPILE_LIBRARIES "-lX11")
-
+    
     x11_option(USE_XKB Xkb "X Keyboard Extension (default: ON)" ON)
     x11_option(USE_XKB_FILE xkbfile "X Keyboard File Extension (default: ON)" ON)
 
@@ -192,12 +190,11 @@ if (UNIX AND NOT APPLE)
     endif()
 
 
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/module")
+
     if (USE_XCB)
         find_package(XCB REQUIRED)
         find_package(X11_XCB REQUIRED)
-        if (NOT XCB_FOUND OR NOT X11_XCB_FOUND)
-            message(FATAL_ERROR "XCB enabled but not found")
-        endif()
 
         register_library("${XCB_LIBRARIES}" "${XCB_INCLUDE_DIRS}")
         add_definitions(${XCB_DEFINITIONS})

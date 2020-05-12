@@ -305,7 +305,7 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
         scancode = keycode_scancode_table[vk_code][0];
 
         if (flags & LLKHF_EXTENDED) {
-            logger(LOG_LEVEL_DEBUG,    "%s [%u]: Using extended lookup for vk_code: %li\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using extended lookup for vk_code: %li\n",
                     __FUNCTION__, __LINE__, vk_code);
 
             switch (vk_code) {
@@ -328,7 +328,7 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
                     break;
             }
         } else {
-            logger(LOG_LEVEL_DEBUG,    "%s [%u]: Using normal lookup for vk_code: %li\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using normal lookup for vk_code: %li\n",
                     __FUNCTION__, __LINE__, vk_code);
         }
     }
@@ -383,8 +383,8 @@ DWORD scancode_to_keycode(unsigned short scancode) {
 
 // Structure and pointers for the keyboard locale cache.
 typedef struct _KeyboardLocale {
-    HKL id;                                    // Locale ID
-    HINSTANCE library;                        // Keyboard DLL instance.
+    HKL id;                                 // Locale ID
+    HINSTANCE library;                      // Keyboard DLL instance.
     PVK_TO_BIT pVkToBit;                    // Pointers struct arrays.
     PVK_TO_WCHAR_TABLE pVkToWcharTable;
     PDEADKEY pDeadKey;
@@ -412,7 +412,7 @@ static BOOL is_wow64() {
         if (!pIsWow64Process(current_proc, &status)) {
             status = FALSE;
 
-            logger(LOG_LEVEL_DEBUG,    "%s [%u]: pIsWow64Process(%#p, %#p) failed!\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: pIsWow64Process(%#p, %#p) failed!\n",
                     __FUNCTION__, __LINE__, current_proc, &status);
         }
     }
@@ -429,7 +429,7 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
 
     char kbdName[KL_NAMELENGTH];
     if (GetKeyboardLayoutName(kbdName)) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: Found keyboard layout \"%s\".\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Found keyboard layout \"%s\".\n",
                 __FUNCTION__, __LINE__, kbdName);
 
         size_t keySize = strlen(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
@@ -443,11 +443,11 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
                     RegCloseKey(hKey);
                     status = UIOHOOK_SUCCESS;
                 } else {
-                    logger(LOG_LEVEL_WARN,    "%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
+                    logger(LOG_LEVEL_WARN, "%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
                             __FUNCTION__, __LINE__, kbdKey);
                 }
             } else {
-                logger(LOG_LEVEL_WARN,    "%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
+                logger(LOG_LEVEL_WARN, "%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
                         __FUNCTION__, __LINE__, kbdKeyPath);
             }
 
@@ -467,7 +467,7 @@ static int refresh_locale_list() {
     // Get the number of layouts the user has activated.
     int hkl_size = GetKeyboardLayoutList(0, NULL);
     if (hkl_size > 0) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: GetKeyboardLayoutList(0, NULL) found %i layouts.\n",
                 __FUNCTION__, __LINE__, hkl_size);
 
         // Get the thread id that currently has focus for our default.
@@ -479,11 +479,11 @@ static int refresh_locale_list() {
         int new_size = GetKeyboardLayoutList(hkl_size, hkl_list);
         if (new_size > 0) {
             if (new_size != hkl_size) {
-                logger(LOG_LEVEL_WARN,    "%s [%u]: Locale size mismatch!  "
+                logger(LOG_LEVEL_WARN, "%s [%u]: Locale size mismatch!  "
                         "Expected %i, received %i!\n",
                         __FUNCTION__, __LINE__, hkl_size, new_size);
             } else {
-                logger(LOG_LEVEL_DEBUG,    "%s [%u]: Received %i locales.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: Received %i locales.\n",
                         __FUNCTION__, __LINE__, new_size);
             }
 
@@ -505,7 +505,7 @@ static int refresh_locale_list() {
 
 
                 if (is_loaded) {
-                    logger(LOG_LEVEL_DEBUG,    "%s [%u]: Found locale ID %#p in the cache.\n",
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Found locale ID %#p in the cache.\n",
                             __FUNCTION__, __LINE__, locale_item->id);
 
                     // Set the previous local to the current locale.
@@ -518,7 +518,7 @@ static int refresh_locale_list() {
 
                     count++;
                 } else {
-                    logger(LOG_LEVEL_DEBUG,    "%s [%u]: Removing locale ID %#p from the cache.\n",
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Removing locale ID %#p from the cache.\n",
                             __FUNCTION__, __LINE__, locale_item->id);
 
                     // If the old id is not in the new list, remove it.
@@ -557,7 +557,7 @@ static int refresh_locale_list() {
                             char kbdLayoutFilePath[MAX_PATH];
                             snprintf(kbdLayoutFilePath, MAX_PATH, "%s\\%s", systemDirectory, layoutFile);
 
-                            logger(LOG_LEVEL_DEBUG,    "%s [%u]: Loading layout for %#p: %s.\n",
+                            logger(LOG_LEVEL_DEBUG, "%s [%u]: Loading layout for %#p: %s.\n",
                                     __FUNCTION__, __LINE__, hkl_list[i], layoutFile);
 
                             // Create the new locale item.

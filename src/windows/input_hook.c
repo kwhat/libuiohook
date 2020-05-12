@@ -115,8 +115,8 @@ static void initialize_modifiers() {
 /* Retrieves the mouse wheel scroll type. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
  */
-static unsigned short int get_scroll_wheel_type() {
-    unsigned short int value;
+static uint8_t get_scroll_wheel_type() {
+    uint8_t value;
     UINT wheel_type;
 
     SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_type, 0);
@@ -132,15 +132,15 @@ static unsigned short int get_scroll_wheel_type() {
 /* Retrieves the mouse wheel scroll amount. This function cannot be included as
  * part of the input_helper.h due to platform specific calling restrictions.
  */
-static unsigned short int get_scroll_wheel_amount() {
-    unsigned short int value;
+static uint16_t get_scroll_wheel_amount() {
+    uint16_t value;
     UINT wheel_amount;
 
     SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_amount, 0);
     if (wheel_amount == WHEEL_PAGESCROLL) {
         value = 1;
     } else {
-        value = (unsigned short int) wheel_amount;
+        value = (uint16_t) wheel_amount;
     }
 
     return value;
@@ -217,7 +217,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
     event.mask = get_modifiers();
 
     event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode, kbhook->flags);
-    event.data.keyboard.rawcode = kbhook->vkCode;
+    event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
     event.data.keyboard.keychar = CHAR_UNDEFINED;
 
     logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X pressed. (%#X)\n",
@@ -242,7 +242,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
             event.mask = get_modifiers();
 
             event.data.keyboard.keycode = VC_UNDEFINED;
-            event.data.keyboard.rawcode = kbhook->vkCode;
+            event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
             event.data.keyboard.keychar = buffer[i];
 
             logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X typed. (%lc)\n",
@@ -276,7 +276,7 @@ static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
     event.mask = get_modifiers();
 
     event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode, kbhook->flags);
-    event.data.keyboard.rawcode = kbhook->vkCode;
+    event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
     event.data.keyboard.keychar = CHAR_UNDEFINED;
 
     logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
@@ -319,7 +319,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 
 
 static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
-    uint64_t timestamp = mshook->time;
+    DWORD timestamp = mshook->time;
 
     // Track the number of clicks, the button must match the previous button.
     if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
@@ -354,8 +354,8 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     event.data.mouse.button = button;
     event.data.mouse.clicks = click_count;
 
-    event.data.mouse.x = mshook->pt.x;
-    event.data.mouse.y = mshook->pt.y;
+    event.data.mouse.x = (int16_t) mshook->pt.x;
+    event.data.mouse.y = (int16_t) mshook->pt.y;
 
     logger(LOG_LEVEL_INFO, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
@@ -376,8 +376,8 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     event.data.mouse.button = button;
     event.data.mouse.clicks = click_count;
 
-    event.data.mouse.x = mshook->pt.x;
-    event.data.mouse.y = mshook->pt.y;
+    event.data.mouse.x = (int16_t) mshook->pt.x;
+    event.data.mouse.y = (int16_t) mshook->pt.y;
 
     logger(LOG_LEVEL_INFO, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__, event.data.mouse.button,
@@ -398,8 +398,8 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 
         event.data.mouse.button = button;
         event.data.mouse.clicks = click_count;
-        event.data.mouse.x = mshook->pt.x;
-        event.data.mouse.y = mshook->pt.y;
+        event.data.mouse.x = (int16_t) mshook->pt.x;
+        event.data.mouse.y = (int16_t) mshook->pt.y;
 
         logger(LOG_LEVEL_INFO, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
                 __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
@@ -445,8 +445,8 @@ static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 
         event.data.mouse.button = MOUSE_NOBUTTON;
         event.data.mouse.clicks = click_count;
-        event.data.mouse.x = mshook->pt.x;
-        event.data.mouse.y = mshook->pt.y;
+        event.data.mouse.x = (int16_t) mshook->pt.x;
+        event.data.mouse.y = (int16_t) mshook->pt.y;
 
         logger(LOG_LEVEL_INFO, "%s [%u]: Mouse %s to %u, %u.\n",
                 __FUNCTION__, __LINE__,  mouse_dragged ? "dragged" : "moved",
@@ -471,8 +471,8 @@ static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
     event.mask = get_modifiers();
 
     event.data.wheel.clicks = click_count;
-    event.data.wheel.x = mshook->pt.x;
-    event.data.wheel.y = mshook->pt.y;
+    event.data.wheel.x = (int16_t) mshook->pt.x;
+    event.data.wheel.y = (int16_t) mshook->pt.y;
 
     event.data.wheel.type = get_scroll_wheel_type();
     event.data.wheel.amount = get_scroll_wheel_amount();

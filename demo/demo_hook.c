@@ -35,12 +35,12 @@ bool logger_proc(unsigned int level, const char *format, ...) {
     switch (level) {
         #ifdef USE_DEBUG
         case LOG_LEVEL_DEBUG:
+        #endif
         case LOG_LEVEL_INFO:
             va_start(args, format);
             status = vfprintf(stdout, format, args) >= 0;
             va_end(args);
             break;
-        #endif
 
         case LOG_LEVEL_WARN:
         case LOG_LEVEL_ERROR:

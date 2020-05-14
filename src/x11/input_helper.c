@@ -1768,10 +1768,8 @@ void load_input_helper(Display *disp) {
     XkbDescPtr desc = XkbGetKeyboard(disp, XkbGBN_AllComponentsMask, XkbUseCoreKbd);
     if (desc != NULL && desc->names != NULL) {
         const char *layout_name = XGetAtomName(disp, desc->names->keycodes);
-        logger(LOG_LEVEL_DEBUG,
-                "%s [%u]: Found keycode atom '%s' (%i)!\n",
-                __FUNCTION__, __LINE__, layout_name,
-                (unsigned int) desc->names->keycodes);
+        logger(LOG_LEVEL_INFO, "%s [%u]: Found keycode atom '%s' (%i)!\n",
+                __FUNCTION__, __LINE__, layout_name, (unsigned int) desc->names->keycodes);
 
         const char *prefix_xfree86 = "xfree86_";
         #ifdef USE_EVDEV
@@ -1781,19 +1779,16 @@ void load_input_helper(Display *disp) {
         } else
         #endif
         if (strncmp(layout_name, prefix_xfree86, strlen(prefix_xfree86)) != 0) {
-            logger(LOG_LEVEL_ERROR,
-                    "%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Unknown keycode name '%s', please file a bug report!\n",
                     __FUNCTION__, __LINE__, layout_name);
         } else if (layout_name == NULL) {
-            logger(LOG_LEVEL_ERROR,
-                    "%s [%u]: X atom name failure for desc->names->keycodes!\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: X atom name failure for desc->names->keycodes!\n",
                     __FUNCTION__, __LINE__);
         }
 
         XkbFreeClientMap(desc, XkbGBN_AllComponentsMask, True);
     } else {
-        logger(LOG_LEVEL_ERROR,
-                "%s [%u]: XkbGetKeyboard failed to locate a valid keyboard!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XkbGetKeyboard failed to locate a valid keyboard!\n",
                 __FUNCTION__, __LINE__);
     }
 

@@ -95,7 +95,7 @@ static uiohook_event event;
 static dispatcher_t dispatcher = NULL;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Setting new dispatch callback to %#p.\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
 			__FUNCTION__, __LINE__, dispatch_proc);
 
 	dispatcher = dispatch_proc;
@@ -104,13 +104,12 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 // Send out an event if a dispatcher was set.
 static inline void dispatch_event(uiohook_event *const event) {
 	if (dispatcher != NULL) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Dispatching event type %u.\n",
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
 				__FUNCTION__, __LINE__, event->type);
 
 		dispatcher(event);
-	}
-	else {
-		logger(LOG_LEVEL_WARN,	"%s [%u]: No dispatch callback set!\n",
+	} else {
+		logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
 				__FUNCTION__, __LINE__);
 	}
 }
@@ -211,7 +210,7 @@ void message_port_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity a
 			break;
 
 		default:
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled RunLoop activity! (%#X)\n",
+			logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
 					__FUNCTION__, __LINE__, (unsigned int) activity);
 			break;
 	}
@@ -273,7 +272,7 @@ static int start_message_port_runloop() {
 				
 				status = UIOHOOK_SUCCESS;
 			} else {
-				logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopSourceCreate failure!\n",
+				logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
 						__FUNCTION__, __LINE__);
 
 				status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
@@ -281,7 +280,7 @@ static int start_message_port_runloop() {
 
 			pthread_mutex_unlock(&msg_port_mutex);
 		} else {
-			logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
+			logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
 					__FUNCTION__, __LINE__);
 			
 			status = UIOHOOK_ERROR_CREATE_OBSERVER;
@@ -310,7 +309,7 @@ static void stop_message_port_runloop() {
 	observer = NULL;
 	src_msg_port = NULL;
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Successful.\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
 			__FUNCTION__, __LINE__);
 }
 #endif
@@ -344,7 +343,7 @@ static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity ac
 			break;
 
 		default:
-			logger(LOG_LEVEL_WARN,	"%s [%u]: Unhandled RunLoop activity! (%#X)\n",
+			logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
 					__FUNCTION__, __LINE__, (unsigned int) activity);
 			break;
 	}
@@ -364,7 +363,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 	event.data.keyboard.rawcode = keycode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X pressed. (%#X)\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X pressed. (%#X)\n",
 			__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
 	// Fire key pressed event.
@@ -377,12 +376,12 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 		bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
 		
 		if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using dispatch_sync_f for key typed events.\n", __FUNCTION__, __LINE__);
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n", __FUNCTION__, __LINE__);
 			(*dispatch_sync_f_f)(dispatch_main_queue_s, tis_message, &keycode_to_lookup);
 		}
 		#if ! defined(USE_CARBON_LEGACY) && defined(USE_COREFOUNDATION)
 		else if (! is_runloop_main) {
-			logger(LOG_LEVEL_DEBUG,	"%s [%u]: Using CFRunLoopWakeUp for key typed events.\n", __FUNCTION__, __LINE__);
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n", __FUNCTION__, __LINE__);
 
 			// Lock for code dealing with the main runloop.
 			pthread_mutex_lock(&msg_port_mutex);
@@ -413,7 +412,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 				pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
 			}
 			else {
-				logger(LOG_LEVEL_WARN,	"%s [%u]: Failed to signal RunLoop main!\n",
+				logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal RunLoop main!\n",
 						__FUNCTION__, __LINE__);
 			}
 
@@ -437,7 +436,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 			event.data.keyboard.rawcode = keycode;
 			event.data.keyboard.keychar = tis_message->buffer[i];
 
-			logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X typed. (%lc)\n",
+			logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X typed. (%lc)\n",
 					__FUNCTION__, __LINE__, event.data.keyboard.keycode,
 					(wint_t) event.data.keyboard.keychar);
 
@@ -461,7 +460,7 @@ static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref
 	event.data.keyboard.rawcode = keycode;
 	event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Key %#X released. (%#X)\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X released. (%#X)\n",
 			__FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
 	// Fire key released event.
@@ -472,7 +471,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 	CGEventFlags event_mask = CGEventGetFlags(event_ref);
 	UInt64 keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Modifiers Changed for key %#X. (%#X)\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Modifiers Changed for key %#X. (%#X)\n",
 			__FUNCTION__, __LINE__, (unsigned long) keycode, (unsigned int) event_mask);
 
 	/* Because Apple treats modifier keys differently than normal key
@@ -516,8 +515,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
 			unset_modifier_mask(MASK_META_L);
 			process_key_released(timestamp, event_ref);
 		}
-	}
-	else if (keycode == kVK_Option) {
+	} else if (keycode == kVK_Option) {
 		if (event_mask & kCGEventFlagMaskAlternate) {
 			// Process as a key pressed event.
 			set_modifier_mask(MASK_ALT_L);
@@ -769,7 +767,7 @@ static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_r
 	event.data.mouse.x = event_point.x;
 	event.data.mouse.y = event_point.y;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
 			__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 			event.data.mouse.x, event.data.mouse.y);
 
@@ -792,7 +790,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 	event.data.mouse.x = event_point.x;
 	event.data.mouse.y = event_point.y;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
 			__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 			event.data.mouse.x, event.data.mouse.y);
 
@@ -813,7 +811,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 		event.data.mouse.x = event_point.x;
 		event.data.mouse.y = event_point.y;
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
 				__FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
 				event.data.mouse.x, event.data.mouse.y);
 
@@ -853,7 +851,7 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 	event.data.mouse.x = event_point.x;
 	event.data.mouse.y = event_point.y;
 
-	logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse %s to %u, %u.\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
 			__FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
 			event.data.mouse.x, event.data.mouse.y);
 
@@ -924,7 +922,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 			event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
 		}
 
-		logger(LOG_LEVEL_INFO,	"%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
 				__FUNCTION__, __LINE__, event.data.wheel.type,
 				event.data.wheel.amount * event.data.wheel.rotation,
 				event.data.wheel.direction,
@@ -978,8 +976,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				// Add support for mouse 4 & 5.
 				if (button == 4) {
 					set_modifier_mask(MOUSE_BUTTON4);
-				}
-				else if (button == 5) {
+				} else if (button == 5) {
 					set_modifier_mask(MOUSE_BUTTON5);
 				}
 
@@ -1005,8 +1002,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				// Add support for mouse 4 & 5.
 				if (button == 4) {
 					unset_modifier_mask(MOUSE_BUTTON4);
-				}
-				else if (button == 5) {
+				} else if (button == 5) {
 					unset_modifier_mask(MOUSE_BUTTON5);
 				}
 
@@ -1065,9 +1061,8 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 	CGEventRef result_ref = NULL;
 	if (event.reserved ^ 0x01) {
 		result_ref = event_ref;
-	}
-	else {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Consuming the current event. (%#X) (%#p)\n",
+	} else {
+		logger(LOG_LEVEL_DEBUG, "%s [%u]: Consuming the current event. (%#X) (%#p)\n",
 				__FUNCTION__, __LINE__, type, event_ref);
 	}
 
@@ -1079,7 +1074,7 @@ UIOHOOK_API int hook_run() {
 
 	// Check for accessibility before we start the loop.
 	if (is_accessibility_enabled()) {
-		logger(LOG_LEVEL_DEBUG,	"%s [%u]: Accessibility API is enabled.\n",
+		logger(LOG_LEVEL_INFO, "%s [%u]: Accessibility API is enabled.\n",
 				__FUNCTION__, __LINE__);
 
 		do {
@@ -1096,28 +1091,28 @@ UIOHOOK_API int hook_run() {
 				#ifdef USE_DEBUG
 				CGEventMask event_mask = kCGEventMaskForAllEvents;
 				#else
-				CGEventMask event_mask =	CGEventMaskBit(kCGEventKeyDown) |
-											CGEventMaskBit(kCGEventKeyUp) |
-											CGEventMaskBit(kCGEventFlagsChanged) |
+				CGEventMask event_mask = CGEventMaskBit(kCGEventKeyDown) |
+                        CGEventMaskBit(kCGEventKeyUp) |
+                        CGEventMaskBit(kCGEventFlagsChanged) |
 
-											CGEventMaskBit(kCGEventLeftMouseDown) |
-											CGEventMaskBit(kCGEventLeftMouseUp) |
-											CGEventMaskBit(kCGEventLeftMouseDragged) |
+                        CGEventMaskBit(kCGEventLeftMouseDown) |
+                        CGEventMaskBit(kCGEventLeftMouseUp) |
+                        CGEventMaskBit(kCGEventLeftMouseDragged) |
 
-											CGEventMaskBit(kCGEventRightMouseDown) |
-											CGEventMaskBit(kCGEventRightMouseUp) |
-											CGEventMaskBit(kCGEventRightMouseDragged) |
+                        CGEventMaskBit(kCGEventRightMouseDown) |
+                        CGEventMaskBit(kCGEventRightMouseUp) |
+                        CGEventMaskBit(kCGEventRightMouseDragged) |
 
-											CGEventMaskBit(kCGEventOtherMouseDown) |
-											CGEventMaskBit(kCGEventOtherMouseUp) |
-											CGEventMaskBit(kCGEventOtherMouseDragged) |
+                        CGEventMaskBit(kCGEventOtherMouseDown) |
+                        CGEventMaskBit(kCGEventOtherMouseUp) |
+                        CGEventMaskBit(kCGEventOtherMouseDragged) |
 
-											CGEventMaskBit(kCGEventMouseMoved) |
-											CGEventMaskBit(kCGEventScrollWheel) |
+                        CGEventMaskBit(kCGEventMouseMoved) |
+                        CGEventMaskBit(kCGEventScrollWheel) |
 
-											// NOTE This event is undocumented and used
-											// for caps-lock release and multi-media keys.
-											CGEventMaskBit(NX_SYSDEFINED);
+                        // NOTE This event is undocumented and used
+                        // for caps-lock release and multi-media keys.
+                        CGEventMaskBit(NX_SYSDEFINED);
 				#endif
 				
 				// Create the event tap.
@@ -1130,18 +1125,18 @@ UIOHOOK_API int hook_run() {
 						NULL);
 
 				if (hook->port != NULL) {
-					logger(LOG_LEVEL_DEBUG,	"%s [%u]: CGEventTapCreate Successful.\n",
+					logger(LOG_LEVEL_DEBUG, "%s [%u]: CGEventTapCreate Successful.\n",
 							__FUNCTION__, __LINE__);
 					
 					// Create the runloop event source from the event tap.
 					hook->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, hook->port, 0);
 					if (hook->source != NULL) {
-						logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
+						logger(LOG_LEVEL_DEBUG, "%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
 								__FUNCTION__, __LINE__);
 						
 						event_loop = CFRunLoopGetCurrent();
 						if (event_loop != NULL) {
-							logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopGetCurrent successful.\n",
+							logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopGetCurrent successful.\n",
 									__FUNCTION__, __LINE__);
 							
 							// Create run loop observers.
@@ -1154,7 +1149,7 @@ UIOHOOK_API int hook_run() {
 									NULL);
 
 							if (hook->observer != NULL) {
-								logger(LOG_LEVEL_DEBUG,	"%s [%u]: CFRunLoopObserverCreate successful.\n",
+								logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate successful.\n",
 										__FUNCTION__, __LINE__);
 								
 								tis_message = (TISMessage *) calloc(1, sizeof(TISMessage));
@@ -1163,7 +1158,7 @@ UIOHOOK_API int hook_run() {
 										*(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
 										const char *dlError = dlerror();
 										if (dlError != NULL) {
-											logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+											logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
 													__FUNCTION__, __LINE__, dlError);
 										}
 
@@ -1173,7 +1168,7 @@ UIOHOOK_API int hook_run() {
 										dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
 										dlError = dlerror();
 										if (dlError != NULL) {
-											logger(LOG_LEVEL_DEBUG,	"%s [%u]: %s.\n",
+											logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
 													__FUNCTION__, __LINE__, dlError);
 										}
 										
@@ -1248,14 +1243,14 @@ UIOHOOK_API int hook_run() {
 							} else {
 								// We cant do a whole lot of anything if we cant
 								// create run loop observer.
-								logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopObserverCreate failure!\n",
+								logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
 										__FUNCTION__, __LINE__);
 
 								// Set the exit status.
 								status = UIOHOOK_ERROR_CREATE_OBSERVER;
 							}
 						} else {
-							logger(LOG_LEVEL_ERROR,	"%s [%u]: CFRunLoopGetCurrent failure!\n",
+							logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopGetCurrent failure!\n",
 									__FUNCTION__, __LINE__);
 
 							// Set the exit status.
@@ -1265,7 +1260,7 @@ UIOHOOK_API int hook_run() {
 						// Clean up the event source.
 						CFRelease(hook->source);
 					} else {
-						logger(LOG_LEVEL_ERROR,	"%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
+						logger(LOG_LEVEL_ERROR, "%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
 								__FUNCTION__, __LINE__);
 
 						// Set the exit status.
@@ -1276,7 +1271,7 @@ UIOHOOK_API int hook_run() {
 					CFMachPortInvalidate(hook->port);
 					CFRelease(hook->port);
 				} else {
-					logger(LOG_LEVEL_ERROR,	"%s [%u]: Failed to create event port!\n",
+					logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create event port!\n",
 							__FUNCTION__, __LINE__);
 
 					// Set the exit status.
@@ -1290,14 +1285,14 @@ UIOHOOK_API int hook_run() {
 			}
 		} while (restart_tap);
 	} else {
-		logger(LOG_LEVEL_ERROR,	"%s [%u]: Accessibility API is disabled!\n",
+		logger(LOG_LEVEL_ERROR, "%s [%u]: Accessibility API is disabled!\n",
 				__FUNCTION__, __LINE__);
 
 		// Set the exit status.
 		status = UIOHOOK_ERROR_AXAPI_DISABLED;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Something, something, something, complete.\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Something, something, something, complete.\n",
 			__FUNCTION__, __LINE__);
 
 	return status;
@@ -1319,7 +1314,7 @@ UIOHOOK_API int hook_stop() {
 		status = UIOHOOK_SUCCESS;
 	}
 
-	logger(LOG_LEVEL_DEBUG,	"%s [%u]: Status: %#X.\n",
+	logger(LOG_LEVEL_DEBUG, "%s [%u]: Status: %#X.\n",
 			__FUNCTION__, __LINE__, status);
 
 	return status;

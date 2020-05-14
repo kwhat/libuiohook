@@ -169,7 +169,7 @@ if (ENABLE_DEMO)
     install(TARGETS demo_hook demo_hook_async demo_post demo_properties DESTINATION bin)
 endif()
 
-if (ENABLE_TESTS)
+if (ENABLE_TEST)
     add_executable(uiohook_tests
         "./test/input_helper_test.c"
         "./test/system_properties_test.c"

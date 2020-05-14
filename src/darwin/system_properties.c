@@ -65,7 +65,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 
         // If there is no error and at least one monitor.
         if (status == kCGErrorSuccess && *count > 0) {
-            logger(LOG_LEVEL_INFO, "%s [%u]: CGGetActiveDisplayList: %li.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: CGGetActiveDisplayList: %li.\n",
                     __FUNCTION__, __LINE__, *count);
 
             // Allocate memory for the number of screens found.
@@ -92,7 +92,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                 }
             }
         } else {
-            logger(LOG_LEVEL_INFO, "%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
                     __FUNCTION__, __LINE__, status);
 
             size_t width = CGDisplayPixelsWide(CGMainDisplayID());
@@ -181,7 +181,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
                         value = (long) (900.0 * ((double) rate) / 1000.0 / 1000.0 / 1000.0 + 0.5);
                         successful = true;
 
-                        logger(LOG_LEVEL_INFO, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
@@ -201,7 +201,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
                 value = (long) rate * 15;
                 successful = true;
 
-                logger(LOG_LEVEL_INFO, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
                         __FUNCTION__, __LINE__, value);
             }
             
@@ -222,7 +222,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
             value = (long) rate * 15;
             successful = true;
 
-            logger(LOG_LEVEL_INFO, "%s [%u]: LMGetKeyRepThresh: %li.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: LMGetKeyRepThresh: %li.\n",
                     __FUNCTION__, __LINE__, value);
         }
     }
@@ -265,7 +265,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
                         value = (long) (900.0 * ((double) delay) / 1000.0 / 1000.0 / 1000.0 + 0.5);
                         successful = true;
 
-                        logger(LOG_LEVEL_INFO, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
@@ -286,7 +286,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
                 value = (long) delay * 15;
                 successful = true;
 
-                logger(LOG_LEVEL_INFO, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
                         __FUNCTION__, __LINE__, value);
             }
 
@@ -306,7 +306,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
             value = (long) delay * 15;
             successful = true;
 
-            logger(LOG_LEVEL_INFO, "%s [%u]: LMGetKeyThresh: %li.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: LMGetKeyThresh: %li.\n",
                     __FUNCTION__, __LINE__, value);
         }
     }
@@ -344,7 +344,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
                         value = denominator / gcf;
                         successful = true;
 
-                        logger(LOG_LEVEL_INFO, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
@@ -362,7 +362,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
             if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt64Type, &multiplier)) {
                 value = (long) multiplier;
 
-                logger(LOG_LEVEL_INFO, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
                         __FUNCTION__, __LINE__, value);
             }
 
@@ -389,7 +389,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
             if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &threshold)) {
                 value = (long) threshold;
 
-                logger(LOG_LEVEL_INFO, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
                         __FUNCTION__, __LINE__, value);
             }
 
@@ -430,7 +430,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
                         value = numerator / gcf;
                         successful = true;
 
-                        logger(LOG_LEVEL_INFO, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
@@ -471,7 +471,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
                         value = (long) (900.0 * ((double) time) / 1000.0 / 1000.0 / 1000.0 + 0.5);
                         successful = true;
 
-                        logger(LOG_LEVEL_INFO, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
@@ -497,7 +497,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
                  */
                 value = (long) (clicktime * 900);
 
-                logger(LOG_LEVEL_INFO, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
                         __FUNCTION__, __LINE__, value);
             }
 
@@ -517,7 +517,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
             value = (long) time * 15;
             successful = true;
 
-            logger(LOG_LEVEL_INFO, "%s [%u]: GetDblTime: %li.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: GetDblTime: %li.\n",
                     __FUNCTION__, __LINE__, value);
         }
     }

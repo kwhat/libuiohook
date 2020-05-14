@@ -220,7 +220,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
     event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
     event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-    logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X pressed. (%#X)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X pressed. (%#X)\n",
             __FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
     // Populate key pressed event.
@@ -245,7 +245,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
             event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
             event.data.keyboard.keychar = buffer[i];
 
-            logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X typed. (%lc)\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X typed. (%lc)\n",
                     __FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
 
             // Fire key typed event.
@@ -279,7 +279,7 @@ static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
     event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
     event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-    logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X released. (%#X)\n",
             __FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
     // Fire key released event.
@@ -357,7 +357,7 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     event.data.mouse.x = (int16_t) mshook->pt.x;
     event.data.mouse.y = (int16_t) mshook->pt.y;
 
-    logger(LOG_LEVEL_INFO, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
             event.data.mouse.x, event.data.mouse.y);
 
@@ -379,7 +379,7 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     event.data.mouse.x = (int16_t) mshook->pt.x;
     event.data.mouse.y = (int16_t) mshook->pt.y;
 
-    logger(LOG_LEVEL_INFO, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__, event.data.mouse.button,
             event.data.mouse.clicks,
             event.data.mouse.x, event.data.mouse.y);
@@ -401,7 +401,7 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
         event.data.mouse.x = (int16_t) mshook->pt.x;
         event.data.mouse.y = (int16_t) mshook->pt.y;
 
-        logger(LOG_LEVEL_INFO, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
                 __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
                 event.data.mouse.x, event.data.mouse.y);
 
@@ -448,7 +448,7 @@ static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
         event.data.mouse.x = (int16_t) mshook->pt.x;
         event.data.mouse.y = (int16_t) mshook->pt.y;
 
-        logger(LOG_LEVEL_INFO, "%s [%u]: Mouse %s to %u, %u.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
                 __FUNCTION__, __LINE__,  mouse_dragged ? "dragged" : "moved",
                 event.data.mouse.x, event.data.mouse.y);
 
@@ -487,7 +487,7 @@ static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
     // Set the direction based on what event was received.
     event.data.wheel.direction = direction;
 
-    logger(LOG_LEVEL_INFO, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
             __FUNCTION__, __LINE__, event.data.wheel.type,
             event.data.wheel.amount * event.data.wheel.rotation,
             event.data.wheel.direction,
@@ -646,7 +646,7 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
             break;
 
         default:
-            logger(LOG_LEVEL_INFO, "%s [%u]: Unhandled Windows window event: %#X.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled Windows window event: %#X.\n",
                     __FUNCTION__, __LINE__, event);
     }
 }
@@ -658,10 +658,10 @@ UIOHOOK_API int hook_run() {
     // Set the thread id we want to signal later.
     hook_thread_id = GetCurrentThreadId();
 
-    // Spot check the hInst incase the library was statically linked and DllMain
+    // Spot check the hInst in case the library was statically linked and DllMain
     // did not receive a pointer on load.
     if (hInst == NULL) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: hInst was not set by DllMain().\n",
+        logger(LOG_LEVEL_WARN, "%s [%u]: hInst was not set by DllMain().\n",
                 __FUNCTION__, __LINE__);
 
         hInst = GetModuleHandle(NULL);

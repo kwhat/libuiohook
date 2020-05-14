@@ -107,7 +107,7 @@ static uiohook_event event;
 static dispatcher_t dispatcher = NULL;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
-    logger(LOG_LEVEL_DEBUG,    "%s [%u]: Setting new dispatch callback to %#p.\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
             __FUNCTION__, __LINE__, dispatch_proc);
 
     dispatcher = dispatch_proc;
@@ -116,12 +116,12 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
 // Send out an event if a dispatcher was set.
 static inline void dispatch_event(uiohook_event *const event) {
     if (dispatcher != NULL) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: Dispatching event type %u.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
                 __FUNCTION__, __LINE__, event->type);
 
         dispatcher(event);
     } else {
-        logger(LOG_LEVEL_WARN,    "%s [%u]: No dispatch callback set!\n",
+        logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
                 __FUNCTION__, __LINE__);
     }
 }
@@ -309,7 +309,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             unsigned short int scancode = keycode_to_scancode(keycode);
 
             // TODO If you have a better suggestion for this ugly, let me know.
-            if        (scancode == VC_SHIFT_L) { set_modifier_mask(MASK_SHIFT_L); }
+            if      (scancode == VC_SHIFT_L)   { set_modifier_mask(MASK_SHIFT_L); }
             else if (scancode == VC_SHIFT_R)   { set_modifier_mask(MASK_SHIFT_R); }
             else if (scancode == VC_CONTROL_L) { set_modifier_mask(MASK_CTRL_L);  }
             else if (scancode == VC_CONTROL_R) { set_modifier_mask(MASK_CTRL_R);  }
@@ -352,7 +352,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             event.data.keyboard.rawcode = keysym;
             event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-            logger(LOG_LEVEL_INFO,    "%s [%u]: Key %#X pressed. (%#X)\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X pressed. (%#X)\n",
                     __FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
             // Fire key pressed event.
@@ -372,7 +372,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                     event.data.keyboard.rawcode = keysym;
                     event.data.keyboard.keychar = buffer[i];
 
-                    logger(LOG_LEVEL_INFO,    "%s [%u]: Key %#X typed. (%lc)\n",
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X typed. (%lc)\n",
                             __FUNCTION__, __LINE__, event.data.keyboard.keycode, (uint16_t) event.data.keyboard.keychar);
 
                     // Fire key typed event.
@@ -446,7 +446,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             event.data.keyboard.rawcode = keysym;
             event.data.keyboard.keychar = CHAR_UNDEFINED;
 
-            logger(LOG_LEVEL_INFO, "%s [%u]: Key %#X released. (%#X)\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X released. (%#X)\n",
                     __FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
 
             // Fire key released event.
@@ -521,7 +521,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                     event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
                 }
 
-                logger(LOG_LEVEL_INFO,    "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
                         __FUNCTION__, __LINE__, event.data.wheel.type,
                         event.data.wheel.amount * event.data.wheel.rotation,
                         event.data.wheel.direction,
@@ -612,7 +612,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                 }
                 #endif
 
-                logger(LOG_LEVEL_INFO,    "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
                         __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
                         event.data.mouse.x, event.data.mouse.y);
 
@@ -684,7 +684,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                 }
                 #endif
 
-                logger(LOG_LEVEL_INFO,    "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
                         __FUNCTION__, __LINE__, event.data.mouse.button,
                         event.data.mouse.clicks,
                         event.data.mouse.x, event.data.mouse.y);
@@ -719,7 +719,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                     }
                     #endif
 
-                    logger(LOG_LEVEL_INFO,    "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
                             __FUNCTION__, __LINE__, event.data.mouse.button,
                             event.data.mouse.clicks,
                             event.data.mouse.x, event.data.mouse.y);
@@ -775,7 +775,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             }
             #endif
 
-            logger(LOG_LEVEL_INFO,    "%s [%u]: Mouse %s to %i, %i. (%#X)\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i. (%#X)\n",
                     __FUNCTION__, __LINE__, hook->input.mouse.is_dragged ? "dragged" : "moved",
                     event.data.mouse.x, event.data.mouse.y, event.mask);
 
@@ -783,11 +783,11 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             dispatch_event(&event);
         } else {
             // In theory this *should* never execute.
-            logger(LOG_LEVEL_DEBUG,    "%s [%u]: Unhandled X11 event: %#X.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled X11 event: %#X.\n",
                     __FUNCTION__, __LINE__, (unsigned int) data->type);
         }
     } else {
-        logger(LOG_LEVEL_WARN,    "%s [%u]: Unhandled X11 hook category! (%#X)\n",
+        logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled X11 hook category! (%#X)\n",
                 __FUNCTION__, __LINE__, recorded_data->category);
     }
 
@@ -859,7 +859,7 @@ static inline int xrecord_block() {
     }
     #endif
     else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: XRecordEnableContext failure!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XRecordEnableContext failure!\n",
             __FUNCTION__, __LINE__);
 
         #ifdef USE_XRECORD_ASYNC
@@ -889,7 +889,7 @@ static int xrecord_alloc() {
 
     hook->data.range = XRecordAllocRange();
     if (hook->data.range != NULL) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: XRecordAllocRange successful.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: XRecordAllocRange successful.\n",
                 __FUNCTION__, __LINE__);
 
         hook->data.range->device_events.first = KeyPress;
@@ -900,7 +900,7 @@ static int xrecord_alloc() {
         // See: http://www.x.org/releases/X11R7.6/doc/libXtst/recordlib.txt
         hook->ctrl.context = XRecordCreateContext(hook->data.display, XRecordFromServerTime, &clients, 1, &hook->data.range, 1);
         if (hook->ctrl.context != 0) {
-            logger(LOG_LEVEL_DEBUG,    "%s [%u]: XRecordCreateContext successful.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: XRecordCreateContext successful.\n",
                     __FUNCTION__, __LINE__);
 
             // Block until hook_stop() is called.
@@ -909,7 +909,7 @@ static int xrecord_alloc() {
             // Free up the context if it was set.
             XRecordFreeContext(hook->data.display, hook->ctrl.context);
         } else {
-            logger(LOG_LEVEL_ERROR,    "%s [%u]: XRecordCreateContext failure!\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: XRecordCreateContext failure!\n",
                     __FUNCTION__, __LINE__);
 
             // Set the exit status.
@@ -919,7 +919,7 @@ static int xrecord_alloc() {
         // Free the XRecord range.
         XFree(hook->data.range);
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: XRecordAllocRange failure!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XRecordAllocRange failure!\n",
                 __FUNCTION__, __LINE__);
 
         // Set the exit status.
@@ -935,12 +935,12 @@ static int xrecord_query() {
     // Check to make sure XRecord is installed and enabled.
     int major, minor;
     if (XRecordQueryVersion(hook->ctrl.display, &major, &minor) != 0) {
-        logger(LOG_LEVEL_INFO,    "%s [%u]: XRecord version: %i.%i.\n",
+        logger(LOG_LEVEL_INFO, "%s [%u]: XRecord version: %i.%i.\n",
                 __FUNCTION__, __LINE__, major, minor);
 
         status = xrecord_alloc();
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: XRecord is not currently available!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XRecord is not currently available!\n",
                 __FUNCTION__, __LINE__);
 
         status = UIOHOOK_ERROR_X_RECORD_NOT_FOUND;
@@ -959,15 +959,15 @@ static int xrecord_start() {
     // NOTE This display must be opened on the same thread as XRecord.
     hook->data.display = XOpenDisplay(NULL);
     if (hook->ctrl.display != NULL && hook->data.display != NULL) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: XOpenDisplay successful.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: XOpenDisplay successful.\n",
                 __FUNCTION__, __LINE__);
 
         bool is_auto_repeat = enable_key_repeate();
         if (is_auto_repeat) {
-            logger(LOG_LEVEL_DEBUG,    "%s [%u]: Successfully enabled detectable autorepeat.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Successfully enabled detectable auto-repeat.\n",
                     __FUNCTION__, __LINE__);
         } else {
-            logger(LOG_LEVEL_WARN,    "%s [%u]: Could not enable detectable auto-repeat!\n",
+            logger(LOG_LEVEL_WARN, "%s [%u]: Could not enable detectable auto-repeat!\n",
                     __FUNCTION__, __LINE__);
         }
 
@@ -982,11 +982,11 @@ static int xrecord_start() {
             if (context != NULL) {
                 hook->input.context = xkb_context_ref(context);
             } else {
-                logger(LOG_LEVEL_ERROR,    "%s [%u]: xkb_context_new failure!\n",
+                logger(LOG_LEVEL_ERROR, "%s [%u]: xkb_context_new failure!\n",
                         __FUNCTION__, __LINE__);
             }
         } else {
-            logger(LOG_LEVEL_ERROR,    "%s [%u]: xcb_connect failure! (%d)\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: xcb_connect failure! (%d)\n",
                     __FUNCTION__, __LINE__, xcb_status);
         }
         #endif
@@ -1011,7 +1011,7 @@ static int xrecord_start() {
         }
         #endif
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: XOpenDisplay failure!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XOpenDisplay failure!\n",
                 __FUNCTION__, __LINE__);
 
         status = UIOHOOK_ERROR_X_OPEN_DISPLAY;
@@ -1050,13 +1050,13 @@ UIOHOOK_API int hook_run() {
         free(hook);
         hook = NULL;
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: Failed to allocate memory for hook structure!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for hook structure!\n",
                 __FUNCTION__, __LINE__);
 
         status = UIOHOOK_ERROR_OUT_OF_MEMORY;
     }
 
-    logger(LOG_LEVEL_DEBUG,    "%s [%u]: Something, something, something, complete.\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Something, something, something, complete.\n",
             __FUNCTION__, __LINE__);
 
     return status;
@@ -1087,7 +1087,7 @@ UIOHOOK_API int hook_stop() {
                     status = UIOHOOK_SUCCESS;
                 }
             } else {
-                logger(LOG_LEVEL_ERROR,    "%s [%u]: XRecordGetContext failure!\n",
+                logger(LOG_LEVEL_ERROR, "%s [%u]: XRecordGetContext failure!\n",
                         __FUNCTION__, __LINE__);
 
                 status = UIOHOOK_ERROR_X_RECORD_GET_CONTEXT;
@@ -1095,7 +1095,7 @@ UIOHOOK_API int hook_stop() {
 
             free(state);
         } else {
-            logger(LOG_LEVEL_ERROR,    "%s [%u]: Failed to allocate memory for XRecordState!\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for XRecordState!\n",
                     __FUNCTION__, __LINE__);
 
             status = UIOHOOK_ERROR_OUT_OF_MEMORY;

@@ -27,7 +27,7 @@ $ cmake -S .. -DENABLE_DEMO=ON -DENABLE_SHARED=ON -DCMAKE_INSTALL_PREFIX=../dist
 $ cmake --build . --parallel 2 --target install  
 ```
 
-### Options
+### Configuration
 
 |           | option                        | description            | default |
 | --------- | ----------------------------- | ---------------------- | ------- | 
@@ -36,7 +36,7 @@ $ cmake --build . --parallel 2 --target install
 |           | ENABLE_QUIET:BOOL             | copyright suppression  | OFF     |
 |           | ENABLE_SHARED:BOOL            | shared library         | ON      |
 |           | ENABLE_STATIC:BOOL            | static library         | OFF     |
-|           | ENABLE_TEST:BOOL              | testing                | ON      |
+|           | ENABLE_TEST:BOOL              | testing                | OFF     |
 | __OSX__   | USE_APPLICATION_SERVICES:BOOL | framework              | ON      |
 |           | USE_IOKIT:BOOL                | framework              | ON      |
 |           | USE_OBJC:BOOL                 | obj-c api              | ON      |

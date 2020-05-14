@@ -74,7 +74,7 @@ static void settings_cleanup_proc(void *arg) {
 static void *settings_thread_proc(void *arg) {
     Display *settings_disp = XOpenDisplay(XDisplayName(NULL));;
     if (settings_disp != NULL) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay success.");
 
         pthread_cleanup_push(settings_cleanup_proc, settings_disp);
@@ -92,7 +92,7 @@ static void *settings_thread_proc(void *arg) {
                 XNextEvent(settings_disp, &ev);
 
                 if (ev.type == event_base + RRScreenChangeNotifyMask) {
-                    logger(LOG_LEVEL_DEBUG,    "%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
                             __FUNCTION__, __LINE__);
 
                     pthread_mutex_lock(&xrandr_mutex);
@@ -102,12 +102,12 @@ static void *settings_thread_proc(void *arg) {
 
                     xrandr_resources = XRRGetScreenResources(settings_disp, root);
                     if (xrandr_resources == NULL) {
-                        logger(LOG_LEVEL_WARN,    "%s [%u]: XRandR could not get screen resources!\n",
+                        logger(LOG_LEVEL_WARN, "%s [%u]: XRandR could not get screen resources!\n",
                                 __FUNCTION__, __LINE__);
                     }
                     pthread_mutex_unlock(&xrandr_mutex);
                 } else {
-                    logger(LOG_LEVEL_WARN,    "%s [%u]: XRandR is not currently available!\n",
+                    logger(LOG_LEVEL_WARN, "%s [%u]: XRandR is not currently available!\n",
                             __FUNCTION__, __LINE__);
                 }
             }
@@ -117,7 +117,7 @@ static void *settings_thread_proc(void *arg) {
         pthread_cleanup_pop(1);
 
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: XOpenDisplay failure!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XOpenDisplay failure!\n",
                 __FUNCTION__, __LINE__);
     }
 
@@ -191,7 +191,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 
                     XRRFreeCrtcInfo(crtc_info);
                 } else {
-                    logger(LOG_LEVEL_WARN,    "%s [%u]: XRandr failed to return crtc information! (%#X)\n",
+                    logger(LOG_LEVEL_WARN, "%s [%u]: XRandr failed to return crtc information! (%#X)\n",
                             __FUNCTION__, __LINE__, xrandr_resources->crtcs[i]);
                 }
             }
@@ -232,7 +232,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
             successful = XkbGetAutoRepeatRate(properties_disp, XkbUseCoreKbd, &delay, &rate);
 
             if (successful) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
                         __FUNCTION__, __LINE__, rate);
             }
         }
@@ -243,7 +243,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
             XF86MiscKbdSettings kb_info;
             successful = (bool) XF86MiscGetKbdSettings(properties_disp, &kb_info);
             if (successful) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
                         __FUNCTION__, __LINE__, kbdinfo.rate);
 
                 delay = (unsigned int) kbdinfo.delay;
@@ -252,7 +252,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
         }
         #endif
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
 
@@ -275,7 +275,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
             successful = XkbGetAutoRepeatRate(properties_disp, XkbUseCoreKbd, &delay, &rate);
 
             if (successful) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
                         __FUNCTION__, __LINE__, delay);
             }
         }
@@ -286,7 +286,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
             XF86MiscKbdSettings kb_info;
             successful = (bool) XF86MiscGetKbdSettings(properties_disp, &kb_info);
             if (successful) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
                         __FUNCTION__, __LINE__, kbdinfo.delay);
 
                 delay = (unsigned int) kbdinfo.delay;
@@ -295,7 +295,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
         }
         #endif
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
 
@@ -314,13 +314,13 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     if (properties_disp != NULL) {
         XGetPointerControl(properties_disp, &accel_numerator, &accel_denominator, &threshold);
         if (accel_denominator >= 0) {
-            logger(LOG_LEVEL_INFO,    "%s [%u]: XGetPointerControl: %i.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, accel_denominator);
 
             value = (long int) accel_denominator;
         }
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
 
@@ -335,13 +335,13 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
     if (properties_disp != NULL) {
         XGetPointerControl(properties_disp, &accel_numerator, &accel_denominator, &threshold);
         if (threshold >= 0) {
-            logger(LOG_LEVEL_INFO,    "%s [%u]: XGetPointerControl: %i.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, threshold);
 
             value = (long int) threshold;
         }
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
 
@@ -356,13 +356,13 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
     if (properties_disp != NULL) {
         XGetPointerControl(properties_disp, &accel_numerator, &accel_denominator, &threshold);
         if (accel_numerator >= 0) {
-            logger(LOG_LEVEL_INFO,    "%s [%u]: XGetPointerControl: %i.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, accel_numerator);
 
             value = (long int) accel_numerator;
         }
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
 
@@ -382,14 +382,14 @@ UIOHOOK_API long int hook_get_multi_click_time() {
             // Fall back to the X Toolkit extension if available and other efforts failed.
             click_time = XtGetMultiClickTime(xt_disp);
             if (click_time >= 0) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: XtGetMultiClickTime: %i.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: XtGetMultiClickTime: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
 
                 successful = true;
             }
         }
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
     #endif
@@ -400,7 +400,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
         if (!successful) {
             char *xprop = XGetDefault(properties_disp, "*", "multiClickTime");
             if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: X default 'multiClickTime' property: %i.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'multiClickTime' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
 
                 successful = true;
@@ -410,14 +410,14 @@ UIOHOOK_API long int hook_get_multi_click_time() {
         if (!successful) {
             char *xprop = XGetDefault(properties_disp, "OpenWindows", "MultiClickTimeout");
             if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
-                logger(LOG_LEVEL_INFO,    "%s [%u]: X default 'MultiClickTimeout' property: %i.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'MultiClickTimeout' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
 
                 successful = true;
             }
         }
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     }
 
@@ -437,10 +437,10 @@ void on_library_load() {
     // Open local display.
     properties_disp = XOpenDisplay(XDisplayName(NULL));
     if (properties_disp == NULL) {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     } else {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: %s\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay success.");
     }
 
@@ -451,10 +451,10 @@ void on_library_load() {
 
     pthread_t settings_thread_id;
     if (pthread_create(&settings_thread_id, &settings_thread_attr, settings_thread_proc, NULL) == 0) {
-        logger(LOG_LEVEL_DEBUG,    "%s [%u]: Successfully created settings thread.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Successfully created settings thread.\n",
                 __FUNCTION__, __LINE__);
     } else {
-        logger(LOG_LEVEL_ERROR,    "%s [%u]: Failed to create settings thread!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create settings thread!\n",
                 __FUNCTION__, __LINE__);
     }
 

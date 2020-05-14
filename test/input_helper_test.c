@@ -32,7 +32,11 @@ static char * test_bidirectional_keycode() {
         if ((i > 6 && i < 16) || i > 18) {
         #endif
             // Lookup the virtual scancode...
+            #ifdef _WIN32
+            uint16_t scancode = keycode_to_scancode(i, 0x0);
+            #else
             uint16_t scancode = keycode_to_scancode(i);
+            #endif
             printf("\tproduced scancode\t%3u\t[0x%04X]\n", scancode, scancode);
 
             // Lookup the native keycode...
@@ -68,7 +72,11 @@ static char * test_bidirectional_scancode() {
         printf("\treproduced keycode\t%3u\t[0x%04X]\n", keycode, keycode);
 
         // Lookup the virtual scancode...
+        #ifdef _WIN32
+        uint16_t scancode = keycode_to_scancode(keycode, 0x0);
+        #else
         uint16_t scancode = keycode_to_scancode(keycode);
+        #endif
         printf("\tproduced scancode\t%3u\t[0x%04X]\n", scancode, scancode);
 
         // If the returned virtual scancode > 127, we used an offset to

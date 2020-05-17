@@ -30,9 +30,6 @@ static bool logger_proc(unsigned int level, const char *format, ...) {
     
     va_list args;
     switch (level) {
-        #ifdef USE_DEBUG
-        case LOG_LEVEL_DEBUG:
-        #endif
         case LOG_LEVEL_INFO:
             va_start(args, format);
             status = vfprintf(stdout, format, args) >= 0;

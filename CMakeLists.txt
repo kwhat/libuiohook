@@ -84,18 +84,8 @@ endfunction()
 # Common Options
 option(ENABLE_SHARED "Shared library (default: ON)" ON)
 option(ENABLE_STATIC "Static library (default: OFF)" OFF)
-option(ENABLE_DEBUG "Debug output (default: OFF)" OFF)
 option(ENABLE_DEMO "Demo applications (default: OFF)" OFF)
 option(ENABLE_TEST "Testing (default: OFF)" OFF)
-option(ENABLE_QUIET "Copyright suppression (default: OFF)" OFF)
-
-if (ENABLE_QUIET)
-    add_definitions("-DUSE_QUIET")
-endif()
-
-if (ENABLE_DEBUG)
-    add_definitions("-DUSE_DEBUG")
-endif()
 
 if (WIN32 OR WIN64)
     set(UIOHOOK_SOURCE_DIR "windows")
@@ -113,6 +103,8 @@ add_library(uiohook OBJECT
     "./src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
 set_property(TARGET uiohook PROPERTY POSITION_INDEPENDENT_CODE 1)
+set_property(TARGET uiohook PROPERTY C_STANDARD 99)
+set_property(TARGET uiohook PROPERTY C_STANDARD_REQUIRED ON)
 
 target_include_directories(uiohook
     PUBLIC
@@ -165,6 +157,8 @@ if (ENABLE_DEMO)
         "demo_post"
         "demo_properties"
     )
+    set_property(TARGET all_demos PROPERTY C_STANDARD 99)
+    set_property(TARGET all_demos PROPERTY C_STANDARD_REQUIRED ON)
 
     install(TARGETS demo_hook demo_hook_async demo_post demo_properties DESTINATION bin)
 endif()

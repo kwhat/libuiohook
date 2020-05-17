@@ -89,9 +89,6 @@
 /* Enable CoreFoundation framework */
 #cmakedefine USE_COREFOUNDATION
 
-/* Enable Debug Output */
-#cmakedefine USE_DEBUG
-
 /* Enable generic Linux input driver */
 #cmakedefine USE_EVDEV
 
@@ -100,12 +97,6 @@
 
 /* Enable objective-c */
 #cmakedefine USE_OBJC
-
-/* Enable Copyright Suppression */
-#cmakedefine USE_QUIET
-
-/* Enable support for weakly-linked symbols */
-#cmakedefine USE_WEAK_IMPORT
 
 /* Enable XFree86-Misc X Extension */
 #cmakedefine USE_XF86MISC

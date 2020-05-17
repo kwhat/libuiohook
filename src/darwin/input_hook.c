@@ -1031,14 +1031,6 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 			process_mouse_wheel(timestamp, event_ref);
 			break;
 
-
-		#ifdef USE_DEBUG
-		case kCGEventNull:
-			logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring kCGEventNull.\n",
-					__FUNCTION__, __LINE__);
-			break;
-		#endif
-
 		default:
 			// Check for an old OS X bug where the tap seems to timeout for no reason.
 			// See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
@@ -1049,8 +1041,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 				// We need to restart the tap!
 				restart_tap = true;
 				CFRunLoopStop(CFRunLoopGetCurrent());
-			}
-			else {
+			} else {
 				// In theory this *should* never execute.
 				logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled Darwin event: %#X.\n",
 						__FUNCTION__, __LINE__, (unsigned int) type);
@@ -1088,9 +1079,6 @@ UIOHOOK_API int hook_run() {
 			hook_info *hook = malloc(sizeof(hook_info));
 			if (hook != NULL) {
 				// Setup the event mask to listen for.
-				#ifdef USE_DEBUG
-				CGEventMask event_mask = kCGEventMaskForAllEvents;
-				#else
 				CGEventMask event_mask = CGEventMaskBit(kCGEventKeyDown) |
                         CGEventMaskBit(kCGEventKeyUp) |
                         CGEventMaskBit(kCGEventFlagsChanged) |
@@ -1113,8 +1101,7 @@ UIOHOOK_API int hook_run() {
                         // NOTE This event is undocumented and used
                         // for caps-lock release and multi-media keys.
                         CGEventMaskBit(NX_SYSDEFINED);
-				#endif
-				
+
 				// Create the event tap.
 				hook->port = CGEventTapCreate(
 						kCGSessionEventTap,			// kCGHIDEventTap

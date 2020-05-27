@@ -1,7 +1,7 @@
 libuiohook
 ==========
 
-![build-binaires](https://github.com/kwhat/libuiohook/workflows/build-binaires/badge.svg)
+![Nightly Build](https://github.com/kwhat/libuiohook/workflows/Nightly%20Build/badge.svg)
 
 A multi-platform C library to provide global keyboard and mouse hooks from userland.
 

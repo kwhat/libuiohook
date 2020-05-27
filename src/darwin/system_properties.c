@@ -24,7 +24,7 @@
 #include <Carbon/Carbon.h>
 #endif
 
-#if defined(USE_COREFOUNDATION) || defined(USE_IOKIT)
+#if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
@@ -148,7 +148,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
  * CharSec = 66 / (MS / 15)
  */
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
-    #if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
+    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES || defined USE_CARBON_LEGACY
     bool successful = false;
     SInt64 rate;
     #endif
@@ -192,7 +192,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
     }
     #endif
 
-    #ifdef USE_COREFOUNDATION
+    #ifdef USE_APPLICATION_SERVICES
     if (!successful) {
         CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("KeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         if (pref_val != NULL) {
@@ -232,7 +232,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 }
 
 UIOHOOK_API long int hook_get_auto_repeat_delay() {
-    #if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
+    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES || defined USE_CARBON_LEGACY
     bool successful = false;
     SInt64 delay;
     #endif
@@ -276,7 +276,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
     }
     #endif
 
-    #ifdef USE_COREFOUNDATION
+    #ifdef USE_APPLICATION_SERVICES
     if (!successful) {
         CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("InitialKeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         if (pref_val != NULL) {
@@ -316,7 +316,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 }
 
 UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
-    #if defined USE_IOKIT || defined USE_COREFOUNDATION
+    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES
     bool successful = false;
     SInt64 multiplier;
     #endif
@@ -355,7 +355,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     }
     #endif
 
-    #ifdef USE_COREFOUNDATION
+    #ifdef USE_APPLICATION_SERVICES
     if (!successful) {
         CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.scaling"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         if (pref_val != NULL) {
@@ -375,14 +375,14 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 }
 
 UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
-    #if defined USE_COREFOUNDATION
+    #if defined USE_APPLICATION_SERVICES
     bool successful = false;
     SInt32 threshold;
     #endif
 
     long int value = -1;
 
-    #ifdef USE_COREFOUNDATION
+    #ifdef USE_APPLICATION_SERVICES
     if (!successful) {
         CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("mouseDriverMaxSpeed"), CFSTR("com.apple.universalaccess"), kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         if (pref_val != NULL) {
@@ -445,7 +445,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 }
 
 UIOHOOK_API long int hook_get_multi_click_time() {
-    #if defined USE_IOKIT || defined USE_COREFOUNDATION || defined USE_CARBON_LEGACY
+    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES || defined USE_CARBON_LEGACY
     bool successful = false;
     #if defined USE_IOKIT || defined USE_CARBON_LEGACY
     // This needs to be defined only if we have USE_IOKIT or USE_CARBON_LEGACY.
@@ -482,7 +482,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     }
     #endif
 
-    #ifdef USE_COREFOUNDATION
+    #ifdef USE_APPLICATION_SERVICES
     if (!successful) {
         Float32 clicktime;
         CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.doubleClickThreshold"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);

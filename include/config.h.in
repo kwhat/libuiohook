@@ -87,7 +87,7 @@
 #cmakedefine USE_CARBON_LEGACY
 
 /* Enable CoreFoundation framework */
-#cmakedefine USE_COREFOUNDATION
+#cmakedefine USE_APPLICATION_SERVICES
 
 /* Enable generic Linux input driver */
 #cmakedefine USE_EVDEV

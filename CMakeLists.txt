@@ -22,12 +22,12 @@ project(libuiohook VERSION 1.2.0 LANGUAGES C)
 # Generates a demo project
 function (register_demo dname)
     add_executable("${dname}" "./demo/${dname}.c")
-    if (ENABLE_SHARED)
-        add_dependencies("${dname}" shared)
-        target_link_libraries("${dname}" shared)
-    elseif (ENABLE_STATIC)
-        add_dependencies("${dname}" static)
-        target_link_libraries("${dname}" static)
+    if (UIOHOOK_ENABLE_SHARED)
+        add_dependencies("${dname}" uiohook_shared)
+        target_link_libraries("${dname}" uiohook_shared)
+    elseif (UIOHOOK_ENABLE_STATIC)
+        add_dependencies("${dname}" uiohook_static)
+        target_link_libraries("${dname}" uiohook_static)
     else()
         add_dependencies("${dname}" uiohook)
         target_link_libraries("${dname}" uiohook)
@@ -52,19 +52,19 @@ function (macro_option opt desc default)
     endif()
 endfunction()
 
-# Registers a dependency for the static, shared and normal library
+# Registers a dependency for the uiohook_static, uiohook_shared and normal library
 function (register_library lib include)
     target_link_libraries(uiohook ${lib})
     target_include_directories(uiohook PRIVATE ${include})
 
-    if (ENABLE_STATIC)
-        target_link_libraries(static ${lib})
-        target_include_directories(static PRIVATE ${include})
+    if (UIOHOOK_ENABLE_STATIC)
+        target_link_libraries(uiohook_static ${lib})
+        target_include_directories(uiohook_static PRIVATE ${include})
     endif()
 
-    if (ENABLE_SHARED)
-        target_link_libraries(shared ${lib})
-        target_include_directories(shared PRIVATE ${include})
+    if (UIOHOOK_ENABLE_SHARED)
+        target_link_libraries(uiohook_shared ${lib})
+        target_include_directories(uiohook_shared PRIVATE ${include})
     endif()
 
     message(STATUS "Registering ${lib} ${include}")
@@ -82,10 +82,10 @@ function (x11_option opt val desc default)
 endfunction()
 
 # Common Options
-option(ENABLE_SHARED "Shared library (default: ON)" ON)
-option(ENABLE_STATIC "Static library (default: OFF)" OFF)
-option(ENABLE_DEMO "Demo applications (default: OFF)" OFF)
-option(ENABLE_TEST "Testing (default: OFF)" OFF)
+option(UIOHOOK_ENABLE_SHARED "Shared library (default: ON)" ON)
+option(UIOHOOK_ENABLE_STATIC "Static library (default: OFF)" OFF)
+option(UIOHOOK_ENABLE_DEMO "Demo applications (default: OFF)" OFF)
+option(UIOHOOK_ENABLE_TEST "Testing (default: OFF)" OFF)
 
 if (WIN32 OR WIN64)
     set(UIOHOOK_SOURCE_DIR "windows")
@@ -117,21 +117,21 @@ target_include_directories(uiohook
 
 include(GNUInstallDirs)
 
-if (ENABLE_SHARED)
-    add_library(shared SHARED $<TARGET_OBJECTS:uiohook>)
-    target_link_libraries(shared "${LIBS}")
-    set_target_properties(shared PROPERTIES OUTPUT_NAME "uiohook")
-    install(TARGETS shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
+if (UIOHOOK_ENABLE_SHARED)
+    add_library(uiohook_shared SHARED $<TARGET_OBJECTS:uiohook>)
+    target_link_libraries(uiohook_shared "${LIBS}")
+    set_target_properties(uiohook_shared PROPERTIES OUTPUT_NAME "uiohook")
+    install(TARGETS uiohook_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-if (ENABLE_STATIC)
-    add_library(static STATIC $<TARGET_OBJECTS:uiohook>)
-    target_link_libraries(static "${LIBS}")
-    set_target_properties(static PROPERTIES OUTPUT_NAME "uiohook")
-    install(TARGETS static DESTINATION ${CMAKE_INSTALL_LIBDIR})
+if (UIOHOOK_ENABLE_STATIC)
+    add_library(uiohook_static STATIC $<TARGET_OBJECTS:uiohook>)
+    target_link_libraries(uiohook_static "${LIBS}")
+    set_target_properties(uiohook_static PROPERTIES OUTPUT_NAME "uiohook")
+    install(TARGETS uiohook_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
-if (ENABLE_SHARED OR ENABLE_STATIC)
+if (UIOHOOK_ENABLE_SHARED OR UIOHOOK_ENABLE_STATIC)
     install(FILES ./include/uiohook.h DESTINATION include)
 endif()
 
@@ -140,8 +140,8 @@ if (UNIX)
     target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-if (ENABLE_DEMO)
-    if (ENABLE_SHARED)
+if (UIOHOOK_ENABLE_DEMO)
+    if (UIOHOOK_ENABLE_SHARED)
         set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
         set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     endif()
@@ -163,7 +163,7 @@ if (ENABLE_DEMO)
     install(TARGETS demo_hook demo_hook_async demo_post demo_properties DESTINATION bin)
 endif()
 
-if (ENABLE_TEST)
+if (UIOHOOK_ENABLE_TEST)
     add_executable(uiohook_tests
         "./test/input_helper_test.c"
         "./test/system_properties_test.c"
@@ -181,7 +181,7 @@ if (UNIX AND NOT APPLE)
     register_library("${X11_LIBRARIES}" "${X11_INCLUDE_DIRS}")
     add_definitions(${X11_DEFINITIONS})
     set(COMPILE_LIBRARIES "-lX11")
-    
+
     x11_option(USE_XKB Xkb "X Keyboard Extension (default: ON)" ON)
     x11_option(USE_XKB_FILE xkbfile "X Keyboard File Extension (default: ON)" ON)
 
@@ -201,7 +201,7 @@ if (UNIX AND NOT APPLE)
     endif()
 
 
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/module")
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/module")
 
     if (USE_XCB)
         find_package(XCB REQUIRED)
@@ -232,7 +232,7 @@ if (UNIX AND NOT APPLE)
         set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxkbcommon-x11")
     endif()
 
-    if (ENABLE_TESTS)
+    if (UIOHOOK_ENABLE_TEST)
         target_link_libraries(uiohook_tests ${X11_LIBRARIES})
         target_include_directories(uiohook_tests PRIVATE ${X11_INCLUDE_DIRS})
     endif()

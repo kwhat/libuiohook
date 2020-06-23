@@ -116,7 +116,9 @@ target_include_directories(uiohook
         ${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}
 )
 
-include(GNUInstallDirs)
+if (UIOHOOK_ENABLE_INSTALL)
+    include(GNUInstallDirs)
+endif()
 
 if (UIOHOOK_ENABLE_SHARED)
     add_library(uiohook_shared SHARED $<TARGET_OBJECTS:uiohook>)

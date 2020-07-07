@@ -140,6 +140,10 @@ void dispatch_proc(uiohook_event * const event) {
             if (event->data.keyboard.keycode == VC_ESCAPE) {
                 int status = hook_stop();
                 switch (status) {
+                    case UIOHOOK_SUCCESS:
+                        // Everything is ok.
+                        break;
+
                     // System level errors.
                     case UIOHOOK_ERROR_OUT_OF_MEMORY:
                         logger_proc(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);

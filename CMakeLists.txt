@@ -169,7 +169,7 @@ if (UIOHOOK_ENABLE_DEMO)
     )
     set_property(TARGET all_demos PROPERTY C_STANDARD 99)
     set_property(TARGET all_demos PROPERTY C_STANDARD_REQUIRED ON)
-    
+
     if (UIOHOOK_ENABLE_INSTALL)
         install(TARGETS demo_hook demo_hook_async demo_post demo_properties DESTINATION bin)
     endif()
@@ -310,7 +310,6 @@ elseif (APPLE)
 endif()
 
 if (UNIX)
-    set(WTF_FU "testing")
     configure_file("pc/uiohook.pc.in" "${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pc" @ONLY)
     if (UIOHOOK_ENABLE_INSTALL)
         install(FILES "${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
@@ -319,9 +318,9 @@ endif()
 
 include_directories("./include")
 
-target_include_directories("uiohook" PUBLIC
-    "./include"
-    "./src")
+target_include_directories("uiohook"
+    PUBLIC "./src"
+    INTERFACE "./include")
 
 set_target_properties("uiohook" PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 if(MSVC AND MSVC_VERSION LESS "1900")
@@ -331,4 +330,3 @@ else()
     set_target_properties("uiohook" PROPERTIES COMPILE_FLAGS
         "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
 endif()
-

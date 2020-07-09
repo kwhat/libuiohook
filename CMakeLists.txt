@@ -202,7 +202,7 @@ if (UNIX AND NOT APPLE)
     endif()
 
 
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/module")
+    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
     if (USE_XCB)
         find_package(XCB REQUIRED)
@@ -296,6 +296,9 @@ elseif (APPLE)
             message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
         endif()
     endif()
+elseif (WIN32)
+    find_library(ADVAPI32 Advapi32)
+    register_library(${ADVAPI32} ${ADVAPI32})
 endif()
 
 if (UNIX)

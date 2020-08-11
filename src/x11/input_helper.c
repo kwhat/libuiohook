@@ -35,12 +35,12 @@ static bool is_evdev = false;
 #include <X11/XKBlib.h>
 static XkbDescPtr keyboard_map;
 
-#ifdef USE_XKBCOMMON
+#ifdef USE_XKB_COMMON
 #include <X11/Xlib-xcb.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
 
-#ifdef USE_XKBFILE
+#ifdef USE_XKB_FILE
 #include <X11/extensions/XKBrules.h>
 static struct xkb_rule_names xkb_names = {
     .rules = "base",
@@ -1640,7 +1640,7 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
     return keycode;
 }
 
-#ifdef USE_XKBCOMMON
+#ifdef USE_XKB_COMMON
 struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection) {
     struct xkb_keymap *keymap = NULL;
     struct xkb_state *state = NULL;
@@ -1650,7 +1650,7 @@ struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_
         keymap = xkb_x11_keymap_new_from_device(context, connection, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
         state = xkb_x11_state_new_from_device(keymap, connection, device_id);
     }
-    #ifdef USE_XKBFILE
+    #ifdef USE_XKB_FILE
     else {
         // Evdev fallback,
         logger(LOG_LEVEL_WARN, "%s [%u]: Unable to retrieve core keyboard device id! (%d)\n",

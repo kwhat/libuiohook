@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
 
-#ifdef USE_XKBCOMMON
+#ifdef USE_XKB_COMMON
 #include <X11/Xlib-xcb.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
@@ -59,7 +59,7 @@ extern uint16_t keycode_to_scancode(KeyCode keycode);
 extern KeyCode scancode_to_keycode(uint16_t scancode);
 
 
-#ifdef USE_XKBCOMMON
+#ifdef USE_XKB_COMMON
 
 /* Converts an X11 key code to a Unicode character sequence.  libXKBCommon support
  * is required for this method.

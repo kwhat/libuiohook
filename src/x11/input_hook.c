@@ -69,7 +69,7 @@ typedef struct _hook_info {
         XRecordContext context;
     } ctrl;
     struct _input {
-        #ifdef USE_XKBCOMMON
+        #ifdef USE_XKB_COMMON
         xcb_connection_t *connection;
         struct xkb_context *context;
         #endif
@@ -96,7 +96,7 @@ typedef union {
     xConnSetupPrefix    setup;
 } XRecordDatum;
 
-#if defined(USE_XKBCOMMON)
+#if defined(USE_XKB_COMMON)
 static struct xkb_state *state = NULL;
 #endif
 
@@ -143,7 +143,7 @@ static inline uint16_t get_modifiers() {
 
 // Initialize the modifier lock masks.
 static void initialize_locks() {
-    #ifdef USE_XKBCOMMON
+    #ifdef USE_XKB_COMMON
     if (xkb_state_led_name_is_active(state, XKB_LED_NAME_CAPS)) {
         set_modifier_mask(MASK_CAPS_LOCK);
     } else {
@@ -286,7 +286,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             // The X11 KeyCode associated with this event.
             KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
-            #if defined(USE_XKBCOMMON)
+            #if defined(USE_XKB_COMMON)
             if (state != NULL) {
                 keysym = xkb_state_key_get_one_sym(state, keycode);
             }
@@ -297,7 +297,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             // Check to make sure the key is printable.
             uint16_t buffer[2];
             size_t count =  0;
-            #ifdef USE_XKBCOMMON
+            #ifdef USE_XKB_COMMON
             if (state != NULL) {
                 count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
             }
@@ -317,7 +317,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             else if (scancode == VC_ALT_R)     { set_modifier_mask(MASK_ALT_R);   }
             else if (scancode == VC_META_L)    { set_modifier_mask(MASK_META_L);  }
             else if (scancode == VC_META_R)    { set_modifier_mask(MASK_META_R);  }
-            #ifdef USE_XKBCOMMON
+            #ifdef USE_XKB_COMMON
             xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
             #endif
             initialize_locks();
@@ -383,7 +383,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             // The X11 KeyCode associated with this event.
             KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
-            #ifdef USE_XKBCOMMON
+            #ifdef USE_XKB_COMMON
             if (state != NULL) {
                 keysym = xkb_state_key_get_one_sym(state, keycode);
             }
@@ -393,7 +393,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
             // Check to make sure the key is printable.
             uint16_t buffer[2];
-            #ifdef USE_XKBCOMMON
+            #ifdef USE_XKB_COMMON
             if (state != NULL) {
                 keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
             }
@@ -412,7 +412,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             else if (scancode == VC_ALT_R)     { unset_modifier_mask(MASK_ALT_R);   }
             else if (scancode == VC_META_L)    { unset_modifier_mask(MASK_META_L);  }
             else if (scancode == VC_META_R)    { unset_modifier_mask(MASK_META_R);  }
-            #ifdef USE_XKBCOMMON
+            #ifdef USE_XKB_COMMON
             xkb_state_update_key(state, keycode, XKB_KEY_UP);
             #endif
             initialize_locks();
@@ -971,7 +971,7 @@ static int xrecord_start() {
                     __FUNCTION__, __LINE__);
         }
 
-         #if defined(USE_XKBCOMMON)
+         #if defined(USE_XKB_COMMON)
         // Open XCB Connection
         hook->input.connection = XGetXCBConnection(hook->ctrl.display);
         int xcb_status = xcb_connection_has_error(hook->input.connection);
@@ -991,7 +991,7 @@ static int xrecord_start() {
         }
         #endif
 
-        #ifdef USE_XKBCOMMON
+        #ifdef USE_XKB_COMMON
         state = create_xkb_state(hook->input.context, hook->input.connection);
         #endif
 
@@ -1000,7 +1000,7 @@ static int xrecord_start() {
 
         status = xrecord_query();
 
-        #ifdef USE_XKBCOMMON
+        #ifdef USE_XKB_COMMON
         if (state != NULL) {
             destroy_xkb_state(state);
         }

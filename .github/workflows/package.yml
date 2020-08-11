@@ -26,7 +26,7 @@ jobs:
             -G "Unix Makefiles" \
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
             -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -86,15 +86,14 @@ jobs:
           CC: arm-linux-gnueabihf-gcc
           CFLAGS: '-Os -march=armv7ve -mfpu=vfp -mfloat-abi=hard -g -flto -fomit-frame-pointer -fno-stack-protector -pipe'
           LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '/usr/lib/arm-linux-gnueabihf/pkgconfig'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_FIND_ROOT_PATH=/usr/arm-linux-gnueabihf \
-            -DCMAKE_LIBRARY_PATH=/usr/lib/arm-linux-gnueabihf \
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/arm \
             -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -149,15 +148,14 @@ jobs:
           CC: i686-linux-gnu-gcc
           CFLAGS: '-O2 -march=i686 -mtune=generic -g -fomit-frame-pointer -flto -fno-stack-protector -pipe'
           LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '/usr/lib/i386-linux-gnu/pkgconfig'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_FIND_ROOT_PATH=/usr/i686-linux-gnu \
-            -DCMAKE_LIBRARY_PATH="/usr/lib/i386-linux-gnu;/usr/lib32" \
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86 \
             -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -198,15 +196,14 @@ jobs:
           CC: x86_64-linux-gnu-gcc
           CFLAGS: '-O2 -march=x86-64 -mtune=generic -g -fomit-frame-pointer -flto -fno-stack-protector -pipe'
           LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '/usr/lib/x86_64-linux-gnu/pkgconfig'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_FIND_ROOT_PATH=/usr/x86_64-linux-gnu \
-            -DCMAKE_LIBRARY_PATH="/usr/lib/x86_64-linux-gnu;/usr/lib64" \
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86_64 \
             -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -241,7 +238,7 @@ jobs:
             -G "Visual Studio 16 2019" -A ARM ^
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\arm ^
             -DCMAKE_VERBOSE_MAKEFILE=true ^
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^
@@ -276,7 +273,7 @@ jobs:
             -G "Visual Studio 16 2019" -A Win32 ^
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\x86 ^
             -DCMAKE_VERBOSE_MAKEFILE=true ^
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^
@@ -311,7 +308,7 @@ jobs:
             -G "Visual Studio 16 2019" -A x64 ^
             -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\x86_64 ^
             -DCMAKE_VERBOSE_MAKEFILE=true ^
-            -DUIOHOOK_ENABLE_DEMO=ON -DUIOHOOK_ENABLE_STATIC=ON -DUIOHOOK_ENABLE_SHARED=ON
+            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^

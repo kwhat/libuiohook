@@ -24,9 +24,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
-            -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -91,9 +91,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/arm \
-            -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/arm \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -153,9 +153,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86 \
-            -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -201,9 +201,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86_64 \
-            -DCMAKE_VERBOSE_MAKEFILE=true \
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86_64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -236,9 +236,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}\build ^
             -G "Visual Studio 16 2019" -A ARM ^
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\arm ^
-            -DCMAKE_VERBOSE_MAKEFILE=true ^
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm ^
+            -D CMAKE_VERBOSE_MAKEFILE=true ^
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^
@@ -271,9 +271,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}\build ^
             -G "Visual Studio 16 2019" -A Win32 ^
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\x86 ^
-            -DCMAKE_VERBOSE_MAKEFILE=true ^
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86 ^
+            -D CMAKE_VERBOSE_MAKEFILE=true ^
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^
@@ -306,9 +306,9 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}\build ^
             -G "Visual Studio 16 2019" -A x64 ^
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\x86_64 ^
-            -DCMAKE_VERBOSE_MAKEFILE=true ^
-            -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86_64 ^
+            -D CMAKE_VERBOSE_MAKEFILE=true ^
+            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^

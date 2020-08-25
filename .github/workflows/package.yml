@@ -31,9 +31,10 @@ jobs:
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
+            --config RelWithDebInfo \
             --clean-first
 
-          cmake --install ${{github.workspace}}/build
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2
@@ -99,9 +100,10 @@ jobs:
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
+            --config RelWithDebInfo \
             --clean-first
 
-          cmake --install ${{github.workspace}}/build
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2
@@ -162,9 +164,10 @@ jobs:
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
+            --config RelWithDebInfo \
             --clean-first
 
-          cmake --install ${{github.workspace}}/build
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2
@@ -211,9 +214,10 @@ jobs:
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
+            --config RelWithDebInfo \
             --clean-first
 
-          cmake --install ${{github.workspace}}/build
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2

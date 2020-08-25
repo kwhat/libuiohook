@@ -26,7 +26,8 @@ jobs:
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -93,7 +94,8 @@ jobs:
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/arm \
             -D CMAKE_VERBOSE_MAKEFILE=true \
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -155,7 +157,8 @@ jobs:
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -203,7 +206,8 @@ jobs:
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86_64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}/build \
             --parallel 2 \
@@ -238,7 +242,8 @@ jobs:
             -G "Visual Studio 16 2019" -A ARM ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON ^
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^
@@ -273,7 +278,8 @@ jobs:
             -G "Visual Studio 16 2019" -A Win32 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON ^
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^
@@ -308,7 +314,8 @@ jobs:
             -G "Visual Studio 16 2019" -A x64 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86_64 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
-            -D ENABLE_DEMO=ON -D ENABLE_STATIC=ON -D ENABLE_SHARED=ON
+            -D BUILD_SHARED_LIBS=ON ^
+            -D BUILD_DEMO=ON
 
           cmake --build ${{github.workspace}}\build ^
             --parallel 2 ^

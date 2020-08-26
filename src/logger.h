@@ -1,4 +1,4 @@
-/* UIOHook: Cross-platform keyboard and mouse hooking from userland
+/* UIOHook: Cross-platform keyboard and mouse hooking from userland.
  * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
  * https://github.com/kwhat/uiohook/
  *

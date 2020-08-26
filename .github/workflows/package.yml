@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - 1.2
-      - ci_updates
 
 jobs:
   apple-x86_64:

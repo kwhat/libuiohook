@@ -1,13 +1,13 @@
-# libUIOHook: Cross-platform userland keyboard and mouse hooking.
+# UIOHook: Cross-platform keyboard and mouse hooking from userland
 # Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
-# https://github.com/kwhat/libuiohook/
+# https://github.com/kwhat/uiohook/
 #
-# libUIOHook is free software: you can redistribute it and/or modify
+# UIOHook is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
 # by the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# libUIOHook is distributed in the hope that it will be useful,
+# UIOHook is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -17,75 +17,8 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(libuiohook VERSION 1.2.0 LANGUAGES C)
+project(uiohook VERSION 1.2.0 LANGUAGES C)
 
-# Generates a demo project
-function (register_demo dname)
-    add_executable("${dname}" "./demo/${dname}.c")
-    if (UIOHOOK_ENABLE_SHARED)
-        add_dependencies("${dname}" uiohook_shared)
-        target_link_libraries("${dname}" uiohook_shared)
-    elseif (UIOHOOK_ENABLE_STATIC)
-        add_dependencies("${dname}" uiohook_static)
-        target_link_libraries("${dname}" uiohook_static)
-    else()
-        add_dependencies("${dname}" uiohook)
-        target_link_libraries("${dname}" uiohook)
-    endif()
-
-    target_link_libraries("${dname}" "${CMAKE_THREAD_LIBS_INIT}")
-
-    if(MSVC AND MSVC_VERSION LESS "1900")
-        set_target_properties("${dname}" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-    else()
-        set_target_properties("${dname}" PROPERTIES COMPILE_FLAGS
-            "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-    endif()
-endfunction()
-
-# Creates a CMake option which will be set as a macro if enabled
-function (macro_option opt desc default)
-    option(${opt} ${desc} ${default})
-    if (${opt})
-        add_definitions("-D${opt}")
-    endif()
-endfunction()
-
-# Registers a dependency for the uiohook_static, uiohook_shared and normal library
-function (register_library lib include)
-    target_link_libraries(uiohook ${lib})
-    target_include_directories(uiohook PRIVATE ${include})
-
-    if (UIOHOOK_ENABLE_STATIC)
-        target_link_libraries(uiohook_static ${lib})
-        target_include_directories(uiohook_static PRIVATE ${include})
-    endif()
-
-    if (UIOHOOK_ENABLE_SHARED)
-        target_link_libraries(uiohook_shared ${lib})
-        target_include_directories(uiohook_shared PRIVATE ${include})
-    endif()
-
-    message(STATUS "Registering ${lib} ${include}")
-endfunction()
-
-# Creates a CMake option for X11 libraries including
-function (x11_option opt val desc default)
-    macro_option(${opt} ${desc} ${default})
-
-    if (${opt} AND NOT X11_${val}_FOUND)
-        message(FATAL_ERROR "${opt} enabled but not found")
-    elseif(${opt})
-        register_library("${X11_${val}_LIB}" "${X11_${val}_INCLUDE_PATH}")
-    endif()
-endfunction()
-
-# Common Options
-option(UIOHOOK_ENABLE_SHARED "Shared library (default: ON)" ON)
-option(UIOHOOK_ENABLE_STATIC "Static library (default: OFF)" OFF)
-option(UIOHOOK_ENABLE_DEMO "Demo applications (default: OFF)" OFF)
-option(UIOHOOK_ENABLE_TEST "Testing (default: OFF)" OFF)
 
 if (WIN32 OR WIN64)
     set(UIOHOOK_SOURCE_DIR "windows")
@@ -95,227 +28,247 @@ else()
     set(UIOHOOK_SOURCE_DIR "x11")
 endif()
 
-add_library(uiohook OBJECT
-    "./src/logger.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/post_event.c"
-    "./src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
+add_library(uiohook
+    "src/logger.c"
+    "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+    "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+    "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+    "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
-set_property(TARGET uiohook PROPERTY POSITION_INDEPENDENT_CODE 1)
-set_property(TARGET uiohook PROPERTY C_STANDARD 99)
-set_property(TARGET uiohook PROPERTY C_STANDARD_REQUIRED ON)
 
+set_target_properties(uiohook PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED ON
+    POSITION_INDEPENDENT_CODE 1
+    OUTPUT_NAME "${PROJECT_NAME}"
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    PUBLIC_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/include/uiohook.h
+)
+
+include(GNUInstallDirs)
 target_include_directories(uiohook
     PUBLIC
-        $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}
 )
 
-include(GNUInstallDirs)
 
-if (UIOHOOK_ENABLE_SHARED)
-    add_library(uiohook_shared SHARED $<TARGET_OBJECTS:uiohook>)
-    target_link_libraries(uiohook_shared "${LIBS}")
-    set_target_properties(uiohook_shared PROPERTIES OUTPUT_NAME "uiohook")
+install(TARGETS uiohook
+    EXPORT ${PROJECT_NAME}-config
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
-    install(TARGETS uiohook_shared DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif()
+export(TARGETS uiohook FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake")
+install(EXPORT ${PROJECT_NAME}-config DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
-if (UIOHOOK_ENABLE_STATIC)
-    add_library(uiohook_static STATIC $<TARGET_OBJECTS:uiohook>)
-    target_link_libraries(uiohook_static "${LIBS}")
-    set_target_properties(uiohook_static PROPERTIES OUTPUT_NAME "uiohook")
-    install(TARGETS uiohook_static DESTINATION ${CMAKE_INSTALL_LIBDIR})
-endif()
 
-if (UIOHOOK_ENABLE_SHARED OR UIOHOOK_ENABLE_STATIC)
-    install(FILES ./include/uiohook.h DESTINATION include)
-endif()
-
-if (UNIX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
-endif()
-
-if (UIOHOOK_ENABLE_DEMO)
-    if (UIOHOOK_ENABLE_SHARED)
+if (BUILD_DEMO)
+    if (NOT BUILD_SHARED_LIBS)
         set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
         set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     endif()
 
-    register_demo("demo_hook")
-    register_demo("demo_hook_async")
-    register_demo("demo_post")
-    register_demo("demo_properties")
+    find_package(Threads REQUIRED)
 
-    add_custom_target("all_demos" DEPENDS
-        "demo_hook"
-        "demo_hook_async"
-        "demo_post"
-        "demo_properties"
+    add_executable(demo_hook "./demo/demo_hook.c")
+    add_dependencies(demo_hook uiohook)
+    target_link_libraries(demo_hook uiohook "${CMAKE_THREAD_LIBS_INIT}")
+
+    add_executable(demo_hook_async "./demo/demo_hook_async.c")
+    add_dependencies(demo_hook_async uiohook)
+    target_link_libraries(demo_hook_async uiohook "${CMAKE_THREAD_LIBS_INIT}")
+
+    add_executable(demo_post "./demo/demo_post.c")
+    add_dependencies(demo_post uiohook)
+    target_link_libraries(demo_post uiohook "${CMAKE_THREAD_LIBS_INIT}")
+
+    add_executable(demo_properties "./demo/demo_properties.c")
+    add_dependencies(demo_properties uiohook)
+    target_link_libraries(demo_properties uiohook "${CMAKE_THREAD_LIBS_INIT}")
+
+    add_custom_target(all_demos DEPENDS
+        demo_hook
+        demo_hook_async
+        demo_post
+        demo_properties
     )
-    set_property(TARGET all_demos PROPERTY C_STANDARD 99)
-    set_property(TARGET all_demos PROPERTY C_STANDARD_REQUIRED ON)
 
-    install(TARGETS demo_hook demo_hook_async demo_post demo_properties DESTINATION bin)
+    set_target_properties(all_demos PROPERTIES
+        C_STANDARD 99
+        C_STANDARD_REQUIRED ON
+    )
+
+    if(MSVC)
+        add_compile_definitions(all_demos PRIVATE inline=__inline)
+        add_compile_definitions(all_demos PRIVATE _CRT_SECURE_NO_WARNINGS)
+
+        if (MSVC_VERSION LESS "1900")
+            add_compile_definitions(all_demos PRIVATE snprintf=_snprintf)
+        endif()
+    endif()
+
+    install(TARGETS demo_hook demo_hook_async demo_post demo_properties RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-if (UIOHOOK_ENABLE_TEST)
+if(ENABLE_TEST)
     add_executable(uiohook_tests
         "./test/input_helper_test.c"
         "./test/system_properties_test.c"
         "./test/minunit.h"
         "./test/uiohook_test.c"
     )
-    add_dependencies(uiohook_tests "uiohook")
-    target_include_directories(uiohook_tests PRIVATE
-    "./src/${UIOHOOK_SOURCE_DIR}")
-    target_link_libraries(uiohook_tests "uiohook" "${CMAKE_THREAD_LIBS_INIT}")
+
+    target_include_directories(uiohook_tests PRIVATE "./src/${UIOHOOK_SOURCE_DIR}")
+    target_link_libraries(uiohook_tests uiohook "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-if (UNIX AND NOT APPLE)
-    find_package(X11)
-    register_library("${X11_LIBRARIES}" "${X11_INCLUDE_DIRS}")
-    add_definitions(${X11_DEFINITIONS})
-    set(COMPILE_LIBRARIES "-lX11")
 
-    x11_option(USE_XKB Xkb "X Keyboard Extension (default: ON)" ON)
-    x11_option(USE_XKB_FILE xkbfile "X Keyboard File Extension (default: ON)" ON)
+if(UNIX AND NOT APPLE)
+    find_package(PkgConfig REQUIRED)
 
-    x11_option(USE_XT Xt "X Toolkit Intrinsics (default: ON)" ON)
-    x11_option(USE_XTEST Xtst "XTest Extension (default: ON)" ON)
-    x11_option(USE_XINERAMA Xinerama "Xinerama Extension (default: ON)" ON)
+    pkg_check_modules(X11 REQUIRED x11)
+    target_include_directories(uiohook PRIVATE "${X11_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${X11_LDFLAGS}")
 
-    x11_option(USE_XF86MISC Xxf86misc "XFree86-Misc X Extension (default: OFF)" OFF)
-    x11_option(USE_XRANDR Xrandr "XRandR Extension (default: OFF)" OFF)
-
-    macro_option(USE_XRECORD_ASYNC "XRecord Asynchronous API (default: OFF)" OFF)
-    macro_option(USE_XCB "X Keyboard Extension (default: ON)" ON)
-    macro_option(USE_XKBCOMMON "X Keyboard Common Extension (default: ON)" ON)
-
-    if(LINUX)
-        macro_option(USE_EVDEV "Generic Linux input driver (default: enabled)" ON)
-    endif()
-
-
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/module")
-
-    if (USE_XCB)
-        find_package(XCB REQUIRED)
-        find_package(X11_XCB REQUIRED)
-
-        register_library("${XCB_LIBRARIES}" "${XCB_INCLUDE_DIRS}")
-        add_definitions(${XCB_DEFINITIONS})
-        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxcb")
-
-        register_library("${X11_XCB_LIBRARIES}" "${X11_XCB_INCLUDE_DIRS}")
-        add_definitions(${X11_XCB_DEFINITIONS})
-        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lx11-xcb")
-    endif()
-
-    if (USE_XKBCOMMON)
-        find_package(XKBCommon)
-        find_package(XKBCommonX11)
-        if (NOT XKBCOMMON_FOUND OR NOT XKBCOMMONX11_FOUND)
-            message(FATAL_ERROR "XKBCommon enabled but not found")
-        endif()
-
-        register_library("${XKBCOMMON_LIBRARIES}" "${XKBCOMMON_INCLUDE_DIRS}")
-        add_definitions(${XKBCOMMON_DEFINITIONS})
-        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxkbcommon")
-
-        register_library("${XKBCOMMON_X11_LIBRARIES}" "${XKBCOMMON_X11_INCLUDE_DIRS}")
-        add_definitions(${XKBCOMMON_X11_DEFINITIONS})
-        set(COMPILE_LIBRARIES "${COMPILE_LIBRARIES} -lxkbcommon-x11")
-    endif()
-
-    if (UIOHOOK_ENABLE_TEST)
-        target_link_libraries(uiohook_tests ${X11_LIBRARIES})
-        target_include_directories(uiohook_tests PRIVATE ${X11_INCLUDE_DIRS})
-    endif()
+    pkg_check_modules(XTST REQUIRED xtst)
+    target_include_directories(uiohook PRIVATE "${XTST_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${XTST_LDFLAGS}")
 
     include(CheckLibraryExists)
     check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)
 
     include(CheckIncludeFile)
     check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
-elseif (APPLE)
+
+    option(USE_XKB_COMMON "X Keyboard Common Extension (default: ON)" ON)
+    if(USE_XKB_COMMON)
+        pkg_check_modules(XKB_COMMON REQUIRED xkbcommon-x11)
+        add_compile_definitions(uiohook PRIVATE USE_XKB_COMMON)
+        target_include_directories(uiohook PRIVATE "${XKB_COMMON_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${XKB_COMMON_LDFLAGS}")
+
+        pkg_check_modules(X11_XCB REQUIRED x11-xcb)
+        target_include_directories(uiohook PRIVATE "${X11_XCB_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${X11_XCB_LDFLAGS}")
+    endif()
+
+    option(USE_XKB_FILE "X Keyboard File Extension (default: ON)" ON)
+    if(USE_XKB_FILE)
+        pkg_check_modules(XKB_FILE REQUIRED xkbfile)
+        add_compile_definitions(uiohook PRIVATE USE_XKB_FILE)
+        target_include_directories(uiohook PRIVATE "${XKB_FILE_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${XKB_FILE_LDFLAGS}")
+    endif()
+
+    option(USE_XT "X Toolkit Extension (default: ON)" ON)
+    if(USE_XT)
+        pkg_check_modules(XT REQUIRED xt)
+        add_compile_definitions(uiohook PRIVATE USE_XT)
+        target_include_directories(uiohook PRIVATE "${XT_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${XT_LDFLAGS}")
+    endif()
+
+
+    option(USE_XF86MISC "XFree86-Misc X Extension (default: OFF)" OFF)
+    if(USE_XF86MISC)
+        pkg_check_modules(XF86MISC REQUIRED Xxf86misc)
+        add_compile_definitions(uiohook PRIVATE USE_XF86MISC)
+        target_include_directories(uiohook PRIVATE "${XF86MISC_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${XF86MISC_LDFLAGS}")
+    endif()
+
+    option(USE_XRANDR "XRandR Extension (default: OFF)" OFF)
+    if(USE_XRANDR)
+        pkg_check_modules(XRANDR REQUIRED xrandr)
+        add_compile_definitions(uiohook PRIVATE USE_XRANDR)
+        target_include_directories(uiohook PRIVATE "${XRANDR_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${XRANDR_LDFLAGS}")
+    endif()
+
+    option(USE_XINERAMA "Xinerama Extension (default: ON)" ON)
+    if(USE_XINERAMA)
+        pkg_check_modules(XINERAMA REQUIRED xinerama)
+        add_compile_definitions(uiohook PRIVATE USE_XINERAMA)
+        target_include_directories(uiohook PRIVATE "${XINERAMA_INCLUDE_DIRS}")
+        target_link_libraries(uiohook "${XINERAMA_LDFLAGS}")
+    endif()
+
+    option(USE_XRECORD_ASYNC "XRecord Asynchronous API (default: OFF)" OFF)
+    if(USE_XRECORD_ASYNC)
+        add_compile_definitions(uiohook PRIVATE USE_XRECORD_ASYNC)
+    endif()
+
+    option(USE_XTEST "XTest API (default: ON)" ON)
+    if(USE_XTEST)
+        # XTest API is provided by Xtst
+        add_compile_definitions(uiohook PRIVATE USE_XTEST)
+    endif()
+
+    if(LINUX)
+        option(USE_EVDEV "Generic Linux input driver (default: enabled)" ON)
+        if(USE_EVDEV)
+            add_compile_definitions("USE_EVDEV")
+        endif()
+    endif()
+elseif(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5")
 
-    macro_option(USE_APPLICATION_SERVICES "ApplicationServices framework (default: ON)" ON)
-    macro_option(USE_IOKIT "IOKit framework (default: ON)" ON)
-    macro_option(USE_OBJC "Objective-C API (default: ON)" ON)
+    find_package(Threads REQUIRED)
+    target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
 
-    macro_option(USE_CARBON_LEGACY "Legacy Carbon framework functionality (default: OFF)" OFF)
-    #macro_option(USE_WEAK_IMPORT "Weakly-linked symbols (default: OFF)" OFF)
+    find_library(CARBON Carbon REQUIRED)
+    target_include_directories(uiohook PRIVATE "${CARBON}")
+    target_link_libraries(uiohook "${CARBON}")
 
-    find_library(CARBON Carbon)
-    register_library(${CARBON} ${CARBON})
-    set(COMPILE_LIBRARIES "-framework Carbon")
-
-
-    if (USE_APPLICATION_SERVICES)
-        find_library(APPLICATION_SERVICES ApplicationServices)
-        if (NOT APPLICATION_SERVICES)
-            message(FATAL_ERROR "ApplicationServices enabled but not found")
-        endif()
-
-        register_library(${APPLICATION_SERVICES} ${APPLICATION_SERVICES})
-        set(COMPILE_LIBRARIES "-framework ApplicationServices")
+    option(USE_APPLICATION_SERVICES "ApplicationServices framework (default: ON)" ON)
+    if(USE_APPLICATION_SERVICES)
+        find_library(APPLICATION_SERVICES ApplicationServices REQUIRED)
+        add_compile_definitions(USE_APPLICATION_SERVICES)
+        target_include_directories(uiohook PRIVATE "${APPLICATION_SERVICES}")
+        target_link_libraries(uiohook "${APPLICATION_SERVICES}")
     endif()
 
-    if (USE_IOKIT)
-        find_library(IOKIT IOKit)
-        if (NOT IOKIT)
-            message(FATAL_ERROR "IOKit enabled but not found")
-        endif()
-
-        register_library(${IOKIT} ${IOKIT})
-        set(COMPILE_LIBRARIES "-framework IOKit")
+    option(USE_IOKIT "IOKit framework (default: ON)" ON)
+    if(USE_IOKIT)
+        find_library(IOKIT IOKit REQUIRED)
+        add_compile_definitions(USE_IOKIT)
+        target_include_directories(uiohook PRIVATE "${IOKIT}")
+        target_link_libraries(uiohook "${IOKIT}")
     endif()
 
-    if (USE_OBJC)
-        find_library(OBJC objc)
-        if (NOT OBJC)
-            message(FATAL_ERROR "ObjC enabled but not found")
-        endif()
-
-        register_library(${OBJC} ${OBJC})
-        set(COMPILE_LIBRARIES "-lobjc")
+    option(USE_OBJC "Objective-C API (default: ON)" ON)
+    if(USE_OBJC)
+        find_library(OBJC objc REQUIRED)
+        add_compile_definitions(USE_OBJC)
+        target_include_directories(uiohook PRIVATE "${OBJC}")
+        target_link_libraries(uiohook "${OBJC}")
     endif()
 
-    if (USE_CARBON_LEGACY)
+    option(USE_CARBON_LEGACY "Legacy Carbon framework functionality (default: OFF)" OFF)
+    if(USE_CARBON_LEGACY)
         message(DEPRECATION "Legacy Carbon functionality has been deprecated.")
+        add_compile_definitions(USE_CARBON_LEGACY)
 
-        if (USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+        if(USE_CARBON_LEGACY AND CMAKE_SIZEOF_VOID_P EQUAL 8)
             message(WARNING "Legacy Carbon functionality should not be used with 64-bit targets.")
         endif()
     endif()
+elseif(WIN32)
+    find_library(ADVAPI32 Advapi32)
+    target_include_directories(uiohook PRIVATE "${ADVAPI32}")
+    target_link_libraries(uiohook "${ADVAPI32}")
 endif()
 
-if (UNIX)
-    if (UIOHOOK_ENABLE_SHARED OR UIOHOOK_ENABLE_STATIC)
-        configure_file("pc/uiohook.pc.in" "${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pc" @ONLY)
-        install(FILES "${PROJECT_BINARY_DIR}/${CMAKE_PROJECT_NAME}.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-    endif()
-endif()
 
-include_directories("./include")
-
-target_include_directories("uiohook"
-    PUBLIC "./src"
-    INTERFACE "./include")
-
-set_target_properties("uiohook" PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-if(MSVC AND MSVC_VERSION LESS "1900")
-    set_target_properties("uiohook" PROPERTIES COMPILE_FLAGS
-        "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS -Dsnprintf=_snprintf")
-else()
-    set_target_properties("uiohook" PROPERTIES COMPILE_FLAGS
-        "-Dinline=__inline -D_CRT_SECURE_NO_WARNINGS")
-endif()
+list(REMOVE_DUPLICATES INTERFACE_LINK_LIBRARIES)
+string(REPLACE ";" " " COMPILE_LIBRARIES "${INTERFACE_LINK_LIBRARIES}")
+configure_file("pc/uiohook.pc.in" "${PROJECT_BINARY_DIR}/uiohook.pc" @ONLY)
+install(FILES "${PROJECT_BINARY_DIR}/uiohook.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

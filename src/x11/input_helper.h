@@ -1,13 +1,13 @@
-/* libUIOHook: Cross-platform userland keyboard and mouse hooking.
+/* UIOHook: Cross-platform keyboard and mouse hooking from userland
  * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
- * https://github.com/kwhat/libuiohook/
+ * https://github.com/kwhat/uiohook/
  *
- * libUIOHook is free software: you can redistribute it and/or modify
+ * UIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * libUIOHook is distributed in the hope that it will be useful,
+ * UIOHook is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
 
-#ifdef USE_XKBCOMMON
+#ifdef USE_XKB_COMMON
 #include <X11/Xlib-xcb.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
@@ -59,7 +59,7 @@ extern uint16_t keycode_to_scancode(KeyCode keycode);
 extern KeyCode scancode_to_keycode(uint16_t scancode);
 
 
-#ifdef USE_XKBCOMMON
+#ifdef USE_XKB_COMMON
 
 /* Converts an X11 key code to a Unicode character sequence.  libXKBCommon support
  * is required for this method.

@@ -5,15 +5,8 @@ on:
       - 1.2
 
 jobs:
-  apple:
+  apple-x86_64:
     runs-on: macos-latest
-#    env:
-#      DEVELOPER_DIR: /Applications/Xcode_9.4.1.app/Contents/Developer
-
-    strategy:
-      fail-fast: true
-      matrix:
-        target: [x86_64-apple-darwin9]
 
     steps:
       - name: Checkout
@@ -22,17 +15,25 @@ jobs:
           submodules: true
 
       - name: Compile x86_64
+        env:
+          CC: clang
+          CFLAGS: '-O2 -g -march=x86-64 -mtune=generic -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          LDFLAGS: '-Wl,-dead_strip_dylibs'
         shell: bash
         run: |
-          cmake -S ${{github.workspace}} -B ${{github.workspace}}/build/${{matrix.target}} \
+          cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/cmake/toolchain/${{matrix.target}}.cmake \
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/${{matrix.target}} \
-            -DCMAKE_VERBOSE_MAKEFILE=true -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
-          cmake --build ${{github.workspace}}/build/${{matrix.target}} \
+          cmake --build ${{github.workspace}}/build \
             --parallel 2 \
-            --target install
+            --config RelWithDebInfo \
+            --clean-first
+
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2
@@ -41,13 +42,8 @@ jobs:
           path: ${{github.workspace}}/dist/**/*
 
 
-  linux:
+  linux-arm:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: true
-      matrix:
-        target: [armv7a-hardfloat-linux-gnueabihf, i386-linux-gnu, x86_64-linux-gnu]
 
     steps:
       - name: Checkout
@@ -55,21 +51,19 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup arm
-        if: startsWith(matrix.target, 'arm')
+      - name: Setup
         shell: bash
         run: |
+          sudo rm -Rf /etc/apt/sources.list.d
           sudo bash -c 'source /etc/lsb-release && echo "
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          
+
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
           " > /etc/apt/sources.list'
-
-          sudo rm -Rf /etc/apt/sources.list.d
 
           sudo dpkg --add-architecture armhf
           sudo apt-get update -m
@@ -88,18 +82,52 @@ jobs:
             libxkbcommon-x11-dev:armhf \
             libxkbfile-dev:armhf
 
-
-      - name: Setup x86
-        if: startsWith(matrix.target, 'i386')
+      - name: Compile
+        env:
+          CC: arm-linux-gnueabihf-gcc
+          CFLAGS: '-Os -march=armv7ve -mfpu=vfp -mfloat-abi=hard -g -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '/usr/lib/arm-linux-gnueabihf/pkgconfig'
         shell: bash
         run: |
+          cmake -B ${{github.workspace}}/build \
+            -G "Unix Makefiles" \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/arm \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
+
+          cmake --build ${{github.workspace}}/build \
+            --parallel 2 \
+            --config RelWithDebInfo \
+            --clean-first
+
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: nightly-build
+          path: ${{github.workspace}}/dist/**/*
+
+  linux-x86:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Setup
+        shell: bash
+        run: |
+          sudo rm -Rf /etc/apt/sources.list.d
           sudo bash -c 'source /etc/lsb-release && echo "
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
           " > /etc/apt/sources.list'
-
-          sudo rm -Rf /etc/apt/sources.list.d
 
           sudo dpkg --add-architecture i386
           sudo apt-get update -m
@@ -118,21 +146,46 @@ jobs:
             libxkbcommon-x11-dev:i386 \
             libxkbfile-dev:i386
 
-
-      - name: Setup x86-64
-        if: startsWith(matrix.target, 'x86_64')
+      - name: Compile
+        env:
+          CC: i686-linux-gnu-gcc
+          CFLAGS: '-O2 -march=i686 -mtune=generic -g -fomit-frame-pointer -flto -fno-stack-protector -pipe'
+          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '/usr/lib/i386-linux-gnu/pkgconfig'
         shell: bash
         run: |
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          " > /etc/apt/sources.list'
+          cmake -B ${{github.workspace}}/build \
+            -G "Unix Makefiles" \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
-          sudo rm -Rf /etc/apt/sources.list.d
+          cmake --build ${{github.workspace}}/build \
+            --parallel 2 \
+            --config RelWithDebInfo \
+            --clean-first
 
-          sudo apt-get update -m
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: nightly-build
+          path: ${{github.workspace}}/dist/**/*
+
+  linux-x86_64:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Setup
+        shell: bash
+        run: |
           sudo apt-get install \
             libx11-dev:amd64 \
             libxtst-dev:amd64 \
@@ -143,19 +196,27 @@ jobs:
             libxkbcommon-x11-dev:amd64 \
             libxkbfile-dev:amd64
 
-
       - name: Compile
+        env:
+          CC: x86_64-linux-gnu-gcc
+          CFLAGS: '-O2 -march=x86-64 -mtune=generic -g -fomit-frame-pointer -flto -fno-stack-protector -pipe'
+          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '/usr/lib/x86_64-linux-gnu/pkgconfig'
         shell: bash
         run: |
-          cmake -S ${{github.workspace}} -B ${{github.workspace}}/build/${{matrix.target}} \
+          cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}/cmake/toolchain/${{matrix.target}}.cmake \
-            -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/${{matrix.target}} \
-            -DCMAKE_VERBOSE_MAKEFILE=true -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/x86_64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
 
-          cmake --build ${{github.workspace}}/build/${{matrix.target}} \
+          cmake --build ${{github.workspace}}/build \
             --parallel 2 \
-            --target install
+            --config RelWithDebInfo \
+            --clean-first
+
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2
@@ -164,48 +225,107 @@ jobs:
           path: ${{github.workspace}}/dist/**/*
 
 
-  windows:
+  windows-arm:
     runs-on: windows-latest
-
-    strategy:
-      fail-fast: true
-      matrix:
-        target: [arm7ve-win32-msvc, i386-win32-msvc, x86_64-win32-msvc]
 
     steps:
       - uses: actions/checkout@v1
         with:
           submodules: true
 
-      - name: Setup arm
-        if: startsWith(matrix.target, 'arm')
+      - name: Setup
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_arm
 
-      - name: Setup x86
-        if: startsWith(matrix.target, 'i386')
+      - name: Compile
+        shell: cmd
+        run: |
+          cmake -B ${{github.workspace}}\build ^
+            -G "Visual Studio 16 2019" -A ARM ^
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm ^
+            -D CMAKE_VERBOSE_MAKEFILE=true ^
+            -D BUILD_SHARED_LIBS=ON ^
+            -D BUILD_DEMO=ON
+
+          cmake --build ${{github.workspace}}\build ^
+            --parallel 2 ^
+            --config RelWithDebInfo ^
+            --clean-first
+
+          cmake --install ${{github.workspace}}\build --config RelWithDebInfo
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: nightly-build
+          path: ${{github.workspace}}/dist/**/*
+
+  windows-x86:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Setup
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_x86
 
-      - name: Setup x86-64
-        if: startsWith(matrix.target, 'x86_64')
+      - name: Compile
+        shell: cmd
+        run: |
+          cmake -B ${{github.workspace}}\build ^
+            -G "Visual Studio 16 2019" -A Win32 ^
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86 ^
+            -D CMAKE_VERBOSE_MAKEFILE=true ^
+            -D BUILD_SHARED_LIBS=ON ^
+            -D BUILD_DEMO=ON
+
+          cmake --build ${{github.workspace}}\build ^
+            --parallel 2 ^
+            --config RelWithDebInfo ^
+            --clean-first
+
+          cmake --install ${{github.workspace}}\build --config RelWithDebInfo
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: nightly-build
+          path: ${{github.workspace}}/dist/**/*
+
+  windows-x86_64:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Setup
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64
 
       - name: Compile
+        shell: cmd
         run: |
-          cmake -S ${{github.workspace}} -B ${{github.workspace}}\build\${{matrix.target}} `
-          -G "Ninja" `
-          -DCMAKE_TOOLCHAIN_FILE=${{github.workspace}}\cmake\toolchain\${{matrix.target}}.cmake `
-          -DCMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\${{matrix.target}} `
-          -DCMAKE_VERBOSE_MAKEFILE=true -DENABLE_DEMO=ON -DENABLE_STATIC=ON -DENABLE_SHARED=ON
+          cmake -B ${{github.workspace}}\build ^
+            -G "Visual Studio 16 2019" -A x64 ^
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86_64 ^
+            -D CMAKE_VERBOSE_MAKEFILE=true ^
+            -D BUILD_SHARED_LIBS=ON ^
+            -D BUILD_DEMO=ON
 
-          cmake --build ${{github.workspace}}\build\${{matrix.target}} `
-          --parallel 2 `
-          --target install
+          cmake --build ${{github.workspace}}\build ^
+            --parallel 2 ^
+            --config RelWithDebInfo ^
+            --clean-first
+
+          cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
         uses: actions/upload-artifact@v2

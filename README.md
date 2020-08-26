@@ -1,9 +1,7 @@
-libuiohook
-==========
+UIOHook: Cross-platform keyboard and mouse hooking from userland 
+================================================================
 
 ![build-binaires](https://github.com/kwhat/libuiohook/workflows/build-binaires/badge.svg)
-
-A multi-platform C library to provide global keyboard and mouse hooks from userland.
 
 ## Compiling
 Prerequisites: 
@@ -20,10 +18,10 @@ Prerequisites:
    * libxkbfile-dev 
 
 ```
-$ git clone https://github.com/kwhat/libuiohook
-$ cd libuiohook
+$ git clone https://github.com/kwhat/uiohook
+$ cd uiohook
 $ mkdir build && cd build
-$ cmake -S .. -DENABLE_DEMO=ON -DENABLE_SHARED=ON -DCMAKE_INSTALL_PREFIX=../dist
+$ cmake -S .. -D BUILD_SHARED_LIBS=ON -D BUILD_DEMO=ON -DCMAKE_INSTALL_PREFIX=../dist
 $ cmake --build . --parallel 2 --target install  
 ```
 
@@ -32,7 +30,7 @@ $ cmake --build . --parallel 2 --target install
 |           | option                        | description            | default |
 | --------- | ----------------------------- | ---------------------- | ------- | 
 | __all__   | ENABLE_DEBUG:BOOL             | debug output           | OFF     |
-|           | ENABLE_DEMO:BOOL              | demo applications      | OFF     |
+|           | BUILD_DEMO:BOOL               | demo applications      | OFF     |
 |           | ENABLE_QUIET:BOOL             | copyright suppression  | OFF     |
 |           | ENABLE_SHARED:BOOL            | shared library         | ON      |
 |           | ENABLE_STATIC:BOOL            | static library         | OFF     |
@@ -47,7 +45,7 @@ $ cmake --build . --parallel 2 --target install
 |           | USE_XF86MISC:BOOL             | xfree86-misc extension | OFF     |
 |           | USE_XKB:BOOL                  | xkb extension          | ON      |
 |           | USE_XKB_FILE:BOOL             | xkb-file extension     | ON      |
-|           | USE_XKBCOMMON:BOOL            | xkbcommon extension    | ON      |
+|           | USE_XKB_COMMON:BOOL           | xkbcommon extension    | ON      |
 |           | USE_XRANDR:BOOL               | xrandt extension       | OFF     |
 |           | USE_XRECORD_ASYNC:BOOL        | xrecord async api      | OFF     |
 |           | USE_XINERAMA:BOOL             | xinerama library       | ON      |

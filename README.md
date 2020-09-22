@@ -1,4 +1,4 @@
-UIOHook: Cross-platform keyboard and mouse hooking from userland. 
+libUIOHook: Cross-platform keyboard and mouse hooking from userland. 
 =================================================================
 
 ![build-binaires](https://github.com/kwhat/libuiohook/workflows/build-binaires/badge.svg)

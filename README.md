@@ -1,7 +1,7 @@
 libUIOHook: Cross-platform keyboard and mouse hooking from userland. 
 =================================================================
 
-![build-binaires](https://github.com/kwhat/libuiohook/workflows/build-binaires/badge.svg)
+![Nightly Build](https://github.com/kwhat/libuiohook/workflows/Nightly%20Build/badge.svg)
 
 ## Compiling
 Prerequisites: 

@@ -67,9 +67,8 @@ typedef void* dispatch_queue_t;
 static struct dispatch_queue_s *dispatch_main_queue_s;
 static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 
-#if ! defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+#if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
 static CFRunLoopSourceRef src_msg_port;
-static CFRunLoopObserverRef observer;
 
 static pthread_cond_t msg_port_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t msg_port_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -185,7 +184,7 @@ static void initialize_modifiers() {
 
 
 // Wrap keycode_to_unicode with some null checks.
-static void keycode_to_lookup(void *info) {
+static void do_keycode_lookup(void *info) {
     TISMessage *data = (TISMessage *) info;
 
     if (data != NULL && data->event != NULL) {
@@ -194,31 +193,14 @@ static void keycode_to_lookup(void *info) {
     }
 }
 
-#if ! defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
-void message_port_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-    switch (activity) {
-        case kCFRunLoopExit:
-            // Acquire a lock on the msg_port and signal that anyone waiting
-            // should continue.
-            pthread_mutex_lock(&msg_port_mutex);
-            pthread_cond_broadcast(&msg_port_cond);
-            pthread_mutex_unlock(&msg_port_mutex);
-            break;
-
-        default:
-            logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
-                    __FUNCTION__, __LINE__, (unsigned int) activity);
-            break;
-    }
-}
-
+#if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
 // Runloop to execute KeyCodeToString on the "Main" runloop due to an
 // undocumented thread safety requirement.
 static void message_port_proc(void *info) {
     // Lock the msg_port mutex as we enter the main runloop.
     pthread_mutex_lock(&msg_port_mutex);
 
-    keycode_to_lookup(info);
+    do_keycode_lookup(info);
 
     // Unlock the msg_port mutex to signal to the hook_thread that we have
     // finished on the main runloop.
@@ -230,56 +212,33 @@ static int start_message_port_runloop() {
     int status = UIOHOOK_FAILURE;
 
     if (tis_message != NULL) {
-        // Create a runloop observer for the main runloop.
-        observer = CFRunLoopObserverCreate(
-                kCFAllocatorDefault,
-                kCFRunLoopExit, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
-                true,
-                0,
-                message_port_status_proc,
-                NULL
-            );
+        CFRunLoopSourceContext context = {
+            .version         = 0,
+            .info            = tis_message,
+            .retain          = NULL,
+            .release         = NULL,
+            .copyDescription = NULL,
+            .equal           = NULL,
+            .hash            = NULL,
+            .schedule        = NULL,
+            .cancel          = NULL,
+            .perform         = message_port_proc
+        };
 
-        if (observer != NULL) {
-            pthread_mutex_lock(&msg_port_mutex);
-
-            CFRunLoopSourceContext context = {
-                .version         = 0,
-                .info            = tis_message,
-                .retain          = NULL,
-                .release         = NULL,
-                .copyDescription = NULL,
-                .equal           = NULL,
-                .hash            = NULL,
-                .schedule        = NULL,
-                .cancel          = NULL,
-                .perform         = message_port_proc
-            };
-
+        src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
+        if (src_msg_port != NULL) {
             CFRunLoopRef main_loop = CFRunLoopGetMain();
+            CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
 
-            src_msg_port = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, &context);
-            if (src_msg_port != NULL) {
-                CFRunLoopAddSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
-                CFRunLoopAddObserver(main_loop, observer, kCFRunLoopDefaultMode);
-
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
-                        __FUNCTION__, __LINE__);
-
-                status = UIOHOOK_SUCCESS;
-            } else {
-                logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
-                        __FUNCTION__, __LINE__);
-
-                status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
-            }
-
-            pthread_mutex_unlock(&msg_port_mutex);
-        } else {
-            logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
                     __FUNCTION__, __LINE__);
-            
-            status = UIOHOOK_ERROR_CREATE_OBSERVER;
+
+            status = UIOHOOK_SUCCESS;
+        } else {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
+                    __FUNCTION__, __LINE__);
+
+            status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
         }
     } else {
         logger(LOG_LEVEL_ERROR, "%s [%u]: No available TIS Message pointer.\n",
@@ -290,25 +249,21 @@ static int start_message_port_runloop() {
 }
 
 static void stop_message_port_runloop() {
-    CFRunLoopRef main_loop = CFRunLoopGetMain();
+    if (src_msg_port != NULL) {
+        CFRunLoopRef main_loop = CFRunLoopGetMain();
+        if (CFRunLoopContainsSource(main_loop, src_msg_port, kCFRunLoopDefaultMode)) {
+            CFRunLoopRemoveSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
+        }
 
-    if (CFRunLoopContainsObserver(main_loop, observer, kCFRunLoopDefaultMode)) {
-        CFRunLoopRemoveObserver(main_loop, observer, kCFRunLoopDefaultMode);
-        CFRunLoopObserverInvalidate(observer);
-    }
-
-    if (CFRunLoopContainsSource(main_loop, src_msg_port, kCFRunLoopDefaultMode)) {
-        CFRunLoopRemoveSource(main_loop, src_msg_port, kCFRunLoopDefaultMode);
         CFRelease(src_msg_port);
+        src_msg_port = NULL;
+
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
+                __FUNCTION__, __LINE__);
     }
-
-    observer = NULL;
-    src_msg_port = NULL;
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Successful.\n",
-            __FUNCTION__, __LINE__);
 }
 #endif
+
 
 static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
     uint64_t timestamp = mach_absolute_time();
@@ -371,53 +326,37 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
         tis_message->length = 0;
         bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
 
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n", __FUNCTION__, __LINE__);
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_message, &keycode_to_lookup);
-        }
-        #if ! defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
-        else if (! is_runloop_main) {
+        #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+        if (src_msg_port != NULL && !is_runloop_main) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n", __FUNCTION__, __LINE__);
 
             // Lock for code dealing with the main runloop.
             pthread_mutex_lock(&msg_port_mutex);
 
             // Check to see if the main runloop is still running.
-            // TOOD I would rather this be a check on hook_enable(),
-            // but it makes the usage complicated by requiring a separate
-            // thread for the main runloop and hook registration.
             CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
             if (mode != NULL) {
                 CFRelease(mode);
-
-                // Lookup the Unicode representation for this event.
-                //CFRunLoopSourceContext context = { .version = 0 };
-                //CFRunLoopSourceGetContext(src_msg_port, &context);
-
-                // Get the run loop context info pointer.
-                //TISMessage *info = (TISMessage *) context.info;
-
-                // Set the event pointer.
-                //info->event = event_ref;
-
                 // Signal the custom source and wakeup the main runloop.
                 CFRunLoopSourceSignal(src_msg_port);
                 CFRunLoopWakeUp(CFRunLoopGetMain());
 
                 // Wait for a lock while the main runloop processes they key typed event.
                 pthread_cond_wait(&msg_port_cond, &msg_port_mutex);
-            }
-            else {
+            } else {
                 logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal RunLoop main!\n",
                         __FUNCTION__, __LINE__);
             }
 
             // Unlock for code dealing with the main runloop.
             pthread_mutex_unlock(&msg_port_mutex);
-        }
+        } else
         #endif
-        else {
-            keycode_to_lookup(tis_message);
+        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n", __FUNCTION__, __LINE__);
+            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_message, &do_keycode_lookup);
+        } else {
+            do_keycode_lookup(tis_message);
         }
 
         for (unsigned int i = 0; i < tis_message->length; i++) {
@@ -1057,228 +996,223 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 }
 
 UIOHOOK_API int hook_run() {
-    int status = UIOHOOK_SUCCESS;
-
     // Check for accessibility before we start the loop.
-    if (is_accessibility_enabled()) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: Accessibility API is enabled.\n",
-                __FUNCTION__, __LINE__);
-
-        do {
-            // Reset the restart flag...
-            restart_tap = false;
-
-            // Initialize starting modifiers.
-            initialize_modifiers();
-
-            // Try and allocate memory for hook_info.
-            hook_info *hook = malloc(sizeof(hook_info));
-            if (hook != NULL) {
-                // Setup the event mask to listen for.
-                CGEventMask event_mask = CGEventMaskBit(kCGEventKeyDown) |
-                        CGEventMaskBit(kCGEventKeyUp) |
-                        CGEventMaskBit(kCGEventFlagsChanged) |
-
-                        CGEventMaskBit(kCGEventLeftMouseDown) |
-                        CGEventMaskBit(kCGEventLeftMouseUp) |
-                        CGEventMaskBit(kCGEventLeftMouseDragged) |
-
-                        CGEventMaskBit(kCGEventRightMouseDown) |
-                        CGEventMaskBit(kCGEventRightMouseUp) |
-                        CGEventMaskBit(kCGEventRightMouseDragged) |
-
-                        CGEventMaskBit(kCGEventOtherMouseDown) |
-                        CGEventMaskBit(kCGEventOtherMouseUp) |
-                        CGEventMaskBit(kCGEventOtherMouseDragged) |
-
-                        CGEventMaskBit(kCGEventMouseMoved) |
-                        CGEventMaskBit(kCGEventScrollWheel) |
-
-                        // NOTE This event is undocumented and used
-                        // for caps-lock release and multi-media keys.
-                        CGEventMaskBit(NX_SYSDEFINED);
-
-                // Create the event tap.
-                hook->port = CGEventTapCreate(
-                        kCGSessionEventTap,            // kCGHIDEventTap
-                        kCGHeadInsertEventTap,        // kCGTailAppendEventTap
-                        kCGEventTapOptionDefault,    // kCGEventTapOptionListenOnly See Bug #22
-                        event_mask,
-                        hook_event_proc,
-                        NULL);
-
-                if (hook->port != NULL) {
-                    logger(LOG_LEVEL_DEBUG, "%s [%u]: CGEventTapCreate Successful.\n",
-                            __FUNCTION__, __LINE__);
-
-                    // Create the runloop event source from the event tap.
-                    hook->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, hook->port, 0);
-                    if (hook->source != NULL) {
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
-                                __FUNCTION__, __LINE__);
-                        
-                        event_loop = CFRunLoopGetCurrent();
-                        if (event_loop != NULL) {
-                            logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopGetCurrent successful.\n",
-                                    __FUNCTION__, __LINE__);
-
-                            // Create run loop observers.
-                            hook->observer = CFRunLoopObserverCreate(
-                                    kCFAllocatorDefault,
-                                    kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
-                                    true,
-                                    0,
-                                    hook_status_proc,
-                                    NULL);
-
-                            if (hook->observer != NULL) {
-                                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate successful.\n",
-                                        __FUNCTION__, __LINE__);
-
-                                tis_message = (TISMessage *) calloc(1, sizeof(TISMessage));
-                                if (tis_message != NULL) {
-                                    if (! CFEqual(event_loop, CFRunLoopGetMain())) {
-                                        *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
-                                        const char *dlError = dlerror();
-                                        if (dlError != NULL) {
-                                            logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
-                                                    __FUNCTION__, __LINE__, dlError);
-                                        }
-
-                                        // This is load is equivalent to calling dispatch_get_main_queue().  We use
-                                        // _dispatch_main_q because dispatch_get_main_queue is not exported from
-                                        // libdispatch.dylib and the function only dereferences the pointer.
-                                        dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
-                                        dlError = dlerror();
-                                        if (dlError != NULL) {
-                                            logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
-                                                    __FUNCTION__, __LINE__, dlError);
-                                        }
-
-                                        if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
-                                            logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
-                                                    __FUNCTION__, __LINE__);
-
-                                            #if ! defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
-                                            logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to runloop signaling.\n",
-                                                    __FUNCTION__, __LINE__);
-
-                                            int runloop_status = start_message_port_runloop();
-                                            if (runloop_status != UIOHOOK_SUCCESS) {
-                                                return runloop_status;
-                                            }
-                                            #endif
-                                        }
-                                    }
-
-                                    // Add the event source and observer to the runloop mode.
-                                    CFRunLoopAddSource(event_loop, hook->source, kCFRunLoopDefaultMode);
-                                    CFRunLoopAddObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
-
-                                    #ifdef USE_OBJC
-                                    // Create a garbage collector to handle Cocoa events correctly.
-                                    Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
-                                    id pool = class_createInstance(NSAutoreleasePool_class, 0);
-                                    // Contributed by Alex <universailp@web.de>
-                                    id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
-                                    auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
-                                    #endif
-
-                                    // Start the hook thread runloop.
-                                    CFRunLoopRun();
-
-
-                                    #ifdef USE_OBJC
-                                    // Contributed by Alex <universailp@web.de>
-                                    eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
-                                    #endif
-
-                                    // Lock back up until we are done processing the exit.
-                                    if (CFRunLoopContainsObserver(event_loop, hook->observer, kCFRunLoopDefaultMode)) {
-                                        CFRunLoopRemoveObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
-                                    }
-
-                                    if (CFRunLoopContainsSource(event_loop, hook->source, kCFRunLoopDefaultMode)) {
-                                        CFRunLoopRemoveSource(event_loop, hook->source, kCFRunLoopDefaultMode);
-                                    }
-                                    
-                                    #if ! defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
-                                    if (! CFEqual(event_loop, CFRunLoopGetMain())) {
-                                        if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
-                                            stop_message_port_runloop();
-                                        }
-                                    }
-                                    #endif
-                                    
-                                    // Free the TIS Message.
-                                    free(tis_message);
-                                } else {
-                                    logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
-                                            __FUNCTION__, __LINE__);
-
-                                    // Set the exit status.
-                                    status = UIOHOOK_ERROR_OUT_OF_MEMORY;
-                                }
-
-                                // Invalidate and free hook observer.
-                                CFRunLoopObserverInvalidate(hook->observer);
-                                CFRelease(hook->observer);
-                            } else {
-                                // We cant do a whole lot of anything if we cant
-                                // create run loop observer.
-                                logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
-                                        __FUNCTION__, __LINE__);
-
-                                // Set the exit status.
-                                status = UIOHOOK_ERROR_CREATE_OBSERVER;
-                            }
-                        } else {
-                            logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopGetCurrent failure!\n",
-                                    __FUNCTION__, __LINE__);
-
-                            // Set the exit status.
-                            status = UIOHOOK_ERROR_GET_RUNLOOP;
-                        }
-                        
-                        // Clean up the event source.
-                        CFRelease(hook->source);
-                    } else {
-                        logger(LOG_LEVEL_ERROR, "%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
-                                __FUNCTION__, __LINE__);
-
-                        // Set the exit status.
-                        status = UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
-                    }
-
-                    // Stop the CFMachPort from receiving any more messages.
-                    CFMachPortInvalidate(hook->port);
-                    CFRelease(hook->port);
-                } else {
-                    logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create event port!\n",
-                            __FUNCTION__, __LINE__);
-
-                    // Set the exit status.
-                    status = UIOHOOK_ERROR_CREATE_EVENT_PORT;
-                }
-
-                // Free the hook structure.
-                free(hook);
-            } else {
-                status = UIOHOOK_ERROR_OUT_OF_MEMORY;
-            }
-        } while (restart_tap);
-    } else {
+    if (!is_accessibility_enabled()) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Accessibility API is disabled!\n",
                 __FUNCTION__, __LINE__);
 
-        // Set the exit status.
-        status = UIOHOOK_ERROR_AXAPI_DISABLED;
+        return UIOHOOK_ERROR_AXAPI_DISABLED;
+    } else {
+        logger(LOG_LEVEL_INFO, "%s [%u]: Accessibility API is enabled.\n",
+                __FUNCTION__, __LINE__);
     }
+
+    do {
+        // Reset the restart flag...
+        restart_tap = false;
+
+        // Initialize starting modifiers.
+        initialize_modifiers();
+
+        // Try and allocate memory for hook_info.
+        hook_info *hook = malloc(sizeof(hook_info));
+        if (hook == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for hook_info structure!\n",
+                    __FUNCTION__, __LINE__);
+
+            return UIOHOOK_ERROR_OUT_OF_MEMORY;
+        }
+
+        // Setup the event mask to listen for.
+        CGEventMask event_mask = CGEventMaskBit(kCGEventKeyDown) |
+                CGEventMaskBit(kCGEventKeyUp) |
+                CGEventMaskBit(kCGEventFlagsChanged) |
+
+                CGEventMaskBit(kCGEventLeftMouseDown) |
+                CGEventMaskBit(kCGEventLeftMouseUp) |
+                CGEventMaskBit(kCGEventLeftMouseDragged) |
+
+                CGEventMaskBit(kCGEventRightMouseDown) |
+                CGEventMaskBit(kCGEventRightMouseUp) |
+                CGEventMaskBit(kCGEventRightMouseDragged) |
+
+                CGEventMaskBit(kCGEventOtherMouseDown) |
+                CGEventMaskBit(kCGEventOtherMouseUp) |
+                CGEventMaskBit(kCGEventOtherMouseDragged) |
+
+                CGEventMaskBit(kCGEventMouseMoved) |
+                CGEventMaskBit(kCGEventScrollWheel) |
+
+                // NOTE This event is undocumented and used
+                // for caps-lock release and multi-media keys.
+                CGEventMaskBit(NX_SYSDEFINED);
+
+        // Create the event tap.
+        hook->port = CGEventTapCreate(
+                kCGSessionEventTap,       // kCGHIDEventTap
+                kCGHeadInsertEventTap,    // kCGTailAppendEventTap
+                kCGEventTapOptionDefault, // kCGEventTapOptionListenOnly See Bug #22
+                event_mask,
+                hook_event_proc,
+                NULL);
+
+        if (hook->port == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create event port!\n",
+                    __FUNCTION__, __LINE__);
+
+            return UIOHOOK_ERROR_CREATE_EVENT_PORT;
+        } else {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: CGEventTapCreate Successful.\n",
+                                __FUNCTION__, __LINE__);
+        }
+
+
+        // Create the runloop event source from the event tap.
+        hook->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, hook->port, 0);
+        if (hook->source == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
+                    __FUNCTION__, __LINE__);
+
+            return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+        } else {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
+                    __FUNCTION__, __LINE__);
+        }
+
+
+        event_loop = CFRunLoopGetCurrent();
+        if (event_loop == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopGetCurrent failure!\n",
+                    __FUNCTION__, __LINE__);
+
+            return UIOHOOK_ERROR_GET_RUNLOOP;
+        } else {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopGetCurrent successful.\n",
+                    __FUNCTION__, __LINE__);
+        }
+
+
+        // Create run loop observers.
+        hook->observer = CFRunLoopObserverCreate(
+                kCFAllocatorDefault,
+                kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+                true,
+                0,
+                hook_status_proc,
+                NULL);
+
+        if (hook->observer == NULL) {
+            // We cant do a whole lot of anything if we cant
+            // create run loop observer.
+            logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
+                    __FUNCTION__, __LINE__);
+
+            // Set the exit status.
+            return UIOHOOK_ERROR_CREATE_OBSERVER;
+        } else {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate successful.\n",
+                    __FUNCTION__, __LINE__);
+        }
+
+        tis_message = (TISMessage *) calloc(1, sizeof(TISMessage));
+        if (tis_message == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
+                    __FUNCTION__, __LINE__);
+
+            return UIOHOOK_ERROR_OUT_OF_MEMORY;
+        }
+
+        if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+            *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
+            const char *dlError = dlerror();
+            if (dlError != NULL) {
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+                        __FUNCTION__, __LINE__, dlError);
+            }
+
+            // This is load is equivalent to calling dispatch_get_main_queue().  We use
+            // _dispatch_main_q because dispatch_get_main_queue is not exported from
+            // libdispatch.dylib and the function only dereferences the pointer.
+            dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
+            dlError = dlerror();
+            if (dlError != NULL) {
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+                        __FUNCTION__, __LINE__, dlError);
+            }
+
+            if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
+                        __FUNCTION__, __LINE__);
+            }
+
+            #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+            int runloop_status = start_message_port_runloop();
+            if (runloop_status != UIOHOOK_SUCCESS) {
+                return runloop_status;
+            }
+            #endif
+        }
+
+        // Add the event source and observer to the runloop mode.
+        CFRunLoopAddSource(event_loop, hook->source, kCFRunLoopDefaultMode);
+        CFRunLoopAddObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
+
+        #ifdef USE_OBJC
+        // Create a garbage collector to handle Cocoa events correctly.
+        Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
+        id pool = class_createInstance(NSAutoreleasePool_class, 0);
+        // Contributed by Alex <universailp@web.de>
+        id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
+        auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
+        #endif
+
+        // Start the hook thread runloop.
+        CFRunLoopRun();
+
+
+        #ifdef USE_OBJC
+        // Contributed by Alex <universailp@web.de>
+        eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
+        #endif
+
+        // Lock back up until we are done processing the exit.
+        if (CFRunLoopContainsObserver(event_loop, hook->observer, kCFRunLoopDefaultMode)) {
+            CFRunLoopRemoveObserver(event_loop, hook->observer, kCFRunLoopDefaultMode);
+        }
+
+        if (CFRunLoopContainsSource(event_loop, hook->source, kCFRunLoopDefaultMode)) {
+            CFRunLoopRemoveSource(event_loop, hook->source, kCFRunLoopDefaultMode);
+        }
+
+        #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+        if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+            stop_message_port_runloop();
+        }
+        #endif
+
+        // Free the TIS Message.
+        free(tis_message);
+
+
+        // Invalidate and free hook observer.
+        CFRunLoopObserverInvalidate(hook->observer);
+        CFRelease(hook->observer);
+
+        // Clean up the event source.
+        CFRelease(hook->source);
+
+        // Stop the CFMachPort from receiving any more messages.
+        CFMachPortInvalidate(hook->port);
+        CFRelease(hook->port);
+
+        // Free the hook structure.
+        free(hook);
+    } while (restart_tap);
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Something, something, something, complete.\n",
             __FUNCTION__, __LINE__);
 
-    return status;
+    return UIOHOOK_SUCCESS;;
 }
 
 UIOHOOK_API int hook_stop() {

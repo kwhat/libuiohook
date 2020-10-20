@@ -1,5 +1,5 @@
 libUIOHook: Cross-platform keyboard and mouse hooking from userland. 
-=================================================================
+====================================================================
 
 ![build-binaires](https://github.com/kwhat/libuiohook/workflows/build-binaires/badge.svg)
 
@@ -29,11 +29,8 @@ $ cmake --build . --parallel 2 --target install
 
 |           | option                        | description            | default |
 | --------- | ----------------------------- | ---------------------- | ------- | 
-| __all__   | ENABLE_DEBUG:BOOL             | debug output           | OFF     |
-|           | BUILD_DEMO:BOOL               | demo applications      | OFF     |
-|           | ENABLE_QUIET:BOOL             | copyright suppression  | OFF     |
-|           | ENABLE_SHARED:BOOL            | shared library         | ON      |
-|           | ENABLE_STATIC:BOOL            | static library         | OFF     |
+| __all__   | BUILD_DEMO:BOOL               | demo applications      | OFF     |
+|           | BUILD_SHARED_LIBS:BOOL        | shared library         | ON      |
 |           | ENABLE_TEST:BOOL              | testing                | OFF     |
 | __OSX__   | USE_APPLICATION_SERVICES:BOOL | framework              | ON      |
 |           | USE_IOKIT:BOOL                | framework              | ON      |
@@ -41,14 +38,12 @@ $ cmake --build . --parallel 2 --target install
 |           | USE_CARBON_LEGACY:BOOL        | legacy framework       | OFF     |
 | __Win32__ |                               |                        |         |
 | __Linux__ | USE_EVDEV:BOOL                | generic input driver   | ON      |
-| __*nix__  | USE_XCB:BOOL                  | xcb extension          | ON      |
-|           | USE_XF86MISC:BOOL             | xfree86-misc extension | OFF     |
-|           | USE_XKB:BOOL                  | xkb extension          | ON      |
-|           | USE_XKB_FILE:BOOL             | xkb-file extension     | ON      |
+| __*nix__  | USE_XF86MISC:BOOL             | xfree86-misc extension | OFF     |
+|           | USE_XINERAMA:BOOL             | xinerama library       | ON      |
 |           | USE_XKB_COMMON:BOOL           | xkbcommon extension    | ON      |
+|           | USE_XKB_FILE:BOOL             | xkb-file extension     | ON      |
 |           | USE_XRANDR:BOOL               | xrandt extension       | OFF     |
 |           | USE_XRECORD_ASYNC:BOOL        | xrecord async api      | OFF     |
-|           | USE_XINERAMA:BOOL             | xinerama library       | ON      |
 |           | USE_XT:BOOL                   | x toolkit extension    | ON      |
 |           | USE_XTEST:BOOL                | xtest extension        | ON      |
 

@@ -1,13 +1,13 @@
 # libUIOHook: Cross-platform keyboard and mouse hooking from userland.
 # Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
-# https://github.com/kwhat/uiohook/
+# https://github.com/kwhat/libuiohook/
 #
-# UIOHook is free software: you can redistribute it and/or modify
+# libUIOHook is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published
 # by the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
-# UIOHook is distributed in the hope that it will be useful,
+# libUIOHook is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.

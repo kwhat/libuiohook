@@ -18,7 +18,7 @@ Prerequisites:
    * libxkbfile-dev 
 
 ```
-$ git clone https://github.com/kwhat/uiohook
+$ git clone https://github.com/kwhat/libuiohook
 $ cd uiohook
 $ mkdir build && cd build
 $ cmake -S .. -D BUILD_SHARED_LIBS=ON -D BUILD_DEMO=ON -DCMAKE_INSTALL_PREFIX=../dist

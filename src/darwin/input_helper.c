@@ -112,6 +112,7 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
         }
     }
     #elif defined(USE_APPLICATION_SERVICES)
+    // TODO Try https://developer.apple.com/documentation/coregraphics/1456120-cgeventkeyboardgetunicodestring?language=objc
     if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
         // NOTE The following block must execute on the main runloop,
         // Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain()) to avoid 

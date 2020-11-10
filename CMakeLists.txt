@@ -244,12 +244,20 @@ elseif(APPLE)
         target_link_libraries(uiohook "${IOKIT}")
     endif()
 
+    # FIXME Change USE_OBJC flag to USE_APPKIT
+    #option(USE_APPKIT "AppKit framework (default: ON)" ON)
     option(USE_OBJC "Objective-C API (default: ON)" ON)
     if(USE_OBJC)
+        # FIXME Drop USE_OBJC as it is included in AppKit
         find_library(OBJC objc REQUIRED)
         add_compile_definitions(USE_OBJC)
         target_include_directories(uiohook PRIVATE "${OBJC}")
         target_link_libraries(uiohook "${OBJC}")
+
+        find_library(APPKIT AppKit REQUIRED)
+        add_compile_definitions(USE_APPKIT)
+        target_include_directories(uiohook PRIVATE "${APPKIT}")
+        target_link_libraries(uiohook "${APPKIT}")
     endif()
 
     option(USE_CARBON_LEGACY "Legacy Carbon framework functionality (default: OFF)" OFF)

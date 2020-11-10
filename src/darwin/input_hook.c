@@ -565,45 +565,70 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
         if (current_modifiers & MASK_CAPS_LOCK) {
             // Process as a key pressed event.
             unset_modifier_mask(MASK_CAPS_LOCK);
-            process_key_released(timestamp, event_ref);
+            // Key released handled by process_system_key
+            // FIXME Add this in with #ifndef USE_OBJC
+            //process_key_released(timestamp, event_ref);
         } else {
             // Process as a key released event.
             set_modifier_mask(MASK_CAPS_LOCK);
-            process_key_pressed(timestamp, event_ref);
+            // Key pressed handled by process_system_key
+            // FIXME Add this in with #ifndef USE_OBJC
+            //process_key_pressed(timestamp, event_ref);
         }
     }
 }
 
 /* These events are totally undocumented for the CGEvent type, but are required to grab media and caps-lock keys.
  */
+ // FIXME Omit this function with #ifndef USE_OBJC
 static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) {
-    if( CGEventGetType(event_ref) == NX_SYSDEFINED) {
+    if (CGEventGetType(event_ref) == NX_SYSDEFINED) {
         #ifdef USE_OBJC
         // Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
         id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
         id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
 
-        int (*eventWithoutCGEvent)(id, SEL) = (int (*)(id, SEL)) objc_msgSend;
-        int subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
-
+        long (*eventWithoutCGEvent)(id, SEL) = (long (*)(id, SEL)) objc_msgSend;
+        int subtype = (int) eventWithoutCGEvent(event_data, sel_registerName("subtype"));
         #else
-        CFDataRef data = CGEventCreateData(kCFAllocatorDefault, event_ref);
-        //CFIndex len = CFDataGetLength(data);
-        UInt8 *buffer = malloc(12);
-        CFDataGetBytes(data, CFRangeMake(108, 12), buffer);
-        UInt32 subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+        // FIXME We shouldn't be doing this.
+        CFDataRef data_ref = CGEventCreateData(kCFAllocatorDefault, event_ref);
+        if (data_ref == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CGEventRef copy!\n",
+                    __FUNCTION__, __LINE__);
+            return;
+        }
+
+        CFIndex len = CFDataGetLength(data_ref);
+        UInt8 *buffer = malloc(20);
+        if (buffer == NULL) {
+            CFRelease(data_ref);
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFData range buffer!\n",
+                    __FUNCTION__, __LINE__);
+            return;
+        }
+
+        CFDataGetBytes(data_ref, CFRangeMake(len - 68, 20), buffer);
+        int subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
         #endif
 
         if (subtype == 8) {
             #ifdef USE_OBJC
             // Contributed by Alex <universailp@web.de>
-            int data = eventWithoutCGEvent(event_data, sel_registerName("data1"));
+            long data = eventWithoutCGEvent(event_data, sel_registerName("data1"));
+            #else
+            // FIXME We shouldn't be doing this.
+            #ifdef __LP64__
+            long data = CFSwapInt64BigToHost(*((UInt64 *) (buffer + 4)));
+            #else
+            long data = CFSwapInt32BigToHost(*((UInt32 *) (buffer + 4)));
+            #endif
             #endif
 
             int key_code = (data & 0xFFFF0000) >> 16;
             int key_flags = (data & 0xFFFF);
-            //int key_state = (key_flags & 0xFF00) >> 8;
-            bool key_down = (key_flags & 0x1) > 0;
+            int key_state = (key_flags & 0xFF00) >> 8;
+            bool key_down = (key_state & 0x1) > 0;
 
             if (key_code == NX_KEYTYPE_CAPS_LOCK) {
                 // It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
@@ -721,8 +746,9 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
         }
 
         #ifndef USE_OBJC
+        // FIXME We shouldn't be doing this.
         free(buffer);
-        CFRelease(data);
+        CFRelease(data_ref);
         #endif
     }
 }
@@ -933,7 +959,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
     // Get the local system time in UTC.
     gettimeofday(&system_time, NULL);
 
-    // Grab the native event timestap for use later..
+    // Grab the native event timestamp for use later..
     uint64_t timestamp = (uint64_t) CGEventGetTimestamp(event_ref);
 
     // Get the event class.
@@ -950,6 +976,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
             process_modifier_changed(timestamp, event_ref);
             break;
 
+        // FIXME Omit this case with #ifndef USE_OBJC
         case NX_SYSDEFINED:
             process_system_key(timestamp, event_ref);
             break;
@@ -1183,6 +1210,7 @@ UIOHOOK_API int hook_run() {
                                     id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
                                     auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
                                     #endif
+
 
                                     // Start the hook thread runloop.
                                     CFRunLoopRun();

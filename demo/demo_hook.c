@@ -54,7 +54,7 @@ bool logger_proc(unsigned int level, const char *format, ...) {
 // from.  This is important because hook_run() attaches to the operating systems
 // event dispatcher and may delay event delivery to the target application.
 // Furthermore, some operating systems may choose to disable your hook if it 
-// takes to long to process.  If you need to do any extended processing, please 
+// takes too long to process.  If you need to do any extended processing, please 
 // do so by copying the event to your own queued dispatch thread.
 void dispatch_proc(uiohook_event * const event) {
     char buffer[256] = { 0 };

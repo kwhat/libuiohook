@@ -27,8 +27,6 @@
 #include "logger.h"
 #include "input_helper.h"
 
-#define REG_KEYBOARD_LAYOUTS "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\%s"
-
 static const uint16_t keycode_scancode_table[][2] = {
     /* idx    { vk_code,                scancode             }, */
     /*   0 */ { VC_UNDEFINED,         0x0000                 }, // 0x00
@@ -423,35 +421,40 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
     HKEY hKey;
     DWORD varType = REG_SZ;
 
-    char kbdName[KL_NAMELENGTH];
+    char kbdName[KL_NAMELENGTH * 4];
     if (GetKeyboardLayoutName(kbdName)) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Found keyboard layout \"%s\".\n",
                 __FUNCTION__, __LINE__, kbdName);
 
-        size_t keySize = strlen(REG_KEYBOARD_LAYOUTS) + KL_NAMELENGTH;
-        char *kbdKeyPath = (char *) malloc(keySize);
-        if (kbdKeyPath != NULL) {
-            snprintf(kbdKeyPath, keySize, REG_KEYBOARD_LAYOUTS, kbdName);
+        const char *regPrefix = "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layouts\\";
+        size_t regPathSize = strlen(regPrefix) + strlen(kbdName) + 1;
+        char *regPath = malloc(regPathSize);
+        if (regPath != NULL) {
+            strcpy_s(regPath, regPathSize, regPrefix);
+            strcat_s(regPath, regPathSize, kbdName);
 
-            if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) kbdKeyPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
-                const char *kbdKey =  "Layout File";
-                if (RegQueryValueEx(hKey, kbdKey, NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
+            if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) regPath, 0, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS) {
+                const char *regKey =  "Layout File";
+                if (RegQueryValueEx(hKey, regKey, NULL, &varType, (LPBYTE) layoutFile, &bufferSize) == ERROR_SUCCESS) {
                     RegCloseKey(hKey);
                     status = UIOHOOK_SUCCESS;
                 } else {
                     logger(LOG_LEVEL_WARN, "%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
-                            __FUNCTION__, __LINE__, kbdKey);
+                            __FUNCTION__, __LINE__, regKey);
                 }
             } else {
                 logger(LOG_LEVEL_WARN, "%s [%u]: RegOpenKeyEx failed to open key: \"%s\"!\n",
-                        __FUNCTION__, __LINE__, kbdKeyPath);
+                        __FUNCTION__, __LINE__, regPath);
             }
 
-            free(kbdKeyPath);
+            free(regPath);
         } else {
             logger(LOG_LEVEL_WARN, "%s [%u]: malloc(%u) failed!\n",
-                    __FUNCTION__, __LINE__, keySize);
+                    __FUNCTION__, __LINE__, regPathSize);
         }
+    } else {
+        logger(LOG_LEVEL_WARN, "%s [%u]: GetKeyboardLayoutName() failed!\n",
+                __FUNCTION__, __LINE__);
     }
 
     return status;

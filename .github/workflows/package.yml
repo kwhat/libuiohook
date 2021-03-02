@@ -5,6 +5,42 @@ on:
       - '**'
 
 jobs:
+  apple-arm:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Compile
+        env:
+          CC: clang
+          CFLAGS: '-O2 -g -march=aarch64 -mtune=generic -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          LDFLAGS: '-Wl,-dead_strip_dylibs'
+        shell: bash
+        run: |
+          cmake -B ${{github.workspace}}/build \
+            -G "Unix Makefiles" \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D BUILD_DEMO=ON
+
+          cmake --build ${{github.workspace}}/build \
+            --parallel 2 \
+            --config RelWithDebInfo \
+            --clean-first
+
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
+
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: nightly-build
+          path: ${{github.workspace}}/dist/**/*
+
   apple-x86_64:
     runs-on: macos-latest
 
@@ -14,7 +50,7 @@ jobs:
         with:
           submodules: true
 
-      - name: Compile x86_64
+      - name: Compile
         env:
           CC: clang
           CFLAGS: '-O2 -g -march=x86-64 -mtune=generic -flto -fomit-frame-pointer -fno-stack-protector -pipe'

@@ -126,7 +126,7 @@ typedef struct _uiohook_event {
     } data;
 } uiohook_event;
 
-typedef void (*dispatcher_t)(uiohook_event *const);
+typedef void (*dispatcher_t)(uiohook_event *const, void* capture);
 /* End Virtual Event Types and Data Structures */
 
 
@@ -421,7 +421,7 @@ extern "C" {
     UIOHOOK_API void hook_post_event(uiohook_event * const event);
 
     // Set the event callback function.
-    UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc);
+    UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void* capture);
 
     // Insert the event hook.
     UIOHOOK_API int hook_run();

@@ -86,7 +86,7 @@ bool logger_proc(unsigned int level, const char *format, ...) {
 // Furthermore, some operating systems may choose to disable your hook if it 
 // takes too long to process.  If you need to do any extended processing, please 
 // do so by copying the event to your own queued dispatch thread.
-void dispatch_proc(uiohook_event * const event) {
+void dispatch_proc(uiohook_event * const event, void* capture) {
     char buffer[256] = { 0 };
     size_t length = snprintf(buffer, sizeof(buffer), 
             "id=%i,when=%" PRIu64 ",mask=0x%X", 
@@ -355,7 +355,7 @@ int main() {
     hook_set_logger_proc(&logger_proc);
     
     // Set the event callback for uiohook events.
-    hook_set_dispatch_proc(&dispatch_proc);
+    hook_set_dispatch_proc(&dispatch_proc, NULL);
 
     // Start the hook and block.
     // NOTE If EVENT_HOOK_ENABLED was delivered, the status will always succeed.

@@ -101,12 +101,14 @@ static uiohook_event event;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
+static void* dispatcher_capture = NULL;
 
-UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
+UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void* capture) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
             __FUNCTION__, __LINE__, dispatch_proc);
 
     dispatcher = dispatch_proc;
+    dispatcher_capture = capture;
 }
 
 // Send out an event if a dispatcher was set.
@@ -115,7 +117,7 @@ static inline void dispatch_event(uiohook_event *const event) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
                 __FUNCTION__, __LINE__, event->type);
 
-        dispatcher(event);
+        dispatcher(event, dispatcher_capture);
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
                 __FUNCTION__, __LINE__);

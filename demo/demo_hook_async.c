@@ -267,7 +267,7 @@ int hook_enable() {
                     __FUNCTION__, __LINE__, (long) THREAD_PRIORITY_TIME_CRITICAL,
                     hook_thread    , (unsigned long) GetLastError());
         }
-        #elif (defined(__APPLE__) && defined(__MACH__)) || _POSIX_C_SOURCE >= 200112L
+        #elif (defined(__APPLE__) && defined(__MACH__)) || _POSIX_C_SOURCE >= 200112L || defined(__FreeBSD__)
         // Some POSIX revisions do not support pthread_setschedprio so we will 
         // use pthread_setschedparam instead.
         struct sched_param param = { .sched_priority = priority };

@@ -1,0 +1,21 @@
+compute_engine_instance:
+  # Image list available via
+  # gcloud compute images list --project freebsd-org-cloud-dev --no-standard-images
+  platform: freebsd
+  image_project: freebsd-org-cloud-dev
+  image: freebsd-13-0-release-amd64
+  cpu: 2
+  memory: 8G
+
+task:
+  name: Nightly Build
+  env:
+    CC: clang
+    CFLAGS: '-O2 -g -march=x86-64 -mtune=generic -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+  timeout_in: 120m
+  install_script:
+    - sh .cirrus-ci/pkg-install.sh cmake ninja pkgconf libXt libX11 libXinerama libXtst libxcb libxkbcommon libxkbfile git
+  script:
+    - mkdir build
+    - cmake -B build -DBUILD_SHARED_LIBS=ON -DBUILD_DEMO=ON
+    - cmake --build ./build

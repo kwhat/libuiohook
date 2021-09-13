@@ -664,7 +664,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
         }
 
         // You may already be a winner!
-        if (locale_item != NULL && locale_item->id != locale_id) {
+        if (locale_item != NULL && locale_item->id == locale_id) {
             logger(LOG_LEVEL_INFO,
                     "%s [%u]: Activating keyboard layout %#p.\n",
                     __FUNCTION__, __LINE__, locale_item->id);

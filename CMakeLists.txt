@@ -219,7 +219,6 @@ if(UNIX AND NOT APPLE)
     endif()
 elseif(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5")
 
     find_package(Threads REQUIRED)
     target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")

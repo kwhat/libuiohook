@@ -23,7 +23,7 @@ jobs:
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/arm64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D BUILD_DEMO=ON

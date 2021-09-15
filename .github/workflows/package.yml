@@ -53,7 +53,7 @@ jobs:
       - name: Compile
         env:
           CC: clang
-          CFLAGS: '-O2 -g -target x86-64-apple-macos10.5 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          CFLAGS: '-O2 -g -target x86_64-apple-macos10.5 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
           LDFLAGS: '-Wl,-dead_strip_dylibs'
         shell: bash
         run: |

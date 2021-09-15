@@ -5,7 +5,7 @@ on:
       - '**'
 
 jobs:
-  apple-arm:
+  apple-arm64:
     runs-on: macos-latest
 
     steps:

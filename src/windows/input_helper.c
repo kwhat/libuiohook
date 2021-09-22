@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2020 Alexander Barker.  All Rights Received.
+ * Copyright (C) 2006-2021 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -460,6 +460,7 @@ static int get_keyboard_layout_file(char *layoutFile, DWORD bufferSize) {
     return status;
 }
 
+// Returns the number of locales that were loaded.
 static int refresh_locale_list() {
     int count = 0;
 
@@ -647,9 +648,9 @@ static int refresh_locale_list() {
     return count;
 }
 
+// Returns the number of chars written to the buffer.
 SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
-    // Get the thread id that currently has focus and ask for its current
-    // locale..
+    // Get the thread id that currently has focus and ask for its current locale.
     DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
     HKL locale_id = GetKeyboardLayout(focus_pid);
 
@@ -838,6 +839,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
     return charCount;
 }
 
+// Returns the number of locales that were loaded.
 int load_input_helper() {
     int count = 0;
 
@@ -856,7 +858,7 @@ int load_input_helper() {
     return count;
 }
 
-// This returns the number of locales that were removed.
+// Returns the number of locales that were removed.
 int unload_input_helper() {
     int count = 0;
 

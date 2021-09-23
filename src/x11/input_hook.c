@@ -931,7 +931,7 @@ static int xrecord_query() {
     // Check to make sure XRecord is installed and enabled.
     int major, minor;
     if (XRecordQueryVersion(hook->ctrl.display, &major, &minor) != 0) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: XRecord version: %i.%i.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: XRecord version: %i.%i.\n",
                 __FUNCTION__, __LINE__, major, minor);
 
         status = xrecord_alloc();

@@ -692,7 +692,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 
     // Check and make sure the Unicode helper was loaded.
     if (locale_current != NULL) {
-        logger(LOG_LEVEL_INFO,
+        logger(LOG_LEVEL_DEBUG,
                 "%s [%u]: Using keyboard layout %#p.\n",
                 __FUNCTION__, __LINE__, locale_current->id);
 

@@ -88,7 +88,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                 }
             }
         } else {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
+            logger(LOG_LEVEL_WARN, "%s [%u]: multiple_get_screen_info failed: %ld. Fallback.\n",
                     __FUNCTION__, __LINE__, status);
 
             size_t width = CGDisplayPixelsWide(CGMainDisplayID());

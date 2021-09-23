@@ -68,7 +68,7 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
                 .height = height
             };
 
-            logger(LOG_LEVEL_INFO, "%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
                     __FUNCTION__, __LINE__, screens->count, width, height, origin_x, origin_y);
     }
 
@@ -92,7 +92,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 
     if (!status || screens.count == 0) {
         // Fallback in case EnumDisplayMonitors fails.
-        logger(LOG_LEVEL_INFO, "%s [%u]: EnumDisplayMonitors failed. Fallback.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: EnumDisplayMonitors failed. Fallback.\n",
                 __FUNCTION__, __LINE__);
 
         int width  = GetSystemMetrics(SM_CXSCREEN);
@@ -125,7 +125,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
     long int rate;
 
     if (SystemParametersInfo(SPI_GETKEYBOARDSPEED, 0, &rate, 0)) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: SPI_GETKEYBOARDSPEED: %li.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETKEYBOARDSPEED: %li.\n",
             __FUNCTION__, __LINE__, rate);
 
         value = rate;
@@ -139,7 +139,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
     long int delay;
 
     if (SystemParametersInfo(SPI_GETKEYBOARDDELAY, 0, &delay, 0)) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: SPI_GETKEYBOARDDELAY: %li.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETKEYBOARDDELAY: %li.\n",
             __FUNCTION__, __LINE__, delay);
 
         value = delay;
@@ -153,7 +153,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     int mouse[3]; // 0-Threshold X, 1-Threshold Y and 2-Speed.
 
     if (SystemParametersInfo(SPI_GETMOUSE, 0, &mouse, 0)) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: SPI_GETMOUSE[2]: %i.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSE[2]: %i.\n",
             __FUNCTION__, __LINE__, mouse[2]);
 
         value = mouse[2];
@@ -167,9 +167,9 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
     int mouse[3]; // 0-Threshold X, 1-Threshold Y and 2-Speed.
 
     if (SystemParametersInfo(SPI_GETMOUSE, 0, &mouse, 0)) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: SPI_GETMOUSE[0]: %i.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSE[0]: %i.\n",
             __FUNCTION__, __LINE__, mouse[0]);
-        logger(LOG_LEVEL_INFO, "%s [%u]: SPI_GETMOUSE[1]: %i.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSE[1]: %i.\n",
             __FUNCTION__, __LINE__, mouse[1]);
 
         // Average the x and y thresholds.
@@ -184,7 +184,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
     int sensitivity;
 
     if (SystemParametersInfo(SPI_GETMOUSESPEED, 0, &sensitivity, 0)) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: SPI_GETMOUSESPEED: %i.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSESPEED: %i.\n",
             __FUNCTION__, __LINE__, sensitivity);
 
         value = sensitivity;
@@ -198,7 +198,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     UINT clicktime;
 
     clicktime = GetDoubleClickTime();
-    logger(LOG_LEVEL_INFO, "%s [%u]: GetDoubleClickTime: %u.\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: GetDoubleClickTime: %u.\n",
             __FUNCTION__, __LINE__, (unsigned int) clicktime);
 
     value = (long int) clicktime;

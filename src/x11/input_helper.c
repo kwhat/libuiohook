@@ -40,8 +40,8 @@ static XkbDescPtr keyboard_map;
 #include <X11/extensions/XKBrules.h>
 static struct xkb_rule_names xkb_names = {
     .rules = "base",
-    .model = "us",
-    .layout = "pc105",
+    .model = NULL,
+    .layout = NULL,
     .variant = NULL,
     .options = NULL
 };
@@ -50,7 +50,7 @@ static struct xkb_rule_names xkb_names = {
 
 #include "logger.h"
 
-/* The follwoing two tables are based on QEMU's x_keymap.c, under the following
+/* The following two tables are based on QEMU's x_keymap.c, under the following
  * terms:
  *
  * Copyright (C) 2003 Fabrice Bellard <fabrice@bellard.org>

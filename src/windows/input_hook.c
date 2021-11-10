@@ -23,6 +23,9 @@
 #include "input_helper.h"
 #include "logger.h"
 
+#define KEY_TOGGLED 0x0001
+#define KEY_PRESSED 0x8000
+
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
@@ -86,25 +89,25 @@ static inline unsigned short int get_modifiers() {
 static void initialize_modifiers() {
     current_modifiers = 0x0000;
 
-    // NOTE We are checking the high order bit, so it will be < 0 for a singed short.
-    if (GetKeyState(VK_LSHIFT)   < 0) { set_modifier_mask(MASK_SHIFT_L);     }
-    if (GetKeyState(VK_RSHIFT)   < 0) { set_modifier_mask(MASK_SHIFT_R);     }
-    if (GetKeyState(VK_LCONTROL) < 0) { set_modifier_mask(MASK_CTRL_L);      }
-    if (GetKeyState(VK_RCONTROL) < 0) { set_modifier_mask(MASK_CTRL_R);      }
-    if (GetKeyState(VK_LMENU)    < 0) { set_modifier_mask(MASK_ALT_L);       }
-    if (GetKeyState(VK_RMENU)    < 0) { set_modifier_mask(MASK_ALT_R);       }
-    if (GetKeyState(VK_LWIN)     < 0) { set_modifier_mask(MASK_META_L);      }
-    if (GetKeyState(VK_RWIN)     < 0) { set_modifier_mask(MASK_META_R);      }
+    // NOTE We are checking the high order bit for key press and the low order bit for key toggle.
+    if (GetKeyState(VK_LSHIFT)   & KEY_PRESSED) { set_modifier_mask(MASK_SHIFT_L);     }
+    if (GetKeyState(VK_RSHIFT)   & KEY_PRESSED) { set_modifier_mask(MASK_SHIFT_R);     }
+    if (GetKeyState(VK_LCONTROL) & KEY_PRESSED) { set_modifier_mask(MASK_CTRL_L);      }
+    if (GetKeyState(VK_RCONTROL) & KEY_PRESSED) { set_modifier_mask(MASK_CTRL_R);      }
+    if (GetKeyState(VK_LMENU)    & KEY_PRESSED) { set_modifier_mask(MASK_ALT_L);       }
+    if (GetKeyState(VK_RMENU)    & KEY_PRESSED) { set_modifier_mask(MASK_ALT_R);       }
+    if (GetKeyState(VK_LWIN)     & KEY_PRESSED) { set_modifier_mask(MASK_META_L);      }
+    if (GetKeyState(VK_RWIN)     & KEY_PRESSED) { set_modifier_mask(MASK_META_R);      }
 
-    if (GetKeyState(VK_LBUTTON)  < 0) { set_modifier_mask(MASK_BUTTON1);     }
-    if (GetKeyState(VK_RBUTTON)  < 0) { set_modifier_mask(MASK_BUTTON2);     }
-    if (GetKeyState(VK_MBUTTON)  < 0) { set_modifier_mask(MASK_BUTTON3);     }
-    if (GetKeyState(VK_XBUTTON1) < 0) { set_modifier_mask(MASK_BUTTON4);     }
-    if (GetKeyState(VK_XBUTTON2) < 0) { set_modifier_mask(MASK_BUTTON5);     }
+    if (GetKeyState(VK_LBUTTON)  & KEY_PRESSED) { set_modifier_mask(MASK_BUTTON1);     }
+    if (GetKeyState(VK_RBUTTON)  & KEY_PRESSED) { set_modifier_mask(MASK_BUTTON2);     }
+    if (GetKeyState(VK_MBUTTON)  & KEY_PRESSED) { set_modifier_mask(MASK_BUTTON3);     }
+    if (GetKeyState(VK_XBUTTON1) & KEY_PRESSED) { set_modifier_mask(MASK_BUTTON4);     }
+    if (GetKeyState(VK_XBUTTON2) & KEY_PRESSED) { set_modifier_mask(MASK_BUTTON5);     }
 
-    if (GetKeyState(VK_NUMLOCK)  < 0) { set_modifier_mask(MASK_NUM_LOCK);    }
-    if (GetKeyState(VK_CAPITAL)  < 0) { set_modifier_mask(MASK_CAPS_LOCK);   }
-    if (GetKeyState(VK_SCROLL)   < 0) { set_modifier_mask(MASK_SCROLL_LOCK); }
+    if (GetKeyState(VK_NUMLOCK)  & KEY_TOGGLED) { set_modifier_mask(MASK_NUM_LOCK);    }
+    if (GetKeyState(VK_CAPITAL)  & KEY_TOGGLED) { set_modifier_mask(MASK_CAPS_LOCK);   }
+    if (GetKeyState(VK_SCROLL)   & KEY_TOGGLED) { set_modifier_mask(MASK_SCROLL_LOCK); }
 }
 
 
@@ -192,18 +195,54 @@ void hook_stop_proc() {
 }
 
 static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
-    // Check and setup modifiers.
-    if      (kbhook->vkCode == VK_LSHIFT)   { set_modifier_mask(MASK_SHIFT_L);     }
-    else if (kbhook->vkCode == VK_RSHIFT)   { set_modifier_mask(MASK_SHIFT_R);     }
-    else if (kbhook->vkCode == VK_LCONTROL) { set_modifier_mask(MASK_CTRL_L);      }
-    else if (kbhook->vkCode == VK_RCONTROL) { set_modifier_mask(MASK_CTRL_R);      }
-    else if (kbhook->vkCode == VK_LMENU)    { set_modifier_mask(MASK_ALT_L);       }
-    else if (kbhook->vkCode == VK_RMENU)    { set_modifier_mask(MASK_ALT_R);       }
-    else if (kbhook->vkCode == VK_LWIN)     { set_modifier_mask(MASK_META_L);      }
-    else if (kbhook->vkCode == VK_RWIN)     { set_modifier_mask(MASK_META_R);      }
-    else if (kbhook->vkCode == VK_NUMLOCK)  { set_modifier_mask(MASK_NUM_LOCK);    }
-    else if (kbhook->vkCode == VK_CAPITAL)  { set_modifier_mask(MASK_CAPS_LOCK);   }
-    else if (kbhook->vkCode == VK_SCROLL)   { set_modifier_mask(MASK_SCROLL_LOCK); }
+    // Adjust the modifier mask.
+    switch (kbhook->vkCode) {
+        case VK_LSHIFT:
+            set_modifier_mask(MASK_SHIFT_L);
+            break;
+
+        case VK_RSHIFT:
+            set_modifier_mask(MASK_SHIFT_R);
+            break;
+
+        case VK_LCONTROL:
+            set_modifier_mask(MASK_CTRL_L);
+            break;
+
+        case VK_RCONTROL:
+            set_modifier_mask(MASK_CTRL_R);
+            break;
+
+        case VK_LMENU:
+            set_modifier_mask(MASK_ALT_L);
+            break;
+
+        case VK_RMENU:
+            set_modifier_mask(MASK_ALT_R);
+            break;
+
+        case VK_LWIN:
+            set_modifier_mask(MASK_META_L);
+            break;
+
+        case VK_RWIN:
+            set_modifier_mask(MASK_META_R);
+            break;
+
+        case VK_NUMLOCK:
+            //set_modifier_mask(MASK_NUM_LOCK);
+            break;
+
+        case VK_CAPITAL:
+            //set_modifier_mask(MASK_CAPS_LOCK);
+            //PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL);
+            break;
+
+        case VK_SCROLL:
+            //set_modifier_mask(MASK_SCROLL_LOCK);
+            break;
+    }
+
 
     // Populate key pressed event.
     event.time = kbhook->time;
@@ -251,18 +290,54 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 }
 
 static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
-    // Check and setup modifiers.
-    if      (kbhook->vkCode == VK_LSHIFT)   { unset_modifier_mask(MASK_SHIFT_L);     }
-    else if (kbhook->vkCode == VK_RSHIFT)   { unset_modifier_mask(MASK_SHIFT_R);     }
-    else if (kbhook->vkCode == VK_LCONTROL) { unset_modifier_mask(MASK_CTRL_L);      }
-    else if (kbhook->vkCode == VK_RCONTROL) { unset_modifier_mask(MASK_CTRL_R);      }
-    else if (kbhook->vkCode == VK_LMENU)    { unset_modifier_mask(MASK_ALT_L);       }
-    else if (kbhook->vkCode == VK_RMENU)    { unset_modifier_mask(MASK_ALT_R);       }
-    else if (kbhook->vkCode == VK_LWIN)     { unset_modifier_mask(MASK_META_L);      }
-    else if (kbhook->vkCode == VK_RWIN)     { unset_modifier_mask(MASK_META_R);      }
-    else if (kbhook->vkCode == VK_NUMLOCK)  { unset_modifier_mask(MASK_NUM_LOCK);    }
-    else if (kbhook->vkCode == VK_CAPITAL)  { unset_modifier_mask(MASK_CAPS_LOCK);   }
-    else if (kbhook->vkCode == VK_SCROLL)   { unset_modifier_mask(MASK_SCROLL_LOCK); }
+    // Adjust the modifier mask.
+    switch (kbhook->vkCode) {
+        case VK_LSHIFT:
+            unset_modifier_mask(MASK_SHIFT_L);
+            break;
+
+        case VK_RSHIFT:
+            unset_modifier_mask(MASK_SHIFT_R);
+            break;
+
+        case VK_LCONTROL:
+            unset_modifier_mask(MASK_CTRL_L);
+            break;
+
+        case VK_RCONTROL:
+            unset_modifier_mask(MASK_CTRL_R);
+            break;
+
+        case VK_LMENU:
+            unset_modifier_mask(MASK_ALT_L);
+            break;
+
+        case VK_RMENU:
+            unset_modifier_mask(MASK_ALT_R);
+            break;
+
+        case VK_LWIN:
+            unset_modifier_mask(MASK_META_L);
+            break;
+
+        case VK_RWIN:
+            unset_modifier_mask(MASK_META_R);
+            break;
+/*
+        case VK_NUMLOCK:
+            unset_modifier_mask(MASK_NUM_LOCK);
+            break;
+
+        case VK_CAPITAL:
+            unset_modifier_mask(MASK_CAPS_LOCK);
+            break;
+
+        case VK_SCROLL:
+            unset_modifier_mask(MASK_SCROLL_LOCK);
+            break;
+*/
+    }
+
 
     // Populate key pressed event.
     event.time = kbhook->time;
@@ -297,7 +372,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 
         default:
             // In theory this *should* never execute.
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled Windows keyboard event: %#X.\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Unhandled Windows keyboard event: %#X.\n",
                     __FUNCTION__, __LINE__, (unsigned int) wParam);
             break;
     }
@@ -309,6 +384,31 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Consuming the current event. (%li)\n",
                 __FUNCTION__, __LINE__, (long) hook_result);
     }
+
+    //*
+    // We have to check toggle masks on every event because they are broken upstream.
+    if (GetKeyState(VK_NUMLOCK) & KEY_TOGGLED) {
+        set_modifier_mask(MASK_NUM_LOCK);
+    } else {
+        unset_modifier_mask(MASK_NUM_LOCK);
+    }
+
+    if (GetKeyState(VK_CAPITAL) & KEY_TOGGLED) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CapsLock Down: %#X.\n",
+                __FUNCTION__, __LINE__, GetKeyState(VK_CAPITAL));
+        set_modifier_mask(MASK_CAPS_LOCK);
+    } else {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CapsLock Up: %#X.\n",
+                __FUNCTION__, __LINE__, GetKeyState(VK_CAPITAL));
+        unset_modifier_mask(MASK_CAPS_LOCK);
+    }
+
+    if (GetKeyState(VK_SCROLL) & KEY_TOGGLED) {
+        set_modifier_mask(MASK_SCROLL_LOCK);
+    } else {
+        unset_modifier_mask(MASK_SCROLL_LOCK);
+    }
+    //*/
 
     return hook_result;
 }
@@ -677,12 +777,14 @@ UIOHOOK_API int hook_run() {
     mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
 
     // Create a window event hook to listen for capture change.
+    /*
     win_event_hhook = SetWinEventHook(
             EVENT_OBJECT_NAMECHANGE, EVENT_OBJECT_NAMECHANGE,
             NULL,
             win_hook_event_proc,
             0, 0,
             WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+    */
 
     // If we did not encounter a problem, start processing events.
     if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
@@ -732,6 +834,7 @@ UIOHOOK_API int hook_stop() {
     int status = UIOHOOK_FAILURE;
 
     // Try to exit the thread naturally.
+    // FIXME PostQuitMessage?
     if (PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL)) {
         status = UIOHOOK_SUCCESS;
     }

@@ -32,6 +32,7 @@
 #include "input_helper.h"
 #include "logger.h"
 
+
 typedef struct _event_runloop_info {
     CFMachPortRef port;
     CFRunLoopSourceRef source;
@@ -40,11 +41,13 @@ typedef struct _event_runloop_info {
 
 #ifdef USE_OBJC
 static id auto_release_pool;
+
 typedef struct {
     CGEventRef event;
-    id ns_event;
-} ObjCMessage;
-ObjCMessage *objc_message;
+    UInt32 subtype;
+    UInt32 data1;
+} TISEventMessage;
+TISEventMessage *tis_event_message;
 #endif
 
 // Event runloop reference.
@@ -63,8 +66,8 @@ typedef struct {
     CGEventRef event;
     UniChar buffer[KEY_BUFFER_SIZE];
     UniCharCount length;
-} TISMessage;
-TISMessage *tis_message;
+} TISKeycodeMessage;
+TISKeycodeMessage *tis_keycode_message;
 
 #if __MAC_OS_X_VERSION_MAX_ALLOWED <= 1050
 typedef void* dispatch_queue_t;
@@ -196,14 +199,7 @@ static void initialize_modifiers() {
 
 // Wrap keycode_to_unicode with some null checks.
 static void keycode_to_lookup(void *info) {
-    TISMessage *data = (TISMessage *) info;
-
-    // FIXME Delete this
-    if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-        printf("\n\n***** Testing Main Runloop ******\n\n");
-    } else {
-        printf("\n\n***** Testing Other Runloop ******\n\n");
-    }
+    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
 
     if (data != NULL && data->event != NULL) {
         // Preform Unicode lookup.
@@ -268,24 +264,26 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
     // If the pressed event was not consumed...
     if (event.reserved ^ 0x01) {
-        tis_message->event = event_ref;
-        tis_message->length = 0;
+        tis_keycode_message->event = event_ref;
+        tis_keycode_message->length = 0;
         bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
 
         // FIXME false
         if (false && dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n", __FUNCTION__, __LINE__);
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_message, &keycode_to_lookup);
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n",
+                    __FUNCTION__, __LINE__);
+            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_keycode_message, &keycode_to_lookup);
         }
         #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
         else if (!is_runloop_main) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n", __FUNCTION__, __LINE__);
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
+                    __FUNCTION__, __LINE__);
 
             // Lock for code dealing with the main runloop.
             pthread_mutex_lock(&main_runloop_mutex);
 
             // Check to see if the main runloop is still running.
-            // TOOD I would rather this be a check on hook_enable(),
+            // TODO I would rather this be a check on hook_enable(),
             // but it makes the usage complicated by requiring a separate
             // thread for the main runloop and hook registration.
             CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
@@ -297,27 +295,15 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
                 //CFRunLoopSourceGetContext(main_runloop_keycode->source, &context);
 
                 // Get the run loop context info pointer.
-                //TISMessage *info = (TISMessage *) context.info;
+                //TISKeycodeMessage *info = (TISKeycodeMessage *) context.info;
 
                 // Set the event pointer.
                 //info->event = event_ref;
 
 
-                logger(LOG_LEVEL_WARN, "%s [%u]: Testing1 %X\n",
-                        __FUNCTION__, __LINE__, main_runloop_keycode);
-                        
                 // Signal the custom source and wakeup the main runloop.
                 CFRunLoopSourceSignal(main_runloop_keycode->source);
-
-
-                logger(LOG_LEVEL_WARN, "%s [%u]: Testing2\n",
-                        __FUNCTION__, __LINE__);
-                        
                 CFRunLoopWakeUp(CFRunLoopGetMain());
-
-
-                logger(LOG_LEVEL_WARN, "%s [%u]: Testing3\n",
-                        __FUNCTION__, __LINE__);
 
                 // Wait for a lock while the main runloop processes they key typed event.
                 pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
@@ -332,10 +318,10 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
         }
         #endif
         else {
-            keycode_to_lookup(tis_message);
+            keycode_to_lookup(tis_keycode_message);
         }
 
-        for (unsigned int i = 0; i < tis_message->length; i++) {
+        for (unsigned int i = 0; i < tis_keycode_message->length; i++) {
             // Populate key typed event.
             event.time = timestamp;
             event.reserved = 0x00;
@@ -345,7 +331,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
             event.data.keyboard.keycode = VC_UNDEFINED;
             event.data.keyboard.rawcode = keycode;
-            event.data.keyboard.keychar = tis_message->buffer[i];
+            event.data.keyboard.keychar = tis_keycode_message->buffer[i];
 
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X typed. (%lc)\n",
                     __FUNCTION__, __LINE__, event.data.keyboard.keycode,
@@ -493,10 +479,9 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
     }
 }
 
-
-// Wrap keycode_to_unicode with some null checks.
-static void obcj_test(void *info) {
-    ObjCMessage *data = (ObjCMessage *) info;
+#ifdef USE_OBJC
+static void obcj_message(void *info) {
+    TISEventMessage *data = (TISEventMessage *) info;
 
     if (data != NULL && data->event != NULL) {
         // Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
@@ -504,43 +489,106 @@ static void obcj_test(void *info) {
         id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), data->event);
 
         UInt32 (*eventWithoutCGEvent)(id, SEL) = (UInt32 (*)(id, SEL)) objc_msgSend;
-        UInt32 subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
-        printf("subtype: %X\n", subtype);
-
-        UInt32 data1 = eventWithoutCGEvent(event_data, sel_registerName("data1"));
-        printf("data1: %X\n", data1);
+        data->subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
+        data->data1 = eventWithoutCGEvent(event_data, sel_registerName("data1"));
     }
 }
+#endif
 
+#if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+static void main_runloop_nsevent_proc(void *info) {
+    printf("**** nsevent proc LOCK\n");
+
+    // Lock the msg_port mutex as we enter the main runloop.
+    pthread_mutex_lock(&main_runloop_mutex);
+
+    obcj_message(info);
+
+    printf("**** nsevent proc UNLOCK\n");
+    // Unlock the msg_port mutex to signal to the hook_thread that we have
+    // finished on the main runloop.
+    pthread_cond_broadcast(&main_runloop_cond);
+    pthread_mutex_unlock(&main_runloop_mutex);
+
+    printf("**** nsevent proc DONE\n");
+}
+#endif
 
 /* These events are totally undocumented for the CGEvent type, but are required to grab media and caps-lock keys.
  */
  // FIXME Omit this function with #ifndef USE_OBJC
 static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) {
     if (CGEventGetType(event_ref) == NX_SYSDEFINED) {
-        // FIXME Check
-        objc_message = malloc(sizeof(ObjCMessage));
-        objc_message->event = event_ref;
+        UInt32 subtype = 0;
+        UInt32 data1 = 0;
 
-        (*dispatch_sync_f_f)(dispatch_main_queue_s, objc_message, &obcj_test);
+        #ifdef USE_OBJC
+        bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
+        tis_event_message->event = event_ref;
+        tis_event_message->subtype = 0;
+        tis_event_message->data1 = 0;
 
-        free(objc_message);
+        // FIXME false
+        if (false && dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for system key events.\n",
+                    __FUNCTION__, __LINE__);
 
-        #ifdef USE_OBJC___
+            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_event_message, &obcj_message);
+        }
+        #ifdef USE_APPLICATION_SERVICES
+        else if (!is_runloop_main) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for system key events.\n",
+                    __FUNCTION__, __LINE__);
 
-        // FIXME Check
-        objc_message = malloc(sizeof(ObjCMessage));
-        objc_message->event = event_ref;
+            // Lock for code dealing with the main runloop.
+            pthread_mutex_lock(&main_runloop_mutex);
 
-        (*dispatch_sync_f_f)(dispatch_main_queue_s, objc_message, &obcj_test);
-        id event_data = objc_message->ns_event;
+            // Check to see if the main runloop is still running.
+            // TODO I would rather this be a check on hook_enable(),
+            // but it makes the usage complicated by requiring a separate
+            // thread for the main runloop and hook registration.
+            CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
+            if (mode != NULL) {
+                CFRelease(mode);
 
-        free(objc_message);
+                // Lookup the Unicode representation for this event.
+                //CFRunLoopSourceContext context = { .version = 0 };
+                //CFRunLoopSourceGetContext(main_runloop_nsevent->source, &context);
 
+                // Get the run loop context info pointer.
+                //TISEventMessage *info = (TISEventMessage *) context.info;
 
+                // Set the event pointer.
+                //info->event = event_ref;
 
-        long (*eventWithoutCGEvent)(id, SEL) = (long (*)(id, SEL)) objc_msgSend;
-        int subtype = (int) eventWithoutCGEvent(event_data, sel_registerName("subtype"));
+                logger(LOG_LEVEL_ERROR, "**** syskey SIGNAL\n");
+
+                // Signal the custom source and wakeup the main runloop.
+                CFRunLoopSourceSignal(main_runloop_nsevent->source);
+                CFRunLoopWakeUp(CFRunLoopGetMain());
+
+                logger(LOG_LEVEL_ERROR, "**** syskey SIGNAL WAIT %x\n", CFRunLoopCopyCurrentMode(CFRunLoopGetMain()));
+
+                // Wait for a lock while the main runloop processes they key typed event.
+                pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
+            }
+            else {
+                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal RunLoop main!\n",
+                        __FUNCTION__, __LINE__);
+            }
+
+            // Unlock for code dealing with the main runloop.
+            pthread_mutex_unlock(&main_runloop_mutex);
+
+            logger(LOG_LEVEL_ERROR, "**** syskey SIGNAL DONE\n");
+        }
+        #endif
+        else if (is_runloop_main) {
+            obcj_message(tis_event_message);
+        }
+
+        subtype = tis_event_message->subtype;
+        data1 = tis_event_message->data1;
         #else
         // If we are not using ObjC, the only way I've found to access CGEvent->subtype and CGEvent>data1 is to
         // serialize the event and read the byte offsets.  I am not sure why, but CGEventCreateData appears to use
@@ -569,23 +617,17 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
         }
 
         CFDataGetBytes(data_ref, CFRangeMake(120, 4), buffer);
-        UInt32 subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+        subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+
+        CFDataGetBytes(data_ref, CFRangeMake(128, 4), buffer);
+        data1 = CFSwapInt32BigToHost(*((UInt32 *) buffer));
         #endif
 
         if (subtype == 8) {
-            #ifdef USE_OBJC__
-            // Contributed by Alex <universailp@web.de>
-            //UInt32 data1 = eventWithoutCGEvent(event_data, sel_registerName("data1"));
-            UInt32 data1 = 0x0;
-            #else
-            CFDataGetBytes(data_ref, CFRangeMake(128, 4), buffer);
-            UInt32 data1 = CFSwapInt32BigToHost(*((UInt32 *) buffer));
-            #endif
-
             int key_code = (data1 & 0xFFFF0000) >> 16;
             int key_flags = (data1 & 0xFFFF);
             int key_state = (key_flags & 0xFF00) >> 8;
-            bool key_down = (key_state & 0x1) > 0;
+            bool key_down = (key_state & 0x1) == 0;
 
             if (key_code == NX_KEYTYPE_CAPS_LOCK) {
                 // It doesn't appear like we can modify the event coming in, so we will fabricate a new event.
@@ -1050,11 +1092,6 @@ void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity a
             pthread_cond_broadcast(&main_runloop_cond);
             pthread_mutex_unlock(&main_runloop_mutex);
             break;
-
-        default:
-            logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
-                    __FUNCTION__, __LINE__, (unsigned int) activity);
-            break;
     }
 }
 
@@ -1070,7 +1107,6 @@ static void main_runloop_keycode_proc(void *info) {
     pthread_cond_broadcast(&main_runloop_cond);
     pthread_mutex_unlock(&main_runloop_mutex);
 }
-
 
 static int create_main_runloop_info(main_runloop_info **main, CFRunLoopSourceContext *context) {
     if (*main != NULL) {
@@ -1325,13 +1361,23 @@ UIOHOOK_API int hook_run() {
                 }
 
 
-                tis_message = (TISMessage *) calloc(1, sizeof(TISMessage));
-                if (tis_message == NULL) {
+                tis_keycode_message = (TISKeycodeMessage *) calloc(1, sizeof(TISKeycodeMessage));
+                if (tis_keycode_message == NULL) {
                     logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
                                 __FUNCTION__, __LINE__);
 
                     return UIOHOOK_ERROR_OUT_OF_MEMORY;
                 }
+
+                #ifdef USE_OBJC
+                tis_event_message = (TISEventMessage *) calloc(1, sizeof(TISEventMessage));
+                if (tis_event_message == NULL) {
+                    logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS event structure!\n",
+                                __FUNCTION__, __LINE__);
+
+                    return UIOHOOK_ERROR_OUT_OF_MEMORY;
+                }
+                #endif
 
                 // If we are not running on the main runloop, we need to setup a runloop dispatcher.
                 if (!CFEqual(event_loop, CFRunLoopGetMain())) {
@@ -1364,7 +1410,7 @@ UIOHOOK_API int hook_run() {
 
                         CFRunLoopSourceContext main_runloop_keycode_context = {
                             .version         = 0,
-                            .info            = tis_message,
+                            .info            = tis_keycode_message,
                             .retain          = NULL,
                             .release         = NULL,
                             .copyDescription = NULL,
@@ -1375,16 +1421,32 @@ UIOHOOK_API int hook_run() {
                             .perform         = main_runloop_keycode_proc
                         };
 
-                        int runloop_status = create_main_runloop_info(&main_runloop_keycode, &main_runloop_keycode_context);
-                        if (runloop_status != UIOHOOK_SUCCESS) {
+                        int keycode_runloop_status = create_main_runloop_info(&main_runloop_keycode, &main_runloop_keycode_context);
+                        if (keycode_runloop_status != UIOHOOK_SUCCESS) {
                             destroy_main_runloop_info(&main_runloop_keycode);
-                            return runloop_status;
+                            return keycode_runloop_status;
                         }
+                        #endif
 
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: **** TESTING 999: %X\n",
-                                __FUNCTION__, __LINE__, main_runloop_keycode);
+                        #ifdef USE_OBJC
+                        CFRunLoopSourceContext main_runloop_nsevent_context = {
+                            .version         = 0,
+                            .info            = tis_event_message,
+                            .retain          = NULL,
+                            .release         = NULL,
+                            .copyDescription = NULL,
+                            .equal           = NULL,
+                            .hash            = NULL,
+                            .schedule        = NULL,
+                            .cancel          = NULL,
+                            .perform         = main_runloop_nsevent_proc
+                        };
 
-                        // main_runloop_nsevent
+                        int nsevent_runloop_status = create_main_runloop_info(&main_runloop_nsevent, &main_runloop_nsevent_context);
+                        if (nsevent_runloop_status != UIOHOOK_SUCCESS) {
+                            destroy_main_runloop_info(&main_runloop_nsevent);
+                            return nsevent_runloop_status;
+                        }
                         #endif
                     }
                 }
@@ -1410,15 +1472,19 @@ UIOHOOK_API int hook_run() {
                 #endif
 
                 #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+                pthread_mutex_lock(&main_runloop_mutex);
                 if (!CFEqual(event_loop, CFRunLoopGetMain())) {
                     // FIXME true
                     if (true || dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
                         destroy_main_runloop_info(&main_runloop_keycode);
+                        destroy_main_runloop_info(&main_runloop_nsevent);
                     }
                 }
+                pthread_mutex_unlock(&main_runloop_mutex);
                 #endif
 
-                free(tis_message);
+                free(tis_keycode_message);
+                free(tis_event_message);
 
                 destroy_event_runloop_info(&hook);
             } while (restart_tap);

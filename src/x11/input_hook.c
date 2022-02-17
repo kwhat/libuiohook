@@ -96,6 +96,11 @@ typedef union {
 static struct xkb_state *state = NULL;
 #endif
 
+#ifdef USE_EPOCH_TIME
+// Structure for the current Unix epoch in milliseconds.
+static struct timeval system_time;
+#endif
+
 // Virtual event pointer.
 static uiohook_event event;
 
@@ -192,7 +197,7 @@ static void initialize_modifiers() {
     char keymap[32];
     XQueryKeymap(hook->ctrl.display, keymap);
 
-      Window unused_win;
+    Window unused_win;
     int unused_int;
     unsigned int mask;
     if (XQueryPointer(hook->ctrl.display, DefaultRootWindow(hook->ctrl.display), &unused_win, &unused_win, &unused_int, &unused_int, &unused_int, &unused_int, &mask)) {
@@ -251,8 +256,24 @@ static void initialize_modifiers() {
     initialize_locks();
 }
 
+#ifdef USE_EPOCH_TIME
+static inline uint64_t get_unix_timestamp() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	return timestamp;
+}
+#endif
+
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
+    #ifdef USE_EPOCH_TIME
+	uint64_t timestamp = get_unix_timestamp();
+    #else
     uint64_t timestamp = (uint64_t) recorded_data->server_time;
+    #endif
 
     if (recorded_data->category == XRecordStartOfData) {
         // Initialize native input helper functions.

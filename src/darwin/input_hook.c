@@ -93,8 +93,10 @@ static CGEventTimestamp click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 static bool mouse_dragged = false;
 
+#ifdef USE_EPOCH_TIME
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
+#endif
 
 // Virtual event pointer.
 static uiohook_event event;
@@ -206,8 +208,24 @@ static void keycode_to_lookup(void *info) {
     }
 }
 
+#ifdef USE_EPOCH_TIME
+static inline uint64_t get_unix_timestamp() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	return timestamp;
+}
+#endif
+
 static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    #ifdef USE_EPOCH_TIME
+	uint64_t timestamp = get_unix_timestamp();
+    #else
     uint64_t timestamp = mach_absolute_time();
+    #endif
 
     switch (activity) {
         case kCFRunLoopEntry:
@@ -885,11 +903,11 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 }
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
-    // Get the local system time in UTC.
-    gettimeofday(&system_time, NULL);
-
-    // Grab the native event timestamp for use later..
+    #ifdef USE_EPOCH_TIME
+	uint64_t timestamp = get_unix_timestamp();
+    #else
     uint64_t timestamp = (uint64_t) CGEventGetTimestamp(event_ref);
+    #endif
 
     // Get the event class.
     switch (type) {

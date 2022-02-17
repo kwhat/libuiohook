@@ -130,6 +130,10 @@ if(ENABLE_TEST)
     target_link_libraries(uiohook_tests uiohook "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+option(USE_EPOCH_TIME "Use Unix epoch time for event timestamps (default: OFF)" OFF)
+if(USE_EPOCH_TIME)
+    add_compile_definitions(uiohook PRIVATE USE_EPOCH_TIME)
+endif()
 
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)

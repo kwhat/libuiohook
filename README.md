@@ -32,6 +32,7 @@ $ cmake --build . --parallel 2 --target install
 | __all__   | BUILD_DEMO:BOOL               | demo applications      | OFF     |
 |           | BUILD_SHARED_LIBS:BOOL        | shared library         | ON      |
 |           | ENABLE_TEST:BOOL              | testing                | OFF     |
+|           | USE_EPOCH_TIME:BOOL           | unix epch event times  | OFF     |
 | __OSX__   | USE_APPLICATION_SERVICES:BOOL | framework              | ON      |
 |           | USE_IOKIT:BOOL                | framework              | ON      |
 |           | USE_OBJC:BOOL                 | obj-c api              | ON      |

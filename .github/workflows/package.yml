@@ -346,7 +346,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 16 2019" -A ARM ^
+            -G "Visual Studio 17 2022" -A ARM ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^
@@ -382,7 +382,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 16 2019" -A Win32 ^
+            -G "Visual Studio 17 2022" -A Win32 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^
@@ -418,7 +418,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 16 2019" -A x64 ^
+            -G "Visual Studio 17 2022" -A x64 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86_64 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^

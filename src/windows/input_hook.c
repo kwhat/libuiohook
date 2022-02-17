@@ -34,9 +34,14 @@ extern HINSTANCE hInst;
 // Modifiers for tracking key masks.
 static unsigned short int current_modifiers = 0x0000;
 
+#ifdef USE_EPOCH_TIME
+// Structure for the current Unix epoch in milliseconds.
+static FILETIME system_time;
+#endif
+
 // Click count globals.
 static unsigned short click_count = 0;
-static DWORD click_time = 0;
+static uint64_t click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 static POINT last_click;
 
@@ -142,6 +147,22 @@ static uint16_t get_scroll_wheel_amount() {
     return value;
 }
 
+#ifdef USE_EPOCH_TIME
+static inline uint64_t get_unix_timestamp() {
+	// Get the local system time in UTC.
+	GetSystemTimeAsFileTime(&system_time);
+
+	// Convert the local system time to a Unix epoch in MS.
+	// milliseconds = 100-nanoseconds / 10000
+	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
+	// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
+    timestamp -= 11644473600000;
+
+	return timestamp;
+}
+#endif
+
 void unregister_running_hooks() {
     // Stop the event hook and any timer still running.
     if (win_event_hhook != NULL) {
@@ -166,7 +187,11 @@ void hook_start_proc() {
     load_input_helper();
 
     // Get the local system time in UNIX epoch form.
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
     uint64_t timestamp = GetMessageTime();
+    #endif
 
     // Populate the hook start event.
     event.time = timestamp;
@@ -181,7 +206,11 @@ void hook_start_proc() {
 
 void hook_stop_proc() {
     // Get the local system time in UNIX epoch form.
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
     uint64_t timestamp = GetMessageTime();
+    #endif
 
     // Populate the hook stop event.
     event.time = timestamp;
@@ -198,6 +227,12 @@ void hook_stop_proc() {
 }
 
 static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = kbhook->time;
+    #endif
+
     // Check and setup modifiers.
     if      (kbhook->vkCode == VK_LSHIFT)   { set_modifier_mask(MASK_SHIFT_L);     }
     else if (kbhook->vkCode == VK_RSHIFT)   { set_modifier_mask(MASK_SHIFT_R);     }
@@ -212,7 +247,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
     else if (kbhook->vkCode == VK_SCROLL)   { set_modifier_mask(MASK_SCROLL_LOCK); }
 
     // Populate key pressed event.
-    event.time = kbhook->time;
+    event.time = timestamp;
     event.reserved = 0x00;
 
     event.type = EVENT_KEY_PRESSED;
@@ -237,7 +272,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
         SIZE_T count = keycode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
         for (unsigned int i = 0; i < count; i++) {
             // Populate key typed event.
-            event.time = kbhook->time;
+            event.time = timestamp;
             event.reserved = 0x00;
 
             event.type = EVENT_KEY_TYPED;
@@ -257,6 +292,12 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 }
 
 static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = kbhook->time;
+    #endif
+
     // Check and setup modifiers.
     if      (kbhook->vkCode == VK_LSHIFT)   { unset_modifier_mask(MASK_SHIFT_L);     }
     else if (kbhook->vkCode == VK_RSHIFT)   { unset_modifier_mask(MASK_SHIFT_R);     }
@@ -271,7 +312,7 @@ static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
     else if (kbhook->vkCode == VK_SCROLL)   { unset_modifier_mask(MASK_SCROLL_LOCK); }
 
     // Populate key pressed event.
-    event.time = kbhook->time;
+    event.time = timestamp;
     event.reserved = 0x00;
 
     event.type = EVENT_KEY_RELEASED;
@@ -321,7 +362,11 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
 
 
 static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
-    DWORD timestamp = mshook->time;
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = mshook->time;
+    #endif
 
     // Track the number of clicks, the button must match the previous button.
     if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
@@ -368,8 +413,14 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 }
 
 static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = mshook->time;
+    #endif
+
     // Populate mouse released event.
-    event.time = mshook->time;
+    event.time = timestamp;
     event.reserved = 0x00;
 
     event.type = EVENT_MOUSE_RELEASED;
@@ -392,7 +443,7 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     // If the pressed event was not consumed...
     if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
         // Populate mouse clicked event.
-        event.time = mshook->time;
+        event.time = timestamp;
         event.reserved = 0x00;
 
         event.type = EVENT_MOUSE_CLICKED;
@@ -412,14 +463,18 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     }
 
     // Reset the number of clicks.
-    if (button == click_button && (long int) (event.time - click_time) > hook_get_multi_click_time()) {
+    if (button == click_button && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
         // Reset the click count.
         click_count = 0;
     }
 }
 
 static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
     uint64_t timestamp = mshook->time;
+    #endif
 
     // We received a mouse move event with the mouse actually moving.
     // This verifies that the mouse was moved after being depressed.
@@ -460,13 +515,19 @@ static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 }
 
 static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = mshook->time;
+    #endif
+
     // Track the number of clicks.
     // Reset the click count and previous button.
     click_count = 1;
     click_button = MOUSE_NOBUTTON;
 
     // Populate mouse wheel event.
-    event.time = mshook->time;
+    event.time = timestamp;
     event.reserved = 0x00;
 
     event.type = EVENT_MOUSE_WHEEL;

@@ -653,6 +653,10 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
     // Get the thread id that currently has focus and ask for its current locale.
     DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
     HKL locale_id = GetKeyboardLayout(focus_pid);
+    if (locale_id == NULL) {
+        // Default to the current thread's layout if the focused window fails.
+        locale_id = GetKeyboardLayout(0);
+    }
 
     // If the current Locale is not the new locale, search the linked list.
     if (locale_current == NULL || locale_current->id != locale_id) {
@@ -666,7 +670,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 
         // You may already be a winner!
         if (locale_item != NULL && locale_item->id == locale_id) {
-            logger(LOG_LEVEL_INFO,
+            logger(LOG_LEVEL_DEBUG,
                     "%s [%u]: Activating keyboard layout %#p.\n",
                     __FUNCTION__, __LINE__, locale_item->id);
 

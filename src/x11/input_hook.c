@@ -26,6 +26,10 @@
 #include <stdint.h>
 #include <uiohook.h>
 
+#ifdef USE_EPOCH_TIME
+#include <sys/time.h>
+#endif
+
 #include <xcb/xkb.h>
 #include <X11/XKBlib.h>
 

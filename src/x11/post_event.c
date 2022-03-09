@@ -320,9 +320,9 @@ static void post_mouse_motion_event(uiohook_event * const event) {
 // TODO This should return a status code, UIOHOOK_SUCCESS or otherwise.
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
     if (helper_disp == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
-                __FUNCTION__, __LINE__, "XOpenDisplay failure!");
-        return;
+        logger(LOG_LEVEL_ERROR, "%s [%u]: XDisplay helper_disp is unavailable!\n",
+            __FUNCTION__, __LINE__);
+        return; // UIOHOOK_ERROR_X_OPEN_DISPLAY
     }
 
     XLockDisplay(helper_disp);

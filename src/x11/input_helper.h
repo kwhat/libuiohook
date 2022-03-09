@@ -43,17 +43,17 @@
 // Helper display used by input helper, properties and post event.
 extern Display *helper_disp;
 
-/* Converts an X11 key symbol to a single Unicode character.  No direct X11
+/* Converts a X11 key symbol to a single Unicode character.  No direct X11
  * functionality exists to provide this information.
  */
 extern size_t keysym_to_unicode(KeySym keysym, uint16_t *buffer, size_t size);
 
-/* Convert a single Unicode character to an X11 key symbol.  This function
+/* Convert a single Unicode character to a X11 key symbol.  This function
  * provides a better translation than XStringToKeysym() for Unicode characters.
  */
 extern KeySym unicode_to_keysym(uint16_t unicode);
 
-/* Converts an X11 key code to the appropriate keyboard scan code.
+/* Converts a X11 key code to the appropriate keyboard scan code.
  */
 extern uint16_t keycode_to_scancode(KeyCode keycode);
 
@@ -64,7 +64,7 @@ extern KeyCode scancode_to_keycode(uint16_t scancode);
 
 #ifdef USE_XKB_COMMON
 
-/* Converts an X11 key code to a Unicode character sequence.  libXKBCommon support
+/* Converts a X11 key code to a Unicode character sequence.  libXKBCommon support
  * is required for this method.
  */
 extern size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *buffer, size_t size);
@@ -79,13 +79,17 @@ extern void destroy_xkb_state(struct xkb_state* state);
 
 #else
 
-/* Converts an X11 key code and event mask to the appropriate X11 key symbol.
+/* Converts a X11 key code and event mask to the appropriate X11 key symbol.
  * This functions in much the same way as XKeycodeToKeysym() but allows for a
  * faster and more flexible lookup.
  */
 extern KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask);
 
 #endif
+
+/* Lookup a X11 buttons possible remapping and return that value.
+ */
+extern unsigned int button_map_lookup(unsigned int button);
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be

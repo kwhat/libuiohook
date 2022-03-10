@@ -255,6 +255,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
     uint64_t timestamp = (uint64_t) recorded_data->server_time;
 
     if (recorded_data->category == XRecordStartOfData) {
+        // Initialize native input helper functions.
+        load_input_helper();
+
         // Populate the hook start event.
         event.time = timestamp;
         event.reserved = 0x00;
@@ -274,6 +277,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
         // Fire the hook stop event.
         dispatch_event(&event);
+
+        // Deinitialize native input helper functions.
+        unload_input_helper();
     } else if (recorded_data->category == XRecordFromServer || recorded_data->category == XRecordFromClient) {
         // Get XRecord data.
         XRecordDatum *data = (XRecordDatum *) recorded_data->data;

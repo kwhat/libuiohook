@@ -40,6 +40,9 @@
 #define XButton1    8
 #define XButton2    9
 
+// Helper display used by input helper, properties and post event.
+extern Display *helper_disp;
+
 /* Converts an X11 key symbol to a single Unicode character.  No direct X11
  * functionality exists to provide this information.
  */

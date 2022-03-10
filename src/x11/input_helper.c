@@ -50,6 +50,8 @@ static struct xkb_rule_names xkb_names = {
 
 #include "logger.h"
 
+Display *helper_disp;
+
 /* The following two tables are based on QEMU's x_keymap.c, under the following
  * terms:
  *
@@ -1752,7 +1754,7 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 }
 #endif
 
-void load_input_helper(Display *disp) {
+void load_input_helper() {
     /* The following code block is based on vncdisplaykeymap.c under the terms:
      *
      * Copyright (C) 2008  Anthony Liguori <anthony codemonkey ws>
@@ -1761,9 +1763,9 @@ void load_input_helper(Display *disp) {
      * it under the terms of the GNU Lesser General Public License version 2 as
      * published by the Free Software Foundation.
      */
-    XkbDescPtr desc = XkbGetKeyboard(disp, XkbGBN_AllComponentsMask, XkbUseCoreKbd);
+    XkbDescPtr desc = XkbGetKeyboard(helper_disp, XkbGBN_AllComponentsMask, XkbUseCoreKbd);
     if (desc != NULL && desc->names != NULL) {
-        const char *layout_name = XGetAtomName(disp, desc->names->keycodes);
+        const char *layout_name = XGetAtomName(helper_disp, desc->names->keycodes);
         logger(LOG_LEVEL_INFO, "%s [%u]: Found keycode atom '%s' (%i)!\n",
                 __FUNCTION__, __LINE__, layout_name, (unsigned int) desc->names->keycodes);
 
@@ -1789,7 +1791,7 @@ void load_input_helper(Display *disp) {
     }
 
     // Get the map.
-    keyboard_map = XkbGetMap(disp, XkbAllClientInfoMask, XkbUseCoreKbd);
+    keyboard_map = XkbGetMap(helper_disp, XkbAllClientInfoMask, XkbUseCoreKbd);
 }
 
 void unload_input_helper() {

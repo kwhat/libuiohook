@@ -45,8 +45,6 @@ static Display *xt_disp;
 #include "input_helper.h"
 #include "logger.h"
 
-Display *properties_disp;
-
 #ifdef USE_XRANDR
 static pthread_mutex_t xrandr_mutex = PTHREAD_MUTEX_INITIALIZER;
 static XRRScreenResources *xrandr_resources = NULL;
@@ -126,9 +124,9 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     screen_data *screens = NULL;
 
     #if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-    if (XineramaIsActive(properties_disp)) {
+    if (XineramaIsActive(helper_disp)) {
         int xine_count = 0;
-        XineramaScreenInfo *xine_info = XineramaQueryScreens(properties_disp, &xine_count);
+        XineramaScreenInfo *xine_info = XineramaQueryScreens(helper_disp, &xine_count);
 
         if (xine_info != NULL) {
             if (xine_count > UINT8_MAX) {
@@ -174,7 +172,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
 
         if (screens != NULL) {
             for (int i = 0; i < xrandr_count; i++) {
-                XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(properties_disp, xrandr_resources, xrandr_resources->crtcs[i]);
+                XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(helper_disp, xrandr_resources, xrandr_resources->crtcs[i]);
 
                 if (crtc_info != NULL) {
                     screens[i] = (screen_data) {
@@ -195,7 +193,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     }
     pthread_mutex_unlock(&xrandr_mutex);
     #else
-    Screen* default_screen = DefaultScreenOfDisplay(properties_disp);
+    Screen* default_screen = DefaultScreenOfDisplay(helper_disp);
 
     if (default_screen->width > 0 && default_screen->height > 0) {
         screens = malloc(sizeof(screen_data));
@@ -222,10 +220,10 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
     unsigned int delay = 0, rate = 0;
 
     // Check and make sure we could connect to the x server.
-    if (properties_disp != NULL) {
+    if (helper_disp != NULL) {
         // Attempt to acquire the keyboard auto repeat rate using the XKB extension.
         if (!successful) {
-            successful = XkbGetAutoRepeatRate(properties_disp, XkbUseCoreKbd, &delay, &rate);
+            successful = XkbGetAutoRepeatRate(helper_disp, XkbUseCoreKbd, &delay, &rate);
 
             if (successful) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
@@ -237,7 +235,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
         // Fallback to the XF86 Misc extension if available and other efforts failed.
         if (!successful) {
             XF86MiscKbdSettings kb_info;
-            successful = (bool) XF86MiscGetKbdSettings(properties_disp, &kb_info);
+            successful = (bool) XF86MiscGetKbdSettings(helper_disp, &kb_info);
             if (successful) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
                         __FUNCTION__, __LINE__, kbdinfo.rate);
@@ -265,10 +263,10 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
     unsigned int delay = 0, rate = 0;
 
     // Check and make sure we could connect to the x server.
-    if (properties_disp != NULL) {
+    if (helper_disp != NULL) {
         // Attempt to acquire the keyboard auto repeat rate using the XKB extension.
         if (!successful) {
-            successful = XkbGetAutoRepeatRate(properties_disp, XkbUseCoreKbd, &delay, &rate);
+            successful = XkbGetAutoRepeatRate(helper_disp, XkbUseCoreKbd, &delay, &rate);
 
             if (successful) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
@@ -280,7 +278,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
         // Fallback to the XF86 Misc extension if available and other efforts failed.
         if (!successful) {
             XF86MiscKbdSettings kb_info;
-            successful = (bool) XF86MiscGetKbdSettings(properties_disp, &kb_info);
+            successful = (bool) XF86MiscGetKbdSettings(helper_disp, &kb_info);
             if (successful) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
                         __FUNCTION__, __LINE__, kbdinfo.delay);
@@ -307,8 +305,8 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     int accel_numerator, accel_denominator, threshold;
 
     // Check and make sure we could connect to the x server.
-    if (properties_disp != NULL) {
-        XGetPointerControl(properties_disp, &accel_numerator, &accel_denominator, &threshold);
+    if (helper_disp != NULL) {
+        XGetPointerControl(helper_disp, &accel_numerator, &accel_denominator, &threshold);
         if (accel_denominator >= 0) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, accel_denominator);
@@ -328,8 +326,8 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
     int accel_numerator, accel_denominator, threshold;
 
     // Check and make sure we could connect to the x server.
-    if (properties_disp != NULL) {
-        XGetPointerControl(properties_disp, &accel_numerator, &accel_denominator, &threshold);
+    if (helper_disp != NULL) {
+        XGetPointerControl(helper_disp, &accel_numerator, &accel_denominator, &threshold);
         if (threshold >= 0) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, threshold);
@@ -349,8 +347,8 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
     int accel_numerator, accel_denominator, threshold;
 
     // Check and make sure we could connect to the x server.
-    if (properties_disp != NULL) {
-        XGetPointerControl(properties_disp, &accel_numerator, &accel_denominator, &threshold);
+    if (helper_disp != NULL) {
+        XGetPointerControl(helper_disp, &accel_numerator, &accel_denominator, &threshold);
         if (accel_numerator >= 0) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, accel_numerator);
@@ -391,10 +389,10 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     #endif
 
     // Check and make sure we could connect to the x server.
-    if (properties_disp != NULL) {
+    if (helper_disp != NULL) {
         // Try and acquire the multi-click time from the user defined X defaults.
         if (!successful) {
-            char *xprop = XGetDefault(properties_disp, "*", "multiClickTime");
+            char *xprop = XGetDefault(helper_disp, "*", "multiClickTime");
             if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'multiClickTime' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
@@ -404,7 +402,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
         }
 
         if (!successful) {
-            char *xprop = XGetDefault(properties_disp, "OpenWindows", "MultiClickTimeout");
+            char *xprop = XGetDefault(helper_disp, "OpenWindows", "MultiClickTimeout");
             if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'MultiClickTimeout' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
@@ -431,8 +429,8 @@ void on_library_load() {
     XInitThreads();
 
     // Open local display.
-    properties_disp = XOpenDisplay(XDisplayName(NULL));
-    if (properties_disp == NULL) {
+    helper_disp = XOpenDisplay(XDisplayName(NULL));
+    if (helper_disp == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "XOpenDisplay failure!");
     } else {
@@ -466,9 +464,6 @@ void on_library_load() {
     char ** argv = { NULL };
     xt_disp = XtOpenDisplay(xt_context, NULL, "UIOHook", "libuiohook", NULL, 0, &argc, argv);
     #endif
-
-    // Initialize.
-    load_input_helper(properties_disp);
 }
 
 // Create a shared object destructor.
@@ -486,8 +481,8 @@ void on_library_unload() {
     #endif
 
     // Destroy the native displays.
-    if (properties_disp != NULL) {
-        XCloseDisplay(properties_disp);
-        properties_disp = NULL;
+    if (helper_disp != NULL) {
+        XCloseDisplay(helper_disp);
+        helper_disp = NULL;
     }
 }

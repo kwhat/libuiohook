@@ -183,6 +183,9 @@ void unregister_running_hooks() {
 }
 
 void hook_start_proc() {
+    // Initialize native input helper functions.
+    load_input_helper();
+
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp();
     #else
@@ -216,6 +219,9 @@ void hook_stop_proc() {
 
     // Fire the hook stop event.
     dispatch_event(&event);
+
+    // Deinitialize native input helper functions.
+    unload_input_helper();
 }
 
 static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {

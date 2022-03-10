@@ -536,9 +536,6 @@ void on_library_load() {
         }
     }
     #endif
-
-    // Initialize Native Input Functions.
-    load_input_helper();
 }
 
 // Create a shared object destructor.
@@ -546,9 +543,6 @@ __attribute__ ((destructor))
 void on_library_unload() {
     // Disable the event hook.
     //hook_stop();
-
-    // Cleanup native input functions.
-    unload_input_helper();
 
     #ifdef USE_IOKIT
     if (connection) {

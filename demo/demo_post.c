@@ -71,6 +71,7 @@ int main() {
 
     sleep(1);
 
+    //* Click drag example
     event->type = EVENT_MOUSE_PRESSED;
     event->data.mouse.button = MOUSE_BUTTON1;
     #ifdef _WIN32
@@ -105,9 +106,9 @@ int main() {
     event->data.keyboard.keychar = CHAR_UNDEFINED;
     event->data.keyboard.keycode = VC_ESCAPE;
     hook_post_event(event);
+    //*/
 
-
-    /*
+    //* Key press with modifier example
     event->type = EVENT_KEY_PRESSED;
     event->mask = 0x00;
     event->data.keyboard.keychar = CHAR_UNDEFINED;
@@ -126,7 +127,17 @@ int main() {
 
     event->data.keyboard.keycode = VC_SHIFT_L;
     hook_post_event(event);
-    */
+    //*/
+
+    //* Mouse Wheel Event
+    event->type = EVENT_MOUSE_WHEEL;
+
+    event->data.wheel.x = 675;
+    event->data.wheel.y = 675;
+    event->data.wheel.amount = 3;
+    event->data.wheel.rotation = 1;
+    hook_post_event(event);
+    //*/
 
     free(event);
 

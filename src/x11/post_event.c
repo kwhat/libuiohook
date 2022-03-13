@@ -200,8 +200,6 @@ static int post_mouse_button_event(uiohook_event * const event) {
     }
     #endif
 
-
-    unsigned int button;
     switch (event->type) {
         case EVENT_MOUSE_PRESSED:
             if (event->data.mouse.button == MOUSE_BUTTON1) {
@@ -219,7 +217,15 @@ static int post_mouse_button_event(uiohook_event * const event) {
                         __FUNCTION__, __LINE__, event->data.mouse.button);
                 return UIOHOOK_FAILURE;
             }
-            button = event->data.mouse.button;
+
+            #ifdef USE_XTEST
+            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0);
+            #else
+            btn_event.type = ButtonPress;
+            btn_event.button = event->data.mouse.button;
+            btn_event.state = current_modifier_mask;
+            XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event);
+            #endif
             break;
 
         case EVENT_MOUSE_RELEASED:
@@ -238,17 +244,15 @@ static int post_mouse_button_event(uiohook_event * const event) {
                         __FUNCTION__, __LINE__, event->data.mouse.button);
                 return UIOHOOK_FAILURE;
             }
-            button = event->data.mouse.button;
-            break;
 
-        case EVENT_MOUSE_WHEEL:
-            // Wheel events should be the same as click events on X11.
-            // type, amount and rotation
-            if (event->data.wheel.rotation < 0) {
-                button = WheelUp;
-            } else {
-                button = WheelDown;
-            }
+            #ifdef USE_XTEST
+            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0);
+            #else
+            btn_event.type = ButtonRelease;
+            btn_event.button = event->data.mouse.button;
+            btn_event.state = current_modifier_mask;
+            XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event);
+            #endif
             break;
 
         default:
@@ -257,27 +261,79 @@ static int post_mouse_button_event(uiohook_event * const event) {
             return UIOHOOK_FAILURE;
     }
 
-    if (event->type != EVENT_MOUSE_RELEASED) {
-        #ifdef USE_XTEST
-        XTestFakeButtonEvent(helper_disp, button, True, 0);
-        #else
-        btn_event.type = ButtonPress;
-        btn_event.button = button;
-        btn_event.state = current_modifier_mask;
-        XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event);
-        #endif
-    }
+    return UIOHOOK_SUCCESS;
+}
 
-    if (event->type != EVENT_MOUSE_PRESSED) {
-        #ifdef USE_XTEST
-        XTestFakeButtonEvent(helper_disp, button, False, 0);
-        #else
-        btn_event.type = ButtonRelease;
-        btn_event.button = button;
-        btn_event.state = current_modifier_mask;
-        XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event);
-        #endif
+static int post_mouse_wheel_event(uiohook_event * const event) {
+    XButtonEvent btn_event = {
+        .serial = 0,
+        .send_event = False,
+        .display = helper_disp,
+
+        .window = None,                                   /* “event” window it is reported relative to */
+        .root = None,                                     /* root window that the event occurred on */
+        .subwindow = XDefaultRootWindow(helper_disp),     /* child window */
+
+        .time = CurrentTime,
+
+        .x = event->data.wheel.x,                         /* pointer x, y coordinates in event window */
+        .y = event->data.wheel.y,
+
+        .x_root = 0,                                      /* coordinates relative to root */
+        .y_root = 0,
+
+        .state = 0x00,                                    /* key or button mask */
+        .same_screen = True
+    };
+
+    // Move the pointer to the specified position.
+    #ifdef USE_XTEST
+    XTestFakeMotionEvent(btn_event.display, -1, btn_event.x, btn_event.y, 0);
+    #else
+    XWarpPointer(btn_event.display, None, btn_event.subwindow, 0, 0, 0, 0, btn_event.x, btn_event.y);
+    XFlush(btn_event.display);
+    #endif
+
+    #ifndef USE_XTEST
+    // FIXME This is still not working correctly, clicking on other windows does not yield focus.
+    while (btn_event.subwindow != None)
+    {
+        btn_event.window = btn_event.subwindow;
+        XQueryPointer (
+            btn_event.display,
+            btn_event.window,
+            &btn_event.root,
+            &btn_event.subwindow,
+            &btn_event.x_root,
+            &btn_event.y_root,
+            &btn_event.x,
+            &btn_event.y,
+            &btn_event.state
+        );
     }
+    #endif
+
+    // Wheel events should be the same as click events on X11.
+    // type, amount and rotation
+    unsigned int button = button_map_lookup(event->data.wheel.rotation < 0 ? WheelUp : WheelDown);
+
+    #ifdef USE_XTEST
+    XTestFakeButtonEvent(helper_disp, button, True, 0);
+    #else
+    btn_event.type = ButtonPress;
+    btn_event.button = button;
+    btn_event.state = current_modifier_mask;
+    XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event);
+    #endif
+
+    #ifdef USE_XTEST
+    XTestFakeButtonEvent(helper_disp, button, False, 0);
+    #else
+    btn_event.type = ButtonRelease;
+    btn_event.button = button;
+    btn_event.state = current_modifier_mask;
+    XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event);
+    #endif
 
     return UIOHOOK_SUCCESS;
 }
@@ -335,8 +391,11 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
         case EVENT_MOUSE_PRESSED:
         case EVENT_MOUSE_RELEASED:
-        case EVENT_MOUSE_WHEEL:
             post_mouse_button_event(event);
+            break;
+
+        case EVENT_MOUSE_WHEEL:
+            post_mouse_wheel_event(event);
             break;
 
         case EVENT_MOUSE_MOVED:

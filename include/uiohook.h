@@ -59,7 +59,7 @@ typedef enum _log_level {
 } log_level;
 
 // Logger callback function prototype.
-typedef bool (*logger_t)(unsigned int, const char*, ...);
+typedef bool (*logger_t)(unsigned int, const char *, ...);
 typedef bool (*va_logger_t)(unsigned int, const char *, va_list);
 /* End Log Levels and Function Prototype */
 

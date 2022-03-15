@@ -54,8 +54,7 @@ UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
 UIOHOOK_API void hook_set_va_logger_proc(va_logger_t logger_proc) {
     if (logger_proc == NULL) {
         logger = &default_logger;
-    }
-    else {
+    } else {
         va_logger = logger_proc;
         logger = &va_logger_wrapper;
     }

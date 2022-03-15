@@ -652,7 +652,9 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             unsigned int map_button = button_map_lookup(data->event.u.u.detail);
 
             // X11 handles wheel events as button events.
-            if (map_button != WheelUp && map_button != WheelDown) {
+            if (map_button != WheelUp && map_button != WheelDown
+                    && map_button != WheelLeft && map_button != WheelRight) {
+
                 /* This information is all static for X11, its up to the WM to
                  * decide how to interpret the wheel events.
                  */

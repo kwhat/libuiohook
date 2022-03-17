@@ -431,7 +431,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             unsigned short int scancode = keycode_to_scancode(keycode);
 
             // TODO If you have a better suggestion for this ugly, let me know.
-            if      (scancode == VC_SHIFT_L) { unset_modifier_mask(MASK_SHIFT_L);   }
+            if      (scancode == VC_SHIFT_L)   { unset_modifier_mask(MASK_SHIFT_L); }
             else if (scancode == VC_SHIFT_R)   { unset_modifier_mask(MASK_SHIFT_R); }
             else if (scancode == VC_CONTROL_L) { unset_modifier_mask(MASK_CTRL_L);  }
             else if (scancode == VC_CONTROL_R) { unset_modifier_mask(MASK_CTRL_R);  }
@@ -647,12 +647,13 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                 // Fire mouse pressed event.
                 dispatch_event(&event);
             }
-        }
-        else if (data->type == ButtonRelease) {
+        } else if (data->type == ButtonRelease) {
             unsigned int map_button = button_map_lookup(data->event.u.u.detail);
 
             // X11 handles wheel events as button events.
-            if (map_button != WheelUp && map_button != WheelDown) {
+            if (map_button != WheelUp && map_button != WheelDown
+                    && map_button != WheelLeft && map_button != WheelRight) {
+
                 /* This information is all static for X11, its up to the WM to
                  * decide how to interpret the wheel events.
                  */

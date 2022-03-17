@@ -25,6 +25,7 @@
 #endif
 
 #ifdef USE_IOKIT
+#include <IOKit/hidsystem/event_status_driver.h>
 #include <IOKit/hidsystem/IOHIDLib.h>
 #include <IOKit/hidsystem/IOHIDParameter.h>
 #endif
@@ -38,6 +39,8 @@
 #ifdef USE_IOKIT
 static io_connect_t connection;
 #endif
+
+#define MOUSE_ACCELERATION_MULTIPLIER 65536
 
 /* The following function was contributed by Anthony Liguori Jan 18 2015.
  * https://github.com/kwhat/libuiohook/pull/18
@@ -151,6 +154,24 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 
     long int value = -1;
 
+    #ifdef USE_APPLICATION_SERVICES
+    if (!successful) {
+        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("KeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        if (pref_val != NULL) {
+            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt64Type, &rate)) {
+                // This is the slider value, we must multiply by 15 to convert to milliseconds.
+                value = (long) rate * 15;
+                successful = true;
+
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue KeyRepeat: %li.\n",
+                        __FUNCTION__, __LINE__, rate);
+            }
+
+            CFRelease(pref_val);
+        }
+    }
+    #endif
+
     #ifdef USE_IOKIT
     if (!successful) {
         CFTypeRef cf_type = NULL;
@@ -164,44 +185,24 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
                          * add 0.5 to the result so that when we cast to long we
                          * actually get a rounded result.  Saves the math.h depend.
                          *
-                         *    33,333,333.0 / 1000.0 / 1000.0 / 1000.0 == 0.033333333    * Fast *
-                         *   100,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.1
-                         *   200,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.2
-                         *   500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.5
-                         * 1,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1
-                         * 1,500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1.5
-                         * 2,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 2                * Slow *
-                         *
-                         * TODO Try rate / 256 / 1000.0 / 1000.0 / 1000.0;
+                         * 900 *    33,333,333 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 30    * Fast *
+                         * 900 *   100,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 90
+                         * 900 *   200,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 180
+                         * 900 *   500,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 450
+                         * 900 * 1,000,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 900
+                         * 900 * 1,500,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 1350
+                         * 900 * 2,000,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 1800  * Slow *
                          */
-                        value = (long) (900.0 * ((double) rate) / 1000.0 / 1000.0 / 1000.0 + 0.5);
+                        value = (long) (900 * rate / 1000.0 / 1000.0 / 1000.0 + 0.5);
                         successful = true;
 
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty kIOHIDKeyRepeatKey: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
                 
                 CFRelease(cf_type);
             }
-        }
-    }
-    #endif
-
-    #ifdef USE_APPLICATION_SERVICES
-    if (!successful) {
-        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("KeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-        if (pref_val != NULL) {
-            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &rate)) {
-                // This is the slider value, we must multiply by 15 to convert to milliseconds.
-                value = (long) rate * 15;
-                successful = true;
-
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
-                        __FUNCTION__, __LINE__, value);
-            }
-            
-            CFRelease(pref_val);
         }
     }
     #endif
@@ -235,6 +236,24 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 
     long int value = -1;
 
+    #ifdef USE_APPLICATION_SERVICES
+    if (!successful) {
+        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("InitialKeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        if (pref_val != NULL) {
+            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt64Type, &delay)) {
+                // This is the slider value, we must multiply by 15 to convert to milliseconds.
+                value = (long) delay * 15;
+                successful = true;
+
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue InitialKeyRepeat: %li.\n",
+                        __FUNCTION__, __LINE__, value);
+            }
+
+            CFRelease(pref_val);
+        }
+    }
+    #endif
+
     #ifdef USE_IOKIT
     if (!successful) {
         CFTypeRef cf_type = NULL;
@@ -248,45 +267,23 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
                          * add 0.5 to the result so that when we cast to long we
                          * actually get a rounded result.  Saves the math.h depend.
                          *
-                         *    33,333,333.0 / 1000.0 / 1000.0 / 1000.0 == 0.033333333    * Fast *
-                         *   100,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.1
-                         *   200,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.2
-                         *   500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 0.5
-                         * 1,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1
-                         * 1,500,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 1.5
-                         * 2,000,000,000.0 / 1000.0 / 1000.0 / 1000.0 == 2              * Slow *
-                         *
-                         * TODO Try rate / 256 / 1000.0 / 1000.0 / 1000.0;
+                         * 900 *   250,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 225   * Fast *
+                         * 900 *   416,666,666 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 375
+                         * 900 *   583,333,333 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 525
+                         * 900 * 1,133,333,333 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 1020
+                         * 900 * 1,566,666,666 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 1410
+                         * 900 * 2,000,000,000 / 1000.0 / 1000.0 / 1000.0 + 0.5 == 1800  * Slow *
                          */
-                        value = (long) (900.0 * ((double) delay) / 1000.0 / 1000.0 / 1000.0 + 0.5);
+                        value = (long) (900 * delay / 1000.0 / 1000.0 / 1000.0 + 0.5);
                         successful = true;
 
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
-                                __FUNCTION__, __LINE__, value);
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty kIOHIDInitialKeyRepeatKey: %li.\n",
+                                __FUNCTION__, __LINE__, delay);
                     }
                 }
 
                 CFRelease(cf_type);
             }
-        }
-    }
-    #endif
-
-    #ifdef USE_APPLICATION_SERVICES
-    if (!successful) {
-        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("InitialKeyRepeat"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-        if (pref_val != NULL) {
-            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &delay)) {
-                // This is the slider value, we must multiply by 15 to convert to
-                // milliseconds.
-                value = (long) delay * 15;
-                successful = true;
-
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
-                        __FUNCTION__, __LINE__, value);
-            }
-
-            CFRelease(pref_val);
         }
     }
     #endif
@@ -312,80 +309,41 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 }
 
 UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
-    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES
-    bool successful = false;
-    SInt64 multiplier;
-    #endif
-
-    long int value = -1;
-
-    #ifdef USE_IOKIT
-    if (!successful) {
-        CFTypeRef cf_type = NULL;
-        kern_return_t kern_return = IOHIDCopyCFTypeParameter(connection, CFSTR(kIOHIDMouseAccelerationType), &cf_type);
-        if (kern_return == kIOReturnSuccess) {
-            if (cf_type != NULL) {
-                if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt64Type, &multiplier)) {
-                        // Calculate the greatest common factor.
-                        unsigned long denominator = 1000000, d = denominator;
-                        unsigned long numerator = (((double) multiplier) / 65536.0) * denominator, gcf = numerator;
-
-                        while (d != 0) {
-                            unsigned long i = gcf % d;
-                            gcf = d;
-                            d = i;
-                        }
-
-                        value = denominator / gcf;
-                        successful = true;
-
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
-                                __FUNCTION__, __LINE__, value);
-                    }
-                }
-
-                CFRelease(cf_type);
-            }
-        }
+    // OS X doesn't currently have an acceleration multiplier so we are using the constant from IOHIDGetMouseAcceleration.
+    long int value = MOUSE_ACCELERATION_MULTIPLIER;
+    if (hook_get_pointer_sensitivity() < 0) {
+        value = 0;
     }
-    #endif
-
-    #ifdef USE_APPLICATION_SERVICES
-    if (!successful) {
-        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.scaling"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-        if (pref_val != NULL) {
-            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt64Type, &multiplier)) {
-                value = (long) multiplier;
-
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
-                        __FUNCTION__, __LINE__, value);
-            }
-
-            CFRelease(pref_val);
-        }
-    }
-    #endif
 
     return value;
 }
 
 UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
-    #if defined USE_APPLICATION_SERVICES
+    // OS X doesn't currently have an acceleration threshold so we are using 1 as a placeholder.
+    long int value = 1;
+    if (hook_get_pointer_sensitivity() < 0) {
+        value = 0;
+    }
+
+    return value;
+}
+
+UIOHOOK_API long int hook_get_pointer_sensitivity() {
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
     bool successful = false;
-    SInt32 threshold;
+    Float32 sensitivity;
     #endif
 
     long int value = -1;
 
     #ifdef USE_APPLICATION_SERVICES
     if (!successful) {
-        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("mouseDriverMaxSpeed"), CFSTR("com.apple.universalaccess"), kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.scaling"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
         if (pref_val != NULL) {
-            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberSInt32Type, &threshold)) {
-                value = (long) threshold;
+            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberFloat32Type, &sensitivity)) {
+                value = (long) (sensitivity * MOUSE_ACCELERATION_MULTIPLIER);
 
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue com.apple.mouse.scaling: %li.\n",
                         __FUNCTION__, __LINE__, value);
             }
 
@@ -394,39 +352,18 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
     }
     #endif
 
-    return value;
-}
-
-UIOHOOK_API long int hook_get_pointer_sensitivity() {
-    #ifdef USE_IOKIT
-    bool successful = false;
-    SInt32 sensitivity;
-    #endif
-
-    long int value = -1;
-
     #ifdef USE_IOKIT
     if (!successful) {
         CFTypeRef cf_type = NULL;
-        kern_return_t kern_return = IOHIDCopyCFTypeParameter(connection, CFSTR(kIOHIDMouseAccelerationType), &cf_type);
+        kern_return_t kern_return = IOHIDCopyCFTypeParameter(connection, CFSTR(kIOHIDMouseAccelerationTypeKey), &cf_type);
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt32Type, &sensitivity)) {
-                        // Calculate the greatest common factor.
-                        unsigned long denominator = 1000000, d = denominator;
-                        unsigned long numerator = (((double) sensitivity) / 65536.0) * denominator, gcf = numerator;
-
-                        while (d != 0) {
-                            unsigned long i = gcf % d;
-                            gcf = d;
-                            d = i;
-                        }
-
-                        value = numerator / gcf;
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberFloat32Type, &sensitivity)) {
+                        value = (long) sensitivity;
                         successful = true;
 
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
+                        logger(LOG_LEVEL_DEBUG, "%s [%u]: IOHIDCopyCFTypeParameter kIOHIDMouseAccelerationTypeKey: %li.\n",
                                 __FUNCTION__, __LINE__, value);
                     }
                 }
@@ -441,15 +378,32 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 }
 
 UIOHOOK_API long int hook_get_multi_click_time() {
-    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES || defined USE_CARBON_LEGACY
+    #if defined(USE_IOKIT) || defined(USE_APPLICATION_SERVICES) || defined(USE_CARBON_LEGACY)
     bool successful = false;
-    #if defined USE_IOKIT || defined USE_CARBON_LEGACY
+    #if defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
     // This needs to be defined only if we have USE_IOKIT or USE_CARBON_LEGACY.
-    SInt64 time;
+    Float64 time;
     #endif
     #endif
 
     long int value = -1;
+
+    #ifdef USE_APPLICATION_SERVICES
+    if (!successful) {
+        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.doubleClickThreshold"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        if (pref_val != NULL) {
+            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberFloat64Type, &time)) {
+                /* This appears to be the time in seconds */
+                value = (long) (time * 1000);
+
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
+                        __FUNCTION__, __LINE__, value);
+            }
+
+            CFRelease(pref_val);
+        }
+    }
+    #endif
 
     #ifdef USE_IOKIT
     if (!successful) {
@@ -458,13 +412,9 @@ UIOHOOK_API long int hook_get_multi_click_time() {
         if (kern_return == kIOReturnSuccess) {
             if (cf_type != NULL) {
                 if (CFGetTypeID(cf_type) == CFNumberGetTypeID()) {
-                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberSInt64Type, &time)) {
-                        /* This is in some undefined unit of time that if we happen
-                         * to multiply by 900 gives us the time in milliseconds. We
-                         * add 0.5 to the result so that when we cast to long we
-                         * actually get a rounded result.  Saves the math.h depend.
-                         */
-                        value = (long) (900.0 * ((double) time) / 1000.0 / 1000.0 / 1000.0 + 0.5);
+                    if (CFNumberGetValue((CFNumberRef) cf_type, kCFNumberFloat64Type, &time)) {
+                        /* This appears to be the time in nanoseconds */
+                        value = (long) (time / 1000 / 1000);
                         successful = true;
 
                         logger(LOG_LEVEL_DEBUG, "%s [%u]: IORegistryEntryCreateCFProperty: %li.\n",
@@ -474,30 +424,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 
                 CFRelease(cf_type);
             }
-        }
-    }
-    #endif
-
-    #ifdef USE_APPLICATION_SERVICES
-    if (!successful) {
-        Float32 clicktime;
-        CFTypeRef pref_val = CFPreferencesCopyValue(CFSTR("com.apple.mouse.doubleClickThreshold"), kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
-        if (pref_val != NULL) {
-            if (CFGetTypeID(pref_val) == CFNumberGetTypeID() && CFNumberGetValue((CFNumberRef) pref_val, kCFNumberFloat32Type, &clicktime)) {
-                /* This is in some undefined unit of time that if we happen
-                 * to multiply by 900 gives us the time in milliseconds.  It is
-                 * completely possible that this value is in seconds and should be
-                 * multiplied by 1000 but because IOKit values are undocumented and
-                 * I have no idea what a Carbon 'tick' is so there really is no way
-                 * to confirm this.
-                 */
-                value = (long) (clicktime * 900);
-
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: CFPreferencesCopyValue: %li.\n",
-                        __FUNCTION__, __LINE__, value);
-            }
-
-            CFRelease(pref_val);
         }
     }
     #endif

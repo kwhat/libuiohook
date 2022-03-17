@@ -32,6 +32,11 @@
 #include "input_helper.h"
 #include "logger.h"
 
+#ifdef USE_EPOCH_TIME
+#define TIMER_RESOLUTION_MS 1
+#else
+#define TIMER_RESOLUTION_MS 1000000
+#endif
 
 typedef struct _event_runloop_info {
     CFMachPortRef port;
@@ -703,7 +708,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
 static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_ref, uint16_t button) {
     // Track the number of clicks.
-    if (button == click_button && (long int) (timestamp - click_time) / 1000000 <= hook_get_multi_click_time()) {
+    if (button == click_button && (long int) (timestamp - click_time) / TIMER_RESOLUTION_MS <= hook_get_multi_click_time()) {
         if (click_count < USHRT_MAX) {
             click_count++;
         }
@@ -789,7 +794,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
     }
 
     // Reset the number of clicks.
-    if ((long int) (timestamp - click_time) / 1000000 > hook_get_multi_click_time()) {
+    if ((long int) (timestamp - click_time) / TIMER_RESOLUTION_MS > hook_get_multi_click_time()) {
         // Reset the click count.
         click_count = 0;
     }
@@ -797,7 +802,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 
 static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref) {
     // Reset the click count.
-    if (click_count != 0 && (long int) (timestamp - click_time) / 1000000 > hook_get_multi_click_time()) {
+    if (click_count != 0 && (long int) (timestamp - click_time) / TIMER_RESOLUTION_MS > hook_get_multi_click_time()) {
         click_count = 0;
     }
 

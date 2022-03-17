@@ -286,14 +286,6 @@ static int post_mouse_wheel_event(uiohook_event * const event) {
         .same_screen = True
     };
 
-    // Move the pointer to the specified position.
-    #ifdef USE_XTEST
-    XTestFakeMotionEvent(btn_event.display, -1, btn_event.x, btn_event.y, 0);
-    #else
-    XWarpPointer(btn_event.display, None, btn_event.subwindow, 0, 0, 0, 0, btn_event.x, btn_event.y);
-    XFlush(btn_event.display);
-    #endif
-
     #ifndef USE_XTEST
     // FIXME This is still not working correctly, clicking on other windows does not yield focus.
     while (btn_event.subwindow != None)

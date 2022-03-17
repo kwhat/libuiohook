@@ -1803,7 +1803,7 @@ void load_input_helper() {
     XkbDescPtr desc = XkbGetKeyboard(helper_disp, XkbGBN_AllComponentsMask, XkbUseCoreKbd);
     if (desc != NULL && desc->names != NULL) {
         const char *layout_name = XGetAtomName(helper_disp, desc->names->keycodes);
-        logger(LOG_LEVEL_INFO, "%s [%u]: Found keycode atom '%s' (%i)!\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Found keycode atom '%s' (%i)!\n",
                 __FUNCTION__, __LINE__, layout_name, (unsigned int) desc->names->keycodes);
 
         const char *prefix_xfree86 = "xfree86_";

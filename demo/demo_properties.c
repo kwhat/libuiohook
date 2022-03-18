@@ -51,12 +51,24 @@ int main() {
     // Disable the logger.
     hook_set_logger_proc(&logger_proc);
 
+    // Retrieves current monitor layout and size.
+    unsigned char count;
+    screen_data* monitors = hook_create_screen_info(&count);
+    logger_proc(LOG_LEVEL_INFO, "Monitors Found:\t%u\n", count);
+    for (int i = 0; i < count; i++) {
+        logger_proc(LOG_LEVEL_INFO, "\t%3u) %4u x %-4u (%5d, %-5d)\n",
+            monitors[i].number,
+            monitors[i].width, monitors[i].height,
+            monitors[i].x, monitors[i].y);
+    }
+    logger_proc(LOG_LEVEL_INFO, "\n");
+
     // Retrieves the keyboard auto repeat rate.
     long int repeat_rate = hook_get_auto_repeat_rate();
     if (repeat_rate >= 0) {
         logger_proc(LOG_LEVEL_INFO, "Auto Repeat Rate:\t%ld\n", repeat_rate);
     } else {
-        logger_proc(LOG_LEVEL_ERROR, "Failed to aquire keyboard auto repeat rate!\n");
+        logger_proc(LOG_LEVEL_WARN, "Failed to acquire keyboard auto repeat rate!\n");
     }
 
     // Retrieves the keyboard auto repeat delay.
@@ -64,7 +76,7 @@ int main() {
     if (repeat_delay >= 0) {
         logger_proc(LOG_LEVEL_INFO, "Auto Repeat Delay:\t%ld\n", repeat_delay);
     } else {
-        logger_proc(LOG_LEVEL_ERROR, "Failed to acquire keyboard auto repeat delay!\n");
+        logger_proc(LOG_LEVEL_WARN, "Failed to acquire keyboard auto repeat delay!\n");
     }
 
     // Retrieves the mouse acceleration multiplier.
@@ -72,7 +84,7 @@ int main() {
     if (acceleration_multiplier >= 0) {
         logger_proc(LOG_LEVEL_INFO, "Mouse Acceleration Multiplier:\t%ld\n", acceleration_multiplier);
     } else {
-        logger_proc(LOG_LEVEL_ERROR, "Failed to acquire mouse acceleration multiplier!\n");
+        logger_proc(LOG_LEVEL_WARN, "Failed to acquire mouse acceleration multiplier!\n");
     }
 
     // Retrieves the mouse acceleration threshold.
@@ -80,7 +92,7 @@ int main() {
     if (acceleration_threshold >= 0) {
         logger_proc(LOG_LEVEL_INFO, "Mouse Acceleration Threshold:\t%ld\n", acceleration_threshold);
     } else {
-        logger_proc(LOG_LEVEL_ERROR, "Failed to acquire mouse acceleration threshold!\n");
+        logger_proc(LOG_LEVEL_WARN, "Failed to acquire mouse acceleration threshold!\n");
     }
 
     // Retrieves the mouse sensitivity.
@@ -88,7 +100,7 @@ int main() {
     if (sensitivity >= 0) {
         logger_proc(LOG_LEVEL_INFO, "Mouse Sensitivity:\t%ld\n", sensitivity);
     } else {
-        logger_proc(LOG_LEVEL_ERROR, "Failed to acquire mouse sensitivity value!\n");
+        logger_proc(LOG_LEVEL_WARN, "Failed to acquire mouse sensitivity value!\n");
     }
 
     // Retrieves the double/triple click interval.
@@ -96,7 +108,7 @@ int main() {
     if (click_time >= 0) {
         logger_proc(LOG_LEVEL_INFO, "Multi-Click Time:\t%ld\n", click_time);
     } else {
-        logger_proc(LOG_LEVEL_ERROR, "Failed to acquire mouse multi-click time!\n");
+        logger_proc(LOG_LEVEL_WARN, "Failed to acquire mouse multi-click time!\n");
     }
 
     return EXIT_SUCCESS;

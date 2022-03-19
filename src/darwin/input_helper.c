@@ -78,7 +78,7 @@ bool is_accessibility_enabled() {
         }
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: AXIsProcessTrustedWithOptions not found.\n",
-                    __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to AXAPIEnabled().\n",
                 __FUNCTION__, __LINE__);

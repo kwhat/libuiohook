@@ -109,22 +109,24 @@ static struct timeval system_time;
 static uiohook_event event;
 
 // Event dispatch callback.
-static dispatcher_t dispatcher = NULL;
+static dispatcher_t dispatch = NULL;
+static void *dispatch_data = NULL;
 
-UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
+UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
             __FUNCTION__, __LINE__, dispatch_proc);
 
-    dispatcher = dispatch_proc;
+    dispatch = dispatch_proc;
+    dispatch_data = user_data;
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(uiohook_event *const event) {
-    if (dispatcher != NULL) {
+static void dispatch_event(uiohook_event *const event) {
+    if (dispatch != NULL) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
                 __FUNCTION__, __LINE__, event->type);
 
-        dispatcher(event);
+        dispatch(event, dispatch_data);
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
                 __FUNCTION__, __LINE__);
@@ -891,7 +893,7 @@ static inline int xrecord_block() {
     #endif
     else {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XRecordEnableContext failure!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
 
         #ifdef USE_XRECORD_ASYNC
         // Reset the running state.
@@ -1068,7 +1070,7 @@ UIOHOOK_API int hook_run() {
     hook = malloc(sizeof(hook_info));
     if (hook == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for hook structure!\n",
-              __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
 
         return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }

@@ -36,7 +36,6 @@ $ cmake --build . --parallel 2 --target install
 | __OSX__   | USE_APPLICATION_SERVICES:BOOL | framework              | ON      |
 |           | USE_IOKIT:BOOL                | framework              | ON      |
 |           | USE_OBJC:BOOL                 | obj-c api              | ON      |
-|           | USE_CARBON_LEGACY:BOOL        | legacy framework       | OFF     |
 | __Win32__ |                               |                        |         |
 | __Linux__ | USE_EVDEV:BOOL                | generic input driver   | ON      |
 | __*nix__  | USE_XF86MISC:BOOL             | xfree86-misc extension | OFF     |

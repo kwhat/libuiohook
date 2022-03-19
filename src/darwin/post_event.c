@@ -81,7 +81,7 @@ static int post_key_event(uiohook_event * const event, CGEventSourceRef src) {
         }
     } else {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid event for keyboard post event: %#X.\n",
-            __FUNCTION__, __LINE__, event->type);
+                __FUNCTION__, __LINE__, event->type);
         return UIOHOOK_FAILURE;
     }
 
@@ -197,7 +197,7 @@ static int post_mouse_event(uiohook_event * const event, CGEventSourceRef src) {
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid mouse event: %#X.\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
             return UIOHOOK_FAILURE;
     }
 
@@ -296,7 +296,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring post event: %#X.\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
     }
 
     CFRelease(src);

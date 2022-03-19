@@ -131,21 +131,21 @@ static int post_key_event(uiohook_event * const event) {
         #endif
     } else {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid event for keyboard post event: %#X.\n",
-            __FUNCTION__, __LINE__, event->type);
+                __FUNCTION__, __LINE__, event->type);
         return UIOHOOK_FAILURE;
     }
 
     #ifdef USE_XTEST
     if (XTestFakeKeyEvent(helper_disp, keycode, is_pressed, 0) != Success) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XTestFakeKeyEvent() failed!\n",
-            __FUNCTION__, __LINE__, event->type);
+                __FUNCTION__, __LINE__, event->type);
         return UIOHOOK_FAILURE;
     }
     #else
     XSelectInput(helper_disp, key_event.window, KeyPressMask | KeyReleaseMask);
     if (XSendEvent(helper_disp, key_event.window, False, event_mask, (XEvent *) &key_event) == 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XSendEvent() failed!\n",
-            __FUNCTION__, __LINE__, event->type);
+                __FUNCTION__, __LINE__, event->type);
         return UIOHOOK_FAILURE;
     }
     #endif
@@ -271,7 +271,7 @@ static int post_mouse_button_event(uiohook_event * const event) {
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid mouse button event: %#X.\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
             return UIOHOOK_FAILURE;
     }
 
@@ -383,7 +383,7 @@ static void post_mouse_motion_event(uiohook_event * const event) {
 UIOHOOK_API void hook_post_event(uiohook_event * const event) {
     if (helper_disp == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
         return; // UIOHOOK_ERROR_X_OPEN_DISPLAY
     }
 
@@ -417,7 +417,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
         default:
             logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
             break;
     }
 

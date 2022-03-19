@@ -28,26 +28,26 @@
 #include <uiohook.h>
 #include <wchar.h>
 
-bool logger_proc(unsigned int level, const char *format, ...) {
-    bool status = false;
-    
-    va_list args;
+
+static void logger_proc(unsigned int level, void *user_data, const char *format, va_list args) {
     switch (level) {
         case LOG_LEVEL_INFO:
-            va_start(args, format);
-            status = vfprintf(stdout, format, args) >= 0;
-            va_end(args);
+            vfprintf(stdout, format, args);
             break;
 
         case LOG_LEVEL_WARN:
         case LOG_LEVEL_ERROR:
-            va_start(args, format);
-            status = vfprintf(stderr, format, args) >= 0;
-            va_end(args);
+            vfprintf(stderr, format, args);
             break;
     }
-    
-    return status;
+}
+
+static void logger(unsigned int level, const char *format, ...) {
+    va_list args;
+
+    va_start(args, format);
+    logger_proc(level, NULL, format, args);
+    va_end(args);
 }
 
 // NOTE: The following callback executes on the same thread that hook_run() is called 
@@ -56,7 +56,7 @@ bool logger_proc(unsigned int level, const char *format, ...) {
 // Furthermore, some operating systems may choose to disable your hook if it 
 // takes too long to process.  If you need to do any extended processing, please 
 // do so by copying the event to your own queued dispatch thread.
-void dispatch_proc(uiohook_event * const event) {
+void dispatch_proc(uiohook_event * const event, void *user_data) {
     char buffer[256] = { 0 };
     size_t length = snprintf(buffer, sizeof(buffer), 
             "id=%i,when=%" PRIu64 ",mask=0x%X", 
@@ -74,18 +74,18 @@ void dispatch_proc(uiohook_event * const event) {
 
                     // System level errors.
                     case UIOHOOK_ERROR_OUT_OF_MEMORY:
-                        logger_proc(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
+                        logger(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
                         break;
             
                     case UIOHOOK_ERROR_X_RECORD_GET_CONTEXT:
                         // NOTE This is the only platform specific error that occurs on hook_stop().
-                        logger_proc(LOG_LEVEL_ERROR, "Failed to get XRecord context. (%#X)", status);
+                        logger(LOG_LEVEL_ERROR, "Failed to get XRecord context. (%#X)", status);
                         break;
 
                     // Default error.
                     case UIOHOOK_FAILURE:
                     default:
-                        logger_proc(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
+                        logger(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
                         break;
                 }
             }
@@ -129,10 +129,10 @@ void dispatch_proc(uiohook_event * const event) {
 
 int main() {
     // Set the logger callback for library output.
-    hook_set_logger_proc(&logger_proc);
+    hook_set_logger_proc(&logger_proc, NULL);
     
     // Set the event callback for uiohook events.
-    hook_set_dispatch_proc(&dispatch_proc);
+    hook_set_dispatch_proc(&dispatch_proc, NULL);
 
     // Start the hook and block.
     // NOTE If EVENT_HOOK_ENABLED was delivered, the status will always succeed.
@@ -144,63 +144,63 @@ int main() {
 
         // System level errors.
         case UIOHOOK_ERROR_OUT_OF_MEMORY:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to allocate memory. (%#X)", status);
             break;
 
 
         // X11 specific errors.
         case UIOHOOK_ERROR_X_OPEN_DISPLAY:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to open X11 display. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to open X11 display. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_X_RECORD_NOT_FOUND:
-            logger_proc(LOG_LEVEL_ERROR, "Unable to locate XRecord extension. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Unable to locate XRecord extension. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_X_RECORD_ALLOC_RANGE:
-            logger_proc(LOG_LEVEL_ERROR, "Unable to allocate XRecord range. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Unable to allocate XRecord range. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_X_RECORD_CREATE_CONTEXT:
-            logger_proc(LOG_LEVEL_ERROR, "Unable to allocate XRecord context. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Unable to allocate XRecord context. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to enable XRecord context. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to enable XRecord context. (%#X)", status);
             break;
 
             
         // Windows specific errors.
         case UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to register low level windows hook. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to register low level windows hook. (%#X)", status);
             break;
 
 
         // Darwin specific errors.
         case UIOHOOK_ERROR_AXAPI_DISABLED:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to enable access for assistive devices. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to enable access for assistive devices. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_CREATE_EVENT_PORT:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to create apple event port. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to create apple event port. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to create apple run loop source. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to create apple run loop source. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_GET_RUNLOOP:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to acquire apple run loop. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to acquire apple run loop. (%#X)", status);
             break;
 
         case UIOHOOK_ERROR_CREATE_OBSERVER:
-            logger_proc(LOG_LEVEL_ERROR, "Failed to create apple run loop observer. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "Failed to create apple run loop observer. (%#X)", status);
             break;
 
         // Default error.
         case UIOHOOK_FAILURE:
         default:
-            logger_proc(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
+            logger(LOG_LEVEL_ERROR, "An unknown hook error occurred. (%#X)", status);
             break;
     }
 

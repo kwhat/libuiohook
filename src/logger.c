@@ -24,38 +24,20 @@
 
 #include "logger.h"
 
-static bool default_logger(unsigned int level, const char *format, ...) {
-    return false;
-}
+static logger_t callback = NULL;
+static void *callback_data = NULL;
 
-static va_logger_t va_logger;
+void logger(unsigned int level, const char *format, ...) {
+    if (callback != NULL) {
+        va_list args;
 
-static bool va_logger_wrapper(unsigned int level, const char *format, ...) {
-    va_list args;
-
-    va_start(args, format);
-    bool result = va_logger(level, format, args);
-    va_end(args);
-
-    return result;
-}
-
-// Current logger function pointer, should never be null.
-logger_t logger = &default_logger;
-
-UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc) {
-    if (logger_proc == NULL) {
-        logger = &default_logger;
-    } else {
-        logger = logger_proc;
+        va_start(args, format);
+        callback(level, callback_data, format, args);
+        va_end(args);
     }
 }
 
-UIOHOOK_API void hook_set_va_logger_proc(va_logger_t logger_proc) {
-    if (logger_proc == NULL) {
-        logger = &default_logger;
-    } else {
-        va_logger = logger_proc;
-        logger = &va_logger_wrapper;
-    }
+UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc, void *user_data) {
+    callback = logger_proc;
+    callback_data = user_data;
 }

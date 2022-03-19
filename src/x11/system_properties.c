@@ -214,7 +214,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
         #endif
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     return screens;
@@ -253,7 +253,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
         #endif
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     if (successful) {
@@ -296,7 +296,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
         #endif
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     if (successful) {
@@ -321,7 +321,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
         }
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     return value;
@@ -342,7 +342,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
         }
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     return value;
@@ -363,7 +363,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
         }
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     return value;
@@ -418,7 +418,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
         }
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     if (successful) {

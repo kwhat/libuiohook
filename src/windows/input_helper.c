@@ -479,8 +479,7 @@ static int refresh_locale_list() {
         int new_size = GetKeyboardLayoutList(hkl_size, hkl_list);
         if (new_size > 0) {
             if (new_size != hkl_size) {
-                logger(LOG_LEVEL_WARN, "%s [%u]: Locale size mismatch!  "
-                        "Expected %i, received %i!\n",
+                logger(LOG_LEVEL_WARN, "%s [%u]: Locale size mismatch!  Expected %i, received %i!\n",
                         __FUNCTION__, __LINE__, hkl_size, new_size);
             } else {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: Received %i locales.\n",
@@ -612,8 +611,7 @@ static int refresh_locale_list() {
 
                                 count++;
                             } else {
-                                logger(LOG_LEVEL_ERROR,
-                                        "%s [%u]: GetProcAddress() failed for KbdLayerDescriptor!\n",
+                                logger(LOG_LEVEL_ERROR, "%s [%u]: GetProcAddress() failed for KbdLayerDescriptor!\n",
                                         __FUNCTION__, __LINE__);
 
                                 FreeLibrary(locale_item->library);
@@ -621,20 +619,17 @@ static int refresh_locale_list() {
                                 locale_item = NULL;
                             }
                         } else {
-                            logger(LOG_LEVEL_ERROR,
-                                    "%s [%u]: GetSystemDirectory() failed!\n",
+                            logger(LOG_LEVEL_ERROR, "%s [%u]: GetSystemDirectory() failed!\n",
                                     __FUNCTION__, __LINE__);
                         }
                     } else {
-                        logger(LOG_LEVEL_ERROR,
-                                "%s [%u]: Could not find keyboard map for locale %#p!\n",
+                        logger(LOG_LEVEL_ERROR, "%s [%u]: Could not find keyboard map for locale %#p!\n",
                                 __FUNCTION__, __LINE__, hkl_list[i]);
                     }
                 }
             }
         } else {
-            logger(LOG_LEVEL_ERROR,
-                    "%s [%u]: GetKeyboardLayoutList() failed!\n",
+            logger(LOG_LEVEL_ERROR, "%s [%u]: GetKeyboardLayoutList() failed!\n",
                     __FUNCTION__, __LINE__);
 
             // TODO Try and recover by using the current layout.
@@ -670,8 +665,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 
         // You may already be a winner!
         if (locale_item != NULL && locale_item->id == locale_id) {
-            logger(LOG_LEVEL_DEBUG,
-                    "%s [%u]: Activating keyboard layout %#p.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Activating keyboard layout %#p.\n",
                     __FUNCTION__, __LINE__, locale_item->id);
 
             // Switch the current locale.
@@ -682,8 +676,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
             // This is consistent with the way Windows handles locale changes.
             deadChar = WCH_NONE;
         } else {
-            logger(LOG_LEVEL_DEBUG,
-                    "%s [%u]: Refreshing locale cache.\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Refreshing locale cache.\n",
                     __FUNCTION__, __LINE__);
 
             refresh_locale_list();
@@ -696,8 +689,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 
     // Check and make sure the Unicode helper was loaded.
     if (locale_current != NULL) {
-        logger(LOG_LEVEL_DEBUG,
-                "%s [%u]: Using keyboard layout %#p.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Using keyboard layout %#p.\n",
                 __FUNCTION__, __LINE__, locale_current->id);
 
         int mod = 0;
@@ -855,8 +847,7 @@ int load_input_helper() {
 
     count = refresh_locale_list();
 
-    logger(LOG_LEVEL_DEBUG,
-            "%s [%u]: refresh_locale_list() found %i locale(s).\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: refresh_locale_list() found %i locale(s).\n",
             __FUNCTION__, __LINE__, count);
 
     return count;

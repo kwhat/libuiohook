@@ -126,7 +126,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 
     if (SystemParametersInfo(SPI_GETKEYBOARDSPEED, 0, &rate, 0)) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETKEYBOARDSPEED: %li.\n",
-            __FUNCTION__, __LINE__, rate);
+                __FUNCTION__, __LINE__, rate);
 
         value = rate;
     }
@@ -140,7 +140,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 
     if (SystemParametersInfo(SPI_GETKEYBOARDDELAY, 0, &delay, 0)) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETKEYBOARDDELAY: %li.\n",
-            __FUNCTION__, __LINE__, delay);
+                __FUNCTION__, __LINE__, delay);
 
         value = delay;
     }
@@ -154,7 +154,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 
     if (SystemParametersInfo(SPI_GETMOUSE, 0, &mouse, 0)) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSE[2]: %i.\n",
-            __FUNCTION__, __LINE__, mouse[2]);
+                __FUNCTION__, __LINE__, mouse[2]);
 
         value = mouse[2];
     }
@@ -168,9 +168,9 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 
     if (SystemParametersInfo(SPI_GETMOUSE, 0, &mouse, 0)) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSE[0]: %i.\n",
-            __FUNCTION__, __LINE__, mouse[0]);
+                __FUNCTION__, __LINE__, mouse[0]);
         logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSE[1]: %i.\n",
-            __FUNCTION__, __LINE__, mouse[1]);
+                __FUNCTION__, __LINE__, mouse[1]);
 
         // Average the x and y thresholds.
         value = (mouse[0] + mouse[1]) / 2;
@@ -185,7 +185,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 
     if (SystemParametersInfo(SPI_GETMOUSESPEED, 0, &sensitivity, 0)) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: SPI_GETMOUSESPEED: %i.\n",
-            __FUNCTION__, __LINE__, sensitivity);
+                __FUNCTION__, __LINE__, sensitivity);
 
         value = sensitivity;
     }

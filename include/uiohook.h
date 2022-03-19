@@ -59,8 +59,7 @@ typedef enum _log_level {
 } log_level;
 
 // Logger callback function prototype.
-typedef bool (*logger_t)(unsigned int, const char *, ...);
-typedef bool (*va_logger_t)(unsigned int, const char *, va_list);
+typedef void (*logger_t)(unsigned int, void *, const char *, va_list);
 /* End Log Levels and Function Prototype */
 
 /* Begin Virtual Event Types and Data Structures */
@@ -127,7 +126,7 @@ typedef struct _uiohook_event {
     } data;
 } uiohook_event;
 
-typedef void (*dispatcher_t)(uiohook_event *const);
+typedef void (*dispatcher_t)(uiohook_event * const, void *);
 /* End Virtual Event Types and Data Structures */
 
 
@@ -416,16 +415,13 @@ extern "C" {
 #endif
 
     // Set the logger callback function.
-    UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc);
-
-    // Set the logger callback function.
-    UIOHOOK_API void hook_set_va_logger_proc(va_logger_t logger_proc);
+    UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc, void *user_data);
 
     // Send a virtual event back to the system.
     UIOHOOK_API void hook_post_event(uiohook_event * const event);
 
     // Set the event callback function.
-    UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc);
+    UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data);
 
     // Insert the event hook.
     UIOHOOK_API int hook_run();

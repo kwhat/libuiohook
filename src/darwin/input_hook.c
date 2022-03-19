@@ -104,26 +104,28 @@ static struct timeval system_time;
 static uiohook_event event;
 
 // Event dispatch callback.
-static dispatcher_t dispatcher = NULL;
+static dispatcher_t dispatch = NULL;
+static void *dispatch_data = NULL;
 
 // We define the event_runloop_info as a static so that hook_event_proc can
 // re-enable the tap when it gets disabled by a timeout
 static event_runloop_info *hook = NULL;
 
-UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
+UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
             __FUNCTION__, __LINE__, dispatch_proc);
 
-    dispatcher = dispatch_proc;
+    dispatch = dispatch_proc;
+    dispatch_data = user_data;
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(uiohook_event *const event) {
-    if (dispatcher != NULL) {
+static void dispatch_event(uiohook_event *const event) {
+    if (dispatch != NULL) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
                 __FUNCTION__, __LINE__, event->type);
 
-        dispatcher(event);
+        dispatch(event, dispatch_data);
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
                 __FUNCTION__, __LINE__);
@@ -215,7 +217,7 @@ static void keycode_to_lookup(void *info) {
 }
 
 #ifdef USE_EPOCH_TIME
-static inline uint64_t get_unix_timestamp() {
+static uint64_t get_unix_timestamp() {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 

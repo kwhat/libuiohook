@@ -1768,11 +1768,11 @@ unsigned int button_map_lookup(unsigned int button) {
             }
         } else {
             logger(LOG_LEVEL_WARN, "%s [%u]: Mouse button map memory is unavailable!\n",
-                __FUNCTION__, __LINE__);
+                    __FUNCTION__, __LINE__);
         }
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-            __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
     }
 
     // X11 numbers buttons 2 & 3 backwards from other platforms so we normalize them.
@@ -1787,7 +1787,7 @@ void load_input_helper() {
     mouse_button_map = malloc(sizeof(unsigned char) * BUTTON_MAP_MAX);
     if (mouse_button_map == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for mouse button map!\n",
-              __FUNCTION__, __LINE__);
+                __FUNCTION__, __LINE__);
 
         //return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }

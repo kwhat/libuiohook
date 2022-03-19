@@ -35,33 +35,32 @@
 static uiohook_event *event = NULL;
 
 
-bool logger_proc(unsigned int level, const char *format, ...) {
-    bool status = false;
-
-    va_list args;
+static void logger_proc(unsigned int level, void *user_data, const char *format, va_list args) {
     switch (level) {
         case LOG_LEVEL_INFO:
-            va_start(args, format);
-            status = vfprintf(stdout, format, args) >= 0;
-            va_end(args);
+            vfprintf(stdout, format, args);
             break;
 
         case LOG_LEVEL_WARN:
         case LOG_LEVEL_ERROR:
-            va_start(args, format);
-            status = vfprintf(stderr, format, args) >= 0;
-            va_end(args);
+            vfprintf(stderr, format, args);
             break;
     }
+}
 
-    return status;
+static void logger(unsigned int level, const char *format, ...) {
+    va_list args;
+
+    va_start(args, format);
+    logger_proc(level, NULL, format, args);
+    va_end(args);
 }
 
 // TODO Implement CLI options.
 //int main(int argc, char *argv[]) {
 int main() {
     // Set the logger callback for library output.
-    hook_set_logger_proc(&logger_proc);
+    hook_set_logger_proc(&logger_proc, NULL);
 
     // Allocate memory for the virtual events only once.
     event = (uiohook_event *) malloc(sizeof(uiohook_event));

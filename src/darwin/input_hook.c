@@ -80,7 +80,7 @@ typedef void* dispatch_queue_t;
 static struct dispatch_queue_s *dispatch_main_queue_s;
 static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 
-#if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+#if defined(USE_APPLICATION_SERVICES)
 typedef struct _main_runloop_info {
     CFRunLoopSourceRef source;
     CFRunLoopObserverRef observer;
@@ -303,7 +303,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
                     __FUNCTION__, __LINE__);
             (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_keycode_message, &keycode_to_lookup);
         }
-        #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+        #ifdef USE_APPLICATION_SERVICES
         else if (!is_runloop_main) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
                     __FUNCTION__, __LINE__);
@@ -1037,7 +1037,7 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 }
 
 
-#if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+#ifdef USE_APPLICATION_SERVICES
 void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
     switch (activity) {
         case kCFRunLoopExit:
@@ -1357,7 +1357,7 @@ UIOHOOK_API int hook_run() {
                         logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
                                 __FUNCTION__, __LINE__);
 
-                        #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+                        #ifdef USE_APPLICATION_SERVICES
                         logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to runloop signaling.\n",
                                 __FUNCTION__, __LINE__);
 
@@ -1404,7 +1404,7 @@ UIOHOOK_API int hook_run() {
                 eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
                 #endif
 
-                #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+                #ifdef USE_APPLICATION_SERVICES
                 pthread_mutex_lock(&main_runloop_mutex);
                 if (!CFEqual(event_loop, CFRunLoopGetMain())) {
                     if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {

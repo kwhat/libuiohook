@@ -26,7 +26,6 @@
 #define __FUNCTION__ __func__
 #endif
 
-// logger(level, message)
-extern logger_t logger;
+extern void logger(unsigned int level, const char *format, ...);
 
 #endif

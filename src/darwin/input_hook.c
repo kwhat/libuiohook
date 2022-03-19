@@ -107,22 +107,24 @@ static struct timeval system_time;
 static uiohook_event event;
 
 // Event dispatch callback.
-static dispatcher_t dispatcher = NULL;
+static dispatcher_t dispatch = NULL;
+static void *dispatch_data = NULL;
 
-UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
+UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
             __FUNCTION__, __LINE__, dispatch_proc);
 
-    dispatcher = dispatch_proc;
+    dispatch = dispatch_proc;
+    dispatch_data = user_data;
 }
 
 // Send out an event if a dispatcher was set.
-static inline void dispatch_event(uiohook_event *const event) {
-    if (dispatcher != NULL) {
+static void dispatch_event(uiohook_event *const event) {
+    if (dispatch != NULL) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
                 __FUNCTION__, __LINE__, event->type);
 
-        dispatcher(event);
+        dispatch(event, dispatch_data);
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
                 __FUNCTION__, __LINE__);
@@ -214,7 +216,7 @@ static void keycode_to_lookup(void *info) {
 }
 
 #ifdef USE_EPOCH_TIME
-static inline uint64_t get_unix_timestamp() {
+static uint64_t get_unix_timestamp() {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 
@@ -1316,7 +1318,7 @@ UIOHOOK_API int hook_run() {
                 tis_keycode_message = (TISKeycodeMessage *) calloc(1, sizeof(TISKeycodeMessage));
                 if (tis_keycode_message == NULL) {
                     logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
-                                __FUNCTION__, __LINE__);
+                            __FUNCTION__, __LINE__);
 
                     return UIOHOOK_ERROR_OUT_OF_MEMORY;
                 }
@@ -1325,7 +1327,7 @@ UIOHOOK_API int hook_run() {
                 tis_event_message = (TISEventMessage *) calloc(1, sizeof(TISEventMessage));
                 if (tis_event_message == NULL) {
                     logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS event structure!\n",
-                                __FUNCTION__, __LINE__);
+                            __FUNCTION__, __LINE__);
 
                     return UIOHOOK_ERROR_OUT_OF_MEMORY;
                 }

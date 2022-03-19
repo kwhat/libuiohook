@@ -87,7 +87,7 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid event for keyboard event mapping: %#X.\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
             return UIOHOOK_FAILURE;
     }
 
@@ -195,7 +195,7 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid event for mouse event mapping: %#X.\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
             return UIOHOOK_FAILURE;
     }
 
@@ -235,7 +235,7 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring post event: %#X.\n",
-                __FUNCTION__, __LINE__, event->type);
+                    __FUNCTION__, __LINE__, event->type);
 
     }
 

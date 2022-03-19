@@ -16,10 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef USE_CARBON_LEGACY
-#include <Carbon/Carbon.h>
-#endif
-
 #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -147,7 +143,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
  * CharSec = 66 / (MS / 15)
  */
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
-    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
     bool successful = false;
     SInt64 rate;
     #endif
@@ -207,29 +203,11 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
     }
     #endif
 
-    #ifdef USE_CARBON_LEGACY
-    if (!successful) {
-        // Apple documentation states that value is in 'ticks'. I am not sure
-        // what that means, but it looks a lot like the arbitrary slider value.
-        rate = LMGetKeyRepThresh();
-        if (rate > -1) {
-            /* This is the slider value, we must multiply by 15 to convert to
-             * milliseconds.
-             */
-            value = (long) rate * 15;
-            successful = true;
-
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: LMGetKeyRepThresh: %li.\n",
-                    __FUNCTION__, __LINE__, value);
-        }
-    }
-    #endif
-
     return value;
 }
 
 UIOHOOK_API long int hook_get_auto_repeat_delay() {
-    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
     bool successful = false;
     SInt64 delay;
     #endif
@@ -284,23 +262,6 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
 
                 CFRelease(cf_type);
             }
-        }
-    }
-    #endif
-
-    #ifdef USE_CARBON_LEGACY
-    if (!successful) {
-        // Apple documentation states that value is in 'ticks'. I am not sure
-        // what that means, but it looks a lot like the arbitrary slider value.
-        delay = LMGetKeyThresh();
-        if (delay > -1) {
-            // This is the slider value, we must multiply by 15 to convert to
-            // milliseconds.
-            value = (long) delay * 15;
-            successful = true;
-
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: LMGetKeyThresh: %li.\n",
-                    __FUNCTION__, __LINE__, value);
         }
     }
     #endif
@@ -378,7 +339,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 }
 
 UIOHOOK_API long int hook_get_multi_click_time() {
-    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
     bool successful = false;
     Float64 time;
     #endif
@@ -421,23 +382,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 
                 CFRelease(cf_type);
             }
-        }
-    }
-    #endif
-
-    #ifdef USE_CARBON_LEGACY
-    if (!successful) {
-        // Apple documentation states that value is in 'ticks'. I am not sure
-        // what that means, but it looks a lot like the arbitrary slider value.
-        time = GetDblTime();
-        if (time > -1) {
-            // This is the slider value, we must multiply by 15 to convert to
-            // milliseconds.
-            value = (long) time * 15;
-            successful = true;
-
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: GetDblTime: %li.\n",
-                    __FUNCTION__, __LINE__, value);
         }
     }
     #endif

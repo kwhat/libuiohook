@@ -28,15 +28,11 @@
 #include "input_helper.h"
 #include "logger.h"
 
+#ifdef USE_APPLICATION_SERVICES
 // Current dead key state.
-#if defined(USE_CARBON_LEGACY) || defined(USE_APPLICATION_SERVICES)
 static UInt32 deadkey_state;
-#endif
 
 // Input source data for the keyboard.
-#if defined(USE_CARBON_LEGACY)
-static KeyboardLayoutRef prev_keyboard_layout = NULL;
-#elif defined(USE_APPLICATION_SERVICES)
 static TISInputSourceRef prev_keyboard_layout = NULL;
 #endif
 
@@ -104,14 +100,7 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
     UniCharCount count = 0;
     CFDataRef inputData = NULL;
 
-    #if defined(USE_CARBON_LEGACY)
-    KeyboardLayoutRef curr_keyboard_layout;
-    if (KLGetCurrentKeyboardLayout(&curr_keyboard_layout) == noErr) {
-        if (KLGetKeyboardLayoutProperty(curr_keyboard_layout, kKLuchrData, (const void **) &inputData) != noErr) {
-            inputData = NULL;
-        }
-    }
-    #elif defined(USE_APPLICATION_SERVICES)
+    #ifdef USE_APPLICATION_SERVICES
     // TODO Try https://developer.apple.com/documentation/coregraphics/1456120-cgeventkeyboardgetunicodestring?language=objc
     if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
         // NOTE The following block must execute on the main runloop,
@@ -144,13 +133,9 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
     }
     #endif
 
-    #if defined(USE_CARBON_LEGACY) || defined(USE_APPLICATION_SERVICES)
+    #ifdef USE_APPLICATION_SERVICES
     if (inputData != NULL) {
-        #ifdef USE_CARBON_LEGACY
-        const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout *) inputData;
-        #else
         const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout*) CFDataGetBytePtr(inputData);
-        #endif
 
         if (keyboard_layout != NULL) {
             //Extract keycode and modifier information.
@@ -518,14 +503,14 @@ UInt64 scancode_to_keycode(uint16_t scancode) {
 }
 
 void load_input_helper() {
-    #if defined(USE_CARBON_LEGACY) || defined(USE_APPLICATION_SERVICES)
+    #ifdef USE_APPLICATION_SERVICES
     // Start with a fresh dead key state.
     //curr_deadkey_state = 0;
     #endif
 }
 
 void unload_input_helper() {
-    #if defined(USE_CARBON_LEGACY) || defined(USE_APPLICATION_SERVICES)
+    #ifdef USE_APPLICATION_SERVICES
     if (prev_keyboard_layout != NULL) {
         // Cleanup tracking of the previous layout.
         CFRelease(prev_keyboard_layout);

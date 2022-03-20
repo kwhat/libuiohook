@@ -44,7 +44,6 @@ $ cmake --build . --parallel 2 --target install
 |           | USE_XKB_FILE:BOOL             | xkb-file extension     | ON      |
 |           | USE_XRANDR:BOOL               | xrandt extension       | OFF     |
 |           | USE_XT:BOOL                   | x toolkit extension    | ON      |
-|           | USE_XTEST:BOOL                | xtest extension        | ON      |
 
 ## Usage
 * [Hook Demo](demo/demo_hook.c)

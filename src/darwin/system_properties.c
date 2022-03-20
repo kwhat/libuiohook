@@ -147,7 +147,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
  * CharSec = 66 / (MS / 15)
  */
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
-    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES || defined USE_CARBON_LEGACY
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
     bool successful = false;
     SInt64 rate;
     #endif
@@ -229,7 +229,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
 }
 
 UIOHOOK_API long int hook_get_auto_repeat_delay() {
-    #if defined USE_IOKIT || defined USE_APPLICATION_SERVICES || defined USE_CARBON_LEGACY
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
     bool successful = false;
     SInt64 delay;
     #endif
@@ -378,12 +378,9 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 }
 
 UIOHOOK_API long int hook_get_multi_click_time() {
-    #if defined(USE_IOKIT) || defined(USE_APPLICATION_SERVICES) || defined(USE_CARBON_LEGACY)
+    #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
     bool successful = false;
-    #if defined(USE_IOKIT) || defined(USE_CARBON_LEGACY)
-    // This needs to be defined only if we have USE_IOKIT or USE_CARBON_LEGACY.
     Float64 time;
-    #endif
     #endif
 
     long int value = -1;

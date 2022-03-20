@@ -205,12 +205,6 @@ if(UNIX AND NOT APPLE)
         target_link_libraries(uiohook "${XINERAMA_LDFLAGS}")
     endif()
 
-    option(USE_XTEST "XTest API (default: ON)" ON)
-    if(USE_XTEST)
-        # XTest API is provided by Xtst
-        add_compile_definitions(uiohook PRIVATE USE_XTEST)
-    endif()
-
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         option(USE_EVDEV "Generic Linux input driver (default: ON)" ON)
         if(USE_EVDEV)

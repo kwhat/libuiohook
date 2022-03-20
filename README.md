@@ -45,7 +45,6 @@ $ cmake --build . --parallel 2 --target install
 |           | USE_XRANDR:BOOL               | xrandt extension       | OFF     |
 |           | USE_XRECORD_ASYNC:BOOL        | xrecord async api      | OFF     |
 |           | USE_XT:BOOL                   | x toolkit extension    | ON      |
-|           | USE_XTEST:BOOL                | xtest extension        | ON      |
 
 ## Usage
 * [Hook Demo](demo/demo_hook.c)

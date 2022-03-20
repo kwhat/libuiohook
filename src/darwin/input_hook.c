@@ -19,7 +19,7 @@
 #include <dlfcn.h>
 #include <mach/mach_time.h>
 
-#ifdef USE_OBJC
+#ifdef USE_APPKIT
 #include <objc/objc.h>
 #include <objc/objc-runtime.h>
 #endif
@@ -44,7 +44,7 @@ typedef struct _event_runloop_info {
     CFRunLoopObserverRef observer;
 } event_runloop_info;
 
-#ifdef USE_OBJC
+#ifdef USE_APPKIT
 static id auto_release_pool;
 
 typedef struct {
@@ -505,7 +505,7 @@ static inline void process_modifier_changed(uint64_t timestamp, CGEventRef event
     }
 }
 
-#ifdef USE_OBJC
+#ifdef USE_APPKIT
 static void obcj_message(void *info) {
     TISEventMessage *data = (TISEventMessage *) info;
 
@@ -528,7 +528,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
         UInt32 subtype = 0;
         UInt32 data1 = 0;
 
-        #ifdef USE_OBJC
+        #ifdef USE_APPKIT
         bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
         tis_event_message->event = event_ref;
         tis_event_message->subtype = 0;
@@ -581,7 +581,7 @@ static inline void process_system_key(uint64_t timestamp, CGEventRef event_ref) 
 
         free(buffer);
         CFRelease(data_ref);
-        #ifdef USE_OBJC
+        #ifdef USE_APPKIT
         }
         #endif
 
@@ -1322,7 +1322,7 @@ UIOHOOK_API int hook_run() {
                 return UIOHOOK_ERROR_OUT_OF_MEMORY;
             }
 
-            #ifdef USE_OBJC
+            #ifdef USE_APPKIT
             tis_event_message = (TISEventMessage *) calloc(1, sizeof(TISEventMessage));
             if (tis_event_message == NULL) {
                 logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS event structure!\n",
@@ -1383,7 +1383,7 @@ UIOHOOK_API int hook_run() {
                 }
             }
 
-            #ifdef USE_OBJC
+            #ifdef USE_APPKIT
             // Contributed by Alex <universailp@web.de>
             // Create a garbage collector to handle Cocoa events correctly.
             Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
@@ -1398,7 +1398,7 @@ UIOHOOK_API int hook_run() {
             CFRunLoopRun();
 
 
-            #ifdef USE_OBJC
+            #ifdef USE_APPKIT
             // Contributed by Alex <universailp@web.de>
             eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
             #endif
@@ -1413,7 +1413,7 @@ UIOHOOK_API int hook_run() {
             pthread_mutex_unlock(&main_runloop_mutex);
             #endif
 
-            #ifdef USE_OBJC
+            #ifdef USE_APPKIT
             free(tis_event_message);
             #endif
             free(tis_keycode_message);

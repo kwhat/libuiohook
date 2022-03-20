@@ -29,7 +29,9 @@
 #include "input_helper.h"
 #include "logger.h"
 
+#ifndef USE_XTEST
 static long current_modifier_mask = NoEventMask;
+#endif
 
 static int post_key_event(uiohook_event * const event) {
     KeyCode keycode = scancode_to_keycode(event->data.keyboard.keycode);
@@ -202,6 +204,15 @@ static int post_mouse_button_event(uiohook_event * const event) {
 
     switch (event->type) {
         case EVENT_MOUSE_PRESSED:
+            #ifdef USE_XTEST
+            if (event->data.mouse.button < MOUSE_BUTTON1 || event->data.mouse.button > MOUSE_BUTTON5) {
+                logger(LOG_LEVEL_WARN, "%s [%u]: Invalid button specified for mouse pressed event! (%u)\n",
+                        __FUNCTION__, __LINE__, event->data.mouse.button);
+                return UIOHOOK_FAILURE;
+            }
+
+            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0);
+            #else
             if (event->data.mouse.button == MOUSE_BUTTON1) {
                 current_modifier_mask |= Button1MotionMask;
             } else if (event->data.mouse.button == MOUSE_BUTTON2) {
@@ -218,9 +229,6 @@ static int post_mouse_button_event(uiohook_event * const event) {
                 return UIOHOOK_FAILURE;
             }
 
-            #ifdef USE_XTEST
-            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0);
-            #else
             btn_event.type = ButtonPress;
             btn_event.button = event->data.mouse.button;
             btn_event.state = current_modifier_mask;
@@ -229,6 +237,15 @@ static int post_mouse_button_event(uiohook_event * const event) {
             break;
 
         case EVENT_MOUSE_RELEASED:
+            #ifdef USE_XTEST
+            if (event->data.mouse.button < MOUSE_BUTTON1 || event->data.mouse.button > MOUSE_BUTTON5) {
+                logger(LOG_LEVEL_WARN, "%s [%u]: Invalid button specified for mouse released event! (%u)\n",
+                        __FUNCTION__, __LINE__, event->data.mouse.button);
+                return UIOHOOK_FAILURE;
+            }
+
+            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0);
+            #else
             if (event->data.mouse.button == MOUSE_BUTTON1) {
                 current_modifier_mask &= ~Button1MotionMask;
             } else if (event->data.mouse.button == MOUSE_BUTTON2) {
@@ -245,9 +262,6 @@ static int post_mouse_button_event(uiohook_event * const event) {
                 return UIOHOOK_FAILURE;
             }
 
-            #ifdef USE_XTEST
-            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0);
-            #else
             btn_event.type = ButtonRelease;
             btn_event.button = event->data.mouse.button;
             btn_event.state = current_modifier_mask;

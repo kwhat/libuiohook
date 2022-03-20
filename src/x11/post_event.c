@@ -159,19 +159,19 @@ static int post_mouse_button_event(uiohook_event * const event) {
         .send_event = False,
         .display = helper_disp,
 
-        .window = None,                                   /* “event” window it is reported relative to */
-        .root = None,                                     /* root window that the event occurred on */
-        .subwindow = XDefaultRootWindow(helper_disp),     /* child window */
+        .window = None,                                /* “event” window it is reported relative to */
+        .root = None,                                  /* root window that the event occurred on */
+        .subwindow = XDefaultRootWindow(helper_disp),  /* child window */
 
         .time = CurrentTime,
 
-        .x = event->data.mouse.x,                         /* pointer x, y coordinates in event window */
+        .x = event->data.mouse.x,                      /* pointer x, y coordinates in event window */
         .y = event->data.mouse.y,
 
-        .x_root = 0,                                      /* coordinates relative to root */
+        .x_root = 0,                                   /* coordinates relative to root */
         .y_root = 0,
 
-        .state = 0x00,                                    /* key or button mask */
+        .state = 0x00,                                 /* key or button mask */
         .same_screen = True
     };
 
@@ -202,6 +202,7 @@ static int post_mouse_button_event(uiohook_event * const event) {
     }
     #endif
 
+    int status = UIOHOOK_FAILURE;
     switch (event->type) {
         case EVENT_MOUSE_PRESSED:
             #ifdef USE_XTEST
@@ -211,7 +212,9 @@ static int post_mouse_button_event(uiohook_event * const event) {
                 return UIOHOOK_FAILURE;
             }
 
-            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0);
+            if (XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0) != 0) {
+                status = UIOHOOK_SUCCESS;
+            }
             #else
             if (event->data.mouse.button == MOUSE_BUTTON1) {
                 current_modifier_mask |= Button1MotionMask;
@@ -232,7 +235,9 @@ static int post_mouse_button_event(uiohook_event * const event) {
             btn_event.type = ButtonPress;
             btn_event.button = event->data.mouse.button;
             btn_event.state = current_modifier_mask;
-            XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event);
+            if (XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event) != 0) {
+                status = UIOHOOK_SUCCESS;
+            }
             #endif
             break;
 
@@ -244,7 +249,9 @@ static int post_mouse_button_event(uiohook_event * const event) {
                 return UIOHOOK_FAILURE;
             }
 
-            XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0);
+            if (XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0) != 0) {
+                status = UIOHOOK_SUCCESS;
+            }
             #else
             if (event->data.mouse.button == MOUSE_BUTTON1) {
                 current_modifier_mask &= ~Button1MotionMask;
@@ -265,38 +272,42 @@ static int post_mouse_button_event(uiohook_event * const event) {
             btn_event.type = ButtonRelease;
             btn_event.button = event->data.mouse.button;
             btn_event.state = current_modifier_mask;
-            XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event);
+            if (XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event) != 0) {
+                status = UIOHOOK_SUCCESS;
+            }
             #endif
             break;
 
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Invalid mouse button event: %#X.\n",
                     __FUNCTION__, __LINE__, event->type);
-            return UIOHOOK_FAILURE;
+            status = UIOHOOK_FAILURE;
     }
 
-    return UIOHOOK_SUCCESS;
+    return status;
 }
 
 static int post_mouse_wheel_event(uiohook_event * const event) {
+    int status = UIOHOOK_FAILURE;
+
     XButtonEvent btn_event = {
         .serial = 0,
         .send_event = False,
         .display = helper_disp,
 
-        .window = None,                                   /* “event” window it is reported relative to */
-        .root = None,                                     /* root window that the event occurred on */
-        .subwindow = XDefaultRootWindow(helper_disp),     /* child window */
+        .window = None,                                /* “event” window it is reported relative to */
+        .root = None,                                  /* root window that the event occurred on */
+        .subwindow = XDefaultRootWindow(helper_disp),  /* child window */
 
         .time = CurrentTime,
 
-        .x = event->data.wheel.x,                         /* pointer x, y coordinates in event window */
+        .x = event->data.wheel.x,                      /* pointer x, y coordinates in event window */
         .y = event->data.wheel.y,
 
-        .x_root = 0,                                      /* coordinates relative to root */
+        .x_root = 0,                                   /* coordinates relative to root */
         .y_root = 0,
 
-        .state = 0x00,                                    /* key or button mask */
+        .state = 0x00,                                 /* key or button mask */
         .same_screen = True
     };
 
@@ -324,29 +335,43 @@ static int post_mouse_wheel_event(uiohook_event * const event) {
     unsigned int button = button_map_lookup(event->data.wheel.rotation < 0 ? WheelUp : WheelDown);
 
     #ifdef USE_XTEST
-    XTestFakeButtonEvent(helper_disp, button, True, 0);
+    if (XTestFakeButtonEvent(helper_disp, button, True, 0) != 0) {
+        status = UIOHOOK_SUCCESS;
+    }
     #else
     btn_event.type = ButtonPress;
     btn_event.button = button;
     btn_event.state = current_modifier_mask;
-    XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event);
+    if (XSendEvent(helper_disp, btn_event.window, False, ButtonPressMask, (XEvent *) &btn_event) != 0) {
+        status = UIOHOOK_SUCCESS;
+    }
     #endif
 
-    #ifdef USE_XTEST
-    XTestFakeButtonEvent(helper_disp, button, False, 0);
-    #else
-    btn_event.type = ButtonRelease;
-    btn_event.button = button;
-    btn_event.state = current_modifier_mask;
-    XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event);
-    #endif
+    if (status == UIOHOOK_SUCCESS) {
+        #ifdef USE_XTEST
+        if (XTestFakeButtonEvent(helper_disp, button, False, 0) == 0) {
+            status = UIOHOOK_FAILURE;
+        }
+        #else
+        btn_event.type = ButtonRelease;
+        btn_event.button = button;
+        btn_event.state = current_modifier_mask;
+        if (XSendEvent(helper_disp, btn_event.window, False, ButtonReleaseMask, (XEvent *) &btn_event) == 0) {
+            status = UIOHOOK_FAILURE;
+        }
+        #endif
+    }
 
     return UIOHOOK_SUCCESS;
 }
 
-static void post_mouse_motion_event(uiohook_event * const event) {
+static int post_mouse_motion_event(uiohook_event * const event) {
+    int status = UIOHOOK_FAILURE;
+
     #ifdef USE_XTEST
-    XTestFakeMotionEvent(helper_disp, -1, event->data.mouse.x, event->data.mouse.y, 0);
+    if (XTestFakeMotionEvent(helper_disp, -1, event->data.mouse.x, event->data.mouse.y, 0) != 0) {
+        status = UIOHOOK_SUCCESS;
+    }
     #else
     XMotionEvent mov_event = {
         .type = MotionNotify,
@@ -354,19 +379,19 @@ static void post_mouse_motion_event(uiohook_event * const event) {
         .send_event = False,
         .display = helper_disp,
 
-        .window = None,                                   /* “event” window it is reported relative to */
-        .root = XDefaultRootWindow(helper_disp),      /* root window that the event occurred on */
-        .subwindow = None,                                /* child window */
+        .window = None,                                /* “event” window it is reported relative to */
+        .root = XDefaultRootWindow(helper_disp),       /* root window that the event occurred on */
+        .subwindow = None,                             /* child window */
 
         .time = CurrentTime,
 
-        .x = event->data.mouse.x,                         /* pointer x, y coordinates in event window */
+        .x = event->data.mouse.x,                      /* pointer x, y coordinates in event window */
         .y = event->data.mouse.y,
 
-        .x_root = event->data.mouse.x,                    /* coordinates relative to root */
+        .x_root = event->data.mouse.x,                 /* coordinates relative to root */
         .y_root = event->data.mouse.x,
 
-        .state = current_modifier_mask|MotionNotify,      /* key or button mask */
+        .state = current_modifier_mask | MotionNotify, /* key or button mask */
 
         .is_hint = NotifyNormal,
         .same_screen = True
@@ -375,38 +400,43 @@ static void post_mouse_motion_event(uiohook_event * const event) {
     int revert;
     XGetInputFocus(helper_disp, &(mov_event.window), &revert);
 
-    XSendEvent(helper_disp, mov_event.window, False, mov_event.state, (XEvent *) &mov_event);
+    if (XSendEvent(helper_disp, mov_event.window, False, mov_event.state, (XEvent *) &mov_event) != 0) {
+        status = UIOHOOK_SUCCESS;
+    }
     #endif
+
+    return status;
 }
 
 // TODO This should return a status code, UIOHOOK_SUCCESS or otherwise.
-UIOHOOK_API void hook_post_event(uiohook_event * const event) {
+UIOHOOK_API int hook_post_event(uiohook_event * const event) {
     if (helper_disp == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XDisplay helper_disp is unavailable!\n",
                 __FUNCTION__, __LINE__);
-        return; // UIOHOOK_ERROR_X_OPEN_DISPLAY
+        return UIOHOOK_ERROR_X_OPEN_DISPLAY;
     }
 
     XLockDisplay(helper_disp);
 
+    int status = UIOHOOK_FAILURE;
     switch (event->type) {
         case EVENT_KEY_PRESSED:
         case EVENT_KEY_RELEASED:
-            post_key_event(event);
+            status = post_key_event(event);
             break;
 
         case EVENT_MOUSE_PRESSED:
         case EVENT_MOUSE_RELEASED:
-            post_mouse_button_event(event);
+            status = post_mouse_button_event(event);
             break;
 
         case EVENT_MOUSE_WHEEL:
-            post_mouse_wheel_event(event);
+            status = post_mouse_wheel_event(event);
             break;
 
         case EVENT_MOUSE_MOVED:
         case EVENT_MOUSE_DRAGGED:
-            post_mouse_motion_event(event);
+            status = post_mouse_motion_event(event);
             break;
 
         case EVENT_KEY_TYPED:
@@ -418,10 +448,12 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
         default:
             logger(LOG_LEVEL_WARN, "%s [%u]: Ignoring post event type %#X\n",
                     __FUNCTION__, __LINE__, event->type);
-            break;
+            status = UIOHOOK_FAILURE;
     }
 
     // Don't forget to flush!
     XSync(helper_disp, True);
     XUnlockDisplay(helper_disp);
+
+    return status;
 }

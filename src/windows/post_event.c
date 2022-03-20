@@ -202,17 +202,15 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
     return UIOHOOK_SUCCESS;
 }
 
-// TODO This should return a status code, UIOHOOK_SUCCESS or otherwise.
-UIOHOOK_API void hook_post_event(uiohook_event * const event) {
-    int status = UIOHOOK_FAILURE;
-
+UIOHOOK_API int hook_post_event(uiohook_event * const event) {
     INPUT *input = (INPUT *) calloc(1, sizeof(INPUT))   ;
     if (input == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: failed to allocate memory: calloc!\n",
                 __FUNCTION__, __LINE__);
-        return; // UIOHOOK_ERROR_OUT_OF_MEMORY
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }
 
+    int status = UIOHOOK_FAILURE;
     switch (event->type) {
         case EVENT_KEY_PRESSED:
         case EVENT_KEY_RELEASED:
@@ -236,13 +234,16 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring post event: %#X.\n",
                     __FUNCTION__, __LINE__, event->type);
-
+            status = UIOHOOK_FAILURE;
     }
 
-    if (status != UIOHOOK_FAILURE && !SendInput(1, input, sizeof(INPUT))) {
+    if (status == UIOHOOK_SUCCESS && !SendInput(1, input, sizeof(INPUT))) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: SendInput() failed! (%#lX)\n",
                 __FUNCTION__, __LINE__, (unsigned long) GetLastError());
+        status = UIOHOOK_FAILURE;
     }
 
     free(input);
+
+    return status;
 }

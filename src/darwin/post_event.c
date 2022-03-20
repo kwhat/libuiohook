@@ -126,7 +126,6 @@ static int post_key_event(uiohook_event * const event, CGEventSourceRef src) {
     if (cg_event == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: CGEventCreateKeyboardEvent failed!\n",
                 __FUNCTION__, __LINE__);
-
         return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }
 
@@ -257,24 +256,20 @@ static int post_mouse_wheel_event(uiohook_event * const event, CGEventSourceRef 
     return UIOHOOK_SUCCESS;
 }
 
-
-// TODO This should return a status code, UIOHOOK_SUCCESS or otherwise.
-UIOHOOK_API void hook_post_event(uiohook_event * const event) {
-    int status = UIOHOOK_FAILURE;
-
+UIOHOOK_API int hook_post_event(uiohook_event * const event) {
     CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
     if (src == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: CGEventSourceCreate failed!\n",
                 __FUNCTION__, __LINE__);
-        return; // UIOHOOK_ERROR_OUT_OF_MEMORY
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }
 
+    int status = UIOHOOK_FAILURE;
     switch (event->type) {
         case EVENT_KEY_PRESSED:
         case EVENT_KEY_RELEASED:
             status = post_key_event(event, src);
             break;
-
 
         case EVENT_MOUSE_PRESSED:
         case EVENT_MOUSE_RELEASED:
@@ -297,7 +292,10 @@ UIOHOOK_API void hook_post_event(uiohook_event * const event) {
         default:
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Ignoring post event: %#X.\n",
                     __FUNCTION__, __LINE__, event->type);
+            status = UIOHOOK_FAILURE;
     }
 
     CFRelease(src);
+
+    return status;
 }

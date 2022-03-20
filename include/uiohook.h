@@ -417,11 +417,11 @@ extern "C" {
     // Set the logger callback function.
     UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc, void *user_data);
 
-    // Send a virtual event back to the system.
-    UIOHOOK_API void hook_post_event(uiohook_event * const event);
-
     // Set the event callback function.
     UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data);
+
+    // Send a virtual event back to the system.
+    UIOHOOK_API int hook_post_event(uiohook_event * const event);
 
     // Insert the event hook.
     UIOHOOK_API int hook_run();

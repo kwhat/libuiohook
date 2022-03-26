@@ -30,6 +30,7 @@ endif()
 
 add_library(uiohook
     "src/logger.c"
+    "src/${UIOHOOK_SOURCE_DIR}/dispatch_event.c"
     "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
     "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
     "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
@@ -151,26 +152,6 @@ if(UNIX AND NOT APPLE)
 
     include(CheckIncludeFile)
     check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
-
-    option(USE_XKB_COMMON "X Keyboard Common Extension (default: ON)" ON)
-    if(USE_XKB_COMMON)
-        pkg_check_modules(XKB_COMMON REQUIRED xkbcommon-x11)
-        add_compile_definitions(uiohook PRIVATE USE_XKB_COMMON)
-        target_include_directories(uiohook PRIVATE "${XKB_COMMON_INCLUDE_DIRS}")
-        target_link_libraries(uiohook "${XKB_COMMON_LDFLAGS}")
-
-        pkg_check_modules(X11_XCB REQUIRED x11-xcb)
-        target_include_directories(uiohook PRIVATE "${X11_XCB_INCLUDE_DIRS}")
-        target_link_libraries(uiohook "${X11_XCB_LDFLAGS}")
-    endif()
-
-    option(USE_XKB_FILE "X Keyboard File Extension (default: ON)" ON)
-    if(USE_XKB_FILE)
-        pkg_check_modules(XKB_FILE REQUIRED xkbfile)
-        add_compile_definitions(uiohook PRIVATE USE_XKB_FILE)
-        target_include_directories(uiohook PRIVATE "${XKB_FILE_INCLUDE_DIRS}")
-        target_link_libraries(uiohook "${XKB_FILE_LDFLAGS}")
-    endif()
 
     option(USE_XT "X Toolkit Extension (default: ON)" ON)
     if(USE_XT)

@@ -22,12 +22,6 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
 
-#ifdef USE_XKB_COMMON
-#include <X11/Xlib-xcb.h>
-#include <xkbcommon/xkbcommon.h>
-#include <xkbcommon/xkbcommon-x11.h>
-#endif
-
 
 // Virtual button codes that are not defined by X11.
 #define Button1     1
@@ -61,31 +55,11 @@ extern uint16_t keycode_to_scancode(KeyCode keycode);
  */
 extern KeyCode scancode_to_keycode(uint16_t scancode);
 
-
-#ifdef USE_XKB_COMMON
-
-/* Converts a X11 key code to a Unicode character sequence.  libXKBCommon support
- * is required for this method.
- */
-extern size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *buffer, size_t size);
-
-/* Create a xkb_state structure and return a pointer to it.
- */
-extern struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection);
-
-/* Release xkb_state structure created by create_xkb_state().
- */
-extern void destroy_xkb_state(struct xkb_state* state);
-
-#else
-
 /* Converts a X11 key code and event mask to the appropriate X11 key symbol.
  * This functions in much the same way as XKeycodeToKeysym() but allows for a
  * faster and more flexible lookup.
  */
 extern KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask);
-
-#endif
 
 /* Lookup a X11 buttons possible remapping and return that value.
  */

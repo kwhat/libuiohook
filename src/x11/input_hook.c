@@ -36,6 +36,7 @@
 #include <X11/keysym.h>
 #include <X11/Xlibint.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 #include <X11/extensions/record.h>
 
 #if defined(USE_XINERAMA) && !defined(USE_XRANDR)
@@ -69,10 +70,6 @@ typedef struct _hook_info {
         XRecordContext context;
     } ctrl;
     struct _input {
-        #ifdef USE_XKB_COMMON
-        xcb_connection_t *connection;
-        struct xkb_context *context;
-        #endif
         uint16_t mask;
         struct _mouse {
             bool is_dragged;
@@ -95,10 +92,6 @@ typedef union {
     xError              error;
     xConnSetupPrefix    setup;
 } XRecordDatum;
-
-#if defined(USE_XKB_COMMON)
-static struct xkb_state *state = NULL;
-#endif
 
 #ifdef USE_EPOCH_TIME
 // Structure for the current Unix epoch in milliseconds.
@@ -150,25 +143,6 @@ static inline uint16_t get_modifiers() {
 
 // Initialize the modifier lock masks.
 static void initialize_locks() {
-    #ifdef USE_XKB_COMMON
-    if (xkb_state_led_name_is_active(state, XKB_LED_NAME_CAPS)) {
-        set_modifier_mask(MASK_CAPS_LOCK);
-    } else {
-        unset_modifier_mask(MASK_CAPS_LOCK);
-    }
-
-    if (xkb_state_led_name_is_active(state, XKB_LED_NAME_NUM)) {
-        set_modifier_mask(MASK_NUM_LOCK);
-    } else {
-        unset_modifier_mask(MASK_NUM_LOCK);
-    }
-
-    if (xkb_state_led_name_is_active(state, XKB_LED_NAME_SCROLL)) {
-        set_modifier_mask(MASK_SCROLL_LOCK);
-    } else {
-        unset_modifier_mask(MASK_SCROLL_LOCK);
-    }
-    #else
     unsigned int led_mask = 0x00;
     if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &led_mask) == Success) {
         if (led_mask & 0x01) {
@@ -192,7 +166,6 @@ static void initialize_locks() {
         logger(LOG_LEVEL_WARN, "%s [%u]: XkbGetIndicatorState failed to get current led mask!\n",
                 __FUNCTION__, __LINE__);
     }
-    #endif
 }
 
 // Initialize the modifier mask to the current modifiers.
@@ -263,7 +236,7 @@ static void initialize_modifiers() {
 }
 
 #ifdef USE_EPOCH_TIME
-static inline uint64_t get_unix_timestamp() {
+static uint64_t get_unix_timestamp() {
 	// Get the local system time in UTC.
 	gettimeofday(&system_time, NULL);
 
@@ -315,25 +288,129 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             // The X11 KeyCode associated with this event.
             KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
-            #if defined(USE_XKB_COMMON)
-            if (state != NULL) {
-                keysym = xkb_state_key_get_one_sym(state, keycode);
-            }
-            #else
-            keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
-            #endif
 
-            // Check to make sure the key is printable.
-            uint16_t buffer[2];
-            size_t count =  0;
-            #ifdef USE_XKB_COMMON
-            if (state != NULL) {
-                count = keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
-            }
-            #else
-            count = keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
-            #endif
 
+            XKeyEvent test_event = {
+                .type = data->event.u.u.type & 0x7f,
+	            .serial = data->event.u.u.sequenceNumber,
+	            .send_event = ((data->event.u.u.type & 0x80) != 0),
+                .display = hook->ctrl.display,
+
+                .root 	= data->event.u.keyButtonPointer.root,
+			    .window 	= data->event.u.keyButtonPointer.event,
+			    .subwindow 	= data->event.u.keyButtonPointer.child,
+			    .time 	= data->event.u.keyButtonPointer.time,
+			    .x 		= cvtINT16toInt(data->event.u.keyButtonPointer.eventX),
+                .y 		= cvtINT16toInt(data->event.u.keyButtonPointer.eventY),
+                .x_root 	= cvtINT16toInt(data->event.u.keyButtonPointer.rootX),
+                .y_root 	= cvtINT16toInt(data->event.u.keyButtonPointer.rootY),
+                .state	= data->event.u.keyButtonPointer.state,
+                .same_screen	= data->event.u.keyButtonPointer.sameScreen,
+                .keycode 	= data->event.u.u.detail,
+            };
+
+            /*
+            char buffer[5];
+            size_t count = XLookupString(&test_event, buffer, sizeof(buffer) - 1, &keysym, NULL);
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Testing %u : %#X (size: %u '%s')\n",
+                    __FUNCTION__, __LINE__,
+                    keycode,
+                    keysym,
+                    count,
+                    buffer
+                );
+            //*/
+
+//*
+            XSetLocaleModifiers("");
+            XIM xim = XOpenIM(hook->ctrl.display, NULL, NULL, NULL);
+            if (!xim) {
+                // fallback to internal input method
+                XSetLocaleModifiers("@im=none");
+                xim = XOpenIM(hook->ctrl.display, NULL, NULL, NULL);
+            }
+
+            if (xim == NULL) {
+            	logger(LOG_LEVEL_ERROR, "%s [%u]: XOpenIM Failed\n",
+            	    __FUNCTION__, __LINE__);
+            }
+
+            XIC xic = XCreateIC(xim,
+                XNInputStyle,   XIMPreeditNothing | XIMStatusNothing,
+                XNClientWindow, data->event.u.keyButtonPointer.event,
+                XNFocusWindow,  data->event.u.keyButtonPointer.event,
+                NULL);
+
+
+
+            char buffer[5] = {};
+            size_t count = Xutf8LookupString(xic, &test_event, buffer, sizeof(buffer) - 1, &keysym, NULL);
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Testing %u : %#X (size: %u '%s')\n",
+                    __FUNCTION__, __LINE__,
+                    keycode,
+                    keysym,
+                    count,
+                    buffer
+                );
+
+            uint32_t codepoint = 0x0000;
+            uint8_t bit_mask_table[] = {
+                0x3F, // 00111111, non-first (if > 1 byte)
+                0x7F, // 01111111, first (if 1 byte)
+                0x1F, // 00011111, first (if 2 bytes)
+                0x0F, // 00001111, first (if 3 bytes)
+                0x07  // 00000111, first (if 4 bytes)
+            };
+            if (count > 0) {
+                codepoint = bit_mask_table[count] & buffer[0];
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Unicode byte %u : 0x%1X\n",
+                    __FUNCTION__, __LINE__,
+                    0,
+                    (unsigned char) buffer[0]
+                );
+
+                for (int i = 1; i < count; i++) {
+                    logger(LOG_LEVEL_ERROR, "%s [%u]: Unicode byte %u : 0x%1X\n",
+                        __FUNCTION__, __LINE__,
+                        i,
+                        (unsigned char) buffer[i]
+                    );
+
+                    codepoint = (codepoint << 6) | (bit_mask_table[0] & buffer[i]);
+                }
+
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Unicode: 0x%X\n",
+                    __FUNCTION__, __LINE__,
+                    codepoint
+                );
+            }
+
+            // IF Codepoint is > 0xFFFF, Split into lead (high) / trail (low) surrogate ranges
+            codepoint = 0x10348;
+            // constants
+            const uint32_t LEAD_OFFSET = 0xD800 - (0x10000 >> 10);
+            const uint32_t SURROGATE_OFFSET = 0x10000 - (0xD800 << 10) - 0xDC00;
+
+            // computations
+            uint16_t lead = LEAD_OFFSET + (codepoint >> 10); // first  [0]
+            uint16_t trail = 0xDC00 + (codepoint & 0x3FF);   // second [1]
+
+            uint32_t codepoint2 = (lead << 10) + trail + SURROGATE_OFFSET; // Just converts back.
+
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Code Points: 0x%X  0x%X  0x%X\n",
+                __FUNCTION__, __LINE__,
+                lead,
+                trail,
+                codepoint2
+            );
+
+            XDestroyIC(xic);
+            XCloseIM(xim);
+//*/
+
+
+            //XModifierKeymap *map = XGetModifierMapping(hook->ctrl.display);
+            
 
             unsigned short int scancode = keycode_to_scancode(keycode);
 
@@ -346,9 +423,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             else if (scancode == VC_ALT_R)     { set_modifier_mask(MASK_ALT_R);   }
             else if (scancode == VC_META_L)    { set_modifier_mask(MASK_META_L);  }
             else if (scancode == VC_META_R)    { set_modifier_mask(MASK_META_R);  }
-            #ifdef USE_XKB_COMMON
-            xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
-            #endif
+
             initialize_locks();
 
 
@@ -412,23 +487,12 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             // The X11 KeyCode associated with this event.
             KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
-            #ifdef USE_XKB_COMMON
-            if (state != NULL) {
-                keysym = xkb_state_key_get_one_sym(state, keycode);
-            }
-            #else
+
             keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
-            #endif
 
             // Check to make sure the key is printable.
             uint16_t buffer[2];
-            #ifdef USE_XKB_COMMON
-            if (state != NULL) {
-                keycode_to_unicode(state, keycode, buffer, sizeof(buffer) / sizeof(uint16_t));
-            }
-            #else
             keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
-            #endif
 
             unsigned short int scancode = keycode_to_scancode(keycode);
 
@@ -441,9 +505,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             else if (scancode == VC_ALT_R)     { unset_modifier_mask(MASK_ALT_R);   }
             else if (scancode == VC_META_L)    { unset_modifier_mask(MASK_META_L);  }
             else if (scancode == VC_META_R)    { unset_modifier_mask(MASK_META_R);  }
-            #ifdef USE_XKB_COMMON
-            xkb_state_update_key(state, keycode, XKB_KEY_UP);
-            #endif
+
             initialize_locks();
 
             if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
@@ -814,6 +876,11 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
             // Fire mouse move event.
             dispatch_event(&event);
+        } else if (data->type == MappingNotify) {
+                 // FIXME
+                 // event with a request member of MappingKeyboard or MappingModifier occurs
+                 //XRefreshKeyboardMapping(event_map)
+                   //XMappingEvent *event_map;
         } else {
             // In theory this *should* never execute.
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled X11 event: %#X.\n",
@@ -926,7 +993,7 @@ static int xrecord_alloc() {
                 __FUNCTION__, __LINE__);
 
         hook->data.range->device_events.first = KeyPress;
-        hook->data.range->device_events.last = MotionNotify;
+        hook->data.range->device_events.last = MappingNotify;
 
         // Note that the documentation for this function is incorrect,
         // hook->data.display should be used!
@@ -1004,45 +1071,10 @@ static int xrecord_start() {
                     __FUNCTION__, __LINE__);
         }
 
-        #if defined(USE_XKB_COMMON)
-        // Open XCB Connection
-        hook->input.connection = XGetXCBConnection(hook->ctrl.display);
-        int xcb_status = xcb_connection_has_error(hook->input.connection);
-        if (xcb_status <= 0) {
-            // Initialize xkbcommon context.
-            struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-
-            if (context != NULL) {
-                hook->input.context = xkb_context_ref(context);
-            } else {
-                logger(LOG_LEVEL_ERROR, "%s [%u]: xkb_context_new failure!\n",
-                        __FUNCTION__, __LINE__);
-            }
-        } else {
-            logger(LOG_LEVEL_ERROR, "%s [%u]: xcb_connect failure! (%d)\n",
-                    __FUNCTION__, __LINE__, xcb_status);
-        }
-        #endif
-
-        #ifdef USE_XKB_COMMON
-        state = create_xkb_state(hook->input.context, hook->input.connection);
-        #endif
-
         // Initialize starting modifiers.
         initialize_modifiers();
 
         status = xrecord_query();
-
-        #ifdef USE_XKB_COMMON
-        if (state != NULL) {
-            destroy_xkb_state(state);
-        }
-
-        if (hook->input.context != NULL) {
-            xkb_context_unref(hook->input.context);
-            hook->input.context = NULL;
-        }
-        #endif
     } else {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XOpenDisplay failure!\n",
                 __FUNCTION__, __LINE__);

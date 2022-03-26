@@ -31,23 +31,6 @@ static bool is_evdev = false;
 #include <X11/XKBlib.h>
 static XkbDescPtr keyboard_map;
 
-#ifdef USE_XKB_COMMON
-#include <X11/Xlib-xcb.h>
-#include <xkbcommon/xkbcommon.h>
-#include <xkbcommon/xkbcommon-x11.h>
-
-#ifdef USE_XKB_FILE
-#include <X11/extensions/XKBrules.h>
-static struct xkb_rule_names xkb_names = {
-    .rules = "base",
-    .model = NULL,
-    .layout = NULL,
-    .variant = NULL,
-    .options = NULL
-};
-#endif
-#endif
-
 #include "logger.h"
 
 #define BUTTON_MAP_MAX 256
@@ -1641,57 +1624,6 @@ KeyCode scancode_to_keycode(uint16_t scancode) {
     return keycode;
 }
 
-#ifdef USE_XKB_COMMON
-struct xkb_state * create_xkb_state(struct xkb_context *context, xcb_connection_t *connection) {
-    struct xkb_keymap *keymap = NULL;
-    struct xkb_state *state = NULL;
-
-    int32_t device_id = xkb_x11_get_core_keyboard_device_id(connection);
-    if (device_id >= 0) {
-        keymap = xkb_x11_keymap_new_from_device(context, connection, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-        state = xkb_x11_state_new_from_device(keymap, connection, device_id);
-    }
-    #ifdef USE_XKB_FILE
-    else {
-        // Evdev fallback,
-        logger(LOG_LEVEL_WARN, "%s [%u]: Unable to retrieve core keyboard device id! (%d)\n",
-                __FUNCTION__, __LINE__, device_id);
-
-        keymap = xkb_keymap_new_from_names(context, &xkb_names, XKB_KEYMAP_COMPILE_NO_FLAGS);
-        state = xkb_state_new(keymap);
-    }
-    #endif
-
-    xkb_map_unref(keymap);
-    return xkb_state_ref(state);
-}
-
-void destroy_xkb_state(struct xkb_state* state) {
-    xkb_state_unref(state);
-}
-
-size_t keycode_to_unicode(struct xkb_state* state, KeyCode keycode, uint16_t *buffer, size_t length) {
-    size_t count = 0;
-
-    if (state != NULL) {
-        uint32_t unicode = xkb_state_key_get_utf32(state, keycode);
-
-        if (unicode <= 0x10FFFF) {
-            if ((unicode <= 0xD7FF || (unicode >= 0xE000 && unicode <= 0xFFFF)) && length >= 1) {
-                buffer[0] = unicode;
-                count = 1;
-            } else if (unicode >= 0x10000) {
-                unsigned int code = (unicode - 0x10000);
-                buffer[0] = 0xD800 | (code >> 10);
-                buffer[1] = 0xDC00 | (code & 0x3FF);
-                count = 2;
-            }
-        }
-    }
-
-    return count;
-}
-#else
 // Faster more flexible alternative to XKeycodeToKeysym...
 KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
     KeySym keysym = NoSymbol;
@@ -1755,7 +1687,6 @@ KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask) {
 
     return keysym;
 }
-#endif
 
 unsigned int button_map_lookup(unsigned int button) {
     unsigned int map_button = button;
@@ -1783,6 +1714,20 @@ unsigned int button_map_lookup(unsigned int button) {
 }
 
 void load_input_helper() {
+    /*
+    int min_keycodes, max_keycodes;
+    XDisplayKeycodes(helper_disp, &min_keycodes, &max_keycodes);
+
+    int keysyms_per_keycode;
+    KeySym *keysym_map = XGetKeyboardMapping(helper_disp, min_keycodes, (max_keycodes - min_keycodes + 1), &keysyms_per_keycode);
+
+    unsigned int event_mask = ShiftMask | LockMask;
+    KeySym keysym = KeyCodeToKeySym(display, keycode, event_mask);
+    printf("KeySym: %s\n", XKeysymToString(keysym));
+
+    XFree(keysym_map);
+    */
+
     // Setup memory for mouse button mapping.
     mouse_button_map = malloc(sizeof(unsigned char) * BUTTON_MAP_MAX);
     if (mouse_button_map == NULL) {

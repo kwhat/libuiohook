@@ -21,12 +21,12 @@
 #endif
 
 #include <inttypes.h>
+#include <locale.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <uiohook.h>
-#include <wchar.h>
 
 
 static void logger_proc(unsigned int level, void *user_data, const char *format, va_list args) {
@@ -91,13 +91,13 @@ void dispatch_proc(uiohook_event * const event, void *user_data) {
             }
         case EVENT_KEY_RELEASED:
             snprintf(buffer + length, sizeof(buffer) - length, 
-                ",keycode=%u,rawcode=0x%X",
+                ",keycode=0x%X,rawcode=0x%X",
                 event->data.keyboard.keycode, event->data.keyboard.rawcode);
             break;
 
         case EVENT_KEY_TYPED:
             snprintf(buffer + length, sizeof(buffer) - length, 
-                ",keychar=%lc,rawcode=%u",
+                ",keychar=%lc,rawcode=0x%X",
                 (wint_t) event->data.keyboard.keychar,
                 event->data.keyboard.rawcode);
             break;
@@ -128,6 +128,9 @@ void dispatch_proc(uiohook_event * const event, void *user_data) {
 }
 
 int main() {
+    // Set the locale for unicode support.
+    setlocale(LC_ALL, "");
+
     // Set the logger callback for library output.
     hook_set_logger_proc(&logger_proc, NULL);
     

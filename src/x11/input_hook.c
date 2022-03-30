@@ -49,8 +49,9 @@
 #pragma message("... Assuming single-head display.")
 #endif
 
-#include "logger.h"
+#include "dispatch_event.h"
 #include "input_helper.h"
+#include "logger.h"
 
 // Thread and hook handles.
 #ifdef USE_XRECORD_ASYNC
@@ -101,30 +102,6 @@ static struct timeval system_time;
 // Virtual event pointer.
 static uiohook_event event;
 
-// Event dispatch callback.
-static dispatcher_t dispatch = NULL;
-static void *dispatch_data = NULL;
-
-UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
-            __FUNCTION__, __LINE__, dispatch_proc);
-
-    dispatch = dispatch_proc;
-    dispatch_data = user_data;
-}
-
-// Send out an event if a dispatcher was set.
-static void dispatch_event(uiohook_event *const event) {
-    if (dispatch != NULL) {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
-                __FUNCTION__, __LINE__, event->type);
-
-        dispatch(event, dispatch_data);
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
-                __FUNCTION__, __LINE__);
-    }
-}
 
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
     #ifdef USE_EPOCH_TIME

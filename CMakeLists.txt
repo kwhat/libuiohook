@@ -30,6 +30,7 @@ endif()
 
 add_library(uiohook
     "src/logger.c"
+    "src/${UIOHOOK_SOURCE_DIR}/dispatch_event.c"
     "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
     "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
     "src/${UIOHOOK_SOURCE_DIR}/post_event.c"

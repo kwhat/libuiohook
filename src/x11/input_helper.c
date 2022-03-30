@@ -806,8 +806,6 @@ static void initialize_modifiers() {
         keycode = XKeysymToKeycode(helper_disp, XK_Super_R);
         if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);  }
     }
-
-    initialize_locks();
 }
 
 #ifdef USE_EPOCH_TIME

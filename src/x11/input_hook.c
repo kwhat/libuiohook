@@ -103,6 +103,78 @@ static struct timeval system_time;
 static uiohook_event event;
 
 
+/* Based on _XWireToEvent in Xlibinit.c */
+void WireDataToEvent(XRecordInterceptData *recorded_data, XEvent *x_event) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = (uint64_t) data->server_time;
+    #endif
+
+    if (recorded_data->category == XRecordStartOfData) {
+        // Initialize native input helper functions.
+        load_input_helper();
+
+        // Populate the hook start event.
+        event.time = timestamp;
+        event.reserved = 0x00;
+
+        XRecordDatum *data = (XRecordDatum *) recorded_data->data;
+        switch (recorded_data->category) {
+            //case XRecordFromClient: // TODO Should we be listening for Client Events?
+            case XRecordFromServer:
+                ((XAnyEvent *) x_event)->send_event = (bool) (data->event.u.u.type & 0x80);
+
+                switch (data->type) {
+                    case KeyPress:
+                    case KeyRelease:
+                        ((XKeyEvent *) x_event)->root           = data->event.u.keyButtonPointer.root;
+                        ((XKeyEvent *) x_event)->window         = data->event.u.keyButtonPointer.event;
+                        ((XKeyEvent *) x_event)->subwindow      = data->event.u.keyButtonPointer.child;
+                        ((XKeyEvent *) x_event)->time           = data->event.u.keyButtonPointer.time;
+                        ((XKeyEvent *) x_event)->x              = cvtINT16toInt(data->event.u.keyButtonPointer.eventX);
+                        ((XKeyEvent *) x_event)->y              = cvtINT16toInt(data->event.u.keyButtonPointer.eventY);
+                        ((XKeyEvent *) x_event)->x_root         = cvtINT16toInt(data->event.u.keyButtonPointer.rootX);
+                        ((XKeyEvent *) x_event)->y_root         = cvtINT16toInt(data->event.u.keyButtonPointer.rootY);
+                        ((XKeyEvent *) x_event)->state          = data->event.u.keyButtonPointer.state;
+                        ((XKeyEvent *) x_event)->same_screen    = data->event.u.keyButtonPointer.sameScreen;
+                        ((XKeyEvent *) x_event)->keycode        = data->event.u.u.detail;
+                        break;
+
+                    case ButtonPress:
+                    case ButtonRelease:
+                        ((XButtonEvent *) x_event)->root        = data->event.u.keyButtonPointer.root;
+                        ((XButtonEvent *) x_event)->window      = data->event.u.keyButtonPointer.event;
+                        ((XButtonEvent *) x_event)->subwindow   = data->event.u.keyButtonPointer.child;
+                        ((XButtonEvent *) x_event)->time        = data->event.u.keyButtonPointer.time;
+                        ((XButtonEvent *) x_event)->x           = cvtINT16toInt(data->event.u.keyButtonPointer.eventX);
+                        ((XButtonEvent *) x_event)->y           = cvtINT16toInt(data->event.u.keyButtonPointer.eventY);
+                        ((XButtonEvent *) x_event)->x_root      = cvtINT16toInt(data->event.u.keyButtonPointer.rootX);
+                        ((XButtonEvent *) x_event)->y_root      = cvtINT16toInt(data->event.u.keyButtonPointer.rootY);
+                        ((XButtonEvent *) x_event)->state       = data->event.u.keyButtonPointer.state;
+                        ((XButtonEvent *) x_event)->same_screen = data->event.u.keyButtonPointer.sameScreen;
+                        ((XButtonEvent *) x_event)->button      = data->event.u.u.detail;
+                        break;
+
+                    case MotionNotify:
+                        ((XMotionEvent *) x_event)->root        = data->event.u.keyButtonPointer.root;
+                        ((XMotionEvent *) x_event)->window      = data->event.u.keyButtonPointer.event;
+                        ((XMotionEvent *) x_event)->subwindow   = data->event.u.keyButtonPointer.child;
+                        ((XMotionEvent *) x_event)->time        = data->event.u.keyButtonPointer.time;
+                        ((XMotionEvent *) x_event)->x           = cvtINT16toInt(data->event.u.keyButtonPointer.eventX);
+                        ((XMotionEvent *) x_event)->y           = cvtINT16toInt(data->event.u.keyButtonPointer.eventY);
+                        ((XMotionEvent *) x_event)->x_root      = cvtINT16toInt(data->event.u.keyButtonPointer.rootX);
+                        ((XMotionEvent *) x_event)->y_root      = cvtINT16toInt(data->event.u.keyButtonPointer.rootY);
+                        ((XMotionEvent *) x_event)->state       = data->event.u.keyButtonPointer.state;
+                        ((XMotionEvent *) x_event)->same_screen = data->event.u.keyButtonPointer.sameScreen;
+                        ((XMotionEvent *) x_event)->is_hint     = data->event.u.u.detail;
+                        break;
+                }
+                break;
+        }
+    }
+}
+
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
     #ifdef USE_EPOCH_TIME
 	uint64_t timestamp = get_unix_timestamp();
@@ -593,7 +665,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                  */
                 uint16_t button = MOUSE_NOBUTTON;
                 switch (map_button) {
-                    // FIXME This should use a lookup table to handle button remapping.
                     case Button1:
                         button = MOUSE_BUTTON1;
                         unset_modifier_mask(MASK_BUTTON1);
@@ -766,8 +837,8 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
     XRecordFreeData(recorded_data);
 }
 
-
-static inline bool enable_key_repeate() {
+// FIXME Move to input_helper
+static bool enable_key_repeate() {
     // Attempt to setup detectable autorepeat.
     // NOTE: is_auto_repeat is NOT stdbool!
     Bool is_auto_repeat = False;
@@ -779,7 +850,7 @@ static inline bool enable_key_repeate() {
 }
 
 
-static inline int xrecord_block() {
+static int xrecord_block() {
     int status = UIOHOOK_FAILURE;
 
     // Save the data display associated with this hook so it is passed to each event.

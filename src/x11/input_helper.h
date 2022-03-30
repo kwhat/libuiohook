@@ -43,9 +43,6 @@ extern uint16_t keycode_to_scancode(KeyCode keycode);
 /* Converts a keyboard scan code to the appropriate X11 key code. */
 extern KeyCode scancode_to_keycode(uint16_t scancode);
 
-/* Converts a X11 key code and event mask to the appropriate X11 key symbol. */
-extern KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask);
-
 /* Set the native modifier mask for future events. */
 extern void set_modifier_mask(uint16_t mask);
 

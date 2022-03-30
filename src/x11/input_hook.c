@@ -334,8 +334,26 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
 
-            // FIXME Use this instead.
-            /*
+            XKeyEvent test_event = {
+                .type = data->event.u.u.type & 0x7f,
+	            .serial = data->event.u.u.sequenceNumber,
+	            .send_event = ((data->event.u.u.type & 0x80) != 0),
+                .display = hook->ctrl.display,
+
+                .root 	= data->event.u.keyButtonPointer.root,
+			    .window 	= data->event.u.keyButtonPointer.event,
+			    .subwindow 	= data->event.u.keyButtonPointer.child,
+			    .time 	= data->event.u.keyButtonPointer.time,
+			    .x 		= cvtINT16toInt(data->event.u.keyButtonPointer.eventX),
+                .y 		= cvtINT16toInt(data->event.u.keyButtonPointer.eventY),
+                .x_root 	= cvtINT16toInt(data->event.u.keyButtonPointer.rootX),
+                .y_root 	= cvtINT16toInt(data->event.u.keyButtonPointer.rootY),
+                .state	= data->event.u.keyButtonPointer.state,
+                .same_screen	= data->event.u.keyButtonPointer.sameScreen,
+                .keycode 	= data->event.u.u.detail,
+            };
+
+
             char buffer[5];
             size_t count = XLookupString(&test_event, buffer, sizeof(buffer) - 1, &keysym, NULL);
             logger(LOG_LEVEL_ERROR, "%s [%u]: Testing %u : %#X (size: %u '%s')\n",
@@ -345,9 +363,6 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                     count,
                     buffer
                 );
-            //*/
-
-            keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
 
             unsigned short int scancode = keycode_to_scancode(keycode);
 

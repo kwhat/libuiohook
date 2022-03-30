@@ -908,6 +908,10 @@ void load_input_helper() {
 
     // Get the map.
     keyboard_map = XkbGetMap(helper_disp, XkbAllClientInfoMask, XkbUseCoreKbd);
+
+    // Initialize starting modifiers.
+    initialize_modifiers();
+    initialize_locks();
 }
 
 void unload_input_helper() {

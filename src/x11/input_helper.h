@@ -37,15 +37,6 @@
 // Helper display used by input helper, properties and post event.
 extern Display *helper_disp;
 
-/* Converts a X11 key symbol to a single Unicode character.  No direct X11
- * functionality exists to provide this information.
- */
-extern size_t keysym_to_unicode(KeySym keysym, uint16_t *buffer, size_t size);
-
-/* Convert a single Unicode character to a X11 key symbol.  This function
- * provides a better translation than XStringToKeysym() for Unicode characters.
- */
-extern KeySym unicode_to_keysym(uint16_t unicode);
 
 /* Converts a X11 key code to the appropriate keyboard scan code.
  */

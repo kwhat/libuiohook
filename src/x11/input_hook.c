@@ -309,17 +309,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                 .keycode 	= data->event.u.u.detail,
             };
 
-            /*
-            char buffer[5];
-            size_t count = XLookupString(&test_event, buffer, sizeof(buffer) - 1, &keysym, NULL);
-            logger(LOG_LEVEL_ERROR, "%s [%u]: Testing %u : %#X (size: %u '%s')\n",
-                    __FUNCTION__, __LINE__,
-                    keycode,
-                    keysym,
-                    count,
-                    buffer
-                );
-            //*/
+
 
 //*
             XSetLocaleModifiers("");
@@ -488,11 +478,20 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             KeyCode keycode = (KeyCode) data->event.u.u.detail;
             KeySym keysym = 0x00;
 
-            keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
+            // FIXME Use this instead.
+            /*
+            char buffer[5];
+            size_t count = XLookupString(&test_event, buffer, sizeof(buffer) - 1, &keysym, NULL);
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Testing %u : %#X (size: %u '%s')\n",
+                    __FUNCTION__, __LINE__,
+                    keycode,
+                    keysym,
+                    count,
+                    buffer
+                );
+            //*/
 
-            // Check to make sure the key is printable.
-            uint16_t buffer[2];
-            keysym_to_unicode(keysym, buffer, sizeof(buffer) / sizeof(uint16_t));
+            keysym = keycode_to_keysym(keycode, data->event.u.keyButtonPointer.state);
 
             unsigned short int scancode = keycode_to_scancode(keycode);
 

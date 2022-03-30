@@ -126,127 +126,6 @@ static void dispatch_event(uiohook_event *const event) {
     }
 }
 
-// Set the native modifier mask for future events.
-static inline void set_modifier_mask(uint16_t mask) {
-    hook->input.mask |= mask;
-}
-
-// Unset the native modifier mask for future events.
-static inline void unset_modifier_mask(uint16_t mask) {
-    hook->input.mask &= ~mask;
-}
-
-// Get the current native modifier mask state.
-static inline uint16_t get_modifiers() {
-    return hook->input.mask;
-}
-
-// Initialize the modifier lock masks.
-static void initialize_locks() {
-    unsigned int led_mask = 0x00;
-    if (XkbGetIndicatorState(hook->ctrl.display, XkbUseCoreKbd, &led_mask) == Success) {
-        if (led_mask & 0x01) {
-            set_modifier_mask(MASK_CAPS_LOCK);
-        } else {
-            unset_modifier_mask(MASK_CAPS_LOCK);
-        }
-
-        if (led_mask & 0x02) {
-            set_modifier_mask(MASK_NUM_LOCK);
-        } else {
-            unset_modifier_mask(MASK_NUM_LOCK);
-        }
-
-        if (led_mask & 0x04) {
-            set_modifier_mask(MASK_SCROLL_LOCK);
-        } else {
-            unset_modifier_mask(MASK_SCROLL_LOCK);
-        }
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: XkbGetIndicatorState failed to get current led mask!\n",
-                __FUNCTION__, __LINE__);
-    }
-}
-
-// Initialize the modifier mask to the current modifiers.
-static void initialize_modifiers() {
-    hook->input.mask = 0x0000;
-
-    KeyCode keycode;
-    char keymap[32];
-    XQueryKeymap(hook->ctrl.display, keymap);
-
-    Window unused_win;
-    int unused_int;
-    unsigned int mask;
-    if (XQueryPointer(hook->ctrl.display, DefaultRootWindow(hook->ctrl.display), &unused_win, &unused_win, &unused_int, &unused_int, &unused_int, &unused_int, &mask)) {
-        if (mask & ShiftMask) {
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_L);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L); }
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_R);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R); }
-        }
-        if (mask & ControlMask) {
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_L);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);  }
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_R);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);  }
-        }
-        if (mask & Mod1Mask) {
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_L);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);   }
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_R);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);   }
-        }
-        if (mask & Mod4Mask) {
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_L);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);  }
-            keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_R);
-            if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);  }
-        }
-
-        if (mask & Button1Mask) { set_modifier_mask(MASK_BUTTON1); }
-        if (mask & Button2Mask) { set_modifier_mask(MASK_BUTTON2); }
-        if (mask & Button3Mask) { set_modifier_mask(MASK_BUTTON3); }
-        if (mask & Button4Mask) { set_modifier_mask(MASK_BUTTON4); }
-        if (mask & Button5Mask) { set_modifier_mask(MASK_BUTTON5); }
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: XQueryPointer failed to get current modifiers!\n",
-                __FUNCTION__, __LINE__);
-
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_L);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L); }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Shift_R);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R); }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_L);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);  }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Control_R);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);  }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_L);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);   }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Alt_R);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);   }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_L);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);  }
-        keycode = XKeysymToKeycode(hook->ctrl.display, XK_Super_R);
-        if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);  }
-    }
-
-    initialize_locks();
-}
-
-#ifdef USE_EPOCH_TIME
-static uint64_t get_unix_timestamp() {
-	// Get the local system time in UTC.
-	gettimeofday(&system_time, NULL);
-
-	// Convert the local system time to a Unix epoch in MS.
-	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-	return timestamp;
-}
-#endif
-
 void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
     #ifdef USE_EPOCH_TIME
 	uint64_t timestamp = get_unix_timestamp();
@@ -414,7 +293,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             else if (scancode == VC_META_L)    { set_modifier_mask(MASK_META_L);  }
             else if (scancode == VC_META_R)    { set_modifier_mask(MASK_META_R);  }
 
-            initialize_locks();
+            // FIXME initialize_locks(); should happen somewhere else
 
 
             if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
@@ -505,7 +384,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             else if (scancode == VC_META_L)    { unset_modifier_mask(MASK_META_L);  }
             else if (scancode == VC_META_R)    { unset_modifier_mask(MASK_META_R);  }
 
-            initialize_locks();
+            // FIXME initialize_locks(); should happen somewhere else
 
             if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
                 switch (scancode) {
@@ -1071,7 +950,7 @@ static int xrecord_start() {
         }
 
         // Initialize starting modifiers.
-        initialize_modifiers();
+        // FIXME initialize_modifiers(); should happen somewhere else
 
         status = xrecord_query();
     } else {

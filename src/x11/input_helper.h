@@ -22,7 +22,6 @@
 #include <stdint.h>
 #include <X11/Xlib.h>
 
-
 // Virtual button codes that are not defined by X11.
 #define Button1     1
 #define Button2     2
@@ -38,36 +37,42 @@
 extern Display *helper_disp;
 
 
-/* Converts a X11 key code to the appropriate keyboard scan code.
- */
+/* Converts a X11 key code to the appropriate keyboard scan code. */
 extern uint16_t keycode_to_scancode(KeyCode keycode);
 
-/* Converts a keyboard scan code to the appropriate X11 key code.
- */
+/* Converts a keyboard scan code to the appropriate X11 key code. */
 extern KeyCode scancode_to_keycode(uint16_t scancode);
 
-/* Converts a X11 key code and event mask to the appropriate X11 key symbol.
- * This functions in much the same way as XKeycodeToKeysym() but allows for a
- * faster and more flexible lookup.
- */
+/* Converts a X11 key code and event mask to the appropriate X11 key symbol. */
 extern KeySym keycode_to_keysym(KeyCode keycode, unsigned int modifier_mask);
 
-/* Lookup a X11 buttons possible remapping and return that value.
- */
+/* Set the native modifier mask for future events. */
+extern void set_modifier_mask(uint16_t mask);
+
+/* Unset the native modifier mask for future events. */
+extern void unset_modifier_mask(uint16_t mask);
+
+/* Get the current native modifier mask state. */
+extern uint16_t get_modifiers();
+
+#ifdef USE_EPOCH_TIME
+/* Get the current timestamp in unix epoch time. */
+extern uint64_t get_unix_timestamp();
+#endif
+
+/* Lookup a X11 buttons possible remapping and return that value. */
 extern unsigned int button_map_lookup(unsigned int button);
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be
  * called in combination with UnloadInputHelper() if the native keyboard layout
- * is changed.
- */
+ * is changed. */
 extern void load_input_helper();
 
 /* De-initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryUnload() and may need to be
  * called in combination with LoadInputHelper() if the native keyboard layout
- * is changed.
- */
+ * is changed. */
 extern void unload_input_helper();
 
 #endif

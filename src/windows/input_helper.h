@@ -134,13 +134,22 @@ extern unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags);
 
 extern DWORD scancode_to_keycode(unsigned short scancode);
 
+/* Set the native modifier mask for future events. */
+extern void set_modifier_mask(uint16_t mask);
+
+/* Unset the native modifier mask for future events. */
+extern void unset_modifier_mask(uint16_t mask);
+
+/* Get the current native modifier mask state. */
+extern uint16_t get_modifiers();
+
 /* Help track how much rotation should be applied to a scroll wheel event. */
 extern int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction);
 
 // Initialize the locale list and wow64 pointer size.
 extern int load_input_helper();
 
-// Cleanup the initialized locales.
-extern int unload_input_helper();
+/* Cleanup the initialized locales. */
+extern void unload_input_helper();
 
 #endif

@@ -27,8 +27,11 @@
 #include "logger.h"
 #include "input_helper.h"
 
-static const uint16_t keycode_scancode_table[][2] = {
-    /* idx    { vk_code,                scancode             }, */
+
+static uint16_t modifier_mask;
+
+static const uint16_t uiocode_vkcode_table[][2] = {
+    /* idx    { uiocode,              vkcode                 }, */
     /*   0 */ { VC_UNDEFINED,         0x0000                 }, // 0x00
     /*   1 */ { MOUSE_BUTTON1,        VK_ESCAPE              }, // 0x01
     /*   2 */ { MOUSE_BUTTON2,        0x0031                 }, // 0x02
@@ -255,10 +258,10 @@ static const uint16_t keycode_scancode_table[][2] = {
     /* 220 */ { VC_BACK_SLASH,        VK_RWIN                }, // 0xDC VK_OEM_5               Varies by keyboard. For the US standard keyboard, the '\|' key
     /* 221 */ { VC_CLOSE_BRACKET,     VK_APPS                }, // 0xDD VK_OEM_6               Varies by keyboard. For the US standard keyboard, the ']}' key
     /* 222 */ { VC_QUOTE,             0x0000                 }, // 0xDE VK_OEM_7               Varies by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
-    /* 223 */ { VC_YEN,               VK_SLEEP               }, // 0xDF VK_OEM_8               Varies by keyboard.
+    /* 223 */ { VC_UNDEFINED,         VK_SLEEP               }, // 0xDF VK_OEM_8               Varies by keyboard.
     /* 224 */ { VC_UNDEFINED,         0x0000                 }, // 0xE0                        Reserved
     /* 225 */ { VC_UNDEFINED,         0x0000                 }, // 0xE1                        OEM specific
-    /* 226 */ { VC_LESSER_GREATER,    VK_OEM_102             }, // 0xE2 VK_OEM_102             Either the angle bracket key or the backslash key on the RT 102-key keyboard
+    /* 226 */ { VC_UNDEFINED,         VK_OEM_102             }, // 0xE2 VK_OEM_102             Either the angle bracket key or the backslash key on the RT 102-key keyboard
     /* 227 */ { VC_UNDEFINED,         0x0000                 }, // 0xE3                        OEM specific
     /* 228 */ { VC_UNDEFINED,         0x00E5                 }, // 0xE4    VC_APP_PICTURES     OEM specific
     /* 229 */ { VC_APP_PICTURES,      VK_BROWSER_SEARCH      }, // 0xE5 VK_PROCESSKEY          IME PROCESS key
@@ -286,17 +289,17 @@ static const uint16_t keycode_scancode_table[][2] = {
     /* 251 */ { VC_UNDEFINED,         0x0000                 }, // 0xFB VK_ZOOM                Zoom key
     /* 252 */ { VC_UNDEFINED,         0x0000                 }, // 0xFC VK_NONAME              Reserved
     /* 253 */ { VC_UNDEFINED,         0x0000                 }, // 0xFD
-    /* 254 */ { VC_CLEAR,             0x0000                 }, // 0xFE VK_OEM_CLEAR           Clear key
+    /* 254 */ { VC_KP_CLEAR,          0x0000                 }, // 0xFE VK_OEM_CLEAR           Clear key
     /* 255 */ { VC_UNDEFINED,         0x0000                 }  // 0xFE                        Unassigned
 };
 
-unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
-    unsigned short scancode = VC_UNDEFINED;
+uint16_t vkcode_to_uiocode(DWORD vk_code, DWORD flags) {
+    uint16_t uiocode = VC_UNDEFINED;
 
     // Check the vk_code is in range.
     // NOTE vk_code >= 0 is assumed because DWORD is unsigned.
-    if (vk_code < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
-        scancode = keycode_scancode_table[vk_code][0];
+    if (vk_code < sizeof(uiocode_vkcode_table) / sizeof(uiocode_vkcode_table[0])) {
+        uiocode = uiocode_vkcode_table[vk_code][0];
 
         if (flags & LLKHF_EXTENDED) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using extended lookup for vk_code: %li\n",
@@ -314,11 +317,11 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
 
                 case VK_INSERT:
                 case VK_DELETE:
-                    scancode |= 0xEE00;
+                    uiocode |= 0xEE00;
                     break;
 
                 case VK_RETURN:
-                    scancode |= 0x0E00;
+                    uiocode |= 0x0E00;
                     break;
             }
         } else {
@@ -327,53 +330,62 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
         }
     }
 
-    return scancode;
+    return uiocode;
 }
 
-DWORD scancode_to_keycode(unsigned short scancode) {
-    unsigned short keycode = 0x0000;
+DWORD uiocode_to_vkcode(uint16_t uiocode) {
+    DWORD vkcode = 0x0000;
 
     // Check the vk_code is in range.
-    // NOTE vk_code >= 0 is assumed because the scancode is unsigned.
-    if (scancode < 128) {
-        keycode = keycode_scancode_table[scancode][1];
+    // NOTE vk_code >= 0 is assumed because the uiocode is unsigned.
+    if (uiocode < 128) {
+        vkcode = uiocode_vkcode_table[uiocode][1];
     } else {
-        // Calculate the upper offset based on the lower half of the scancode + 128.
-        unsigned short int i = (scancode & 0x007F) | 0x80;
+        // Calculate the upper offset based on the lower half of the uiocode + 128.
+        unsigned short int i = (uiocode & 0x007F) | 0x80;
 
-        if (i < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[1])) {
-            keycode = keycode_scancode_table[i][1];
+        if (i < sizeof(uiocode_vkcode_table) / sizeof(uiocode_vkcode_table[1])) {
+            vkcode = uiocode_vkcode_table[i][1];
         }
     }
 
-    return keycode;
+    return vkcode;
 }
 
-/* Track the amount of vertical and horizontal rotation between "clicks."
- * This is between mouse wheel delta.  */
-static int16_t v_rotation, h_rotation;
-
-int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction) {
-    int16_t value;
-
-    /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
-    if (direction == WHEEL_VERTICAL_DIRECTION) {
-        v_rotation += (int16_t) GET_WHEEL_DELTA_WPARAM(data);
-        // Vertical direction needs to be inverted on Windows to conform with other platforms.
-        value = (int16_t) v_rotation / (-1 * WHEEL_DELTA);
-        v_rotation %= WHEEL_DELTA;
-    } else {
-        h_rotation += (int16_t) GET_WHEEL_DELTA_WPARAM(data);
-        value = (int16_t) h_rotation / WHEEL_DELTA;
-        h_rotation %= WHEEL_DELTA;
-    }
-
-    return value;
+void set_modifier_mask(uint16_t mask) {
+    modifier_mask |= mask;
 }
+
+void unset_modifier_mask(uint16_t mask) {
+    modifier_mask &= ~mask;
+}
+
+uint16_t get_modifiers() {
+    return modifier_mask;
+}
+
+static void initialize_modifiers() {
+    // NOTE We are checking the high order bit, so it will be < 0 for a singed short.
+    if (GetKeyState(VK_LSHIFT)   < 0) { set_modifier_mask(MASK_SHIFT_L);     }
+    if (GetKeyState(VK_RSHIFT)   < 0) { set_modifier_mask(MASK_SHIFT_R);     }
+    if (GetKeyState(VK_LCONTROL) < 0) { set_modifier_mask(MASK_CTRL_L);      }
+    if (GetKeyState(VK_RCONTROL) < 0) { set_modifier_mask(MASK_CTRL_R);      }
+    if (GetKeyState(VK_LMENU)    < 0) { set_modifier_mask(MASK_ALT_L);       }
+    if (GetKeyState(VK_RMENU)    < 0) { set_modifier_mask(MASK_ALT_R);       }
+    if (GetKeyState(VK_LWIN)     < 0) { set_modifier_mask(MASK_META_L);      }
+    if (GetKeyState(VK_RWIN)     < 0) { set_modifier_mask(MASK_META_R);      }
+
+    if (GetKeyState(VK_LBUTTON)  < 0) { set_modifier_mask(MASK_BUTTON1);     }
+    if (GetKeyState(VK_RBUTTON)  < 0) { set_modifier_mask(MASK_BUTTON2);     }
+    if (GetKeyState(VK_MBUTTON)  < 0) { set_modifier_mask(MASK_BUTTON3);     }
+    if (GetKeyState(VK_XBUTTON1) < 0) { set_modifier_mask(MASK_BUTTON4);     }
+    if (GetKeyState(VK_XBUTTON2) < 0) { set_modifier_mask(MASK_BUTTON5);     }
+
+    if (GetKeyState(VK_NUMLOCK)  < 0) { set_modifier_mask(MASK_NUM_LOCK);    }
+    if (GetKeyState(VK_CAPITAL)  < 0) { set_modifier_mask(MASK_CAPS_LOCK);   }
+    if (GetKeyState(VK_SCROLL)   < 0) { set_modifier_mask(MASK_SCROLL_LOCK); }
+}
+
 
 /***********************************************************************
  * The following code is based on code provided by Marc-André Moreau
@@ -669,7 +681,7 @@ static int refresh_locale_list() {
 }
 
 // Returns the number of chars written to the buffer.
-SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
+SIZE_T vkcode_to_unicode(DWORD vkcode, PWCHAR buffer, SIZE_T size) {
     // Get the thread id that currently has focus and ask for its current locale.
     DWORD focus_pid = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
     HKL locale_id = GetKeyboardLayout(focus_pid);
@@ -783,7 +795,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
                 BYTE *pCurrentVkToWchars = (BYTE *) pVkToWchars;
 
                 do {
-                    if (((PVK_TO_WCHARS) pCurrentVkToWchars)->VirtualKey == keycode) {
+                    if (((PVK_TO_WCHARS) pCurrentVkToWchars)->VirtualKey == vkcode) {
                         if ((((PVK_TO_WCHARS) pCurrentVkToWchars)->Attributes == CAPLOK) && capsLock) {
                             if (is_shift && mod > 0) {
                                 mod -= 1;
@@ -862,25 +874,23 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
 
 // Returns the number of locales that were loaded.
 int load_input_helper() {
+    initialize_modifiers();
+
     #if defined(_WIN32) && !defined(_WIN64)
     if (is_wow64()) {
         ptr_padding = sizeof(void *);
     }
     #endif
 
-    v_rotation = 0;
-    h_rotation = 0;
-
     int count = refresh_locale_list();
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: refresh_locale_list() found %i locale(s).\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: loaded %i locale(s).\n",
             __FUNCTION__, __LINE__, count);
 
-    return count;
+    return UIOHOOK_SUCCESS;
 }
 
 // Returns the number of locales that were removed.
-int unload_input_helper() {
+void unload_input_helper() {
     int count = 0;
 
     // Cleanup and free memory from the old list.
@@ -895,8 +905,12 @@ int unload_input_helper() {
         count++;
     }
 
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: unloaded %i locale(s).\n",
+            __FUNCTION__, __LINE__, count);
+
     // Reset the current local.
     locale_current = NULL;
 
-    return count;
+    // Reset the modifier mask.
+    modifier_mask = 0x0;
 }

@@ -36,7 +36,8 @@
  * following functions under the terms of the Public Domain.
  *
  * For further reading and the original code, please visit:
- *   http://legacy.docdroppers.org/wiki/index.php?title=Writing_Keyloggers
+ *   https://rayolback.files.wordpress.com/2010/04/keystrokes.doc
+ *   http://www.docdroppers.org/wiki/index.php?title=Writing_Keyloggers
  *   http://www.techmantras.com/content/writing-keyloggers-full-length-tutorial
  *
  ***********************************************************************/
@@ -126,13 +127,23 @@ typedef struct tagKbdLayer {
 } KBDTABLES, *PKBDTABLES;               // __ptr64
 
 
-extern SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
+/* Converts a uiohook virtual key code to the appropriate Windows VK key code. */
+extern DWORD uiocode_to_vkcode(uint16_t uiocode);
 
-//extern DWORD unicode_to_keycode(wchar_t unicode);
+/* Converts a Windows VK key code to the appropriate uiohook virtual key code. */
+extern uint16_t vkcode_to_uiocode(DWORD vk_code, DWORD flags);
 
-extern unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags);
+/* Converts a Windows vk code to it's unicode representation */
+extern SIZE_T vkcode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
 
-extern DWORD scancode_to_keycode(unsigned short scancode);
+/* Set the native modifier mask for future events. */
+extern void set_modifier_mask(uint16_t mask);
+
+/* Unset the native modifier mask for future events. */
+extern void unset_modifier_mask(uint16_t mask);
+
+/* Get the current native modifier mask state. */
+extern uint16_t get_modifiers();
 
 /* Help track how much rotation should be applied to a scroll wheel event. */
 extern int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction);
@@ -140,7 +151,7 @@ extern int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction);
 // Initialize the locale list and wow64 pointer size.
 extern int load_input_helper();
 
-// Cleanup the initialized locales.
-extern int unload_input_helper();
+/* Cleanup the initialized locales. */
+extern void unload_input_helper();
 
 #endif

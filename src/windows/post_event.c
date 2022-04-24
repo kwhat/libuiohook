@@ -75,7 +75,7 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
             return UIOHOOK_FAILURE;
     }
 
-    input->ki.wVk = (WORD) scancode_to_keycode(event->data.keyboard.keycode);
+    input->ki.wVk = (WORD) uiocode_to_vkcode(event->data.keyboard.keycode);
     if (input->ki.wVk == 0x0000) {
         logger(LOG_LEVEL_WARN, "%s [%u]: Unable to lookup scancode: %li\n",
                 __FUNCTION__, __LINE__, event->data.keyboard.keycode);

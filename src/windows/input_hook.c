@@ -20,6 +20,7 @@
 #include <uiohook.h>
 #include <windows.h>
 
+#include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
 
@@ -38,56 +39,6 @@ static unsigned short int current_modifiers = 0x0000;
 // Structure for the current Unix epoch in milliseconds.
 static FILETIME system_time;
 #endif
-
-// Click count globals.
-static unsigned short click_count = 0;
-static uint64_t click_time = 0;
-static unsigned short int click_button = MOUSE_NOBUTTON;
-static POINT last_click;
-
-// Static event memory.
-static uiohook_event event;
-
-// Event dispatch callback.
-static dispatcher_t dispatch = NULL;
-static void *dispatch_data = NULL;
-
-UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
-            __FUNCTION__, __LINE__, dispatch_proc);
-
-    dispatch = dispatch_proc;
-    dispatch_data = user_data;
-}
-
-// Send out an event if a dispatcher was set.
-static void dispatch_event(uiohook_event *const event) {
-    if (dispatch != NULL) {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
-                __FUNCTION__, __LINE__, event->type);
-
-        dispatch(event, dispatch_data);
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: No dispatch callback set!\n",
-                __FUNCTION__, __LINE__);
-    }
-}
-
-
-// Set the native modifier mask for future events.
-static inline void set_modifier_mask(unsigned short int mask) {
-    current_modifiers |= mask;
-}
-
-// Unset the native modifier mask for future events.
-static inline void unset_modifier_mask(unsigned short int mask) {
-    current_modifiers &= ~mask;
-}
-
-// Get the current native modifier mask state.
-static inline unsigned short int get_modifiers() {
-    return current_modifiers;
-}
 
 // Initialize the modifier mask to the current modifiers.
 static void initialize_modifiers() {
@@ -114,57 +65,6 @@ static void initialize_modifiers() {
     if (GetKeyState(VK_SCROLL)   < 0) { set_modifier_mask(MASK_SCROLL_LOCK); }
 }
 
-
-/* Retrieves the mouse wheel scroll type. This function cannot be included as
- * part of the input_helper.h due to platform specific calling restrictions.
- */
-static uint8_t get_scroll_wheel_type() {
-    uint8_t value;
-    UINT wheel_type;
-
-    SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_type, 0);
-    if (wheel_type == WHEEL_PAGESCROLL) {
-        value = WHEEL_BLOCK_SCROLL;
-    } else {
-        value = WHEEL_UNIT_SCROLL;
-    }
-
-    return value;
-}
-
-/* Retrieves the mouse wheel scroll amount. This function cannot be included as
- * part of the input_helper.h due to platform specific calling restrictions.
- */
-static uint16_t get_scroll_wheel_amount() {
-    uint16_t value;
-    UINT wheel_amount;
-
-    SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_amount, 0);
-    if (wheel_amount == WHEEL_PAGESCROLL) {
-        value = 1;
-    } else {
-        value = (uint16_t) wheel_amount;
-    }
-
-    return value;
-}
-
-#ifdef USE_EPOCH_TIME
-static inline uint64_t get_unix_timestamp() {
-	// Get the local system time in UTC.
-	GetSystemTimeAsFileTime(&system_time);
-
-	// Convert the local system time to a Unix epoch in MS.
-	// milliseconds = 100-nanoseconds / 10000
-	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
-
-	// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
-    timestamp -= 11644473600000;
-
-	return timestamp;
-}
-#endif
-
 void unregister_running_hooks() {
     // Stop the event hook and any timer still running.
     if (win_event_hhook != NULL) {
@@ -184,164 +84,19 @@ void unregister_running_hooks() {
     }
 }
 
-void hook_start_proc() {
-    // Initialize native input helper functions.
-    load_input_helper();
-
-    // Get the local system time in UNIX epoch form.
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = GetMessageTime();
-    #endif
-
-    // Populate the hook start event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_HOOK_ENABLED;
-    event.mask = 0x00;
-
-    // Fire the hook start event.
-    dispatch_event(&event);
-}
-
-void hook_stop_proc() {
-    // Get the local system time in UNIX epoch form.
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = GetMessageTime();
-    #endif
-
-    // Populate the hook stop event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_HOOK_DISABLED;
-    event.mask = 0x00;
-
-    // Fire the hook stop event.
-    dispatch_event(&event);
-
-    // Deinitialize native input helper functions.
-    unload_input_helper();
-}
-
-static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = kbhook->time;
-    #endif
-
-    // Check and setup modifiers.
-    if      (kbhook->vkCode == VK_LSHIFT)   { set_modifier_mask(MASK_SHIFT_L);     }
-    else if (kbhook->vkCode == VK_RSHIFT)   { set_modifier_mask(MASK_SHIFT_R);     }
-    else if (kbhook->vkCode == VK_LCONTROL) { set_modifier_mask(MASK_CTRL_L);      }
-    else if (kbhook->vkCode == VK_RCONTROL) { set_modifier_mask(MASK_CTRL_R);      }
-    else if (kbhook->vkCode == VK_LMENU)    { set_modifier_mask(MASK_ALT_L);       }
-    else if (kbhook->vkCode == VK_RMENU)    { set_modifier_mask(MASK_ALT_R);       }
-    else if (kbhook->vkCode == VK_LWIN)     { set_modifier_mask(MASK_META_L);      }
-    else if (kbhook->vkCode == VK_RWIN)     { set_modifier_mask(MASK_META_R);      }
-    else if (kbhook->vkCode == VK_NUMLOCK)  { set_modifier_mask(MASK_NUM_LOCK);    }
-    else if (kbhook->vkCode == VK_CAPITAL)  { set_modifier_mask(MASK_CAPS_LOCK);   }
-    else if (kbhook->vkCode == VK_SCROLL)   { set_modifier_mask(MASK_SCROLL_LOCK); }
-
-    // Populate key pressed event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_KEY_PRESSED;
-    event.mask = get_modifiers();
-
-    event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode, kbhook->flags);
-    event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
-    event.data.keyboard.keychar = CHAR_UNDEFINED;
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X pressed. (%#X)\n",
-            __FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
-
-    // Populate key pressed event.
-    dispatch_event(&event);
-
-    // If the pressed event was not consumed...
-    if (event.reserved ^ 0x01) {
-        // Buffer for unicode typed chars. No more than 2 needed.
-        WCHAR buffer[2]; // = { WCH_NONE };
-
-        // If the pressed event was not consumed and a unicode char exists...
-        SIZE_T count = keycode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
-        for (unsigned int i = 0; i < count; i++) {
-            // Populate key typed event.
-            event.time = timestamp;
-            event.reserved = 0x00;
-
-            event.type = EVENT_KEY_TYPED;
-            event.mask = get_modifiers();
-
-            event.data.keyboard.keycode = VC_UNDEFINED;
-            event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
-            event.data.keyboard.keychar = buffer[i];
-
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X typed. (%lc)\n",
-                    __FUNCTION__, __LINE__, event.data.keyboard.keycode, (wint_t) event.data.keyboard.keychar);
-
-            // Fire key typed event.
-            dispatch_event(&event);
-        }
-    }
-}
-
-static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = kbhook->time;
-    #endif
-
-    // Check and setup modifiers.
-    if      (kbhook->vkCode == VK_LSHIFT)   { unset_modifier_mask(MASK_SHIFT_L);     }
-    else if (kbhook->vkCode == VK_RSHIFT)   { unset_modifier_mask(MASK_SHIFT_R);     }
-    else if (kbhook->vkCode == VK_LCONTROL) { unset_modifier_mask(MASK_CTRL_L);      }
-    else if (kbhook->vkCode == VK_RCONTROL) { unset_modifier_mask(MASK_CTRL_R);      }
-    else if (kbhook->vkCode == VK_LMENU)    { unset_modifier_mask(MASK_ALT_L);       }
-    else if (kbhook->vkCode == VK_RMENU)    { unset_modifier_mask(MASK_ALT_R);       }
-    else if (kbhook->vkCode == VK_LWIN)     { unset_modifier_mask(MASK_META_L);      }
-    else if (kbhook->vkCode == VK_RWIN)     { unset_modifier_mask(MASK_META_R);      }
-    else if (kbhook->vkCode == VK_NUMLOCK)  { unset_modifier_mask(MASK_NUM_LOCK);    }
-    else if (kbhook->vkCode == VK_CAPITAL)  { unset_modifier_mask(MASK_CAPS_LOCK);   }
-    else if (kbhook->vkCode == VK_SCROLL)   { unset_modifier_mask(MASK_SCROLL_LOCK); }
-
-    // Populate key pressed event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_KEY_RELEASED;
-    event.mask = get_modifiers();
-
-    event.data.keyboard.keycode = keycode_to_scancode(kbhook->vkCode, kbhook->flags);
-    event.data.keyboard.rawcode = (uint16_t) kbhook->vkCode;
-    event.data.keyboard.keychar = CHAR_UNDEFINED;
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X released. (%#X)\n",
-            __FUNCTION__, __LINE__, event.data.keyboard.keycode, event.data.keyboard.rawcode);
-
-    // Fire key released event.
-    dispatch_event(&event);
-}
-
 LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+    bool consumed = false;
+
     KBDLLHOOKSTRUCT *kbhook = (KBDLLHOOKSTRUCT *) lParam;
     switch (wParam) {
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
-            process_key_pressed(kbhook);
+            consumed = dispatch_key_press(kbhook);
             break;
 
         case WM_KEYUP:
         case WM_SYSKEYUP:
-            process_key_released(kbhook);
+            consumed = dispatch_key_release(kbhook);
             break;
 
         default:
@@ -352,7 +107,7 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
     }
 
     LRESULT hook_result = -1;
-    if (nCode < 0 || event.reserved ^ 0x01) {
+    if (nCode < 0 || !consumed) {
         hook_result = CallNextHookEx(keyboard_event_hhook, nCode, wParam, lParam);
     } else {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Consuming the current event. (%li)\n",
@@ -362,237 +117,34 @@ LRESULT CALLBACK keyboard_hook_event_proc(int nCode, WPARAM wParam, LPARAM lPara
     return hook_result;
 }
 
-
-static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = mshook->time;
-    #endif
-
-    // Track the number of clicks, the button must match the previous button.
-    if (button == click_button && (long int) (timestamp - click_time) <= hook_get_multi_click_time()) {
-        if (click_count < USHRT_MAX) {
-            click_count++;
-        } else {
-            logger(LOG_LEVEL_WARN, "%s [%u]: Click count overflow detected!\n",
-                    __FUNCTION__, __LINE__);
-        }
-    } else {
-        // Reset the click count.
-        click_count = 1;
-
-        // Set the previous button.
-        click_button = button;
-    }
-
-    // Save this events time to calculate the click_count.
-    click_time = timestamp;
-
-    // Store the last click point.
-    last_click.x = mshook->pt.x;
-    last_click.y = mshook->pt.y;
-
-    // Populate mouse pressed event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_MOUSE_PRESSED;
-    event.mask = get_modifiers();
-
-    event.data.mouse.button = button;
-    event.data.mouse.clicks = click_count;
-
-    event.data.mouse.x = (int16_t) mshook->pt.x;
-    event.data.mouse.y = (int16_t) mshook->pt.y;
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
-            __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-            event.data.mouse.x, event.data.mouse.y);
-
-    // Fire mouse pressed event.
-    dispatch_event(&event);
-}
-
-static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = mshook->time;
-    #endif
-
-    // Populate mouse released event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_MOUSE_RELEASED;
-    event.mask = get_modifiers();
-
-    event.data.mouse.button = button;
-    event.data.mouse.clicks = click_count;
-
-    event.data.mouse.x = (int16_t) mshook->pt.x;
-    event.data.mouse.y = (int16_t) mshook->pt.y;
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-            __FUNCTION__, __LINE__, event.data.mouse.button,
-            event.data.mouse.clicks,
-            event.data.mouse.x, event.data.mouse.y);
-
-    // Fire mouse released event.
-    dispatch_event(&event);
-
-    // If the pressed event was not consumed...
-    if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
-        // Populate mouse clicked event.
-        event.time = timestamp;
-        event.reserved = 0x00;
-
-        event.type = EVENT_MOUSE_CLICKED;
-        event.mask = get_modifiers();
-
-        event.data.mouse.button = button;
-        event.data.mouse.clicks = click_count;
-        event.data.mouse.x = (int16_t) mshook->pt.x;
-        event.data.mouse.y = (int16_t) mshook->pt.y;
-
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
-                __FUNCTION__, __LINE__, event.data.mouse.button, event.data.mouse.clicks,
-                event.data.mouse.x, event.data.mouse.y);
-
-        // Fire mouse clicked event.
-        dispatch_event(&event);
-    }
-
-    // Reset the number of clicks.
-    if (button == click_button && (long int) (timestamp - click_time) > hook_get_multi_click_time()) {
-        // Reset the click count.
-        click_count = 0;
-    }
-}
-
-static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = mshook->time;
-    #endif
-
-    // We received a mouse move event with the mouse actually moving.
-    // This verifies that the mouse was moved after being depressed.
-    if (last_click.x != mshook->pt.x || last_click.y != mshook->pt.y) {
-        // Reset the click count.
-        if (click_count != 0 && (long) (timestamp - click_time) > hook_get_multi_click_time()) {
-            click_count = 0;
-        }
-
-        // Populate mouse move event.
-        event.time = timestamp;
-        event.reserved = 0x00;
-
-        event.mask = get_modifiers();
-
-        // Check the modifier mask range for MASK_BUTTON1 - 5.
-        bool mouse_dragged = event.mask & (MASK_BUTTON1 | MASK_BUTTON2 | MASK_BUTTON3 | MASK_BUTTON4 | MASK_BUTTON5);
-        if (mouse_dragged) {
-            // Create Mouse Dragged event.
-            event.type = EVENT_MOUSE_DRAGGED;
-        } else {
-            // Create a Mouse Moved event.
-            event.type = EVENT_MOUSE_MOVED;
-        }
-
-        event.data.mouse.button = MOUSE_NOBUTTON;
-        event.data.mouse.clicks = click_count;
-        event.data.mouse.x = (int16_t) mshook->pt.x;
-        event.data.mouse.y = (int16_t) mshook->pt.y;
-
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
-                __FUNCTION__, __LINE__,  mouse_dragged ? "dragged" : "moved",
-                event.data.mouse.x, event.data.mouse.y);
-
-        // Fire mouse move event.
-        dispatch_event(&event);
-    }
-}
-
-static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = mshook->time;
-    #endif
-
-    // Track the number of clicks.
-    // Reset the click count and previous button.
-    click_count = 1;
-    click_button = MOUSE_NOBUTTON;
-
-    // Populate mouse wheel event.
-    event.time = timestamp;
-    event.reserved = 0x00;
-
-    event.type = EVENT_MOUSE_WHEEL;
-    event.mask = get_modifiers();
-
-    event.data.wheel.clicks = click_count;
-    event.data.wheel.x = (int16_t) mshook->pt.x;
-    event.data.wheel.y = (int16_t) mshook->pt.y;
-
-    event.data.wheel.type = get_scroll_wheel_type();
-    event.data.wheel.amount = get_scroll_wheel_amount();
-
-    /* Delta HIWORD(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
-    event.data.wheel.rotation = (int16_t) HIWORD(mshook->mouseData) / WHEEL_DELTA;
-
-    // Vertical direction needs to be inverted on Windows to conform with other platforms.
-    if (direction == WHEEL_VERTICAL_DIRECTION) {
-        event.data.wheel.rotation *= -1;
-    }
-
-    // Set the direction based on what event was received.
-    event.data.wheel.direction = direction;
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
-            __FUNCTION__, __LINE__, event.data.wheel.type,
-            event.data.wheel.amount * event.data.wheel.rotation,
-            event.data.wheel.direction,
-            event.data.wheel.x, event.data.wheel.y);
-
-    // Fire mouse wheel event.
-    dispatch_event(&event);
-}
-
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+    bool consumed = false;
+
     MSLLHOOKSTRUCT *mshook = (MSLLHOOKSTRUCT *) lParam;
     switch (wParam) {
         case WM_LBUTTONDOWN:
             set_modifier_mask(MASK_BUTTON1);
-            process_button_pressed(mshook, MOUSE_BUTTON1);
+            consumed = dispatch_button_press(mshook, MOUSE_BUTTON1);
             break;
 
         case WM_RBUTTONDOWN:
             set_modifier_mask(MASK_BUTTON2);
-            process_button_pressed(mshook, MOUSE_BUTTON2);
+            consumed = dispatch_button_press(mshook, MOUSE_BUTTON2);
             break;
 
         case WM_MBUTTONDOWN:
             set_modifier_mask(MASK_BUTTON3);
-            process_button_pressed(mshook, MOUSE_BUTTON3);
+            consumed = dispatch_button_press(mshook, MOUSE_BUTTON3);
             break;
 
         case WM_XBUTTONDOWN:
         case WM_NCXBUTTONDOWN:
             if (HIWORD(mshook->mouseData) == XBUTTON1) {
                 set_modifier_mask(MASK_BUTTON4);
-                process_button_pressed(mshook, MOUSE_BUTTON4);
+                consumed = dispatch_button_press(mshook, MOUSE_BUTTON4);
             } else if (HIWORD(mshook->mouseData) == XBUTTON2) {
                 set_modifier_mask(MASK_BUTTON5);
-                process_button_pressed(mshook, MOUSE_BUTTON5);
+                consumed = dispatch_button_press(mshook, MOUSE_BUTTON5);
             } else {
                 // Extra mouse buttons.
                 uint16_t button = HIWORD(mshook->mouseData);
@@ -604,34 +156,34 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
                     set_modifier_mask(MOUSE_BUTTON5);
                 }
 
-                process_button_pressed(mshook, button);
+                consumed = dispatch_button_press(mshook, button);
             }
             break;
 
 
         case WM_LBUTTONUP:
             unset_modifier_mask(MASK_BUTTON1);
-            process_button_released(mshook, MOUSE_BUTTON1);
+            consumed = dispatch_button_release(mshook, MOUSE_BUTTON1);
             break;
 
         case WM_RBUTTONUP:
             unset_modifier_mask(MASK_BUTTON2);
-            process_button_released(mshook, MOUSE_BUTTON2);
+            consumed = dispatch_button_release(mshook, MOUSE_BUTTON2);
             break;
 
         case WM_MBUTTONUP:
             unset_modifier_mask(MASK_BUTTON3);
-            process_button_released(mshook, MOUSE_BUTTON3);
+            consumed = dispatch_button_release(mshook, MOUSE_BUTTON3);
             break;
 
         case WM_XBUTTONUP:
         case WM_NCXBUTTONUP:
             if (HIWORD(mshook->mouseData) == XBUTTON1) {
                 unset_modifier_mask(MASK_BUTTON4);
-                process_button_released(mshook, MOUSE_BUTTON4);
+                consumed = dispatch_button_release(mshook, MOUSE_BUTTON4);
             } else if (HIWORD(mshook->mouseData) == XBUTTON2) {
                 unset_modifier_mask(MASK_BUTTON5);
-                process_button_released(mshook, MOUSE_BUTTON5);
+                consumed = dispatch_button_release(mshook, MOUSE_BUTTON5);
             } else {
                 // Extra mouse buttons.
                 uint16_t button = HIWORD(mshook->mouseData);
@@ -643,16 +195,16 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
                     unset_modifier_mask(MOUSE_BUTTON5);
                 }
 
-                process_button_released(mshook, MOUSE_BUTTON5);
+                consumed = dispatch_button_release(mshook, MOUSE_BUTTON5);
             }
             break;
 
         case WM_MOUSEMOVE:
-            process_mouse_moved(mshook);
+            consumed = dispatch_mouse_move(mshook);
             break;
 
         case WM_MOUSEWHEEL:
-            process_mouse_wheel(mshook, WHEEL_VERTICAL_DIRECTION);
+            consumed = dispatch_mouse_wheel(mshook, WHEEL_VERTICAL_DIRECTION);
             break;
 
         /* For horizontal scroll wheel support.
@@ -660,7 +212,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
          * case 0x020E:
          */
         case WM_MOUSEHWHEEL:
-            process_mouse_wheel(mshook, WHEEL_HORIZONTAL_DIRECTION);
+            consumed = dispatch_mouse_wheel(mshook, WHEEL_HORIZONTAL_DIRECTION);
             break;
 
         default:
@@ -671,7 +223,7 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
     }
 
     LRESULT hook_result = -1;
-    if (nCode < 0 || event.reserved ^ 0x01) {
+    if (nCode < 0 || !consumed) {
         hook_result = CallNextHookEx(mouse_event_hhook, nCode, wParam, lParam);
     } else {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Consuming the current event. (%li)\n",
@@ -680,7 +232,6 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
 
     return hook_result;
 }
-
 
 // Callback function that handles events.
 void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime) {
@@ -776,7 +327,7 @@ UIOHOOK_API int hook_run() {
 
         // Windows does not have a hook start event or callback so we need to
         // manually fake it.
-        hook_start_proc();
+        dispatch_hook_enable();
 
         // Block until the thread receives an WM_QUIT request.
         MSG message;
@@ -797,7 +348,7 @@ UIOHOOK_API int hook_run() {
 
     // We must explicitly call the cleanup handler because Windows does not
     // provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
-    hook_stop_proc();
+    dispatch_hook_disable();
 
     return status;
 }

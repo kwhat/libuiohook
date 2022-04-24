@@ -134,6 +134,23 @@ extern unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags);
 
 extern DWORD scancode_to_keycode(unsigned short scancode);
 
+/* Set the native modifier mask for future events. */
+extern void set_modifier_mask(uint16_t mask);
+
+/* Unset the native modifier mask for future events. */
+extern void unset_modifier_mask(uint16_t mask);
+
+/* Get the current native modifier mask state. */
+extern uint16_t get_modifiers();
+
+/* Retrieves the mouse wheel scroll type. This function cannot be included as
+ * part of the input_helper.h due to platform specific calling restrictions. */
+extern uint8_t get_scroll_wheel_type();
+
+/* Retrieves the mouse wheel scroll amount. This function cannot be included as
+ * part of the input_helper.h due to platform specific calling restrictions. */
+extern uint16_t get_scroll_wheel_amount();
+
 // Initialize the locale list and wow64 pointer size.
 extern int load_input_helper();
 

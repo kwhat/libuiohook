@@ -27,6 +27,9 @@
 #include "logger.h"
 #include "input_helper.h"
 
+
+static uint16_t modifier_mask;
+
 static const uint16_t keycode_scancode_table[][2] = {
     /* idx    { vk_code,                scancode             }, */
     /*   0 */ { VC_UNDEFINED,         0x0000                 }, // 0x00
@@ -255,10 +258,10 @@ static const uint16_t keycode_scancode_table[][2] = {
     /* 220 */ { VC_BACK_SLASH,        VK_RWIN                }, // 0xDC VK_OEM_5               Varies by keyboard. For the US standard keyboard, the '\|' key
     /* 221 */ { VC_CLOSE_BRACKET,     VK_APPS                }, // 0xDD VK_OEM_6               Varies by keyboard. For the US standard keyboard, the ']}' key
     /* 222 */ { VC_QUOTE,             0x0000                 }, // 0xDE VK_OEM_7               Varies by keyboard. For the US standard keyboard, the 'single-quote/double-quote' key
-    /* 223 */ { VC_YEN,               VK_SLEEP               }, // 0xDF VK_OEM_8               Varies by keyboard.
+    /* 223 */ { VC_UNDEFINED,         VK_SLEEP               }, // 0xDF VK_OEM_8               Varies by keyboard.
     /* 224 */ { VC_UNDEFINED,         0x0000                 }, // 0xE0                        Reserved
     /* 225 */ { VC_UNDEFINED,         0x0000                 }, // 0xE1                        OEM specific
-    /* 226 */ { VC_LESSER_GREATER,    VK_OEM_102             }, // 0xE2 VK_OEM_102             Either the angle bracket key or the backslash key on the RT 102-key keyboard
+    /* 226 */ { VC_UNDEFINED,         VK_OEM_102             }, // 0xE2 VK_OEM_102             Either the angle bracket key or the backslash key on the RT 102-key keyboard
     /* 227 */ { VC_UNDEFINED,         0x0000                 }, // 0xE3                        OEM specific
     /* 228 */ { VC_UNDEFINED,         0x00E5                 }, // 0xE4    VC_APP_PICTURES     OEM specific
     /* 229 */ { VC_APP_PICTURES,      VK_BROWSER_SEARCH      }, // 0xE5 VK_PROCESSKEY          IME PROCESS key
@@ -286,7 +289,7 @@ static const uint16_t keycode_scancode_table[][2] = {
     /* 251 */ { VC_UNDEFINED,         0x0000                 }, // 0xFB VK_ZOOM                Zoom key
     /* 252 */ { VC_UNDEFINED,         0x0000                 }, // 0xFC VK_NONAME              Reserved
     /* 253 */ { VC_UNDEFINED,         0x0000                 }, // 0xFD
-    /* 254 */ { VC_CLEAR,             0x0000                 }, // 0xFE VK_OEM_CLEAR           Clear key
+    /* 254 */ { VC_KP_CLEAR,          0x0000                 }, // 0xFE VK_OEM_CLEAR           Clear key
     /* 255 */ { VC_UNDEFINED,         0x0000                 }  // 0xFE                        Unassigned
 };
 
@@ -347,6 +350,46 @@ DWORD scancode_to_keycode(unsigned short scancode) {
     }
 
     return keycode;
+}
+
+void set_modifier_mask(uint16_t mask) {
+    modifier_mask |= mask;
+}
+
+void unset_modifier_mask(uint16_t mask) {
+    modifier_mask &= ~mask;
+}
+
+uint16_t get_modifiers() {
+    return modifier_mask;
+}
+
+uint8_t get_scroll_wheel_type() {
+    uint8_t value;
+    UINT wheel_type;
+
+    SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_type, 0);
+    if (wheel_type == WHEEL_PAGESCROLL) {
+        value = WHEEL_BLOCK_SCROLL;
+    } else {
+        value = WHEEL_UNIT_SCROLL;
+    }
+
+    return value;
+}
+
+uint16_t get_scroll_wheel_amount() {
+    uint16_t value;
+    UINT wheel_amount;
+
+    SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_amount, 0);
+    if (wheel_amount == WHEEL_PAGESCROLL) {
+        value = 1;
+    } else {
+        value = (uint16_t) wheel_amount;
+    }
+
+    return value;
 }
 
 

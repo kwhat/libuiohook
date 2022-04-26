@@ -210,6 +210,82 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 }
 
 
+// Modifiers for tracking key masks.
+static uint16_t modifier_mask;
+
+// Set the native modifier mask for future events.
+void set_modifier_mask(uint16_t mask) {
+    modifier_mask |= mask;
+}
+
+// Unset the native modifier mask for future events.
+void unset_modifier_mask(uint16_t mask) {
+    modifier_mask &= ~mask;
+}
+
+// Get the current native modifier mask state.
+uint16_t get_modifiers() {
+    return modifier_mask;
+}
+
+// Initialize the modifier mask to the current modifiers.
+void initialize_modifiers() {
+    current_modifiers = 0x0000;
+
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Shift)) {
+        set_modifier_mask(MASK_SHIFT_L);
+    }
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightShift)) {
+        set_modifier_mask(MASK_SHIFT_R);
+    }
+
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Control)) {
+        set_modifier_mask(MASK_CTRL_L);
+    }
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightControl)) {
+        set_modifier_mask(MASK_CTRL_R);
+    }
+
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Option)) {
+        set_modifier_mask(MASK_ALT_L);
+    }
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightOption)) {
+        set_modifier_mask(MASK_ALT_R);
+    }
+
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Command)) {
+        set_modifier_mask(MASK_META_L);
+    }
+    if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_RightCommand)) {
+        set_modifier_mask(MASK_META_R);
+    }
+
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_LBUTTON)) {
+        set_modifier_mask(MASK_BUTTON1);
+    }
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_RBUTTON)) {
+        set_modifier_mask(MASK_BUTTON2);
+    }
+
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_MBUTTON)) {
+        set_modifier_mask(MASK_BUTTON3);
+    }
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_XBUTTON1)) {
+        set_modifier_mask(MASK_BUTTON4);
+    }
+    if (CGEventSourceButtonState(kCGEventSourceStateCombinedSessionState, kVK_XBUTTON2)) {
+        set_modifier_mask(MASK_BUTTON5);
+    }
+
+    if (CGEventSourceFlagsState(kCGEventSourceStateCombinedSessionState) & kCGEventFlagMaskAlphaShift) {
+        set_modifier_mask(MASK_CAPS_LOCK);
+    }
+    // Best I can tell, OS X does not support Num or Scroll lock.
+    unset_modifier_mask(MASK_NUM_LOCK);
+    unset_modifier_mask(MASK_SCROLL_LOCK);
+}
+
+
 static const uint16_t keycode_scancode_table[][2] = {
     /* idx       { keycode,                 scancode                 }, */
     /*   0 */    { VC_A,                    kVK_Undefined            },    // 0x00

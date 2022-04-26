@@ -168,36 +168,46 @@
 #define kCGEventFlagMaskXButton2     1 << 4
 
 
-/* Check for access to Apples accessibility API.
- */
+/* Check for access to Apples accessibility API. */
 extern bool is_accessibility_enabled();
 
-/* Converts an OSX key code and event mask to the appropriate Unicode character
- * representation.
- */
-extern UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size);
+/* Converts an OSX keycode to the appropriate UIOHook scancode constant. */
+extern uint16_t keycode_to_uiocode(CGKeyCode keycode);
 
-/* Converts an OSX keycode to the appropriate UIOHook scancode constant.
- */
-extern uint16_t keycode_to_scancode(UInt64 keycode);
+/* Converts a UIOHook scancode constant to the appropriate OSX keycode. */
+extern CGKeyCode uiocode_to_keycode(uint16_t uiocode);
 
-/* Converts a UIOHook scancode constant to the appropriate OSX keycode.
- */
-extern UInt64 scancode_to_keycode(uint16_t keycode);
+/* Fill the buffer with unicode chars produced by the event_ref, returns how many chars where written */
+extern UniCharCount event_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size);
 
+/* Get objc subtype and data1 fields of a cg event. */
+extern void event_to_objc(CGEventRef event_ref, UInt32 *subtype, UInt32 *data1);
+
+/* Set the native modifier mask for future events. */
+extern void set_modifier_mask(uint16_t mask);
+
+/* Unset the native modifier mask for future events. */
+extern void unset_modifier_mask(uint16_t mask);
+
+/* Get the current native modifier mask state. */
+extern uint16_t get_modifiers();
+
+/* Returns a boolean flag that represents whether the mouse is being dragged. */
+extern bool is_mouse_dragged();
+
+/* Set a flag that represents whether the mouse is being dragged. */
+extern void set_mouse_dragged(bool dragged);
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be
  * called in combination with UnloadInputHelper() if the native keyboard layout
- * is changed.
- */
-extern void load_input_helper();
+ * is changed. */
+extern int load_input_helper();
 
 /* De-initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryUnload() and may need to be
  * called in combination with LoadInputHelper() if the native keyboard layout
- * is changed.
- */
+ * is changed. */
 extern void unload_input_helper();
 
 #endif

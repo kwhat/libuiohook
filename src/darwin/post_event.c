@@ -110,7 +110,7 @@ static int post_key_event(uiohook_event * const event, CGEventSourceRef src) {
             break;
     }
 
-    CGKeyCode keycode = (CGKeyCode) scancode_to_keycode(event->data.keyboard.keycode);
+    CGKeyCode keycode = uiocode_to_keycode(event->data.keyboard.keycode);
     if (keycode == kVK_Undefined) {
         logger(LOG_LEVEL_WARN, "%s [%u]: Unable to lookup scancode: %li\n",
                 __FUNCTION__, __LINE__, event->data.keyboard.keycode);

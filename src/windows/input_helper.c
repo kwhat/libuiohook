@@ -303,6 +303,14 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
                     __FUNCTION__, __LINE__, vk_code);
 
             switch (vk_code) {
+            case VK_RETURN:
+                scancode |= 0x0E00;
+                break;
+            }
+        } else {
+            switch (vk_code) {
+                case VK_INSERT:
+                case VK_DELETE:
                 case VK_PRIOR:
                 case VK_NEXT:
                 case VK_END:
@@ -311,17 +319,10 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
                 case VK_UP:
                 case VK_RIGHT:
                 case VK_DOWN:
-
-                case VK_INSERT:
-                case VK_DELETE:
+                case VK_CLEAR:
                     scancode |= 0xEE00;
                     break;
-
-                case VK_RETURN:
-                    scancode |= 0x0E00;
-                    break;
             }
-        } else {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using normal lookup for vk_code: %li\n",
                     __FUNCTION__, __LINE__, vk_code);
         }

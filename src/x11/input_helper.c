@@ -1783,6 +1783,10 @@ unsigned int button_map_lookup(unsigned int button) {
 }
 
 void load_input_helper() {
+    // Avoid to double memory allocation
+    if (mouse_button_map != NULL) {
+        return;
+    }
     // Setup memory for mouse button mapping.
     mouse_button_map = malloc(sizeof(unsigned char) * BUTTON_MAP_MAX);
     if (mouse_button_map == NULL) {

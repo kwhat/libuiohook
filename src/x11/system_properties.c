@@ -444,6 +444,8 @@ void on_library_load() {
                 __FUNCTION__, __LINE__, "XOpenDisplay success.");
     }
 
+    load_input_helper();
+
     #ifdef USE_XRANDR
     // Create the thread attribute.
     pthread_attr_t settings_thread_attr;

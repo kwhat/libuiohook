@@ -23,6 +23,7 @@ Tests are not built by default.
 | `common.logger` | All | Production logger with a mock callback |
 | `common.numeric_helper` | All | Signed/unsigned 16-bit conversion boundaries and saturation |
 | `darwin.numeric_conversion` | macOS | Double-to-16-bit clamps, overflow, NaN/infinity, and fractional truncation |
+| `evdev.post_event` | Linux/evdev | Key posting before hook startup, reused initialization, and posting after cleanup with mock uinput |
 | `evdev.input_helper` | Linux/evdev | Production key mappings, modifier masks, and pointer tracking with mock desktop providers |
 | `windows.keycode_helper` | Windows | Production key mappings and modifier masks with fixed fixtures |
 | `darwin.keycode_helper` | macOS | Production Darwin key mappings, modifier masks, and drag state with fixed fixtures |
@@ -148,3 +149,10 @@ truncation, signed and unsigned 16-bit boundaries, extreme magnitudes, NaN,
 and infinity. Floating-point declarations and implementations are guarded by
 `__APPLE__` in the shared numeric helper. On Apple, `clamp_int16` and
 `clamp_uint16` accept `double`; on other platforms they accept `int64_t`.
+
+## Posting initialization checks
+
+`evdev/post_event_test.c` posts arrow-key press/release events before a hook
+initializes translation, verifies that later initialization preserves pointer
+state, and posts again after cleanup. It uses the real keycode helper and
+libevdev device template with mocked uinput creation, writes, and destruction.

@@ -42,8 +42,9 @@ uint64_t get_seq_timestamp() {
 #endif
 
 void load_input_helper(void) {
-    load_keycode_helper();
-    init_pointer_tracking();
+    if (load_keycode_helper()) {
+        init_pointer_tracking();
+    }
 }
 
 void unload_input_helper(void) {

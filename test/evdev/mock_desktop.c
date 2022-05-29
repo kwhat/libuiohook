@@ -155,10 +155,12 @@ char * wayland_get_keymap(int32_t *rate, int32_t *delay) {
     (void) delay;
     // Self-contained fixture: no compositor, host layout, or XKB rules files.
     return strdup("xkb_keymap { "
-            "xkb_keycodes { minimum=8; maximum=255; <AC01>=38; }; "
+            "xkb_keycodes { minimum=8; maximum=255; <AC01>=38; <UP>=111; <DOWN>=116; }; "
             "xkb_types { type \"ONE_LEVEL\" { modifiers=None; map[None]=Level1; }; }; "
             "xkb_compatibility { }; "
-            "xkb_symbols { key <AC01> { type=\"ONE_LEVEL\", [ a ] }; }; "
+            "xkb_symbols { key <AC01> { type=\"ONE_LEVEL\", [ a ] }; "
+            "key <UP> { type=\"ONE_LEVEL\", [ Up ] }; "
+            "key <DOWN> { type=\"ONE_LEVEL\", [ Down ] }; }; "
             "};");
 }
 

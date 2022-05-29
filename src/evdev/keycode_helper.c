@@ -44,6 +44,7 @@ XDisplayKeycodes(display, &min_keycodes, &max_keycodes);
 
 #include "input_state.h"
 #include "keycode_helper.h"
+#include "input_helper.h"
 #include "logger.h"
 #include "wayland_helper.h"
 #include "x11_helper.h"
@@ -506,6 +507,11 @@ static xkb_keycode_t keymap_keycode_for_keysym(xkb_keysym_t target) {
 }
 
 xkb_keycode_t uiocode_to_keycode(uint16_t vcode) {
+    // Crafted events can be posted before a hook has initialized the keymap.
+    if (keymap == NULL) {
+        load_input_helper();
+    }
+
     for (unsigned int i = 0; i < sizeof(keysym_vcode_table) / sizeof(keysym_vcode_table[0]); i++) {
         if (vcode == keysym_vcode_table[i][0]) {
             xkb_keycode_t keycode = keymap_keycode_for_keysym(keysym_vcode_table[i][1]);
@@ -644,7 +650,12 @@ size_t keycode_to_utf8(xkb_keycode_t keycode, wchar_t *surrogate, size_t length)
     return count;
 }
 
-void load_keycode_helper() {
+bool load_keycode_helper(void) {
+    // Posting and hook startup share the same helper resources.
+    if (ctx != NULL) {
+        return false;
+    }
+
     // The shared X11 connection is owned by the library constructor (see system_properties.c).
     display = x11_display();
     if (display == NULL) {
@@ -656,6 +667,7 @@ void load_keycode_helper() {
     if (!ctx) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create xkb context!\n",
                 __FUNCTION__, __LINE__);
+        return false;
     }
 
     const char *locale = setlocale(LC_CTYPE, NULL);
@@ -665,7 +677,9 @@ void load_keycode_helper() {
                 __FUNCTION__, __LINE__);
     }
 
-    compose_state = xkb_compose_state_new(compose_table, XKB_COMPOSE_STATE_NO_FLAGS);
+    if (compose_table != NULL) {
+        compose_state = xkb_compose_state_new(compose_table, XKB_COMPOSE_STATE_NO_FLAGS);
+    }
     if (!compose_state) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create compose state from table!\n",
                 __FUNCTION__, __LINE__);
@@ -720,6 +734,8 @@ void load_keycode_helper() {
     if (state != NULL) {
         initialize_locks();
     }
+
+    return true;
 }
 
 void unload_keycode_helper() {
@@ -731,6 +747,11 @@ void unload_keycode_helper() {
     if (keymap != NULL) {
         xkb_keymap_unref(keymap);
         keymap = NULL;
+    }
+
+    if (compose_state != NULL) {
+        xkb_compose_state_unref(compose_state);
+        compose_state = NULL;
     }
 
     if (compose_table != NULL) {

@@ -69,6 +69,16 @@ if(UNIX AND NOT APPLE)
     target_link_libraries(evdev_test_backend PUBLIC ${XKB_LDFLAGS})
     target_link_libraries(uiohook_tests evdev_test_backend)
 
+    add_executable(post_event_test
+        evdev/post_event_test.c
+        "${PROJECT_SOURCE_DIR}/src/evdev/post_event.c"
+    )
+    configure_unit_test(post_event_test)
+    target_include_directories(post_event_test PRIVATE ${EVDEV_INCLUDE_DIRS})
+    target_link_libraries(post_event_test evdev_test_backend ${EVDEV_LDFLAGS})
+    add_test(NAME evdev.post_event COMMAND post_event_test)
+    set_tests_properties(evdev.post_event PROPERTIES LABELS "unit;evdev")
+
     add_executable(system_properties_test system_properties_test.c)
     configure_unit_test(system_properties_test)
     target_link_libraries(system_properties_test evdev_test_backend)

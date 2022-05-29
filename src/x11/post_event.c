@@ -46,8 +46,8 @@ static int post_key_event(uiohook_event * const event) {
                 __FUNCTION__, __LINE__, event->type);
         return UIOHOOK_FAILURE;
     }
-
-    if (XTestFakeKeyEvent(helper_disp, keycode, is_pressed, 0) != Success) {
+    // XTestFakeKeyEvent always return 1
+    if (XTestFakeKeyEvent(helper_disp, keycode, is_pressed, 0) != 1) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XTestFakeKeyEvent() failed!\n",
                 __FUNCTION__, __LINE__, event->type);
         return UIOHOOK_FAILURE;
@@ -89,8 +89,8 @@ static int post_mouse_button_event(uiohook_event * const event) {
                         __FUNCTION__, __LINE__, event->data.mouse.button);
                 return UIOHOOK_FAILURE;
             }
-
-            if (XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0) != 0) {
+            // XTestFakeButtonEvent always return 1
+            if (XTestFakeButtonEvent(helper_disp, event->data.mouse.button, True, 0) == 1) {
                 status = UIOHOOK_SUCCESS;
             }
             break;
@@ -101,8 +101,8 @@ static int post_mouse_button_event(uiohook_event * const event) {
                         __FUNCTION__, __LINE__, event->data.mouse.button);
                 return UIOHOOK_FAILURE;
             }
-
-            if (XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0) != 0) {
+            // XTestFakeButtonEvent always return 1
+            if (XTestFakeButtonEvent(helper_disp, event->data.mouse.button, False, 0) == 1) {
                 status = UIOHOOK_SUCCESS;
             }
             break;
@@ -143,22 +143,22 @@ static int post_mouse_wheel_event(uiohook_event * const event) {
     // Wheel events should be the same as click events on X11.
     // type, amount and rotation
     unsigned int button = button_map_lookup(event->data.wheel.rotation < 0 ? WheelUp : WheelDown);
-
-    if (XTestFakeButtonEvent(helper_disp, button, True, 0) != 0) {
+    // XTestFakeButtonEvent always return 1
+    if (XTestFakeButtonEvent(helper_disp, button, True, 0) == 1) {
         status = UIOHOOK_SUCCESS;
     }
-
-    if (status == UIOHOOK_SUCCESS && XTestFakeButtonEvent(helper_disp, button, False, 0) == 0) {
+    // XTestFakeButtonEvent always return 1
+    if (status == UIOHOOK_SUCCESS && XTestFakeButtonEvent(helper_disp, button, False, 0) != 1) {
         status = UIOHOOK_FAILURE;
     }
 
-    return UIOHOOK_SUCCESS;
+    return status;
 }
 
 static int post_mouse_motion_event(uiohook_event * const event) {
     int status = UIOHOOK_FAILURE;
-
-    if (XTestFakeMotionEvent(helper_disp, -1, event->data.mouse.x, event->data.mouse.y, 0) != 0) {
+    // XTestFakeMotionEvent  always return 1
+    if (XTestFakeMotionEvent(helper_disp, -1, event->data.mouse.x, event->data.mouse.y, 0) == 1) {
         status = UIOHOOK_SUCCESS;
     }
 

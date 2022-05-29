@@ -19,6 +19,7 @@
 #ifndef _included_keycode_helper
 #define _included_keycode_helper
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <wchar.h>
@@ -57,8 +58,8 @@ enum xkb_key_state_t {
  * navigation when Num Lock is off; return VC_UNDEFINED for an unknown symbol. */
 extern uint16_t keysym_to_uiocode(xkb_keysym_t keysym);
 
-/* Find an XKB keycode producing the virtual code at the base keymap level; return zero if no
- * mapping or keymap is available. */
+/* Initialize translation if needed and find an XKB keycode for the virtual code at the base
+ * keymap level; return zero if no mapping or usable keymap is available. */
 extern xkb_keycode_t uiocode_to_keycode(uint16_t uiocode);
 
 /* Write up to two UTF-16 code units into the wchar_t buffer using the current XKB state; return the
@@ -77,10 +78,11 @@ extern uint16_t keycode_to_event(xkb_keycode_t keycode);
 extern xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_state);
 
 /* Create XKB context and compose resources, choose a Wayland, X11, or default keymap, and
- * initialize key and lock state. */
-extern void load_keycode_helper(void);
+ * initialize key and lock state. Return true when a new context was created, or false if already
+ * initialized or context creation failed. */
+extern bool load_keycode_helper(void);
 
-/* Release the XKB key state, keymap, compose table, and context, and clear the borrowed X11 display
+/* Release the XKB key state, keymap, compose state/table, and context, and clear the borrowed X11 display
  * pointer. */
 extern void unload_keycode_helper(void);
 

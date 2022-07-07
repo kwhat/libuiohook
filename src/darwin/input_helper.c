@@ -28,6 +28,12 @@
 #include "input_helper.h"
 #include "logger.h"
 
+// Required to transport messages between the main runloop and our thread for Unicode look-ups.
+#define KEY_BUFFER_SIZE 4
+
+// Modifiers for tracking key masks.
+static uint16_t current_modifiers = 0x0000;
+
 #ifdef USE_APPLICATION_SERVICES
 // Current dead key state.
 static UInt32 deadkey_state;
@@ -284,6 +290,149 @@ void initialize_modifiers() {
     unset_modifier_mask(MASK_NUM_LOCK);
     unset_modifier_mask(MASK_SCROLL_LOCK);
 }
+
+
+#if defined(USE_APPLICATION_SERVICES)
+typedef struct {
+    CGEventRef event;
+    UniChar buffer[KEY_BUFFER_SIZE];
+    UniCharCount length;
+} TISKeycodeMessage;
+//static TISKeycodeMessage *tis_keycode_message;
+
+typedef struct _main_runloop_info {
+    CFRunLoopSourceRef source;
+    CFRunLoopObserverRef observer;
+} main_runloop_info;
+//static main_runloop_info *main_runloop_keycode = NULL;
+
+#include <pthread.h>
+
+static pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
+#endif
+
+
+#ifdef USE_APPLICATION_SERVICES
+/* This is the callback for our main_runloop_info.observer. */
+void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    switch (activity) {
+        case kCFRunLoopExit:
+            // Acquire a lock on the msg_port and signal that anyone waiting should continue.
+            pthread_mutex_lock(&main_runloop_mutex);
+            pthread_cond_broadcast(&main_runloop_cond);
+            pthread_mutex_unlock(&main_runloop_mutex);
+            break;
+    }
+}
+
+/* Runloop to execute KeyCodeToString on the "Main" runloop due to an undocumented thread safety requirement. */
+static void main_runloop_keycode_proc(void *info) {
+    // Lock the msg_port mutex as we enter the main runloop.
+    pthread_mutex_lock(&main_runloop_mutex);
+
+    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
+    if (data != NULL && data->event != NULL) {
+        // Preform Unicode lookup.
+        data->length = keycode_to_unicode(data->event, data->buffer, KEY_BUFFER_SIZE);
+    }
+
+    // Unlock the msg_port mutex to signal to the hook_thread that we have
+    // finished on the main runloop.
+    pthread_cond_broadcast(&main_runloop_cond);
+    pthread_mutex_unlock(&main_runloop_mutex);
+}
+
+static int create_main_runloop_info(main_runloop_info **main, CFRunLoopSourceContext *context) {
+    if (*main != NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated main_runloop_info pointer!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_FAILURE;
+    }
+
+    // Try and allocate memory for event_runloop_info.
+    *main = malloc(sizeof(main_runloop_info));
+    if (*main == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for main_runloop_info structure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    // Create a runloop observer for the main runloop.
+    (*main)->observer = CFRunLoopObserverCreate(
+            kCFAllocatorDefault,
+            kCFRunLoopExit, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+            true,
+            0,
+            main_runloop_status_proc,
+            NULL
+        );
+    if ((*main)->observer == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_OBSERVER;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate success!\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    (*main)->source = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, context);
+
+    if ((*main)->source == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopSourceCreate success!\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    // FIXME Check for null ?
+    CFRunLoopRef main_loop = CFRunLoopGetMain();
+
+    pthread_mutex_lock(&main_runloop_mutex);
+
+    CFRunLoopAddSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
+    CFRunLoopAddObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
+
+    pthread_mutex_unlock(&main_runloop_mutex);
+
+    return UIOHOOK_SUCCESS;
+}
+
+static void destroy_main_runloop_info(main_runloop_info **main) {
+    if (*main != NULL) {
+         CFRunLoopRef main_loop = CFRunLoopGetMain();
+
+         if ((*main)->observer != NULL) {
+             if (CFRunLoopContainsObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode)) {
+                 CFRunLoopRemoveObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
+             }
+
+             CFRunLoopObserverInvalidate((*main)->observer);
+             CFRelease((*main)->observer);
+             (*main)->observer = NULL;
+         }
+
+         if ((*main)->source != NULL) {
+             if (CFRunLoopContainsSource(main_loop, (*main)->source, kCFRunLoopDefaultMode)) {
+                 CFRunLoopRemoveSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
+             }
+
+             CFRelease((*main)->source);
+             (*main)->source = NULL;
+         }
+
+        // Free the main structure.
+        free(*main);
+        *main = NULL;
+    }
+}
+#endif
 
 
 static const uint16_t keycode_scancode_table[][2] = {
@@ -583,9 +732,80 @@ void load_input_helper() {
     // Start with a fresh dead key state.
     //curr_deadkey_state = 0;
     #endif
+
+    tis_keycode_message = (TISKeycodeMessage *) calloc(1, sizeof(TISKeycodeMessage));
+    if (tis_keycode_message == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    // If we are not running on the main runloop, we need to setup a runloop dispatcher.
+    if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+        // Dynamically load dispatch_sync_f to maintain 10.5 compatibility.
+        *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
+        const char *dlError = dlerror();
+        if (dlError != NULL) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+                    __FUNCTION__, __LINE__, dlError);
+        }
+
+        // This load is equivalent to calling dispatch_get_main_queue().  We use
+        // _dispatch_main_q because dispatch_get_main_queue is not exported from
+        // libdispatch.dylib and the upstream function only dereferences the pointer.
+        dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
+        dlError = dlerror();
+        if (dlError != NULL) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+                    __FUNCTION__, __LINE__, dlError);
+        }
+
+        if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
+                    __FUNCTION__, __LINE__);
+
+            #ifdef USE_APPLICATION_SERVICES
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to runloop signaling.\n",
+                    __FUNCTION__, __LINE__);
+
+            // TODO The only thing that maybe needed in this struct is the .perform
+            CFRunLoopSourceContext main_runloop_keycode_context = {
+                .version         = 0,
+                .info            = tis_keycode_message,
+                .retain          = NULL,
+                .release         = NULL,
+                .copyDescription = NULL,
+                .equal           = NULL,
+                .hash            = NULL,
+                .schedule        = NULL,
+                .cancel          = NULL,
+                .perform         = main_runloop_keycode_proc
+            };
+
+            int keycode_runloop_status = create_main_runloop_info(&main_runloop_keycode, &main_runloop_keycode_context);
+            if (keycode_runloop_status != UIOHOOK_SUCCESS) {
+                destroy_main_runloop_info(&main_runloop_keycode);
+                return keycode_runloop_status;
+            }
+            #endif
+        }
+    }
 }
 
 void unload_input_helper() {
+    #ifdef USE_APPLICATION_SERVICES
+    pthread_mutex_lock(&main_runloop_mutex);
+    if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+        if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
+            destroy_main_runloop_info(&main_runloop_keycode);
+        }
+    }
+    pthread_mutex_unlock(&main_runloop_mutex);
+    #endif
+
+    free(tis_keycode_message);
+
     #ifdef USE_APPLICATION_SERVICES
     if (prev_keyboard_layout != NULL) {
         // Cleanup tracking of the previous layout.

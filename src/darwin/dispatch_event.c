@@ -33,6 +33,16 @@ static uiohook_event uio_event;
 static dispatcher_t dispatch = NULL;
 static void *dispatch_data = NULL;
 
+#ifdef USE_APPKIT
+static id auto_release_pool;
+
+typedef struct {
+    CGEventRef event;
+    UInt32 subtype;
+    UInt32 data1;
+} TISEventMessage;
+static TISEventMessage tis_event_message;
+#endif
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
@@ -230,6 +240,22 @@ bool dispatch_key_release(uint64_t timestamp, CGEventRef event_ref) {
     return consumed;
 }
 
+#ifdef USE_APPKIT
+static void obcj_message(void *info) {
+    TISEventMessage *data = (TISEventMessage *) info;
+
+    if (data != NULL && data->event != NULL) {
+        // Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
+        id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
+        id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), data->event);
+
+        UInt32 (*eventWithoutCGEvent)(id, SEL) = (UInt32 (*)(id, SEL)) objc_msgSend;
+        data->subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
+        data->data1 = eventWithoutCGEvent(event_data, sel_registerName("data1"));
+    }
+}
+#endif
+
 bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
     bool consumed = false;
 
@@ -239,21 +265,21 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
 
         #ifdef USE_APPKIT
         bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
-        tis_event_message->event = event_ref;
-        tis_event_message->subtype = 0;
-        tis_event_message->data1 = 0;
+        tis_event_message.event = event_ref;
+        tis_event_message.subtype = 0;
+        tis_event_message.data1 = 0;
 
         if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for system key events.\n",
                     __FUNCTION__, __LINE__);
 
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_event_message, &obcj_message);
-            subtype = tis_event_message->subtype;
-            data1 = tis_event_message->data1;
+            (*dispatch_sync_f_f)(dispatch_main_queue_s, &tis_event_message, &obcj_message);
+            subtype = tis_event_message.subtype;
+            data1 = tis_event_message.data1;
         } else if (is_runloop_main) {
             obcj_message(tis_event_message);
-            subtype = tis_event_message->subtype;
-            data1 = tis_event_message->data1;
+            subtype = tis_event_message.subtype;
+            data1 = tis_event_message.data1;
         } else {
         #endif
         // If we are not using ObjC, the only way I've found to access CGEvent->subtype and CGEvent>data1 is to

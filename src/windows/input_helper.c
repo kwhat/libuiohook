@@ -298,7 +298,7 @@ unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags) {
     if (vk_code < sizeof(keycode_scancode_table) / sizeof(keycode_scancode_table[0])) {
         scancode = keycode_scancode_table[vk_code][0];
 
-        if (flags & LLKHF_EXTENDED) {
+        if (!(flags & LLKHF_EXTENDED)) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using extended lookup for vk_code: %li\n",
                     __FUNCTION__, __LINE__, vk_code);
 
@@ -774,18 +774,18 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
                                 mod += 1;
                             }
                         }
-                        
+
                         // Set the initial unicode char.
                         WCHAR unicode = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
-        
+
                         // Increment the pCurrentVkToWchars by the size of wch[n].
                         pCurrentVkToWchars += sizeof(VK_TO_WCHARS) + (sizeof(WCHAR) * n);
 
-                        
+
                         if (unicode == WCH_DEAD) {
                             // The current unicode char is a dead key...
                             if (deadChar == WCH_NONE) {
-                                // No previous dead key was set so cache the next 
+                                // No previous dead key was set so cache the next
                                 // wchar so we know what to do next time its pressed.
                                 deadChar = ((PVK_TO_WCHARS) pCurrentVkToWchars)->wch[mod];
                             } else {
@@ -794,7 +794,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
                                     memset(buffer, deadChar, 2);
                                     //buffer[0] = deadChar;
                                     //buffer[1] = deadChar;
-                                    
+
                                     deadChar = WCH_NONE;
                                     charCount = 2;
                                 }
@@ -830,7 +830,7 @@ SIZE_T keycode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size) {
                 // If we locate an extended dead char, set it.
                 if (size >= 1 && baseChar == buffer[0] && diacritic == deadChar) {
                     deadChar = WCH_NONE;
-                    
+
                     if (charCount <= size) {
                         memset(buffer, (WCHAR) pDeadKey[i].wchComposed, charCount);
                         //buffer[i] = (WCHAR) pDeadKey[i].wchComposed;

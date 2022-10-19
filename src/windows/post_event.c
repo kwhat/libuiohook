@@ -73,7 +73,6 @@ static LONG convert_to_relative_position(int coordinate, int screen_size) {
 
 static int map_keyboard_event(uiohook_event * const event, INPUT * const input) {
     input->type = INPUT_KEYBOARD; // | KEYEVENTF_SCANCODE
-    //input->ki.wScan = event->data.keyboard.rawcode;
     //input->ki.time = GetSystemTime();
 
     switch (event->type) {
@@ -97,6 +96,8 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
                 __FUNCTION__, __LINE__, event->data.keyboard.keycode);
         return UIOHOOK_FAILURE;
     }
+
+    input->ki.wScan = MapVirtualKeyW(input->ki.wVk, MAPVK_VK_TO_VSC);
 
     // FIXME Why is this checking MASK_SHIFT
     if (event->mask & MASK_SHIFT) {

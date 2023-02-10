@@ -64,11 +64,58 @@ static const uint16_t extend_key_table[10] = {
     VK_DELETE
 };
 
+typedef struct {
+    LONG x;
+    LONG y;
+} normalized_coordinate;
 
-static LONG convert_to_relative_position(int coordinate, int screen_size) {
-    // See https://stackoverflow.com/a/4555214 and its comments
-	int offset = (coordinate > 0 ? 1 : -1); // Negative coordinates appear when using multiple monitors
-	return ((coordinate * MAX_WINDOWS_COORD_VALUE) / screen_size) + offset;
+typedef struct  {
+    LONG left;
+    LONG top;
+} largest_negative_coordinates;
+
+static LONG get_absolute_coordinate(LONG coordinate, int screen_size) {
+    return MulDiv((int) coordinate, MAX_WINDOWS_COORD_VALUE, screen_size);
+}
+
+static normalized_coordinate normalize_coordinates(LONG x, LONG y, int screen_width, int screen_height, largest_negative_coordinates lnc) {
+    x += abs(lnc.left);
+    y += abs(lnc.top);
+
+    // Prevent clicking 0 coordinates to prevent monitor flicker
+    if (x == 0)
+    {
+        x++;
+    }
+    if (y == 0)
+    {
+        y++;
+    }
+
+    normalized_coordinate nc = {
+            .x = get_absolute_coordinate(x, screen_width),
+            .y = get_absolute_coordinate(y, screen_height)
+    };
+
+    return nc;
+}
+
+static BOOL CALLBACK get_largest_negative_coordinates_monitor_proc(HMONITOR h_monitor, HDC hdc, LPRECT lp_rect, LPARAM dwData) {
+    MONITORINFO MonitorInfo = {0};
+    MonitorInfo.cbSize = sizeof(MonitorInfo);
+    largest_negative_coordinates* lnc = (largest_negative_coordinates*)dwData;
+    if (GetMonitorInfo(h_monitor, &MonitorInfo))
+    {
+        if (MonitorInfo.rcMonitor.left < lnc->left)
+        {
+            lnc->left = MonitorInfo.rcMonitor.left;
+        }
+        if (MonitorInfo.rcMonitor.top < lnc->top)
+        {
+            lnc->top = MonitorInfo.rcMonitor.top;
+        }
+    }
+    return TRUE;
 }
 
 static int map_keyboard_event(uiohook_event * const event, INPUT * const input) {
@@ -110,17 +157,24 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
 }
 
 static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
-    // FIXME implement multiple monitor support
-    uint16_t screen_width  = GetSystemMetrics(SM_CXSCREEN);
-    uint16_t screen_height = GetSystemMetrics(SM_CYSCREEN);
+    uint16_t screen_width  = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    uint16_t screen_height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
     input->type = INPUT_MOUSE;
     input->mi.mouseData = 0;
     input->mi.dwExtraInfo = 0;
     input->mi.time = 0; // GetSystemTime();
 
-    input->mi.dx = convert_to_relative_position(event->data.mouse.x, screen_width);
-    input->mi.dy = convert_to_relative_position(event->data.mouse.y, screen_height);
+    largest_negative_coordinates lnc = {
+            .left = 0,
+            .top = 0
+    };
+    EnumDisplayMonitors(NULL, NULL, get_largest_negative_coordinates_monitor_proc, (LPARAM) &lnc);
+
+    normalized_coordinate nc = normalize_coordinates(event->data.mouse.x, event->data.mouse.y, screen_width, screen_height, lnc);
+
+    input->mi.dx = nc.x;
+    input->mi.dy = nc.y;
 
     switch (event->type) {
         case EVENT_MOUSE_PRESSED:
@@ -129,13 +183,13 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
                         __FUNCTION__, __LINE__);
                 return UIOHOOK_FAILURE;
             } else if (event->data.mouse.button == MOUSE_BUTTON1) {
-                input->mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_LEFTDOWN;
             } else if (event->data.mouse.button == MOUSE_BUTTON2) {
-                input->mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_RIGHTDOWN;
             } else if (event->data.mouse.button == MOUSE_BUTTON3) {
-                input->mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_MIDDLEDOWN;
             } else {
-                input->mi.dwFlags = MOUSEEVENTF_XDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_XDOWN;
                 if (event->data.mouse.button == MOUSE_BUTTON4) {
                     input->mi.mouseData = XBUTTON1;
                 } else if (event->data.mouse.button == MOUSE_BUTTON5) {
@@ -158,13 +212,13 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
                         __FUNCTION__, __LINE__);
                 return UIOHOOK_FAILURE;
             } else if (event->data.mouse.button == MOUSE_BUTTON1) {
-                input->mi.dwFlags = MOUSEEVENTF_LEFTUP;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_LEFTUP;
             } else if (event->data.mouse.button == MOUSE_BUTTON2) {
-                input->mi.dwFlags = MOUSEEVENTF_RIGHTUP;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_RIGHTUP;
             } else if (event->data.mouse.button == MOUSE_BUTTON3) {
-                input->mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_MIDDLEUP;
             } else {
-                input->mi.dwFlags = MOUSEEVENTF_XUP;
+                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_XUP;
                 if (event->data.mouse.button == MOUSE_BUTTON4) {
                     input->mi.mouseData = XBUTTON1;
                 } else if (event->data.mouse.button == MOUSE_BUTTON5) {

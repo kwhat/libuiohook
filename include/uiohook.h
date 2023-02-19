@@ -41,6 +41,7 @@
 // Windows specific errors.
 #define UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX        0x30
 #define UIOHOOK_ERROR_GET_MODULE_HANDLE          0x31
+#define UIOHOOK_ERROR_CREATE_INVISIBLE_WINDOW    0x32
 
 // Darwin specific errors.
 #define UIOHOOK_ERROR_AXAPI_DISABLED             0x40

@@ -28,13 +28,24 @@ else()
     set(UIOHOOK_SOURCE_DIR "x11")
 endif()
 
-add_library(uiohook
-    "src/logger.c"
-    "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
-    "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
-    "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
-    "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
-)
+if (WIN32 OR WIN64)
+    add_library(uiohook
+        "src/logger.c"
+        "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+        "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+        "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+        "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
+        "src/${UIOHOOK_SOURCE_DIR}/monitor_helper.c"
+    )
+else()
+    add_library(uiohook
+        "src/logger.c"
+        "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+        "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
+        "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
+        "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
+    )
+endif ()
 
 set_target_properties(uiohook PROPERTIES
     C_STANDARD 99

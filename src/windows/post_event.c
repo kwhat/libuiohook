@@ -22,6 +22,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "monitor_helper.h"
 
 // Some buggy versions of MinGW and MSys do not include these constants in winuser.h.
 #ifndef MAPVK_VK_TO_VSC
@@ -69,16 +70,11 @@ typedef struct {
     LONG y;
 } normalized_coordinate;
 
-typedef struct  {
-    LONG left;
-    LONG top;
-} largest_negative_coordinates;
-
 static LONG get_absolute_coordinate(LONG coordinate, int screen_size) {
     return MulDiv((int) coordinate, MAX_WINDOWS_COORD_VALUE, screen_size);
 }
 
-static normalized_coordinate normalize_coordinates(LONG x, LONG y, int screen_width, int screen_height, largest_negative_coordinates lnc) {
+static normalized_coordinate normalize_coordinates(LONG x, LONG y, int screen_width, int screen_height, LARGESTNEGATIVECOORDINATES lnc) {
     x += abs(lnc.left);
     y += abs(lnc.top);
 
@@ -98,24 +94,6 @@ static normalized_coordinate normalize_coordinates(LONG x, LONG y, int screen_wi
     };
 
     return nc;
-}
-
-static BOOL CALLBACK get_largest_negative_coordinates_monitor_proc(HMONITOR h_monitor, HDC hdc, LPRECT lp_rect, LPARAM dwData) {
-    MONITORINFO MonitorInfo = {0};
-    MonitorInfo.cbSize = sizeof(MonitorInfo);
-    largest_negative_coordinates* lnc = (largest_negative_coordinates*)dwData;
-    if (GetMonitorInfo(h_monitor, &MonitorInfo))
-    {
-        if (MonitorInfo.rcMonitor.left < lnc->left)
-        {
-            lnc->left = MonitorInfo.rcMonitor.left;
-        }
-        if (MonitorInfo.rcMonitor.top < lnc->top)
-        {
-            lnc->top = MonitorInfo.rcMonitor.top;
-        }
-    }
-    return TRUE;
 }
 
 static int map_keyboard_event(uiohook_event * const event, INPUT * const input) {
@@ -165,11 +143,7 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
     input->mi.dwExtraInfo = 0;
     input->mi.time = 0; // GetSystemTime();
 
-    largest_negative_coordinates lnc = {
-            .left = 0,
-            .top = 0
-    };
-    EnumDisplayMonitors(NULL, NULL, get_largest_negative_coordinates_monitor_proc, (LPARAM) &lnc);
+    LARGESTNEGATIVECOORDINATES lnc = get_largest_negative_coordinates();
 
     normalized_coordinate nc = normalize_coordinates(event->data.mouse.x, event->data.mouse.y, screen_width, screen_height, lnc);
 

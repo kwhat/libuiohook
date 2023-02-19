@@ -22,11 +22,13 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "monitor_helper.h"
 
 // Thread and hook handles.
 static DWORD hook_thread_id = 0;
 static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 static HWINEVENTHOOK win_event_hhook = NULL;
+static HWND hWnd = NULL;
 
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
 extern HINSTANCE hInst;
@@ -721,6 +723,60 @@ void CALLBACK win_hook_event_proc(HWINEVENTHOOK hook, DWORD event, HWND hWnd, LO
     }
 }
 
+static LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            break;
+        case WM_DISPLAYCHANGE:
+            enumerate_displays();
+            break;
+        default:
+            return DefWindowProc(hwnd, message, wParam, lParam);
+    }
+    return 0;
+}
+
+static int create_invisible_window()
+{
+    WNDCLASSEX wcex = { 0 };
+    wcex.cbSize = sizeof(WNDCLASSEX);
+    wcex.style = WS_EX_NOACTIVATE;
+    wcex.lpfnWndProc = WndProc;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInst;
+    wcex.hIcon = NULL;
+    wcex.hCursor = NULL;
+    wcex.hbrBackground = NULL;
+    wcex.lpszMenuName = NULL;
+    wcex.lpszClassName = "Empty";
+    wcex.hIconSm = NULL;
+
+    if (!RegisterClassEx(&wcex)) return 0;
+
+    hWnd = CreateWindowEx(
+            WS_EX_NOACTIVATE,
+            "Empty",
+            "Empty",
+            WS_DISABLED,
+            0,
+            0,
+            1,
+            1,
+            NULL,
+            NULL,
+            hInst,
+            NULL
+    );
+    if (!hWnd) return 0;
+
+    ShowWindow(hWnd, SW_HIDE);
+
+    return 1;
+}
 
 UIOHOOK_API int hook_run() {
     int status = UIOHOOK_FAILURE;
@@ -744,6 +800,15 @@ UIOHOOK_API int hook_run() {
 
             status = UIOHOOK_ERROR_GET_MODULE_HANDLE;
         }
+    }
+
+    // Create invisible window to receive monitor change events
+    if(!create_invisible_window() || hWnd == NULL)
+    {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Create invisible window failed! (%#lX)\n",
+               __FUNCTION__, __LINE__, (unsigned long) GetLastError());
+
+        status = UIOHOOK_ERROR_CREATE_INVISIBLE_WINDOW;
     }
 
     // Create the native hooks.

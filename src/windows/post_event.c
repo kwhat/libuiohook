@@ -157,13 +157,13 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
                         __FUNCTION__, __LINE__);
                 return UIOHOOK_FAILURE;
             } else if (event->data.mouse.button == MOUSE_BUTTON1) {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_LEFTDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
             } else if (event->data.mouse.button == MOUSE_BUTTON2) {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_RIGHTDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
             } else if (event->data.mouse.button == MOUSE_BUTTON3) {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_MIDDLEDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
             } else {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_XDOWN;
+                input->mi.dwFlags = MOUSEEVENTF_XDOWN;
                 if (event->data.mouse.button == MOUSE_BUTTON4) {
                     input->mi.mouseData = XBUTTON1;
                 } else if (event->data.mouse.button == MOUSE_BUTTON5) {
@@ -186,13 +186,13 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
                         __FUNCTION__, __LINE__);
                 return UIOHOOK_FAILURE;
             } else if (event->data.mouse.button == MOUSE_BUTTON1) {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_LEFTUP;
+                input->mi.dwFlags = MOUSEEVENTF_LEFTUP;
             } else if (event->data.mouse.button == MOUSE_BUTTON2) {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_RIGHTUP;
+                input->mi.dwFlags = MOUSEEVENTF_RIGHTUP;
             } else if (event->data.mouse.button == MOUSE_BUTTON3) {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_MIDDLEUP;
+                input->mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
             } else {
-                input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK | MOUSEEVENTF_XUP;
+                input->mi.dwFlags = MOUSEEVENTF_XUP;
                 if (event->data.mouse.button == MOUSE_BUTTON4) {
                     input->mi.mouseData = XBUTTON1;
                 } else if (event->data.mouse.button == MOUSE_BUTTON5) {

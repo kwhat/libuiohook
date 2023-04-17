@@ -19,20 +19,27 @@
 #ifdef USE_APPLICATION_SERVICES
 #include <CoreFoundation/CoreFoundation.h>
 #endif
+
 #ifndef USE_WEAK_IMPORT
 #include <dlfcn.h>
 #endif
+
 #include <stdbool.h>
 #include <uiohook.h>
 
+#include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
 
-// Required to transport messages between the main runloop and our thread for Unicode look-ups.
-#define KEY_BUFFER_SIZE 4
+typedef struct _main_runloop_info {
+    CFRunLoopSourceRef source;
+    CFRunLoopObserverRef observer;
+} main_runloop_info;
 
-// Modifiers for tracking key masks.
-static uint16_t current_modifiers = 0x0000;
+static main_runloop_info *main_runloop_keycode = NULL;
+
+// Event runloop reference.
+static CFRunLoopRef event_loop;
 
 #ifdef USE_APPLICATION_SERVICES
 // Current dead key state.
@@ -41,6 +48,49 @@ static UInt32 deadkey_state;
 // Input source data for the keyboard.
 static TISInputSourceRef prev_keyboard_layout = NULL;
 #endif
+
+
+
+#ifdef USE_EPOCH_TIME
+#include <sys/time.h>
+
+// Structure for the current Unix epoch in milliseconds.
+static struct timeval system_time;
+#endif
+
+#ifdef USE_EPOCH_TIME
+uint64_t get_unix_timestamp() {
+	// Get the local system time in UTC.
+	gettimeofday(&system_time, NULL);
+
+	// Convert the local system time to a Unix epoch in MS.
+	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
+
+	return timestamp;
+}
+#endif
+
+static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    #ifdef USE_EPOCH_TIME
+	uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = mach_absolute_time();
+    #endif
+
+    switch (activity) {
+        case kCFRunLoopEntry:
+            dispatch_hook_enabled(timestamp);
+            break;
+
+        case kCFRunLoopExit:
+            dispatch_hook_disabled(timestamp);
+            break;
+
+        default:
+            logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
+                    __FUNCTION__, __LINE__, (unsigned int) activity);
+    }
+}
 
 bool is_accessibility_enabled() {
     bool is_enabled = false;
@@ -217,7 +267,7 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 
 
 // Modifiers for tracking key masks.
-static uint16_t modifier_mask;
+static uint16_t modifier_mask = 0x0000;
 
 // Set the native modifier mask for future events.
 void set_modifier_mask(uint16_t mask) {
@@ -236,8 +286,6 @@ uint16_t get_modifiers() {
 
 // Initialize the modifier mask to the current modifiers.
 void initialize_modifiers() {
-    current_modifiers = 0x0000;
-
     if (CGEventSourceKeyState(kCGEventSourceStateCombinedSessionState, kVK_Shift)) {
         set_modifier_mask(MASK_SHIFT_L);
     }
@@ -291,25 +339,16 @@ void initialize_modifiers() {
     unset_modifier_mask(MASK_SCROLL_LOCK);
 }
 
+struct dispatch_queue_s *dispatch_main_queue_s;
+void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 
 #if defined(USE_APPLICATION_SERVICES)
-typedef struct {
-    CGEventRef event;
-    UniChar buffer[KEY_BUFFER_SIZE];
-    UniCharCount length;
-} TISKeycodeMessage;
-//static TISKeycodeMessage *tis_keycode_message;
-
-typedef struct _main_runloop_info {
-    CFRunLoopSourceRef source;
-    CFRunLoopObserverRef observer;
-} main_runloop_info;
-//static main_runloop_info *main_runloop_keycode = NULL;
+TISKeycodeMessage *tis_keycode_message;
 
 #include <pthread.h>
 
-static pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 
@@ -334,7 +373,7 @@ static void main_runloop_keycode_proc(void *info) {
     TISKeycodeMessage *data = (TISKeycodeMessage *) info;
     if (data != NULL && data->event != NULL) {
         // Preform Unicode lookup.
-        data->length = keycode_to_unicode(data->event, data->buffer, KEY_BUFFER_SIZE);
+        data->length = keycode_to_unicode(data->event, data->buffer, sizeof data->buffer);
     }
 
     // Unlock the msg_port mutex to signal to the hook_thread that we have
@@ -727,7 +766,19 @@ UInt64 scancode_to_keycode(uint16_t scancode) {
     return keycode;
 }
 
-void load_input_helper() {
+void set_event_loop(CFRunLoopRef current_loop) {
+    event_loop = current_loop;
+}
+
+CFRunLoopRef get_event_loop() {
+    return event_loop;
+}
+
+bool is_runloop_main() {
+    return CFEqual(event_loop, CFRunLoopGetMain());
+}
+
+int load_input_helper() {
     #ifdef USE_APPLICATION_SERVICES
     // Start with a fresh dead key state.
     //curr_deadkey_state = 0;
@@ -742,7 +793,7 @@ void load_input_helper() {
     }
 
     // If we are not running on the main runloop, we need to setup a runloop dispatcher.
-    if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+    if (!is_runloop_main()) {
         // Dynamically load dispatch_sync_f to maintain 10.5 compatibility.
         *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
         const char *dlError = dlerror();
@@ -791,12 +842,14 @@ void load_input_helper() {
             #endif
         }
     }
+
+    return UIOHOOK_SUCCESS;
 }
 
 void unload_input_helper() {
     #ifdef USE_APPLICATION_SERVICES
     pthread_mutex_lock(&main_runloop_mutex);
-    if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+    if (!is_runloop_main()) {
         if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
             destroy_main_runloop_info(&main_runloop_keycode);
         }

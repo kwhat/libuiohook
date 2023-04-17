@@ -167,6 +167,33 @@
 #define kCGEventFlagMaskXButton1     1 << 3
 #define kCGEventFlagMaskXButton2     1 << 4
 
+extern struct dispatch_queue_s *dispatch_main_queue_s;
+extern void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
+
+// Required to transport messages between the main runloop and our thread for Unicode look-ups.
+#define KEY_BUFFER_SIZE 4
+
+typedef struct _event_runloop_info {
+    CFMachPortRef port;
+    CFRunLoopSourceRef source;
+    CFRunLoopObserverRef observer;
+} event_runloop_info;
+
+#if defined(USE_APPLICATION_SERVICES)
+typedef struct {
+    CGEventRef event;
+    UniChar buffer[KEY_BUFFER_SIZE];
+    UniCharCount length;
+} TISKeycodeMessage;
+extern TISKeycodeMessage *tis_keycode_message;
+
+
+
+#include <pthread.h>
+
+extern pthread_cond_t main_runloop_cond;
+extern pthread_mutex_t main_runloop_mutex;
+#endif
 
 /* Check for access to Apples accessibility API. */
 extern bool is_accessibility_enabled();
@@ -190,11 +217,21 @@ extern void unset_modifier_mask(uint16_t mask);
 /* Get the current native modifier mask state. */
 extern uint16_t get_modifiers();
 
+#ifdef USE_EPOCH_TIME
+extern uint64_t get_unix_timestamp();
+#endif
+
+extern void set_event_loop(CFRunLoopRef current_loop);
+
+extern CFRunLoopRef get_event_loop();
+
+extern bool is_runloop_main();
+
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be
  * called in combination with UnloadInputHelper() if the native keyboard layout
  * is changed. */
-extern void load_input_helper();
+extern int load_input_helper();
 
 /* De-initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryUnload() and may need to be

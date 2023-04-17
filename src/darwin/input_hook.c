@@ -25,7 +25,6 @@
 #endif
 
 #include <stdbool.h>
-#include <sys/time.h>
 #include <uiohook.h>
 
 #include "dispatch_event.h"
@@ -33,18 +32,11 @@
 #include "logger.h"
 
 
-typedef struct _event_runloop_info {
-    CFMachPortRef port;
-    CFRunLoopSourceRef source;
-    CFRunLoopObserverRef observer;
-} event_runloop_info;
+
 
 #ifdef USE_APPKIT
 static id auto_release_pool;
 #endif
-
-// Event runloop reference.
-CFRunLoopRef event_loop;
 
 // Flag to restart the event tap incase of timeout.
 static Boolean restart_tap = false;
@@ -53,57 +45,12 @@ static Boolean restart_tap = false;
 #if __MAC_OS_X_VERSION_MAX_ALLOWED <= 1050
 typedef void* dispatch_queue_t;
 #endif
-static struct dispatch_queue_s *dispatch_main_queue_s;
-static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 
 
 
-// Click count globals.
-static unsigned short click_count = 0;
-static CGEventTimestamp click_time = 0;
-static unsigned short int click_button = MOUSE_NOBUTTON;
-static bool mouse_dragged = false;
-
-#ifdef USE_EPOCH_TIME
-// Structure for the current Unix epoch in milliseconds.
-static struct timeval system_time;
-#endif
 
 
 
-#ifdef USE_EPOCH_TIME
-static uint64_t get_unix_timestamp() {
-	// Get the local system time in UTC.
-	gettimeofday(&system_time, NULL);
-
-	// Convert the local system time to a Unix epoch in MS.
-	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-	return timestamp;
-}
-#endif
-
-static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-    #ifdef USE_EPOCH_TIME
-	uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = mach_absolute_time();
-    #endif
-
-    switch (activity) {
-        case kCFRunLoopEntry:
-            dispatch_hook_enabled(timestamp);
-            break;
-
-        case kCFRunLoopExit:
-            dispatch_hook_disabled(timestamp);
-            break;
-
-        default:
-            logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
-                    __FUNCTION__, __LINE__, (unsigned int) activity);
-    }
-}
 
 
 CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
@@ -233,10 +180,6 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
 
     return result_ref;
 }
-
-
-
-
 
 static int create_event_runloop_info(event_runloop_info **hook) {
     if (*hook != NULL) {
@@ -371,104 +314,101 @@ static void destroy_event_runloop_info(event_runloop_info **hook) {
 }
 
 UIOHOOK_API int hook_run() {
-    int status = UIOHOOK_SUCCESS;
-
     // Check for accessibility before we start the loop.
-    if (is_accessibility_enabled()) {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Accessibility API is enabled.\n",
-                __FUNCTION__, __LINE__);
-
-        event_loop = CFRunLoopGetCurrent();
-        if (event_loop != NULL) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopGetCurrent successful.\n",
-                    __FUNCTION__, __LINE__);
-
-            do {
-                // Reset the restart flag...
-                restart_tap = false;
-
-                // Initialize starting modifiers.
-                initialize_modifiers();
-
-                // Try and allocate memory for event_runloop_info.
-                event_runloop_info *hook = NULL;
-                int event_runloop_status = create_event_runloop_info(&hook);
-                if (event_runloop_status != UIOHOOK_SUCCESS) {
-                    destroy_event_runloop_info(&hook);
-                    return event_runloop_status;
-                }
-
-                int input_helper_status = load_input_helper();
-                if (input_helper_status != UIOHOOK_SUCCESS) {
-                    // TODO Do we really need to unload here?
-                    unload_input_helper();
-                    return input_helper_status;
-                }
-
-                #ifdef USE_APPKIT
-                // Contributed by Alex <universailp@web.de>
-                // Create a garbage collector to handle Cocoa events correctly.
-                Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
-                id pool = class_createInstance(NSAutoreleasePool_class, 0);
-
-                id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
-                auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
-                #endif
-
-
-                // Start the hook thread runloop.
-                CFRunLoopRun();
-
-
-                #ifdef USE_APPKIT
-                // Contributed by Alex <universailp@web.de>
-                eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
-                #endif
-
-
-
-                destroy_event_runloop_info(&hook);
-
-                // Cleanup native input functions.
-                unload_input_helper();
-            } while (restart_tap);
-        } else {
-            logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopGetCurrent failure!\n",
-                    __FUNCTION__, __LINE__);
-
-            status = UIOHOOK_ERROR_GET_RUNLOOP;
-        }
-    } else {
+    if (!is_accessibility_enabled()) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Accessibility API is disabled!\n",
                 __FUNCTION__, __LINE__);
 
-        status = UIOHOOK_ERROR_AXAPI_DISABLED;
+        return UIOHOOK_ERROR_AXAPI_DISABLED;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Accessibility API is enabled.\n",
+                __FUNCTION__, __LINE__);
     }
+
+    CFRunLoopRef event_loop = CFRunLoopGetCurrent();
+    if (event_loop == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopGetCurrent failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_GET_RUNLOOP;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopGetCurrent successful.\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    set_event_loop(event_loop);
+
+    do {
+        // Reset the restart flag...
+        restart_tap = false;
+
+        // Initialize starting modifiers.
+        initialize_modifiers();
+
+        // Try and allocate memory for event_runloop_info.
+        event_runloop_info *hook = NULL;
+        int event_runloop_status = create_event_runloop_info(&hook);
+        if (event_runloop_status != UIOHOOK_SUCCESS) {
+            destroy_event_runloop_info(&hook);
+            return event_runloop_status;
+        }
+
+        int input_helper_status = load_input_helper();
+        if (input_helper_status != UIOHOOK_SUCCESS) {
+            // TODO Do we really need to unload here?
+            unload_input_helper();
+            return input_helper_status;
+        }
+
+        #ifdef USE_APPKIT
+        // Contributed by Alex <universailp@web.de>
+        // Create a garbage collector to handle Cocoa events correctly.
+        Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
+        id pool = class_createInstance(NSAutoreleasePool_class, 0);
+
+        id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
+        auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
+        #endif
+
+
+        // Start the hook thread runloop.
+        CFRunLoopRun();
+
+
+        #ifdef USE_APPKIT
+        // Contributed by Alex <universailp@web.de>
+        eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
+        #endif
+
+        destroy_event_runloop_info(&hook);
+
+        // Cleanup native input functions.
+        unload_input_helper();
+    } while (restart_tap);
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Something, something, something, complete.\n",
             __FUNCTION__, __LINE__);
 
-    return status;
+    return UIOHOOK_SUCCESS;
 }
 
 UIOHOOK_API int hook_stop() {
-    int status = UIOHOOK_FAILURE;
-
+    CFRunLoopRef event_loop = get_event_loop();
     CFStringRef mode = CFRunLoopCopyCurrentMode(event_loop);
-    if (mode != NULL) {
-        CFRelease(mode);
+    if (mode == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopCopyCurrentMode failure!\n",
+                __FUNCTION__, __LINE__);
 
-        // Make sure the tap doesn't restart.
-        restart_tap = false;
-
-        // Stop the run loop.
-        CFRunLoopStop(event_loop);
-
-        status = UIOHOOK_SUCCESS;
+        return UIOHOOK_FAILURE;
     }
 
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Status: %#X.\n",
-            __FUNCTION__, __LINE__, status);
+    CFRelease(mode);
 
-    return status;
+    // Make sure the tap doesn't restart.
+    restart_tap = false;
+
+    // Stop the run loop.
+    CFRunLoopStop(event_loop);
+
+    return UIOHOOK_SUCCESS;
 }

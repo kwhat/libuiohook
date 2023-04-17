@@ -16,6 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef USE_APPLICATION_SERVICES
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
+#include <dlfcn.h>
+#include <mach/mach_time.h>
+
+#ifdef USE_APPKIT
+#include <objc/objc.h>
+#include <objc/objc-runtime.h>
+#endif
+
 #include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
@@ -32,6 +44,12 @@ static uiohook_event uio_event;
 // Event dispatch callback.
 static dispatcher_t dispatch = NULL;
 static void *dispatch_data = NULL;
+
+// Click count globals.
+static unsigned short click_count = 0;
+static CGEventTimestamp click_time = 0;
+static unsigned short int click_button = MOUSE_NOBUTTON;
+static bool mouse_dragged = false;
 
 #ifdef USE_APPKIT
 static id auto_release_pool;
@@ -105,6 +123,16 @@ bool dispatch_hook_disabled(uint64_t timestamp) {
     return consumed;
 }
 
+// Wrap keycode_to_unicode with some null checks.
+static void keycode_to_lookup(void *info) {
+    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
+
+    if (data != NULL && data->event != NULL) {
+        // Preform Unicode lookup.
+        data->length = keycode_to_unicode(data->event, data->buffer, KEY_BUFFER_SIZE);
+    }
+}
+
 bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
     bool consumed = false;
 
@@ -133,15 +161,14 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
     if (!consumed) {
         tis_keycode_message->event = event_ref;
         tis_keycode_message->length = 0;
-        bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
 
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
+        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main()) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n",
                     __FUNCTION__, __LINE__);
             (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_keycode_message, &keycode_to_lookup);
         }
         #ifdef USE_APPLICATION_SERVICES
-        else if (!is_runloop_main) {
+        else if (!is_runloop_main()) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
                     __FUNCTION__, __LINE__);
 
@@ -264,19 +291,18 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
         UInt32 data1 = 0;
 
         #ifdef USE_APPKIT
-        bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
         tis_event_message.event = event_ref;
         tis_event_message.subtype = 0;
         tis_event_message.data1 = 0;
 
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main) {
+        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main()) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for system key events.\n",
                     __FUNCTION__, __LINE__);
 
             (*dispatch_sync_f_f)(dispatch_main_queue_s, &tis_event_message, &obcj_message);
             subtype = tis_event_message.subtype;
             data1 = tis_event_message.data1;
-        } else if (is_runloop_main) {
+        } else if (is_runloop_main()) {
             obcj_message(tis_event_message);
             subtype = tis_event_message.subtype;
             data1 = tis_event_message.data1;
@@ -289,7 +315,7 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
         if (data_ref == NULL) {
             logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CGEventRef copy!\n",
                     __FUNCTION__, __LINE__);
-            return;
+            return false;
         }
 
         if (CFDataGetLength(data_ref) < 132)
@@ -297,7 +323,7 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
             CFRelease(data_ref);
             logger(LOG_LEVEL_ERROR, "%s [%u]: Insufficient CFData range size!\n",
                     __FUNCTION__, __LINE__);
-            return;
+            return false;
         }
 
         UInt8 *buffer = malloc(4);
@@ -305,7 +331,7 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
             CFRelease(data_ref);
             logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFData range buffer!\n",
                     __FUNCTION__, __LINE__);
-            return;
+            return false;
         }
 
         CFDataGetBytes(data_ref, CFRangeMake(120, 4), buffer);
@@ -546,7 +572,7 @@ bool dispatch_modifier_change(uint64_t timestamp, CGEventRef event_ref) {
             consumed = dispatch_key_release(timestamp, event_ref);
         }
     } else if (keycode == kVK_CapsLock) {
-        if (current_modifiers & MASK_CAPS_LOCK) {
+        if (get_modifiers() & MASK_CAPS_LOCK) {
             // Process as a key pressed event.
             unset_modifier_mask(MASK_CAPS_LOCK);
             // Key released handled by dispatch_system_key
@@ -609,7 +635,7 @@ bool dispatch_button_press(uint64_t timestamp, CGEventRef event_ref, uint16_t bu
     return consumed;
 }
 
-void dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t button) {
+bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t button) {
     bool consumed = false;
 
     CGPoint event_point = CGEventGetLocation(event_ref);
@@ -636,7 +662,7 @@ void dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
     consumed = uio_event.reserved & 0x01;
 
     // If the pressed event was not consumed...
-    if (event.reserved ^ 0x01 && mouse_dragged != true) {
+    if (uio_event.reserved ^ 0x01 && mouse_dragged != true) {
         // Populate mouse clicked event.
         uio_event.time = timestamp;
         uio_event.reserved = 0x00;
@@ -772,7 +798,7 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
         }
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
-                __FUNCTION__, __LINE__, event.data.wheel.type,
+                __FUNCTION__, __LINE__, uio_event.data.wheel.type,
                 uio_event.data.wheel.amount * uio_event.data.wheel.rotation,
                 uio_event.data.wheel.direction,
                 uio_event.data.wheel.x, uio_event.data.wheel.y);

@@ -31,12 +31,9 @@
 #include "input_helper.h"
 #include "logger.h"
 
-typedef struct _main_runloop_info {
-    CFRunLoopSourceRef source;
-    CFRunLoopObserverRef observer;
-} main_runloop_info;
+// TODO Create a getter for this
+main_runloop_info *main_runloop_keycode = NULL;
 
-static main_runloop_info *main_runloop_keycode = NULL;
 
 // Event runloop reference.
 static CFRunLoopRef event_loop;
@@ -266,6 +263,30 @@ UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCo
 }
 
 
+// Flag to restart the event tap in case of timeout.
+static Boolean tap_timeout = false;
+
+bool is_tap_timeout() {
+    return tap_timeout;
+}
+
+void set_tap_timeout(bool timeout) {
+    tap_timeout = timeout;
+}
+
+
+// Flag to check to see if we are in a mouse dragging state.
+static bool mouse_dragged = false;
+
+bool is_mouse_dragged() {
+    return mouse_dragged;
+}
+
+void set_mouse_dragged(bool dragged) {
+    mouse_dragged = dragged;
+}
+
+
 // Modifiers for tracking key masks.
 static uint16_t modifier_mask = 0x0000;
 
@@ -350,129 +371,6 @@ TISKeycodeMessage *tis_keycode_message;
 pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
-
-
-#ifdef USE_APPLICATION_SERVICES
-/* This is the callback for our main_runloop_info.observer. */
-void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-    switch (activity) {
-        case kCFRunLoopExit:
-            // Acquire a lock on the msg_port and signal that anyone waiting should continue.
-            pthread_mutex_lock(&main_runloop_mutex);
-            pthread_cond_broadcast(&main_runloop_cond);
-            pthread_mutex_unlock(&main_runloop_mutex);
-            break;
-    }
-}
-
-/* Runloop to execute KeyCodeToString on the "Main" runloop due to an undocumented thread safety requirement. */
-static void main_runloop_keycode_proc(void *info) {
-    // Lock the msg_port mutex as we enter the main runloop.
-    pthread_mutex_lock(&main_runloop_mutex);
-
-    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
-    if (data != NULL && data->event != NULL) {
-        // Preform Unicode lookup.
-        data->length = keycode_to_unicode(data->event, data->buffer, sizeof data->buffer);
-    }
-
-    // Unlock the msg_port mutex to signal to the hook_thread that we have
-    // finished on the main runloop.
-    pthread_cond_broadcast(&main_runloop_cond);
-    pthread_mutex_unlock(&main_runloop_mutex);
-}
-
-static int create_main_runloop_info(main_runloop_info **main, CFRunLoopSourceContext *context) {
-    if (*main != NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated main_runloop_info pointer!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_FAILURE;
-    }
-
-    // Try and allocate memory for event_runloop_info.
-    *main = malloc(sizeof(main_runloop_info));
-    if (*main == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for main_runloop_info structure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_OUT_OF_MEMORY;
-    }
-
-    // Create a runloop observer for the main runloop.
-    (*main)->observer = CFRunLoopObserverCreate(
-            kCFAllocatorDefault,
-            kCFRunLoopExit, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
-            true,
-            0,
-            main_runloop_status_proc,
-            NULL
-        );
-    if ((*main)->observer == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_OBSERVER;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate success!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    (*main)->source = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, context);
-
-    if ((*main)->source == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopSourceCreate success!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    // FIXME Check for null ?
-    CFRunLoopRef main_loop = CFRunLoopGetMain();
-
-    pthread_mutex_lock(&main_runloop_mutex);
-
-    CFRunLoopAddSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
-    CFRunLoopAddObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
-
-    pthread_mutex_unlock(&main_runloop_mutex);
-
-    return UIOHOOK_SUCCESS;
-}
-
-static void destroy_main_runloop_info(main_runloop_info **main) {
-    if (*main != NULL) {
-         CFRunLoopRef main_loop = CFRunLoopGetMain();
-
-         if ((*main)->observer != NULL) {
-             if (CFRunLoopContainsObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode)) {
-                 CFRunLoopRemoveObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
-             }
-
-             CFRunLoopObserverInvalidate((*main)->observer);
-             CFRelease((*main)->observer);
-             (*main)->observer = NULL;
-         }
-
-         if ((*main)->source != NULL) {
-             if (CFRunLoopContainsSource(main_loop, (*main)->source, kCFRunLoopDefaultMode)) {
-                 CFRunLoopRemoveSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
-             }
-
-             CFRelease((*main)->source);
-             (*main)->source = NULL;
-         }
-
-        // Free the main structure.
-        free(*main);
-        *main = NULL;
-    }
-}
-#endif
-
 
 static const uint16_t keycode_scancode_table[][2] = {
     /* idx       { keycode,                 scancode                 }, */
@@ -777,6 +675,388 @@ CFRunLoopRef get_event_loop() {
 bool is_runloop_main() {
     return CFEqual(event_loop, CFRunLoopGetMain());
 }
+
+// FIXME See if we can move this and the following method to the input_hook
+static CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
+    bool consumed = false;
+    #ifdef USE_EPOCH_TIME
+	uint64_t timestamp = get_unix_timestamp();
+    #else
+    uint64_t timestamp = (uint64_t) CGEventGetTimestamp(event_ref);
+    #endif
+
+    // Get the event class.
+    switch (type) {
+        case kCGEventKeyDown:
+            consumed = dispatch_key_press(timestamp, event_ref);
+            break;
+
+        case kCGEventKeyUp:
+            consumed = dispatch_key_release(timestamp, event_ref);
+            break;
+
+        case kCGEventFlagsChanged:
+            consumed = dispatch_modifier_change(timestamp, event_ref);
+            break;
+
+        case NX_SYSDEFINED:
+            consumed = dispatch_system_key(timestamp, event_ref);
+            break;
+
+        case kCGEventLeftMouseDown:
+            set_modifier_mask(MASK_BUTTON1);
+            consumed = dispatch_button_press(timestamp, event_ref, MOUSE_BUTTON1);
+            break;
+
+        case kCGEventRightMouseDown:
+            set_modifier_mask(MASK_BUTTON2);
+            consumed = dispatch_button_press(timestamp, event_ref, MOUSE_BUTTON2);
+            break;
+
+        case kCGEventOtherMouseDown:
+            // Extra mouse buttons.
+            if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
+                uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
+
+                // Add support for mouse 4 & 5.
+                if (button == 4) {
+                    set_modifier_mask(MOUSE_BUTTON4);
+                } else if (button == 5) {
+                    set_modifier_mask(MOUSE_BUTTON5);
+                }
+
+                consumed = dispatch_button_press(timestamp, event_ref, button);
+            }
+            break;
+
+        case kCGEventLeftMouseUp:
+            unset_modifier_mask(MASK_BUTTON1);
+            consumed = dispatch_button_release(timestamp, event_ref, MOUSE_BUTTON1);
+            break;
+
+        case kCGEventRightMouseUp:
+            unset_modifier_mask(MASK_BUTTON2);
+            consumed = dispatch_button_release(timestamp, event_ref, MOUSE_BUTTON2);
+            break;
+
+        case kCGEventOtherMouseUp:
+            // Extra mouse buttons.
+            if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
+                uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
+
+                // Add support for mouse 4 & 5.
+                if (button == 4) {
+                    unset_modifier_mask(MOUSE_BUTTON4);
+                } else if (button == 5) {
+                    unset_modifier_mask(MOUSE_BUTTON5);
+                }
+
+                consumed = dispatch_button_press(timestamp, event_ref, button);
+            }
+            break;
+
+
+        case kCGEventLeftMouseDragged:
+        case kCGEventRightMouseDragged:
+        case kCGEventOtherMouseDragged:
+            // FIXME The drag flag is confusing.  Use prev x,y to determine click.
+            // Set the mouse dragged flag.
+            set_mouse_dragged(true);
+            consumed = dispatch_mouse_move(timestamp, event_ref);
+            break;
+
+        case kCGEventMouseMoved:
+            // Set the mouse dragged flag.
+            set_mouse_dragged(false);
+            consumed = dispatch_mouse_move(timestamp, event_ref);
+            break;
+
+
+        case kCGEventScrollWheel:
+            consumed = dispatch_mouse_wheel(timestamp, event_ref);
+            break;
+
+        default:
+            // Check for an old OS X bug where the tap seems to timeout for no reason.
+            // See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
+            if (type == (CGEventType) kCGEventTapDisabledByTimeout) {
+                logger(LOG_LEVEL_WARN, "%s [%u]: CGEventTap timeout!\n",
+                        __FUNCTION__, __LINE__);
+
+                // We need to restart the tap!
+                set_tap_timeout(true);
+                CFRunLoopStop(CFRunLoopGetCurrent());
+            } else {
+                // In theory this *should* never execute.
+                logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled Darwin event: %#X.\n",
+                        __FUNCTION__, __LINE__, (unsigned int) type);
+            }
+            break;
+    }
+
+    CGEventRef result_ref = NULL;
+    if (!consumed) {
+        result_ref = event_ref;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Consuming the current event. (%#X) (%#p)\n",
+                __FUNCTION__, __LINE__, type, event_ref);
+    }
+
+    return result_ref;
+}
+
+int create_event_runloop_info(event_runloop_info **hook) {
+    if (*hook != NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated event_runloop_info pointer!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_FAILURE;
+    }
+
+    // Try and allocate memory for event_runloop_info.
+    *hook = malloc(sizeof(event_runloop_info));
+    if (*hook == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for event_runloop_info structure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    // Setup the event mask to listen for.
+    CGEventMask event_mask = CGEventMaskBit(kCGEventKeyDown) |
+            CGEventMaskBit(kCGEventKeyUp) |
+            CGEventMaskBit(kCGEventFlagsChanged) |
+
+            CGEventMaskBit(kCGEventLeftMouseDown) |
+            CGEventMaskBit(kCGEventLeftMouseUp) |
+            CGEventMaskBit(kCGEventLeftMouseDragged) |
+
+            CGEventMaskBit(kCGEventRightMouseDown) |
+            CGEventMaskBit(kCGEventRightMouseUp) |
+            CGEventMaskBit(kCGEventRightMouseDragged) |
+
+            CGEventMaskBit(kCGEventOtherMouseDown) |
+            CGEventMaskBit(kCGEventOtherMouseUp) |
+            CGEventMaskBit(kCGEventOtherMouseDragged) |
+
+            CGEventMaskBit(kCGEventMouseMoved) |
+            CGEventMaskBit(kCGEventScrollWheel) |
+
+            // NOTE This event is undocumented and used
+            // for caps-lock release and multi-media keys.
+            CGEventMaskBit(NX_SYSDEFINED);
+
+    // Create the event tap.
+    (*hook)->port = CGEventTapCreate(
+            kCGSessionEventTap,       // kCGHIDEventTap
+            kCGHeadInsertEventTap,    // kCGTailAppendEventTap
+            kCGEventTapOptionDefault, // kCGEventTapOptionListenOnly See https://github.com/kwhat/jnativehook/issues/22
+            event_mask,
+            hook_event_proc,
+            NULL);
+    if ((*hook)->port == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create event port!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_EVENT_PORT;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CGEventTapCreate Successful.\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    // Create the runloop event source from the event tap.
+    (*hook)->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, (*hook)->port, 0);
+    if ((*hook)->source == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    // Create run loop observers.
+    (*hook)->observer = CFRunLoopObserverCreate(
+            kCFAllocatorDefault,
+            kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+            true,
+            0,
+            hook_status_proc,
+            NULL);
+    if ((*hook)->observer == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_OBSERVER;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate successful.\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    // Add the event source and observer to the runloop mode.
+    CFRunLoopAddSource(event_loop, (*hook)->source, kCFRunLoopDefaultMode);
+    CFRunLoopAddObserver(event_loop, (*hook)->observer, kCFRunLoopDefaultMode);
+
+    return UIOHOOK_SUCCESS;
+}
+
+void destroy_event_runloop_info(event_runloop_info **hook) {
+    // FIXME check event_loop for null ?
+
+    if (*hook != NULL) {
+        if ((*hook)->observer != NULL) {
+            if (CFRunLoopContainsObserver(event_loop, (*hook)->observer, kCFRunLoopDefaultMode)) {
+                CFRunLoopRemoveObserver(event_loop, (*hook)->observer, kCFRunLoopDefaultMode);
+            }
+
+            // Invalidate and free hook observer.
+            CFRunLoopObserverInvalidate((*hook)->observer);
+            CFRelease((*hook)->observer);
+            (*hook)->observer = NULL;
+        }
+
+        if ((*hook)->source != NULL) {
+            if (CFRunLoopContainsSource(event_loop, (*hook)->source, kCFRunLoopDefaultMode)) {
+                CFRunLoopRemoveSource(event_loop, (*hook)->source, kCFRunLoopDefaultMode);
+            }
+
+            // Clean up the event source.
+            CFRelease((*hook)->source);
+            (*hook)->source = NULL;
+        }
+
+        // Stop the CFMachPort from receiving any more messages.
+        CFMachPortInvalidate((*hook)->port);
+        CFRelease((*hook)->port);
+        (*hook)->port = NULL;
+
+        // Free the hook structure.
+        free(*hook);
+        *hook = NULL;
+    }
+}
+
+#ifdef USE_APPLICATION_SERVICES
+/* This is the callback for our main_runloop_info.observer. */
+void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
+    switch (activity) {
+        case kCFRunLoopExit:
+            // Acquire a lock on the msg_port and signal that anyone waiting should continue.
+            pthread_mutex_lock(&main_runloop_mutex);
+            pthread_cond_broadcast(&main_runloop_cond);
+            pthread_mutex_unlock(&main_runloop_mutex);
+            break;
+    }
+}
+
+/* Runloop to execute KeyCodeToString on the "Main" runloop due to an undocumented thread safety requirement. */
+static void main_runloop_keycode_proc(void *info) {
+    // Lock the msg_port mutex as we enter the main runloop.
+    pthread_mutex_lock(&main_runloop_mutex);
+
+    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
+    if (data != NULL && data->event != NULL) {
+        // Preform Unicode lookup.
+        data->length = keycode_to_unicode(data->event, data->buffer, sizeof data->buffer);
+    }
+
+    // Unlock the msg_port mutex to signal to the hook_thread that we have
+    // finished on the main runloop.
+    pthread_cond_broadcast(&main_runloop_cond);
+    pthread_mutex_unlock(&main_runloop_mutex);
+}
+
+static int create_main_runloop_info(main_runloop_info **main, CFRunLoopSourceContext *context) {
+    if (*main != NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated main_runloop_info pointer!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_FAILURE;
+    }
+
+    // Try and allocate memory for event_runloop_info.
+    *main = malloc(sizeof(main_runloop_info));
+    if (*main == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for main_runloop_info structure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    // Create a runloop observer for the main runloop.
+    (*main)->observer = CFRunLoopObserverCreate(
+            kCFAllocatorDefault,
+            kCFRunLoopExit, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
+            true,
+            0,
+            main_runloop_status_proc,
+            NULL
+        );
+    if ((*main)->observer == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_OBSERVER;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate success!\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    (*main)->source = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, context);
+
+    if ((*main)->source == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
+                __FUNCTION__, __LINE__);
+
+        return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
+    } else {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopSourceCreate success!\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    // FIXME Check for null ?
+    CFRunLoopRef main_loop = CFRunLoopGetMain();
+
+    pthread_mutex_lock(&main_runloop_mutex);
+
+    CFRunLoopAddSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
+    CFRunLoopAddObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
+
+    pthread_mutex_unlock(&main_runloop_mutex);
+
+    return UIOHOOK_SUCCESS;
+}
+
+static void destroy_main_runloop_info(main_runloop_info **main) {
+    if (*main != NULL) {
+         CFRunLoopRef main_loop = CFRunLoopGetMain();
+
+         if ((*main)->observer != NULL) {
+             if (CFRunLoopContainsObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode)) {
+                 CFRunLoopRemoveObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
+             }
+
+             CFRunLoopObserverInvalidate((*main)->observer);
+             CFRelease((*main)->observer);
+             (*main)->observer = NULL;
+         }
+
+         if ((*main)->source != NULL) {
+             if (CFRunLoopContainsSource(main_loop, (*main)->source, kCFRunLoopDefaultMode)) {
+                 CFRunLoopRemoveSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
+             }
+
+             CFRelease((*main)->source);
+             (*main)->source = NULL;
+         }
+
+        // Free the main structure.
+        free(*main);
+        *main = NULL;
+    }
+}
+#endif
 
 int load_input_helper() {
     #ifdef USE_APPLICATION_SERVICES

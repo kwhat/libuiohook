@@ -173,6 +173,11 @@ extern void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void
 // Required to transport messages between the main runloop and our thread for Unicode look-ups.
 #define KEY_BUFFER_SIZE 4
 
+typedef struct _main_runloop_info {
+    CFRunLoopSourceRef source;
+    CFRunLoopObserverRef observer;
+} main_runloop_info;
+
 typedef struct _event_runloop_info {
     CFMachPortRef port;
     CFRunLoopSourceRef source;
@@ -208,6 +213,9 @@ extern uint16_t keycode_to_scancode(UInt64 keycode);
 /* Converts a UIOHook scancode constant to the appropriate OSX keycode. */
 extern UInt64 scancode_to_keycode(uint16_t keycode);
 
+/* TODO Does this need to be here or can it be in input_hook and static? */
+extern void initialize_modifiers();
+
 /* Set the native modifier mask for future events. */
 extern void set_modifier_mask(uint16_t mask);
 
@@ -226,6 +234,20 @@ extern void set_event_loop(CFRunLoopRef current_loop);
 extern CFRunLoopRef get_event_loop();
 
 extern bool is_runloop_main();
+
+extern bool is_tap_timeout();
+
+extern void set_tap_timeout(bool timeout);
+
+extern bool is_mouse_dragged();
+
+extern void set_mouse_dragged(bool dragged);
+
+extern main_runloop_info *main_runloop_keycode;
+
+extern int create_event_runloop_info(event_runloop_info **hook);
+
+extern void destroy_event_runloop_info(event_runloop_info **hook);
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be

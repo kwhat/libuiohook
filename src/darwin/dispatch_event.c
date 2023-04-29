@@ -49,18 +49,19 @@ static void *dispatch_data = NULL;
 static unsigned short click_count = 0;
 static CGEventTimestamp click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
-static bool mouse_dragged = false;
 
 #ifdef USE_APPKIT
-static id auto_release_pool;
-
 typedef struct {
     CGEventRef event;
     UInt32 subtype;
     UInt32 data1;
 } TISEventMessage;
-static TISEventMessage tis_event_message;
+
+// FIXME Why are we not using malloc here?  Move to input_helper
+static TISEventMessage tis_event_message = {};
+static id auto_release_pool;
 #endif
+
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
@@ -200,8 +201,7 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
 
                 // Wait for a lock while the main runloop processes they key typed event.
                 pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
-            }
-            else {
+            } else {
                 logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal RunLoop main!\n",
                         __FUNCTION__, __LINE__);
             }
@@ -303,45 +303,51 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
             subtype = tis_event_message.subtype;
             data1 = tis_event_message.data1;
         } else if (is_runloop_main()) {
-            obcj_message(tis_event_message);
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using obcj_message for system key events.\n",
+                    __FUNCTION__, __LINE__);
+
+            obcj_message(&tis_event_message);
             subtype = tis_event_message.subtype;
             data1 = tis_event_message.data1;
         } else {
         #endif
-        // If we are not using ObjC, the only way I've found to access CGEvent->subtype and CGEvent>data1 is to
-        // serialize the event and read the byte offsets.  I am not sure why, but CGEventCreateData appears to use
-        // big-endian byte ordering even though all current apple architectures are little-endian.
-        CFDataRef data_ref = CGEventCreateData(kCFAllocatorDefault, event_ref);
-        if (data_ref == NULL) {
-            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CGEventRef copy!\n",
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFDataGetBytes for system key events.\n",
                     __FUNCTION__, __LINE__);
-            return false;
-        }
 
-        if (CFDataGetLength(data_ref) < 132)
-        {
+            // If we are not using ObjC, the only way I've found to access CGEvent->subtype and CGEvent>data1 is to
+            // serialize the event and read the byte offsets.  I am not sure why, but CGEventCreateData appears to use
+            // big-endian byte ordering even though all current apple architectures are little-endian.
+            CFDataRef data_ref = CGEventCreateData(kCFAllocatorDefault, event_ref);
+            if (data_ref == NULL) {
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CGEventRef copy!\n",
+                        __FUNCTION__, __LINE__);
+                return false;
+            }
+
+            if (CFDataGetLength(data_ref) < 132)
+            {
+                CFRelease(data_ref);
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Insufficient CFData range size!\n",
+                        __FUNCTION__, __LINE__);
+                return false;
+            }
+
+            UInt8 *buffer = malloc(4);
+            if (buffer == NULL) {
+                CFRelease(data_ref);
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFData range buffer!\n",
+                        __FUNCTION__, __LINE__);
+                return false;
+            }
+
+            CFDataGetBytes(data_ref, CFRangeMake(120, 4), buffer);
+            subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+
+            CFDataGetBytes(data_ref, CFRangeMake(128, 4), buffer);
+            data1 = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+
+            free(buffer);
             CFRelease(data_ref);
-            logger(LOG_LEVEL_ERROR, "%s [%u]: Insufficient CFData range size!\n",
-                    __FUNCTION__, __LINE__);
-            return false;
-        }
-
-        UInt8 *buffer = malloc(4);
-        if (buffer == NULL) {
-            CFRelease(data_ref);
-            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFData range buffer!\n",
-                    __FUNCTION__, __LINE__);
-            return false;
-        }
-
-        CFDataGetBytes(data_ref, CFRangeMake(120, 4), buffer);
-        subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
-
-        CFDataGetBytes(data_ref, CFRangeMake(128, 4), buffer);
-        data1 = CFSwapInt32BigToHost(*((UInt32 *) buffer));
-
-        free(buffer);
-        CFRelease(data_ref);
         #ifdef USE_APPKIT
         }
         #endif
@@ -575,11 +581,11 @@ bool dispatch_modifier_change(uint64_t timestamp, CGEventRef event_ref) {
         if (get_modifiers() & MASK_CAPS_LOCK) {
             // Process as a key pressed event.
             unset_modifier_mask(MASK_CAPS_LOCK);
-            // Key released handled by dispatch_system_key
+            // Key pressed handled by dispatch_system_key
         } else {
             // Process as a key released event.
             set_modifier_mask(MASK_CAPS_LOCK);
-            // Key pressed handled by dispatch_system_key
+            // Key released handled by dispatch_system_key
         }
     }
 
@@ -662,7 +668,7 @@ bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
     consumed = uio_event.reserved & 0x01;
 
     // If the pressed event was not consumed...
-    if (uio_event.reserved ^ 0x01 && mouse_dragged != true) {
+    if (uio_event.reserved ^ 0x01 && !is_mouse_dragged()) {
         // Populate mouse clicked event.
         uio_event.time = timestamp;
         uio_event.reserved = 0x00;
@@ -708,7 +714,7 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
     uio_event.time = timestamp;
     uio_event.reserved = 0x00;
 
-    if (mouse_dragged) {
+    if (is_mouse_dragged()) {
         uio_event.type = EVENT_MOUSE_DRAGGED;
     }
     else {
@@ -722,7 +728,7 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
     uio_event.data.mouse.y = event_point.y;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
-            __FUNCTION__, __LINE__, mouse_dragged ? "dragged" : "moved",
+            __FUNCTION__, __LINE__, is_mouse_dragged() ? "dragged" : "moved",
             uio_event.data.mouse.x, uio_event.data.mouse.y);
 
     // Fire mouse motion event.

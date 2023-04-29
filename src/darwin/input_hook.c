@@ -17,7 +17,6 @@
  */
 
 #include <dlfcn.h>
-#include <mach/mach_time.h>
 
 #ifdef USE_APPKIT
 #include <objc/objc.h>

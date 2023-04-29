@@ -53,6 +53,8 @@ static TISInputSourceRef prev_keyboard_layout = NULL;
 
 // Structure for the current Unix epoch in milliseconds.
 static struct timeval system_time;
+#else
+#include <mach/mach_time.h>
 #endif
 
 #ifdef USE_EPOCH_TIME

@@ -31,14 +31,15 @@
 #include "input_helper.h"
 #include "logger.h"
 
-// TODO Create a getter for this
-main_runloop_info *main_runloop_keycode = NULL;
-
-
-// Event runloop reference.
-static CFRunLoopRef event_loop;
 
 #ifdef USE_APPLICATION_SERVICES
+// Main runloop info object
+typedef struct _main_runloop_info {
+    CFRunLoopSourceRef source;
+    CFRunLoopObserverRef observer;
+} main_runloop_info;
+static main_runloop_info *main_runloop_keycode = NULL;
+
 // Current dead key state.
 static UInt32 deadkey_state;
 
@@ -48,48 +49,7 @@ static TISInputSourceRef prev_keyboard_layout = NULL;
 
 
 
-#ifdef USE_EPOCH_TIME
-#include <sys/time.h>
 
-// Structure for the current Unix epoch in milliseconds.
-static struct timeval system_time;
-#else
-#include <mach/mach_time.h>
-#endif
-
-#ifdef USE_EPOCH_TIME
-uint64_t get_unix_timestamp() {
-	// Get the local system time in UTC.
-	gettimeofday(&system_time, NULL);
-
-	// Convert the local system time to a Unix epoch in MS.
-	uint64_t timestamp = (system_time.tv_sec * 1000) + (system_time.tv_usec / 1000);
-
-	return timestamp;
-}
-#endif
-
-static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-    #ifdef USE_EPOCH_TIME
-	uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = mach_absolute_time();
-    #endif
-
-    switch (activity) {
-        case kCFRunLoopEntry:
-            dispatch_hook_enabled(timestamp);
-            break;
-
-        case kCFRunLoopExit:
-            dispatch_hook_disabled(timestamp);
-            break;
-
-        default:
-            logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled RunLoop activity! (%#X)\n",
-                    __FUNCTION__, __LINE__, (unsigned int) activity);
-    }
-}
 
 bool is_accessibility_enabled() {
     bool is_enabled = false;
@@ -150,119 +110,6 @@ bool is_accessibility_enabled() {
     return is_enabled;
 }
 
-
-UniCharCount keycode_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
-    UniCharCount count = 0;
-    CFDataRef inputData = NULL;
-
-    #ifdef USE_APPLICATION_SERVICES
-    // TODO Try https://developer.apple.com/documentation/coregraphics/1456120-cgeventkeyboardgetunicodestring?language=objc
-    if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-        // NOTE The following block must execute on the main runloop,
-        // Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain()) to avoid 
-        // Exception detected while handling key input and TSMProcessRawKeyCode failed 
-        // (-192) errors.
-        TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
-        if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
-            CFDataRef data = (CFDataRef) TISGetInputSourceProperty(curr_keyboard_layout, kTISPropertyUnicodeKeyLayoutData);
-            if (data != NULL && CFGetTypeID(data) == CFDataGetTypeID() && CFDataGetLength(data) > 0) {
-                inputData = (CFDataRef) data;
-            }
-        }
-        
-        // Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
-        if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
-            deadkey_state = 0x00;
-        }
-
-        // Release the previous keyboard layout.
-        if (prev_keyboard_layout != NULL) {
-            CFRelease(prev_keyboard_layout);
-            prev_keyboard_layout = NULL;
-        }
-
-        // Set the previous keyboard layout to the current layout.
-        if (curr_keyboard_layout != NULL) {
-            prev_keyboard_layout = curr_keyboard_layout;
-        }
-    }
-    #endif
-
-    #ifdef USE_APPLICATION_SERVICES
-    if (inputData != NULL) {
-        const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout*) CFDataGetBytePtr(inputData);
-
-        if (keyboard_layout != NULL) {
-            //Extract keycode and modifier information.
-            CGKeyCode keycode = CGEventGetIntegerValueField(event_ref, kCGKeyboardEventKeycode);
-            CGEventFlags modifiers = CGEventGetFlags(event_ref);
-
-            // Disable all command modifiers for translation.  This is required
-            // so UCKeyTranslate will provide a keysym for the separate event.
-            static const CGEventFlags cmd_modifiers = kCGEventFlagMaskCommand |
-                    kCGEventFlagMaskControl | kCGEventFlagMaskAlternate;
-            modifiers &= ~cmd_modifiers;
-
-            // I don't know why but UCKeyTranslate does not process the
-            // kCGEventFlagMaskAlphaShift (A.K.A. Caps Lock Mask) correctly.
-            // We need to basically turn off the mask and process the capital
-            // letters after UCKeyTranslate().
-            bool is_caps_lock = modifiers & kCGEventFlagMaskAlphaShift;
-            modifiers &= ~kCGEventFlagMaskAlphaShift;
-
-            // Run the translation with the saved deadkey_state.
-            OSStatus status = UCKeyTranslate(
-                    keyboard_layout,
-                    keycode,
-                    kUCKeyActionDown, //kUCKeyActionDisplay,
-                    (modifiers >> 16) & 0xFF, //(modifiers >> 16) & 0xFF, || (modifiers >> 8) & 0xFF,
-                    LMGetKbdType(),
-                    kNilOptions, //kNilOptions, //kUCKeyTranslateNoDeadKeysMask
-                    &deadkey_state,
-                    size,
-                    &count,
-                    buffer);
-
-            if (status == noErr && count > 0) {
-                if (is_caps_lock) {
-                    // We *had* a caps lock mask so we need to convert to uppercase.
-                    CFMutableStringRef keytxt = CFStringCreateMutableWithExternalCharactersNoCopy(kCFAllocatorDefault, buffer, count, size, kCFAllocatorNull);
-                    if (keytxt != NULL) {
-                        CFLocaleRef locale = CFLocaleCopyCurrent();
-                        CFStringUppercase(keytxt, locale);
-                        CFRelease(locale);
-                        CFRelease(keytxt);
-                    } else {
-                        // There was an problem creating the CFMutableStringRef.
-                        count = 0;
-                    }
-                }
-            } else {
-                // Make sure the buffer count is zero if an error occurred.
-                count = 0;
-            }
-        }
-    }
-    #else
-    CGEventKeyboardGetUnicodeString(event_ref, size, &count, buffer);
-    #endif
-
-    // The following codes should not be processed because they are invalid.
-    if (count == 1) {
-        switch (buffer[0]) {
-            case 0x01:        // Home
-            case 0x04:        // End
-            case 0x05:        // Help Key
-            case 0x10:        // Function Keys
-            case 0x0B:        // Page Up
-            case 0x0C:        // Page Down
-            case 0x1F:        // Volume Up
-                count = 0;
-        }
-    }
-    
-    return count;
-}
 
 
 // Flag to restart the event tap in case of timeout.
@@ -362,16 +209,23 @@ void initialize_modifiers() {
     unset_modifier_mask(MASK_SCROLL_LOCK);
 }
 
-struct dispatch_queue_s *dispatch_main_queue_s;
-void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
+static struct dispatch_queue_s *dispatch_main_queue_s;
+static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
+
+typedef struct _TISKeycodeMessage {
+    CGEventRef event;
+    UniChar *buffer;
+    UniCharCount size;
+    UniCharCount length;
+} TISKeycodeMessage;
+TISKeycodeMessage *tis_keycode_message = NULL;
 
 #if defined(USE_APPLICATION_SERVICES)
-TISKeycodeMessage *tis_keycode_message;
-
 #include <pthread.h>
 
-pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
+// FIXME Use https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutex_init.html
+static pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 static const uint16_t keycode_scancode_table[][2] = {
@@ -637,6 +491,7 @@ static const uint16_t keycode_scancode_table[][2] = {
     /* 255 */    { VC_UNDEFINED,            kVK_Undefined            },    // 0xFF
 };
 
+
 uint16_t keycode_to_scancode(UInt64 keycode) {
     uint16_t scancode = VC_UNDEFINED;
 
@@ -666,280 +521,201 @@ UInt64 scancode_to_keycode(uint16_t scancode) {
     return keycode;
 }
 
-void set_event_loop(CFRunLoopRef current_loop) {
-    event_loop = current_loop;
-}
 
-CFRunLoopRef get_event_loop() {
-    return event_loop;
-}
+// Preform Unicode lookup from the main runloop vui dispatch_sync_f_f or applicaiton services runloop signaling
+static void tis_message_to_unicode(void *info) {
+    TISKeycodeMessage *tis = (TISKeycodeMessage *) info;
 
-bool is_runloop_main() {
-    return CFEqual(event_loop, CFRunLoopGetMain());
-}
+     if (tis != NULL && tis->event != NULL) {
+        #ifdef USE_APPLICATION_SERVICES
+        if (CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
+            // NOTE The following block must execute on the main runloop,
+            // Ex: CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain()) to avoid "Exception detected while handling key input"
+            // and "TSMProcessRawKeyCode failed (-192)" errors.
+            TISInputSourceRef curr_keyboard_layout = TISCopyCurrentKeyboardLayoutInputSource();
+            if (curr_keyboard_layout != NULL && CFGetTypeID(curr_keyboard_layout) == TISInputSourceGetTypeID()) {
 
-// FIXME See if we can move this and the following method to the input_hook
-static CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
-    bool consumed = false;
-    #ifdef USE_EPOCH_TIME
-	uint64_t timestamp = get_unix_timestamp();
-    #else
-    uint64_t timestamp = (uint64_t) CGEventGetTimestamp(event_ref);
-    #endif
+                const CFDataRef data = (CFDataRef) TISGetInputSourceProperty(curr_keyboard_layout, kTISPropertyUnicodeKeyLayoutData);
+                if (data != NULL && CFGetTypeID(data) == CFDataGetTypeID() && CFDataGetLength(data) > 0) {
 
-    // Get the event class.
-    switch (type) {
-        case kCGEventKeyDown:
-            consumed = dispatch_key_press(timestamp, event_ref);
-            break;
+                    const UCKeyboardLayout *keyboard_layout = (const UCKeyboardLayout *) CFDataGetBytePtr(data);
+                    if (keyboard_layout != NULL) {
+                        //Extract keycode and modifier information.
+                        CGKeyCode keycode = CGEventGetIntegerValueField(tis->event, kCGKeyboardEventKeycode);
+                        CGEventFlags modifiers = CGEventGetFlags(tis->event);
 
-        case kCGEventKeyUp:
-            consumed = dispatch_key_release(timestamp, event_ref);
-            break;
+                        // Disable all command modifiers for translation.  This is required
+                        // so UCKeyTranslate will provide a keysym for the separate event.
+                        static const CGEventFlags cmd_modifiers = kCGEventFlagMaskCommand | kCGEventFlagMaskControl | kCGEventFlagMaskAlternate;
+                        modifiers &= ~cmd_modifiers;
 
-        case kCGEventFlagsChanged:
-            consumed = dispatch_modifier_change(timestamp, event_ref);
-            break;
+                        // I don't know why but UCKeyTranslate does not process the
+                        // kCGEventFlagMaskAlphaShift (A.K.A. Caps Lock Mask) correctly.
+                        // We need to basically turn off the mask and process the capital
+                        // letters after UCKeyTranslate().
+                        bool is_caps_lock = modifiers & kCGEventFlagMaskAlphaShift;
+                        modifiers &= ~kCGEventFlagMaskAlphaShift;
 
-        case NX_SYSDEFINED:
-            consumed = dispatch_system_key(timestamp, event_ref);
-            break;
+                        // Run the translation with the saved deadkey_state.
+                        OSStatus status = UCKeyTranslate(
+                                keyboard_layout,
+                                keycode,
+                                kUCKeyActionDown, //kUCKeyActionDisplay,
+                                (modifiers >> 16) & 0xFF, //(modifiers >> 16) & 0xFF, || (modifiers >> 8) & 0xFF,
+                                LMGetKbdType(),
+                                kNilOptions, //kNilOptions, //kUCKeyTranslateNoDeadKeysMask
+                                &deadkey_state,
+                                tis->size,
+                                &(tis->length),
+                                tis->buffer);
 
-        case kCGEventLeftMouseDown:
-            set_modifier_mask(MASK_BUTTON1);
-            consumed = dispatch_button_press(timestamp, event_ref, MOUSE_BUTTON1);
-            break;
+                        if (status == noErr && tis->length > 0) {
+                            if (is_caps_lock) {
+                                // We *had* a caps lock mask so we need to convert to uppercase.
+                                CFMutableStringRef keytxt = CFStringCreateMutableWithExternalCharactersNoCopy(
+                                    kCFAllocatorDefault, tis->buffer, tis->length, tis->size, kCFAllocatorNull
+                                );
 
-        case kCGEventRightMouseDown:
-            set_modifier_mask(MASK_BUTTON2);
-            consumed = dispatch_button_press(timestamp, event_ref, MOUSE_BUTTON2);
-            break;
+                                if (keytxt != NULL) {
+                                    CFLocaleRef locale = CFLocaleCopyCurrent();
+                                    CFStringUppercase(keytxt, locale);
+                                    CFRelease(locale);
+                                    CFRelease(keytxt);
+                                } else {
+                                    // There was an problem creating the CFMutableStringRef.
+                                    tis->length = 0;
+                                }
+                            }
+                        } else {
+                            // Make sure the tis->buffer tis->length is zero if an error occurred.
+                            tis->length = 0;
+                        }
+                    }
 
-        case kCGEventOtherMouseDown:
-            // Extra mouse buttons.
-            if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
-                uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
-
-                // Add support for mouse 4 & 5.
-                if (button == 4) {
-                    set_modifier_mask(MOUSE_BUTTON4);
-                } else if (button == 5) {
-                    set_modifier_mask(MOUSE_BUTTON5);
                 }
-
-                consumed = dispatch_button_press(timestamp, event_ref, button);
             }
-            break;
 
-        case kCGEventLeftMouseUp:
-            unset_modifier_mask(MASK_BUTTON1);
-            consumed = dispatch_button_release(timestamp, event_ref, MOUSE_BUTTON1);
-            break;
-
-        case kCGEventRightMouseUp:
-            unset_modifier_mask(MASK_BUTTON2);
-            consumed = dispatch_button_release(timestamp, event_ref, MOUSE_BUTTON2);
-            break;
-
-        case kCGEventOtherMouseUp:
-            // Extra mouse buttons.
-            if (CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) < UINT16_MAX) {
-                uint16_t button = (uint16_t) CGEventGetIntegerValueField(event_ref, kCGMouseEventButtonNumber) + 1;
-
-                // Add support for mouse 4 & 5.
-                if (button == 4) {
-                    unset_modifier_mask(MOUSE_BUTTON4);
-                } else if (button == 5) {
-                    unset_modifier_mask(MOUSE_BUTTON5);
-                }
-
-                consumed = dispatch_button_press(timestamp, event_ref, button);
+            // Check if the keyboard layout has changed to see if the dead key state needs to be discarded.
+            if (prev_keyboard_layout != NULL && curr_keyboard_layout != NULL && CFEqual(curr_keyboard_layout, prev_keyboard_layout) == false) {
+                deadkey_state = 0x00;
             }
-            break;
+
+            // Release the previous keyboard layout.
+            if (prev_keyboard_layout != NULL) {
+                CFRelease(prev_keyboard_layout);
+                prev_keyboard_layout = NULL;
+            }
+
+            // Set the previous keyboard layout to the current layout.
+            if (curr_keyboard_layout != NULL) {
+                prev_keyboard_layout = curr_keyboard_layout;
+            }
+        }
+        #else
+        CGEventKeyboardGetUnicodeString(tis->event, tis->size, &(tis->length), tis->buffer);
+        #endif
+
+        // The following codes should not be processed because they are invalid.
+        if (tis->length == 1) {
+            switch (tis->buffer[0]) {
+                case 0x01:        // Home
+                case 0x04:        // End
+                case 0x05:        // Help Key
+                case 0x10:        // Function Keys
+                case 0x0B:        // Page Up
+                case 0x0C:        // Page Down
+                case 0x1F:        // Volume Up
+                    tis->length = 0;
+            }
+        }
+    }
+}
+
+UniCharCount event_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
+    tis_keycode_message->event = event_ref;
+    tis_keycode_message->buffer = buffer;
+    tis_keycode_message->size = size;
+    tis_keycode_message->length = 0;
+
+    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
+        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n",
+                    __FUNCTION__, __LINE__);
+            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_keycode_message, &tis_message_to_unicode);
+        }
+        #ifdef USE_APPLICATION_SERVICES
+        else {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
+                    __FUNCTION__, __LINE__);
+
+            // Lock for code dealing with the main runloop.
+            pthread_mutex_lock(&main_runloop_mutex);
+
+            // Check to see if the main runloop is still running.
+            // TODO I would rather this be a check on hook_enable(),
+            // but it makes the usage complicated by requiring a separate
+            // thread for the main runloop and hook registration.
+            CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
+            if (mode != NULL) {
+                CFRelease(mode);
+
+                if (main_runloop_keycode != NULL) {
+                    // This is commented out because tis_keycode_message needs to be in scope so we dont need to use
+                    // the context info object anymore.
+
+                    // The tis_keycode_message is in scope
+                    // Lookup the Unicode representation for this event.
+                    //CFRunLoopSourceContext context = { .version = 0 };
+                    //CFRunLoopSourceGetContext(main_runloop_keycode->source, &context);
+
+                    // Get the run loop context info pointer.
+                    //TISKeycodeMessage *info = (TISKeycodeMessage *) context.info;
+
+                    // Set the event pointer.
+                    //info->event = event_ref;
 
 
-        case kCGEventLeftMouseDragged:
-        case kCGEventRightMouseDragged:
-        case kCGEventOtherMouseDragged:
-            // FIXME The drag flag is confusing.  Use prev x,y to determine click.
-            // Set the mouse dragged flag.
-            set_mouse_dragged(true);
-            consumed = dispatch_mouse_move(timestamp, event_ref);
-            break;
+                    // Signal the custom source and wakeup the main runloop.
+                    CFRunLoopSourceSignal(main_runloop_keycode->source);
+                    CFRunLoopWakeUp(CFRunLoopGetMain());
 
-        case kCGEventMouseMoved:
-            // Set the mouse dragged flag.
-            set_mouse_dragged(false);
-            consumed = dispatch_mouse_move(timestamp, event_ref);
-            break;
-
-
-        case kCGEventScrollWheel:
-            consumed = dispatch_mouse_wheel(timestamp, event_ref);
-            break;
-
-        default:
-            // Check for an old OS X bug where the tap seems to timeout for no reason.
-            // See: http://stackoverflow.com/questions/2969110/cgeventtapcreate-breaks-down-mysteriously-with-key-down-events#2971217
-            if (type == (CGEventType) kCGEventTapDisabledByTimeout) {
-                logger(LOG_LEVEL_WARN, "%s [%u]: CGEventTap timeout!\n",
-                        __FUNCTION__, __LINE__);
-
-                // We need to restart the tap!
-                set_tap_timeout(true);
-                CFRunLoopStop(CFRunLoopGetCurrent());
+                    // Wait for a lock while the main runloop processes they key typed event.
+                    pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
+                } else {
+                     logger(LOG_LEVEL_ERROR, "%s [%u]: main_loop_keycode is null!\n",
+                             __FUNCTION__, __LINE__);
+                 }
             } else {
-                // In theory this *should* never execute.
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled Darwin event: %#X.\n",
-                        __FUNCTION__, __LINE__, (unsigned int) type);
-            }
-            break;
-    }
-
-    CGEventRef result_ref = NULL;
-    if (!consumed) {
-        result_ref = event_ref;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Consuming the current event. (%#X) (%#p)\n",
-                __FUNCTION__, __LINE__, type, event_ref);
-    }
-
-    return result_ref;
-}
-
-int create_event_runloop_info(event_runloop_info **hook) {
-    if (*hook != NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated event_runloop_info pointer!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_FAILURE;
-    }
-
-    // Try and allocate memory for event_runloop_info.
-    *hook = malloc(sizeof(event_runloop_info));
-    if (*hook == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for event_runloop_info structure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_OUT_OF_MEMORY;
-    }
-
-    // Setup the event mask to listen for.
-    CGEventMask event_mask = CGEventMaskBit(kCGEventKeyDown) |
-            CGEventMaskBit(kCGEventKeyUp) |
-            CGEventMaskBit(kCGEventFlagsChanged) |
-
-            CGEventMaskBit(kCGEventLeftMouseDown) |
-            CGEventMaskBit(kCGEventLeftMouseUp) |
-            CGEventMaskBit(kCGEventLeftMouseDragged) |
-
-            CGEventMaskBit(kCGEventRightMouseDown) |
-            CGEventMaskBit(kCGEventRightMouseUp) |
-            CGEventMaskBit(kCGEventRightMouseDragged) |
-
-            CGEventMaskBit(kCGEventOtherMouseDown) |
-            CGEventMaskBit(kCGEventOtherMouseUp) |
-            CGEventMaskBit(kCGEventOtherMouseDragged) |
-
-            CGEventMaskBit(kCGEventMouseMoved) |
-            CGEventMaskBit(kCGEventScrollWheel) |
-
-            // NOTE This event is undocumented and used
-            // for caps-lock release and multi-media keys.
-            CGEventMaskBit(NX_SYSDEFINED);
-
-    // Create the event tap.
-    (*hook)->port = CGEventTapCreate(
-            kCGSessionEventTap,       // kCGHIDEventTap
-            kCGHeadInsertEventTap,    // kCGTailAppendEventTap
-            kCGEventTapOptionDefault, // kCGEventTapOptionListenOnly See https://github.com/kwhat/jnativehook/issues/22
-            event_mask,
-            hook_event_proc,
-            NULL);
-    if ((*hook)->port == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create event port!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_EVENT_PORT;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CGEventTapCreate Successful.\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    // Create the runloop event source from the event tap.
-    (*hook)->source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, (*hook)->port, 0);
-    if ((*hook)->source == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: CFMachPortCreateRunLoopSource failure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFMachPortCreateRunLoopSource successful.\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    // Create run loop observers.
-    (*hook)->observer = CFRunLoopObserverCreate(
-            kCFAllocatorDefault,
-            kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
-            true,
-            0,
-            hook_status_proc,
-            NULL);
-    if ((*hook)->observer == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_OBSERVER;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate successful.\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    // Add the event source and observer to the runloop mode.
-    CFRunLoopAddSource(event_loop, (*hook)->source, kCFRunLoopDefaultMode);
-    CFRunLoopAddObserver(event_loop, (*hook)->observer, kCFRunLoopDefaultMode);
-
-    return UIOHOOK_SUCCESS;
-}
-
-void destroy_event_runloop_info(event_runloop_info **hook) {
-    // FIXME check event_loop for null ?
-
-    if (*hook != NULL) {
-        if ((*hook)->observer != NULL) {
-            if (CFRunLoopContainsObserver(event_loop, (*hook)->observer, kCFRunLoopDefaultMode)) {
-                CFRunLoopRemoveObserver(event_loop, (*hook)->observer, kCFRunLoopDefaultMode);
+                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal main run loop!\n",
+                        __FUNCTION__, __LINE__);
             }
 
-            // Invalidate and free hook observer.
-            CFRunLoopObserverInvalidate((*hook)->observer);
-            CFRelease((*hook)->observer);
-            (*hook)->observer = NULL;
+            // Unlock for code dealing with the main runloop.
+            pthread_mutex_unlock(&main_runloop_mutex);
         }
-
-        if ((*hook)->source != NULL) {
-            if (CFRunLoopContainsSource(event_loop, (*hook)->source, kCFRunLoopDefaultMode)) {
-                CFRunLoopRemoveSource(event_loop, (*hook)->source, kCFRunLoopDefaultMode);
-            }
-
-            // Clean up the event source.
-            CFRelease((*hook)->source);
-            (*hook)->source = NULL;
-        }
-
-        // Stop the CFMachPort from receiving any more messages.
-        CFMachPortInvalidate((*hook)->port);
-        CFRelease((*hook)->port);
-        (*hook)->port = NULL;
-
-        // Free the hook structure.
-        free(*hook);
-        *hook = NULL;
+        #endif
+    } else {
+        // We are already on the main runloop, so no fancy context switching is required required.
+        tis_message_to_unicode(tis_keycode_message);
     }
+
+    return tis_keycode_message->length;
 }
+
 
 #ifdef USE_APPLICATION_SERVICES
+/* Wrapper for tis_message_to_unicode with mutex locking for use with runloop context switching. */
+static void main_runloop_lookup_proc(void *info) {
+    // Lock the msg_port mutex as we enter the main runloop.
+    pthread_mutex_lock(&main_runloop_mutex);
+
+    tis_message_to_unicode(info);
+
+    // Unlock the msg_port mutex to signal to the hook_thread that we have finished on the main runloop.
+    pthread_cond_broadcast(&main_runloop_cond);
+    pthread_mutex_unlock(&main_runloop_mutex);
+}
+
 /* This is the callback for our main_runloop_info.observer. */
 void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
     switch (activity) {
@@ -952,23 +728,6 @@ void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity a
     }
 }
 
-/* Runloop to execute KeyCodeToString on the "Main" runloop due to an undocumented thread safety requirement. */
-static void main_runloop_keycode_proc(void *info) {
-    // Lock the msg_port mutex as we enter the main runloop.
-    pthread_mutex_lock(&main_runloop_mutex);
-
-    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
-    if (data != NULL && data->event != NULL) {
-        // Preform Unicode lookup.
-        data->length = keycode_to_unicode(data->event, data->buffer, sizeof data->buffer);
-    }
-
-    // Unlock the msg_port mutex to signal to the hook_thread that we have
-    // finished on the main runloop.
-    pthread_cond_broadcast(&main_runloop_cond);
-    pthread_mutex_unlock(&main_runloop_mutex);
-}
-
 static int create_main_runloop_info(main_runloop_info **main, CFRunLoopSourceContext *context) {
     if (*main != NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated main_runloop_info pointer!\n",
@@ -977,7 +736,7 @@ static int create_main_runloop_info(main_runloop_info **main, CFRunLoopSourceCon
         return UIOHOOK_FAILURE;
     }
 
-    // Try and allocate memory for event_runloop_info.
+    // Try and allocate memory for main_runloop_info.
     *main = malloc(sizeof(main_runloop_info));
     if (*main == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for main_runloop_info structure!\n",
@@ -1063,19 +822,20 @@ static void destroy_main_runloop_info(main_runloop_info **main) {
 int load_input_helper() {
     #ifdef USE_APPLICATION_SERVICES
     // Start with a fresh dead key state.
-    //curr_deadkey_state = 0;
+    deadkey_state = 0;
     #endif
 
+    // Allocate memory for the TISKeycodeMessage structure
     tis_keycode_message = (TISKeycodeMessage *) calloc(1, sizeof(TISKeycodeMessage));
     if (tis_keycode_message == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TISKeycodeMessage structure!\n",
                 __FUNCTION__, __LINE__);
 
         return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }
 
     // If we are not running on the main runloop, we need to setup a runloop dispatcher.
-    if (!is_runloop_main()) {
+    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
         // Dynamically load dispatch_sync_f to maintain 10.5 compatibility.
         *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
         const char *dlError = dlerror();
@@ -1113,7 +873,7 @@ int load_input_helper() {
                 .hash            = NULL,
                 .schedule        = NULL,
                 .cancel          = NULL,
-                .perform         = main_runloop_keycode_proc
+                .perform         = main_runloop_lookup_proc
             };
 
             int keycode_runloop_status = create_main_runloop_info(&main_runloop_keycode, &main_runloop_keycode_context);
@@ -1130,16 +890,20 @@ int load_input_helper() {
 
 void unload_input_helper() {
     #ifdef USE_APPLICATION_SERVICES
-    pthread_mutex_lock(&main_runloop_mutex);
-    if (!is_runloop_main()) {
-        if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
-            destroy_main_runloop_info(&main_runloop_keycode);
-        }
+    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
+        // TODO Are we using the right mutex type? PTHREAD_MUTEX_DEFAULT?
+        // TODO See: https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutexattr_settype.html
+        // FIXME Need to check for errors on pthread_mutex_
+        pthread_mutex_lock(&main_runloop_mutex);
+        destroy_main_runloop_info(&main_runloop_keycode);
+        pthread_mutex_unlock(&main_runloop_mutex);
     }
-    pthread_mutex_unlock(&main_runloop_mutex);
     #endif
 
-    free(tis_keycode_message);
+    if (tis_keycode_message != NULL) {
+        free(tis_keycode_message);
+        tis_keycode_message = NULL;
+    }
 
     #ifdef USE_APPLICATION_SERVICES
     if (prev_keyboard_layout != NULL) {

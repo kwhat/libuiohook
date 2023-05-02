@@ -38,6 +38,9 @@
 #define TIMER_RESOLUTION_MS 1000000
 #endif
 
+// Required to transport messages between the main runloop and our thread for Unicode look-ups.
+#define KEY_BUFFER_SIZE 4
+
 // Virtual event pointer.
 static uiohook_event uio_event;
 
@@ -50,6 +53,7 @@ static unsigned short click_count = 0;
 static CGEventTimestamp click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 
+/* TODO This code should be safe to run on any thread so why am I running it on the main runloop with dispatch_sync_f_f?
 #ifdef USE_APPKIT
 typedef struct {
     CGEventRef event;
@@ -59,9 +63,8 @@ typedef struct {
 
 // FIXME Why are we not using malloc here?  Move to input_helper
 static TISEventMessage tis_event_message = {};
-static id auto_release_pool;
 #endif
-
+*/
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
@@ -124,16 +127,6 @@ bool dispatch_hook_disabled(uint64_t timestamp) {
     return consumed;
 }
 
-// Wrap keycode_to_unicode with some null checks.
-static void keycode_to_lookup(void *info) {
-    TISKeycodeMessage *data = (TISKeycodeMessage *) info;
-
-    if (data != NULL && data->event != NULL) {
-        // Preform Unicode lookup.
-        data->length = keycode_to_unicode(data->event, data->buffer, KEY_BUFFER_SIZE);
-    }
-}
-
 bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
     bool consumed = false;
 
@@ -160,61 +153,10 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
 
     // If the pressed event was not consumed...
     if (!consumed) {
-        tis_keycode_message->event = event_ref;
-        tis_keycode_message->length = 0;
+        UniChar buffer[KEY_BUFFER_SIZE];
+        UniCharCount length = event_to_unicode(event_ref, buffer, KEY_BUFFER_SIZE);
 
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main()) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n",
-                    __FUNCTION__, __LINE__);
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, tis_keycode_message, &keycode_to_lookup);
-        }
-        #ifdef USE_APPLICATION_SERVICES
-        else if (!is_runloop_main()) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
-                    __FUNCTION__, __LINE__);
-
-            // Lock for code dealing with the main runloop.
-            pthread_mutex_lock(&main_runloop_mutex);
-
-            // Check to see if the main runloop is still running.
-            // TODO I would rather this be a check on hook_enable(),
-            // but it makes the usage complicated by requiring a separate
-            // thread for the main runloop and hook registration.
-            CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
-            if (mode != NULL) {
-                CFRelease(mode);
-
-                // Lookup the Unicode representation for this event.
-                //CFRunLoopSourceContext context = { .version = 0 };
-                //CFRunLoopSourceGetContext(main_runloop_keycode->source, &context);
-
-                // Get the run loop context info pointer.
-                //TISKeycodeMessage *info = (TISKeycodeMessage *) context.info;
-
-                // Set the event pointer.
-                //info->event = event_ref;
-
-
-                // Signal the custom source and wakeup the main runloop.
-                CFRunLoopSourceSignal(main_runloop_keycode->source);
-                CFRunLoopWakeUp(CFRunLoopGetMain());
-
-                // Wait for a lock while the main runloop processes they key typed event.
-                pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
-            } else {
-                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal RunLoop main!\n",
-                        __FUNCTION__, __LINE__);
-            }
-
-            // Unlock for code dealing with the main runloop.
-            pthread_mutex_unlock(&main_runloop_mutex);
-        }
-        #endif
-        else {
-            keycode_to_lookup(tis_keycode_message);
-        }
-
-        for (unsigned int i = 0; i < tis_keycode_message->length; i++) {
+        for (unsigned int i = 0; i < length; i++) {
             // Populate key typed event.
             uio_event.time = timestamp;
             uio_event.reserved = 0x00;
@@ -224,7 +166,7 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
 
             uio_event.data.keyboard.keycode = VC_UNDEFINED;
             uio_event.data.keyboard.rawcode = keycode;
-            uio_event.data.keyboard.keychar = tis_keycode_message->buffer[i];
+            uio_event.data.keyboard.keychar = buffer[i];
 
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Key %#X typed. (%lc)\n",
                     __FUNCTION__, __LINE__,
@@ -267,8 +209,9 @@ bool dispatch_key_release(uint64_t timestamp, CGEventRef event_ref) {
     return consumed;
 }
 
+/* TODO This code should be safe to run on any thread so why am I running it on the main runloop with dispatch_sync_f_f?
 #ifdef USE_APPKIT
-static void obcj_message(void *info) {
+static void objc_message(void *info) {
     TISEventMessage *data = (TISEventMessage *) info;
 
     if (data != NULL && data->event != NULL) {
@@ -282,6 +225,7 @@ static void obcj_message(void *info) {
     }
 }
 #endif
+*/
 
 bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
     bool consumed = false;
@@ -291,65 +235,77 @@ bool dispatch_system_key(uint64_t timestamp, CGEventRef event_ref) {
         UInt32 data1 = 0;
 
         #ifdef USE_APPKIT
+        /* TODO This code should be safe to run on any thread so why am I running it on the main runloop with dispatch_sync_f_f?
         tis_event_message.event = event_ref;
         tis_event_message.subtype = 0;
         tis_event_message.data1 = 0;
 
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL && !is_runloop_main()) {
+        bool is_runloop_main = CFEqual(event_loop, CFRunLoopGetMain());
+        if (!is_runloop_main && dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for system key events.\n",
                     __FUNCTION__, __LINE__);
 
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, &tis_event_message, &obcj_message);
+            (*dispatch_sync_f_f)(dispatch_main_queue_s, &tis_event_message, &objc_message);
             subtype = tis_event_message.subtype;
             data1 = tis_event_message.data1;
-        } else if (is_runloop_main()) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using obcj_message for system key events.\n",
+        } else if (is_runloop_main) {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using objc_message for system key events.\n",
                     __FUNCTION__, __LINE__);
 
-            obcj_message(&tis_event_message);
+            objc_message(&tis_event_message);
             subtype = tis_event_message.subtype;
             data1 = tis_event_message.data1;
-        } else {
-        #endif
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFDataGetBytes for system key events.\n",
+        */
+
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Using objc_message for system key events.\n",
+                __FUNCTION__, __LINE__);
+
+        // Contributed by Iván Munsuri Ibáñez <munsuri@gmail.com> and Alex <universailp@web.de>
+        id (*eventWithCGEvent)(id, SEL, CGEventRef) = (id (*)(id, SEL, CGEventRef)) objc_msgSend;
+        id event_data = eventWithCGEvent((id) objc_getClass("NSEvent"), sel_registerName("eventWithCGEvent:"), event_ref);
+
+        UInt32 (*eventWithoutCGEvent)(id, SEL) = (UInt32 (*)(id, SEL)) objc_msgSend;
+        subtype = eventWithoutCGEvent(event_data, sel_registerName("subtype"));
+        data1 = eventWithoutCGEvent(event_data, sel_registerName("data1"));
+
+        #else
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFDataGetBytes for system key events.\n",
+                __FUNCTION__, __LINE__);
+
+        // If we are not using ObjC, the only way I've found to access CGEvent->subtype and CGEvent>data1 is to
+        // serialize the event and read the byte offsets.  I am not sure why, but CGEventCreateData appears to use
+        // big-endian byte ordering even though all current apple architectures are little-endian.
+        CFDataRef data_ref = CGEventCreateData(kCFAllocatorDefault, event_ref);
+        if (data_ref == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CGEventRef copy!\n",
                     __FUNCTION__, __LINE__);
-
-            // If we are not using ObjC, the only way I've found to access CGEvent->subtype and CGEvent>data1 is to
-            // serialize the event and read the byte offsets.  I am not sure why, but CGEventCreateData appears to use
-            // big-endian byte ordering even though all current apple architectures are little-endian.
-            CFDataRef data_ref = CGEventCreateData(kCFAllocatorDefault, event_ref);
-            if (data_ref == NULL) {
-                logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CGEventRef copy!\n",
-                        __FUNCTION__, __LINE__);
-                return false;
-            }
-
-            if (CFDataGetLength(data_ref) < 132)
-            {
-                CFRelease(data_ref);
-                logger(LOG_LEVEL_ERROR, "%s [%u]: Insufficient CFData range size!\n",
-                        __FUNCTION__, __LINE__);
-                return false;
-            }
-
-            UInt8 *buffer = malloc(4);
-            if (buffer == NULL) {
-                CFRelease(data_ref);
-                logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFData range buffer!\n",
-                        __FUNCTION__, __LINE__);
-                return false;
-            }
-
-            CFDataGetBytes(data_ref, CFRangeMake(120, 4), buffer);
-            subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
-
-            CFDataGetBytes(data_ref, CFRangeMake(128, 4), buffer);
-            data1 = CFSwapInt32BigToHost(*((UInt32 *) buffer));
-
-            free(buffer);
-            CFRelease(data_ref);
-        #ifdef USE_APPKIT
+            return false;
         }
+
+        if (CFDataGetLength(data_ref) < 132)
+        {
+            CFRelease(data_ref);
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Insufficient CFData range size!\n",
+                    __FUNCTION__, __LINE__);
+            return false;
+        }
+
+        UInt8 *buffer = malloc(4);
+        if (buffer == NULL) {
+            CFRelease(data_ref);
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFData range buffer!\n",
+                    __FUNCTION__, __LINE__);
+            return false;
+        }
+
+        CFDataGetBytes(data_ref, CFRangeMake(120, 4), buffer);
+        subtype = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+
+        CFDataGetBytes(data_ref, CFRangeMake(128, 4), buffer);
+        data1 = CFSwapInt32BigToHost(*((UInt32 *) buffer));
+
+        free(buffer);
+        CFRelease(data_ref);
         #endif
 
         if (subtype == 8) {

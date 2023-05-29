@@ -107,41 +107,6 @@ static void initialize_modifiers() {
     if (GetKeyState(VK_SCROLL)   < 0) { set_modifier_mask(MASK_SCROLL_LOCK); }
 }
 
-
-/* Retrieves the mouse wheel scroll type. This function cannot be included as
- * part of the input_helper.h due to platform specific calling restrictions.
- */
-static uint8_t get_scroll_wheel_type() {
-    uint8_t value;
-    UINT wheel_type;
-
-    SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_type, 0);
-    if (wheel_type == WHEEL_PAGESCROLL) {
-        value = WHEEL_BLOCK_SCROLL;
-    } else {
-        value = WHEEL_UNIT_SCROLL;
-    }
-
-    return value;
-}
-
-/* Retrieves the mouse wheel scroll amount. This function cannot be included as
- * part of the input_helper.h due to platform specific calling restrictions.
- */
-static uint16_t get_scroll_wheel_amount() {
-    uint16_t value;
-    UINT wheel_amount;
-
-    SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &wheel_amount, 0);
-    if (wheel_amount == WHEEL_PAGESCROLL) {
-        value = 1;
-    } else {
-        value = (uint16_t) wheel_amount;
-    }
-
-    return value;
-}
-
 void unregister_running_hooks() {
     // Stop the event hook and any timer still running.
     if (win_event_hhook != NULL) {
@@ -476,32 +441,40 @@ static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
     event.data.wheel.x = (int16_t) mshook->pt.x;
     event.data.wheel.y = (int16_t) mshook->pt.y;
 
-    event.data.wheel.type = get_scroll_wheel_type();
-    event.data.wheel.amount = get_scroll_wheel_amount();
+    event.data.wheel.rotation = get_scroll_wheel_rotation(mshook->mouseData, direction);
 
-    /* Delta HIWORD(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
-    event.data.wheel.rotation = (int16_t) HIWORD(mshook->mouseData) / WHEEL_DELTA;
-
-    // Vertical direction needs to be inverted on Windows to conform with other platforms.
+    UINT  uiAction = SPI_GETWHEELSCROLLCHARS;
     if (direction == WHEEL_VERTICAL_DIRECTION) {
-        event.data.wheel.rotation *= -1;
+        uiAction = SPI_GETWHEELSCROLLLINES;
     }
 
-    // Set the direction based on what event was received.
-    event.data.wheel.direction = direction;
+    UINT wheel_amount = 3;
+    if (SystemParametersInfo(uiAction, 0, &wheel_amount, 0)) {
+        if (wheel_amount == WHEEL_PAGESCROLL) {
+            event.data.wheel.type = WHEEL_BLOCK_SCROLL;
+            event.data.wheel.amount = 1;
+        } else {
+            event.data.wheel.type = WHEEL_UNIT_SCROLL;
+            event.data.wheel.amount = (uint16_t) wheel_amount;
+        }
 
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
-            __FUNCTION__, __LINE__, event.data.wheel.type,
-            event.data.wheel.amount * event.data.wheel.rotation,
-            event.data.wheel.direction,
-            event.data.wheel.x, event.data.wheel.y);
+        // Set the direction based on what event was received.
+        event.data.wheel.direction = direction;
 
-    // Fire mouse wheel event.
-    dispatch_event(&event);
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+                __FUNCTION__, __LINE__,
+                event.data.wheel.type,
+                event.data.wheel.amount * event.data.wheel.rotation,
+                event.data.wheel.direction,
+                event.data.wheel.x, event.data.wheel.y);
+
+        // Fire mouse wheel event.
+        dispatch_event(&event);
+    } else {
+        event.reserved = 0x01;
+        logger(LOG_LEVEL_WARN, "%s [%u]: SystemParametersInfo() failed, event will be ignored.\n",
+                __FUNCTION__, __LINE__);
+    }
 }
 
 LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) {

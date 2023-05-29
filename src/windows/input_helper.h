@@ -134,6 +134,9 @@ extern unsigned short keycode_to_scancode(DWORD vk_code, DWORD flags);
 
 extern DWORD scancode_to_keycode(unsigned short scancode);
 
+/* Help track how much rotation should be applied to a scroll wheel event. */
+extern int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction);
+
 // Initialize the locale list and wow64 pointer size.
 extern int load_input_helper();
 

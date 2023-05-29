@@ -44,6 +44,24 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_d
     dispatch_data = user_data;
 }
 
+#ifdef USE_EPOCH_TIME
+static uint64_t get_unix_timestamp() {
+    FILETIME system_time;
+
+    // Get the local system time in UTC.
+    GetSystemTimeAsFileTime(&system_time);
+
+    // Convert the local system time to a Unix epoch in MS.
+    // milliseconds = 100-nanoseconds / 10000
+    uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
+    // Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
+    timestamp -= 11644473600000;
+
+    return timestamp;
+}
+#endif
+
 // Send out an event if a dispatcher was set.
 static void dispatch_event(uiohook_event *const event) {
     if (dispatch != NULL) {

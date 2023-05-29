@@ -145,10 +145,7 @@ extern void unset_modifier_mask(uint16_t mask);
 /* Get the current native modifier mask state. */
 extern uint16_t get_modifiers();
 
-/* Help track how much rotation should be applied to a scroll wheel event. */
-extern int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction);
-
-// Initialize the locale list and wow64 pointer size.
+/* Initialize the locale list and wow64 pointer size. */
 extern int load_input_helper();
 
 /* Cleanup the initialized locales. */

@@ -217,15 +217,8 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
     bool consumed = false;
 
     // Reset the click count and previous button.
-    click.count = 1;
+    click.count = 0;
     click.button = MOUSE_NOBUTTON;
-
-    /* Scroll wheel release events.
-     * Scroll type: WHEEL_UNIT_SCROLL
-     * Scroll amount: 3 unit increments per notch
-     * Units to scroll: 3 unit increments
-     * Vertical unit increment: 15 pixels
-     */
 
     // Populate mouse wheel event.
     uio_event.time = x_event->serial;
@@ -234,7 +227,6 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
     uio_event.type = EVENT_MOUSE_WHEEL;
     uio_event.mask = get_modifiers();
 
-    uio_event.data.wheel.clicks = click.count;
     uio_event.data.wheel.x = x_event->x_root;
     uio_event.data.wheel.y = x_event->y_root;
 
@@ -251,26 +243,21 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
     }
     #endif
 
-    /* X11 does not have an API call for acquiring the mouse scroll type.  This
-     * maybe part of the XInput2 (XI2) extention but I will wont know until it
-     * is available on my platform.  For the time being we will just use the
-     * unit scroll value.
-     */
+    /* X11 does not have an API call for acquiring the mouse scroll type. This maybe part of the XInput2 (XI2)
+     * extension but I will wont know until it is available on my platform. For the time being we will just use the
+     * unit scroll value. */
     uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
 
-    /* Some scroll wheel properties are available via the new XInput2 (XI2)
-     * extension.  Unfortunately the extension is not available on my
-     * development platform at this time.  For the time being we will just
-     * use the Windows default value of 3.
-     */
-    uio_event.data.wheel.amount = 3;
-
-    if (x_event->button == WheelUp || x_event->button == WheelLeft) {
+    /* Some scroll wheel properties are available via the new XInput2 (XI2) extension. Unfortunately the extension is
+     * not available on my development platform at this time. For the time being we will just use the Windows default
+     * value of 3. */
+    uio_event.data.wheel.delta = 100;
+    if (x_event->button == WheelDown || x_event->button == WheelLeft) {
         // Wheel Rotated Up and Away.
-        uio_event.data.wheel.rotation = -1;
-    } else { // event.button == WheelDown || event.button == WheelRight
+        uio_event.data.wheel.rotation = -3 * uio_event.data.wheel.delta;
+    } else { // event.button == WheelUp || event.button == WheelRight
         // Wheel Rotated Down and Towards.
-        uio_event.data.wheel.rotation = 1;
+        uio_event.data.wheel.rotation = 3 * uio_event.data.wheel.delta;
     }
 
     if (x_event->button == WheelUp || x_event->button == WheelDown) {
@@ -281,10 +268,10 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
         uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
     }
 
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
-            __FUNCTION__, __LINE__, uio_event.data.wheel.type,
-            uio_event.data.wheel.amount * uio_event.data.wheel.rotation,
-            uio_event.data.wheel.direction,
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
+            __FUNCTION__, __LINE__,
+            uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
+            uio_event.data.wheel.type, uio_event.data.wheel.direction,
             uio_event.data.wheel.x, uio_event.data.wheel.y);
 
     // Fire mouse wheel event.

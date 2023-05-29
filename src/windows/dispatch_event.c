@@ -46,17 +46,19 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_d
 
 #ifdef USE_EPOCH_TIME
 static uint64_t get_unix_timestamp() {
-	// Get the local system time in UTC.
-	GetSystemTimeAsFileTime(&system_time);
+    FILETIME system_time;
 
-	// Convert the local system time to a Unix epoch in MS.
-	// milliseconds = 100-nanoseconds / 10000
-	uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+    // Get the local system time in UTC.
+    GetSystemTimeAsFileTime(&system_time);
 
-	// Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
+    // Convert the local system time to a Unix epoch in MS.
+    // milliseconds = 100-nanoseconds / 10000
+    uint64_t timestamp = (((uint64_t) system_time.dwHighDateTime << 32) | system_time.dwLowDateTime) / 10000;
+
+    // Convert Windows epoch to Unix epoch. (1970 - 1601 in milliseconds)
     timestamp -= 11644473600000;
 
-	return timestamp;
+    return timestamp;
 }
 #endif
 
@@ -420,7 +422,7 @@ bool dispatch_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 
     // Track the number of clicks.
     // Reset the click count and previous button.
-    click_count = 1;
+    click_count = 0;
     click_button = MOUSE_NOBUTTON;
 
     // Populate mouse wheel event.
@@ -430,35 +432,46 @@ bool dispatch_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
     uio_event.type = EVENT_MOUSE_WHEEL;
     uio_event.mask = get_modifiers();
 
-    uio_event.data.wheel.clicks = click_count;
     uio_event.data.wheel.x = (int16_t) mshook->pt.x;
     uio_event.data.wheel.y = (int16_t) mshook->pt.y;
 
-    uio_event.data.wheel.rotation = get_scroll_wheel_rotation(mshook->mouseData, direction);
+    /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
+     * A positive value indicates that the wheel was rotated
+     * forward, away from the user; a negative value indicates that
+     * the wheel was rotated backward, toward the user. One wheel
+     * click is defined as WHEEL_DELTA, which is 120. */
+    uio_event.data.wheel.rotation = (int16_t) GET_WHEEL_DELTA_WPARAM(mshook->mouseData);
+    uio_event.data.wheel.delta = WHEEL_DELTA;
 
-    UINT uiAction = SPI_GETWHEELSCROLLCHARS;
-    if (direction == WHEEL_VERTICAL_DIRECTION) {
-        uiAction = SPI_GETWHEELSCROLLLINES;
+    UINT uiAction = SPI_GETWHEELSCROLLLINES;
+    if (direction == WHEEL_HORIZONTAL_DIRECTION) {
+        uiAction = SPI_GETWHEELSCROLLCHARS;
     }
 
     UINT wheel_amount = 3;
     if (SystemParametersInfo(uiAction, 0, &wheel_amount, 0)) {
         if (wheel_amount == WHEEL_PAGESCROLL) {
+            /* If this number is WHEEL_PAGESCROLL, a wheel roll should be interpreted as clicking once in the page
+             * down or page up regions of the scroll bar. */
+
             uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
-            uio_event.data.wheel.amount = 1;
+            uio_event.data.wheel.rotation *= 1;
         } else {
+            /* If this number is 0, no scrolling should occur.
+             * If the number of lines to scroll is greater than the number of lines viewable, the scroll operation
+             * should also be interpreted as a page down or page up operation. */
+
             uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
-            uio_event.data.wheel.amount = (uint16_t) wheel_amount;
+            uio_event.data.wheel.rotation *= wheel_amount;
         }
 
         // Set the direction based on what event was received.
         uio_event.data.wheel.direction = direction;
-        
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel type %u, rotated %i units in the %u direction at %u, %u.\n",
+
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
                 __FUNCTION__, __LINE__,
-                uio_event.data.wheel.type,
-                uio_event.data.wheel.amount * uio_event.data.wheel.rotation,
-                uio_event.data.wheel.direction,
+                uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
+                uio_event.data.wheel.type, uio_event.data.wheel.direction,
                 uio_event.data.wheel.x, uio_event.data.wheel.y);
 
         // Fire mouse wheel event.

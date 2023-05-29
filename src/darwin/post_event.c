@@ -241,7 +241,7 @@ static int post_mouse_wheel_event(uiohook_event * const event, CGEventSourceRef 
         kCGScrollEventUnitLine,
         // TODO Currently only support 1 wheel axis.
         (CGWheelCount) 1, // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
-        event->data.wheel.amount * event->data.wheel.rotation
+        event->data.wheel.rotation // TODO Is this value correct? Do we need PPL?
     );
 
     if (cg_event == NULL) {

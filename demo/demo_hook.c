@@ -61,7 +61,7 @@ void dispatch_proc(uiohook_event * const event, void *user_data) {
     size_t length = snprintf(buffer, sizeof(buffer), 
             "id=%i,when=%" PRIu64 ",mask=0x%X", 
             event->type, event->time, event->mask);
-    
+
     switch (event->type) {
         case EVENT_KEY_PRESSED:
             // If the escape key is pressed, naturally terminate the program.
@@ -107,24 +107,26 @@ void dispatch_proc(uiohook_event * const event, void *user_data) {
         case EVENT_MOUSE_CLICKED:
         case EVENT_MOUSE_MOVED:
         case EVENT_MOUSE_DRAGGED:
-            snprintf(buffer + length, sizeof(buffer) - length, 
+            snprintf(buffer + length, sizeof(buffer) - length,
                 ",x=%i,y=%i,button=%i,clicks=%i",
                 event->data.mouse.x, event->data.mouse.y,
                 event->data.mouse.button, event->data.mouse.clicks);
             break;
 
         case EVENT_MOUSE_WHEEL:
-            snprintf(buffer + length, sizeof(buffer) - length, 
-                ",type=%i,amount=%i,rotation=%i",
-                event->data.wheel.type, event->data.wheel.amount,
-                event->data.wheel.rotation);
+            snprintf(buffer + length, sizeof(buffer) - length,
+                ",type=%u,rotation=%i,delta=%u,direction=%u",
+                event->data.wheel.type,
+                event->data.wheel.rotation,
+                event->data.wheel.delta,
+                event->data.wheel.direction);
             break;
 
         default:
             break;
     }
 
-    fprintf(stdout, "%s\n",     buffer);
+    fprintf(stdout, "%s\n", buffer);
 }
 
 int main() {

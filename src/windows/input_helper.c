@@ -364,31 +364,6 @@ uint16_t get_modifiers() {
     return modifier_mask;
 }
 
-/* Track the amount of vertical and horizontal rotation between "clicks."
- * This is between mouse wheel delta.  */
-static int16_t v_rotation, h_rotation;
-
-int16_t get_scroll_wheel_rotation(DWORD data, uint8_t direction) {
-    int16_t value;
-
-    /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
-    if (direction == WHEEL_VERTICAL_DIRECTION) {
-        v_rotation += (int16_t) GET_WHEEL_DELTA_WPARAM(data);
-        // Vertical direction needs to be inverted on Windows to conform with other platforms.
-        value = (int16_t) v_rotation / (-1 * WHEEL_DELTA);
-        v_rotation %= WHEEL_DELTA;
-    } else {
-        h_rotation += (int16_t) GET_WHEEL_DELTA_WPARAM(data);
-        value = (int16_t) h_rotation / WHEEL_DELTA;
-        h_rotation %= WHEEL_DELTA;
-    }
-
-    return value;
-}
 
 /***********************************************************************
  * The following code is based on code provided by Marc-André Moreau
@@ -882,9 +857,6 @@ int load_input_helper() {
         ptr_padding = sizeof(void *);
     }
     #endif
-
-    v_rotation = 0;
-    h_rotation = 0;
 
     int count = refresh_locale_list();
 

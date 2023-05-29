@@ -185,7 +185,7 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
             input->mi.dwFlags = MOUSEEVENTF_WHEEL;
 
             // type, amount and rotation?
-            input->mi.mouseData = event->data.wheel.amount * event->data.wheel.rotation * WHEEL_DELTA;
+            input->mi.mouseData = event->data.wheel.rotation;
             break;
 
         case EVENT_MOUSE_DRAGGED:

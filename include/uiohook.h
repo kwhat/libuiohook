@@ -106,12 +106,11 @@ typedef struct _mouse_event_data {
   mouse_clicked_event_data;
 
 typedef struct _mouse_wheel_event_data {
-    uint16_t clicks;
     int16_t x;
     int16_t y;
     uint8_t type;
-    uint16_t amount;
     int16_t rotation;
+    uint16_t delta;
     uint8_t direction;
 } mouse_wheel_event_data;
 
@@ -465,8 +464,8 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 #define MOUSE_BUTTON4                            4    // Extra Mouse Button
 #define MOUSE_BUTTON5                            5    // Extra Mouse Button
 
-#define WHEEL_UNIT_SCROLL                        1
-#define WHEEL_BLOCK_SCROLL                       2
+#define WHEEL_UNIT_SCROLL                        1    // Scroll by line
+#define WHEEL_BLOCK_SCROLL                       2    // Scroll by page
 
 #define WHEEL_VERTICAL_DIRECTION                 3
 #define WHEEL_HORIZONTAL_DIRECTION               4

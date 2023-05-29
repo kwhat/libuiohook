@@ -133,8 +133,8 @@ int main() {
 
     event->data.wheel.x = 675;
     event->data.wheel.y = 675;
-    event->data.wheel.amount = 3;
-    event->data.wheel.rotation = 1;
+    event->data.wheel.rotation = 300;
+    event->data.wheel.delta = 100;
     hook_post_event(event);
     //*/
 

@@ -45,7 +45,7 @@ typedef struct _screen_info {
  * http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
  */
 static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
-     int width  = lprcMonitor->right - lprcMonitor->left;
+    int width  = lprcMonitor->right - lprcMonitor->left;
     int height = lprcMonitor->bottom - lprcMonitor->top;
     int origin_x = lprcMonitor->left;
     int origin_y = lprcMonitor->top;
@@ -53,23 +53,25 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
     if (width > 0 && height > 0) {
         screen_info *screens = (screen_info *) dwData;
 
+        int current_screen = screens->count++;
+
         if (screens->data == NULL) {
             screens->data = (screen_data *) malloc(sizeof(screen_data));
         } else {
             screens->data = (screen_data *) realloc(screens->data, sizeof(screen_data) * screens->count);
         }
 
-        screens->data[screens->count++] = (screen_data) {
-                // Should monitor count start @ zero? Currently it starts at 1.
-                .number = screens->count,
-                .x = origin_x,
-                .y = origin_y,
-                .width = width,
-                .height = height
-            };
+        screens->data[current_screen] = (screen_data) {
+            // Should monitor count start @ zero? Currently it starts at 1.
+            .number = screens->count,
+            .x = origin_x,
+            .y = origin_y,
+            .width = width,
+            .height = height
+        };
 
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
-                    __FUNCTION__, __LINE__, screens->count, width, height, origin_x, origin_y);
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
+                __FUNCTION__, __LINE__, screens->count, width, height, origin_x, origin_y);
     }
 
     return TRUE;

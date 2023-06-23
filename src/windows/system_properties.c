@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2022 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify

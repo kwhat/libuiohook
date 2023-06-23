@@ -1138,7 +1138,7 @@ static int create_event_runloop_info(event_runloop_info **hook) {
     }
 
     // Try and allocate memory for event_runloop_info.
-    *hook = malloc(sizeof(event_runloop_info));
+    *hook = calloc(1, sizeof(event_runloop_info));
     if (*hook == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for event_runloop_info structure!\n",
                 __FUNCTION__, __LINE__);
@@ -1250,10 +1250,12 @@ static void destroy_event_runloop_info(event_runloop_info **hook) {
             (*hook)->source = NULL;
         }
 
-        // Stop the CFMachPort from receiving any more messages.
-        CFMachPortInvalidate((*hook)->port);
-        CFRelease((*hook)->port);
-        (*hook)->port = NULL;
+        if ((*hook)->port != NULL) {
+            // Stop the CFMachPort from receiving any more messages.
+            CFMachPortInvalidate((*hook)->port);
+            CFRelease((*hook)->port);
+            (*hook)->port = NULL;
+        }
 
         // Free the hook structure.
         free(*hook);

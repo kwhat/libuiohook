@@ -70,14 +70,12 @@ bool dispatch_hook_enabled(uint64_t timestamp) {
 
     // Populate the hook start event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_HOOK_ENABLED;
     uio_event.mask = 0x00;
 
     // Fire the hook start event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -87,14 +85,12 @@ bool dispatch_hook_disabled(uint64_t timestamp) {
 
     // Populate the hook stop event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_HOOK_DISABLED;
     uio_event.mask = 0x00;
 
     // Fire the hook stop event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -124,10 +120,11 @@ bool dispatch_key_press(uint64_t timestamp, XKeyPressedEvent * const x_event) {
 
     // Populate key pressed event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_KEY_PRESSED;
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.keyboard.keycode = uiocode;
     uio_event.data.keyboard.rawcode = keysym;
@@ -139,17 +136,18 @@ bool dispatch_key_press(uint64_t timestamp, XKeyPressedEvent * const x_event) {
 
     // Fire key pressed event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     // If the pressed event was not consumed and we got a char in the buffer.
     if (!consumed) {
         for (unsigned int i = 0; i < count; i++) {
             // Populate key typed event.
             uio_event.time = x_event->serial;
-            uio_event.reserved = 0x00;
-
             uio_event.type = EVENT_KEY_TYPED;
             uio_event.mask = get_modifiers();
+            if (x_event->send_event) {
+                uio_event.mask |= MASK_EMULATED;
+            }
 
             uio_event.data.keyboard.keycode = VC_UNDEFINED;
             uio_event.data.keyboard.rawcode = keysym;
@@ -162,7 +160,7 @@ bool dispatch_key_press(uint64_t timestamp, XKeyPressedEvent * const x_event) {
 
             // Fire key typed event.
             dispatch_event(&uio_event);
-            consumed = uio_event.reserved & 0x01;
+            consumed = uio_event.mask & MASK_CONSUMED;
         }
     }
 
@@ -193,10 +191,11 @@ bool dispatch_key_release(uint64_t timestamp, XKeyReleasedEvent * const x_event)
 
     // Populate key released event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_KEY_RELEASED;
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.keyboard.keycode = uiocode;
     uio_event.data.keyboard.rawcode = keysym;
@@ -208,7 +207,7 @@ bool dispatch_key_release(uint64_t timestamp, XKeyReleasedEvent * const x_event)
 
     // Fire key released event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -222,10 +221,11 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
 
     // Populate mouse wheel event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_MOUSE_WHEEL;
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.wheel.x = x_event->x_root;
     uio_event.data.wheel.y = x_event->y_root;
@@ -276,7 +276,7 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
 
     // Fire mouse wheel event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -341,10 +341,11 @@ static bool dispatch_mouse_button_pressed(XButtonPressedEvent * const x_event) {
 
     // Populate mouse pressed event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_MOUSE_PRESSED;
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.mouse.button = x_event->button;
     uio_event.data.mouse.clicks = click.count;
@@ -372,7 +373,7 @@ static bool dispatch_mouse_button_pressed(XButtonPressedEvent * const x_event) {
 
     // Fire mouse pressed event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -438,10 +439,11 @@ static bool dispatch_mouse_button_released(XButtonReleasedEvent * const x_event)
 
     // Populate mouse released event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_MOUSE_RELEASED;
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.mouse.button = x_event->button;
     uio_event.data.mouse.clicks = click.count;
@@ -468,7 +470,7 @@ static bool dispatch_mouse_button_released(XButtonReleasedEvent * const x_event)
 
     // Fire mouse released event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -478,10 +480,11 @@ static bool dispatch_mouse_button_clicked(XButtonEvent * const x_event) {
 
     // Populate mouse clicked event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_MOUSE_CLICKED;
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.mouse.button = x_event->button;
     uio_event.data.mouse.clicks = click.count;
@@ -508,7 +511,7 @@ static bool dispatch_mouse_button_clicked(XButtonEvent * const x_event) {
 
     // Fire mouse clicked event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -553,9 +556,10 @@ bool dispatch_mouse_move(uint64_t timestamp, XMotionEvent * const x_event) {
 
     // Populate mouse move event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
     uio_event.mask = get_modifiers();
+    if (x_event->send_event) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     // Check the upper half of virtual modifiers for non-zero values and set the mouse
     // dragged flag.  The last 3 bits are reserved for lock masks.
@@ -593,7 +597,7 @@ bool dispatch_mouse_move(uint64_t timestamp, XMotionEvent * const x_event) {
 
     // Fire mouse move event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_EMULATED;
 
     return consumed;
 }

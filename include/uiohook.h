@@ -117,8 +117,7 @@ typedef struct _mouse_wheel_event_data {
 typedef struct _uiohook_event {
     event_type type;
     uint64_t time;
-    uint16_t mask;
-    uint16_t reserved;
+    uint32_t mask;
     union {
         keyboard_event_data keyboard;
         mouse_event_data mouse;
@@ -453,6 +452,9 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 #define MASK_NUM_LOCK                            1 << 13
 #define MASK_CAPS_LOCK                           1 << 14
 #define MASK_SCROLL_LOCK                         1 << 15
+
+#define MASK_EMULATED                            1 << 30
+#define MASK_CONSUMED                            1 << 31
 /* End Virtual Modifier Masks */
 
 

@@ -74,14 +74,12 @@ bool dispatch_hook_enabled(uint64_t timestamp) {
 
     // Populate the hook start event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_HOOK_ENABLED;
     uio_event.mask = 0x00;
 
     // Fire the hook start event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -91,8 +89,6 @@ bool dispatch_hook_disabled(uint64_t timestamp) {
 
     // Populate the hook stop event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_HOOK_DISABLED;
     uio_event.mask = 0x00;
 
@@ -101,7 +97,7 @@ bool dispatch_hook_disabled(uint64_t timestamp) {
 
     // Deinitialize native input helper functions.
     unload_input_helper();
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -113,10 +109,11 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
 
     // Populate key pressed event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_KEY_PRESSED;
     uio_event.mask = get_modifiers();
+    if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.keyboard.keycode = keycode_to_uiocode(keycode);
     uio_event.data.keyboard.rawcode = keycode;
@@ -128,7 +125,7 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
 
     // Fire key pressed event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     // If the pressed event was not consumed...
     if (!consumed) {
@@ -138,10 +135,11 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
         for (unsigned int i = 0; i < length; i++) {
             // Populate key typed event.
             uio_event.time = timestamp;
-            uio_event.reserved = 0x00;
-
             uio_event.type = EVENT_KEY_TYPED;
             uio_event.mask = get_modifiers();
+            if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+                uio_event.mask |= MASK_EMULATED;
+            }
 
             uio_event.data.keyboard.keycode = VC_UNDEFINED;
             uio_event.data.keyboard.rawcode = keycode;
@@ -154,7 +152,7 @@ bool dispatch_key_press(uint64_t timestamp, CGEventRef event_ref) {
 
             // Populate key typed event.
             dispatch_event(&uio_event);
-            consumed = uio_event.reserved & 0x01;
+            consumed = uio_event.mask & MASK_CONSUMED;
         }
     }
 
@@ -168,10 +166,11 @@ bool dispatch_key_release(uint64_t timestamp, CGEventRef event_ref) {
 
     // Populate key released event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_KEY_RELEASED;
     uio_event.mask = get_modifiers();
+    if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.keyboard.keycode = keycode_to_uiocode(keycode);
     uio_event.data.keyboard.rawcode = keycode;
@@ -183,7 +182,7 @@ bool dispatch_key_release(uint64_t timestamp, CGEventRef event_ref) {
 
     // Fire key released event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -466,10 +465,11 @@ bool dispatch_button_press(uint64_t timestamp, CGEventRef event_ref, uint16_t bu
 
     // Populate mouse pressed event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_MOUSE_PRESSED;
     uio_event.mask = get_modifiers();
+    if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
@@ -483,7 +483,7 @@ bool dispatch_button_press(uint64_t timestamp, CGEventRef event_ref, uint16_t bu
 
     // Fire mouse pressed event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -495,10 +495,11 @@ bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
 
     // Populate mouse released event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     uio_event.type = EVENT_MOUSE_RELEASED;
     uio_event.mask = get_modifiers();
+    if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
@@ -512,16 +513,17 @@ bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
 
     // Fire mouse released event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     // If the pressed event was not consumed...
-    if (uio_event.reserved ^ 0x01 && !is_mouse_dragged()) {
+    if (!consumed && !is_mouse_dragged()) {
         // Populate mouse clicked event.
         uio_event.time = timestamp;
-        uio_event.reserved = 0x00;
-
         uio_event.type = EVENT_MOUSE_CLICKED;
         uio_event.mask = get_modifiers();
+        if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+            uio_event.mask |= MASK_EMULATED;
+        }
 
         uio_event.data.mouse.button = button;
         uio_event.data.mouse.clicks = click_count;
@@ -535,7 +537,7 @@ bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
 
         // Fire mouse clicked event.
         dispatch_event(&uio_event);
-        consumed = uio_event.reserved & 0x01; // TODO Should we track this flag for consumed events?
+        consumed = uio_event.mask & MASK_CONSUMED;
     }
 
     // Reset the number of clicks.
@@ -559,8 +561,6 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
 
     // Populate mouse motion event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
     if (is_mouse_dragged()) {
         uio_event.type = EVENT_MOUSE_DRAGGED;
     }
@@ -568,6 +568,9 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
         uio_event.type = EVENT_MOUSE_MOVED;
     }
     uio_event.mask = get_modifiers();
+    if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+        uio_event.mask |= MASK_EMULATED;
+    }
 
     uio_event.data.mouse.button = MOUSE_NOBUTTON;
     uio_event.data.mouse.clicks = click_count;
@@ -580,14 +583,14 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
 
     // Fire mouse motion event.
     dispatch_event(&uio_event);
-    consumed = uio_event.reserved & 0x01;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
 
 bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
     bool consumed = false;
-    
+
     // Reset the click count and previous button.
     click_count = 0;
     click_button = MOUSE_NOBUTTON;
@@ -600,10 +603,11 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
 
         // Populate mouse wheel event.
         uio_event.time = timestamp;
-        uio_event.reserved = 0x00;
-
         uio_event.type = EVENT_MOUSE_WHEEL;
         uio_event.mask = get_modifiers();
+        if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
+            uio_event.mask |= MASK_EMULATED;
+        }
 
         uio_event.data.wheel.x = event_point.x;
         uio_event.data.wheel.y = event_point.y;
@@ -662,7 +666,7 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
 
         // Fire mouse wheel event.
         dispatch_event(&uio_event);
-        consumed = uio_event.reserved & 0x01;
+        consumed = uio_event.mask & MASK_CONSUMED;
     }
 
     return consumed;

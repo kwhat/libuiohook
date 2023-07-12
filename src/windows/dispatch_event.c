@@ -85,7 +85,7 @@ bool dispatch_hook_enable(uint64_t timestamp) {
 
     // Fire the hook start event.
     dispatch_event(&uio_event);
-    consumed = uio_event.mask & MASK_CONSUME;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -100,7 +100,7 @@ bool dispatch_hook_disable(uint64_t timestamp) {
 
     // Fire the hook stop event.
     dispatch_event(&uio_event);
-    consumed = uio_event.mask & MASK_CONSUME;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -139,7 +139,7 @@ bool dispatch_key_press(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
 
     // Populate key pressed event.
     dispatch_event(&uio_event);
-    consumed = uio_event.mask & MASK_CONSUME;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     // If the pressed event was not consumed...
     if (!consumed) {
@@ -167,7 +167,7 @@ bool dispatch_key_press(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
 
             // Fire key typed event.
             dispatch_event(&uio_event);
-            consumed = uio_event.mask & MASK_CONSUME;
+            consumed = uio_event.mask & MASK_CONSUMED;
         }
     }
 
@@ -208,7 +208,7 @@ bool dispatch_key_release(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
 
     // Fire key released event.
     dispatch_event(&uio_event);
-    consumed = uio_event.mask & MASK_CONSUME;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -260,7 +260,7 @@ bool dispatch_button_press(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t 
 
     // Fire mouse pressed event.
     dispatch_event(&uio_event);
-    consumed = uio_event.mask & MASK_CONSUME;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }
@@ -289,7 +289,7 @@ bool dispatch_button_release(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_
 
     // Fire mouse released event.
     dispatch_event(&uio_event);
-    consumed = uio_event.mask & MASK_CONSUME;
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     // If the pressed event was not consumed...
     if (!consumed && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
@@ -313,7 +313,7 @@ bool dispatch_button_release(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_
 
         // Fire mouse clicked event.
         dispatch_event(&uio_event);
-        consumed = uio_event.mask & MASK_CONSUME;
+        consumed = uio_event.mask & MASK_CONSUMED;
     }
 
     // Reset the number of clicks.
@@ -366,7 +366,7 @@ bool dispatch_mouse_move(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
 
         // Fire mouse move event.
         dispatch_event(&uio_event);
-        consumed = uio_event.mask & MASK_CONSUME;
+        consumed = uio_event.mask & MASK_CONSUMED;
     }
 
     return consumed;
@@ -432,7 +432,7 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
 
         // Fire mouse wheel event.
         dispatch_event(&uio_event);
-        consumed = uio_event.mask & MASK_CONSUME;
+        consumed = uio_event.mask & MASK_CONSUMED;
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: SystemParametersInfo() failed, event will be consumed.\n",
                 __FUNCTION__, __LINE__);

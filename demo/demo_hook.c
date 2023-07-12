@@ -59,7 +59,7 @@ static void logger(unsigned int level, const char *format, ...) {
 void dispatch_proc(uiohook_event * const event, void *user_data) {
     char buffer[256] = { 0 };
     size_t length = snprintf(buffer, sizeof(buffer), 
-            "id=%i,when=%" PRIu64 ",mask=0x%X", 
+            "id=%i,when=%" PRIu64 ",mask=0x%X",
             event->type, event->time, event->mask);
 
     switch (event->type) {

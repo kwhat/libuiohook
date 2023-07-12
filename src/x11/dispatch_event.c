@@ -124,7 +124,7 @@ void dispatch_key_press(XKeyPressedEvent * const x_event) {
 
     // Populate key pressed event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.type = EVENT_KEY_PRESSED;
     uio_event.mask = get_modifiers();
@@ -145,7 +145,7 @@ void dispatch_key_press(XKeyPressedEvent * const x_event) {
         for (unsigned int i = 0; i < count; i++) {
             // Populate key typed event.
             uio_event.time = x_event->serial;
-            uio_event.reserved = 0x00;
+            uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
             uio_event.type = EVENT_KEY_TYPED;
             uio_event.mask = get_modifiers();
@@ -189,7 +189,7 @@ void dispatch_key_release(XKeyReleasedEvent * const x_event) {
 
     // Populate key released event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.type = EVENT_KEY_RELEASED;
     uio_event.mask = get_modifiers();
@@ -213,7 +213,7 @@ static void dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
 
     // Populate mouse wheel event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.type = EVENT_MOUSE_WHEEL;
     uio_event.mask = get_modifiers();
@@ -327,7 +327,7 @@ static void dispatch_mouse_button_pressed(XButtonPressedEvent * const x_event) {
 
     // Populate mouse pressed event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.type = EVENT_MOUSE_PRESSED;
     uio_event.mask = get_modifiers();
@@ -416,7 +416,7 @@ static void dispatch_mouse_button_released(XButtonReleasedEvent * const x_event)
 
     // Populate mouse released event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.type = EVENT_MOUSE_RELEASED;
     uio_event.mask = get_modifiers();
@@ -451,7 +451,7 @@ static void dispatch_mouse_button_released(XButtonReleasedEvent * const x_event)
 static void dispatch_mouse_button_clicked(XButtonEvent * const x_event) {
     // Populate mouse clicked event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.type = EVENT_MOUSE_CLICKED;
     uio_event.mask = get_modifiers();
@@ -518,7 +518,7 @@ void dispatch_mouse_move(XMotionEvent * const x_event) {
 
     // Populate mouse move event.
     uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
+    uio_event.reserved = x_event->send_event ? 0x02 : 0x00;
 
     uio_event.mask = get_modifiers();
 

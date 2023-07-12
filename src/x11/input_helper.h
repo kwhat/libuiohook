@@ -35,6 +35,9 @@
 #define XButton1    8
 #define XButton2    9
 
+// The static number of clicks for X11 because it is a non-configurable amount.
+#define WHEEL_AMOUNT 3
+
 // For this struct, refer to libxnee, requires Xlibint.h
 typedef union {
     unsigned char       type;

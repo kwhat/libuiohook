@@ -456,6 +456,7 @@ bool dispatch_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 
             uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
             uio_event.data.wheel.rotation *= 1;
+            uio_event.data.wheel.amount = 1;
         } else {
             /* If this number is 0, no scrolling should occur.
              * If the number of lines to scroll is greater than the number of lines viewable, the scroll operation
@@ -463,6 +464,7 @@ bool dispatch_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 
             uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
             uio_event.data.wheel.rotation *= wheel_amount;
+            uio_event.data.wheel.amount = wheel_amount;
         }
 
         // Set the direction based on what event was received.

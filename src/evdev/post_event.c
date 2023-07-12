@@ -172,13 +172,12 @@ static int post_mouse_wheel_event(uiohook_event * const event) {
     unsigned int code = event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION
             ? REL_HWHEEL : REL_WHEEL;
 
-    // Post one notch per event in the rotation's direction.
-    int value = 0;
-    if (event->data.wheel.rotation > 0) {
-        value = 1;
-    } else if (event->data.wheel.rotation < 0) {
-        value = -1;
+    if (event->data.wheel.delta == 0) {
+        return UIOHOOK_FAILURE;
     }
+
+    // uinput accepts multiple detents in one event. Keep scroll settings separate.
+    int value = event->data.wheel.rotation / event->data.wheel.delta;
 
     libevdev_uinput_write_event(post_uinput, EV_REL, code, value);
 

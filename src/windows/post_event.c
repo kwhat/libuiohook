@@ -182,7 +182,9 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
         case EVENT_MOUSE_WHEEL:
             input->mi.dwFlags = MOUSEEVENTF_WHEEL;
 
-            // type, amount and rotation?
+            // TODO What are we going to do about delta=? We could normalize with rotation *= (120 / delta)
+            // TODO What are we going to do about type=WHEEL_BLOCK_SCROLL?
+            // TODO What are we going to do about amount=? Is this really a setting, not event property?
             input->mi.mouseData = event->data.wheel.rotation;
             break;
 

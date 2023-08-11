@@ -190,7 +190,7 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
 
         case EVENT_MOUSE_DRAGGED:
         case EVENT_MOUSE_MOVED:
-            input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE | MOUSEEVENTF_VIRTUALDESK;
+            input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
             break;
 
         default:

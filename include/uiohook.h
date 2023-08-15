@@ -39,6 +39,8 @@
 #define UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT    0x24
 #define UIOHOOK_ERROR_X_RECORD_GET_CONTEXT       0x25
 
+#define UIOHOOK_ERROR_EPOLL_CREATE               0x26
+
 // Windows specific errors.
 #define UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX        0x30
 #define UIOHOOK_ERROR_GET_MODULE_HANDLE          0x31

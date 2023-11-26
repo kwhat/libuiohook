@@ -560,6 +560,12 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
 
     CGPoint event_point = CGEventGetLocation(event_ref);
 
+
+    logger(LOG_LEVEL_WARN, "#### %s [%u]: Mouse %s to %i, %i.\n",
+            __FUNCTION__, __LINE__, is_mouse_dragged() ? "dragged" : "moved",
+            CGEventGetIntegerValueField(event_ref, kCGMouseEventDeltaX),
+            CGEventGetIntegerValueField(event_ref, kCGMouseEventDeltaY));
+    
     // Populate mouse motion event.
     uio_event.time = timestamp;
     uio_event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;

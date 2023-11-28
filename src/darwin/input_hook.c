@@ -252,7 +252,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
 
     // Populate key pressed event.
     event.time = timestamp;
-    event.reserved = 0x00;
+    event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
     event.type = EVENT_KEY_PRESSED;
     event.mask = get_modifiers();
@@ -328,7 +328,7 @@ static inline void process_key_pressed(uint64_t timestamp, CGEventRef event_ref)
         for (unsigned int i = 0; i < tis_keycode_message->length; i++) {
             // Populate key typed event.
             event.time = timestamp;
-            event.reserved = 0x00;
+            event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
             event.type = EVENT_KEY_TYPED;
             event.mask = get_modifiers();
@@ -352,7 +352,7 @@ static inline void process_key_released(uint64_t timestamp, CGEventRef event_ref
 
     // Populate key released event.
     event.time = timestamp;
-    event.reserved = 0x00;
+    event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
     event.type = EVENT_KEY_RELEASED;
     event.mask = get_modifiers();
@@ -708,7 +708,7 @@ static inline void process_button_pressed(uint64_t timestamp, CGEventRef event_r
 
     // Populate mouse pressed event.
     event.time = timestamp;
-    event.reserved = 0x00;
+    event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
     event.type = EVENT_MOUSE_PRESSED;
     event.mask = get_modifiers();
@@ -731,7 +731,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
 
     // Populate mouse released event.
     event.time = timestamp;
-    event.reserved = 0x00;
+    event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
     event.type = EVENT_MOUSE_RELEASED;
     event.mask = get_modifiers();
@@ -752,7 +752,7 @@ static inline void process_button_released(uint64_t timestamp, CGEventRef event_
     if (event.reserved ^ 0x01 && mouse_dragged != true) {
         // Populate mouse clicked event.
         event.time = timestamp;
-        event.reserved = 0x00;
+        event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
         event.type = EVENT_MOUSE_CLICKED;
         event.mask = get_modifiers();
@@ -787,7 +787,7 @@ static inline void process_mouse_moved(uint64_t timestamp, CGEventRef event_ref)
 
     // Populate mouse motion event.
     event.time = timestamp;
-    event.reserved = 0x00;
+    event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
     if (mouse_dragged) {
         event.type = EVENT_MOUSE_DRAGGED;
@@ -824,7 +824,7 @@ static inline void process_mouse_wheel(uint64_t timestamp, CGEventRef event_ref)
 
         // Populate mouse wheel event.
         event.time = timestamp;
-        event.reserved = 0x00;
+        event.reserved = CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID) ? 0x02 : 0x00;
 
         event.type = EVENT_MOUSE_WHEEL;
         event.mask = get_modifiers();

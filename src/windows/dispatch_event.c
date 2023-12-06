@@ -30,6 +30,7 @@ static unsigned short click_count = 0;
 static uint64_t click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 static POINT last_click;
+static POINT last_moved;
 
 // Event dispatch callback.
 static dispatcher_t dispatch = NULL;
@@ -79,6 +80,11 @@ bool dispatch_hook_enable() {
     bool consumed = false;
     // Initialize native input helper functions.
     load_input_helper();
+
+    if (!GetCursorPos(&last_moved)) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to locate cursor position!\n",
+                __FUNCTION__, __LINE__);
+    }
 
     // Get the local system time in UNIX epoch form.
     #ifdef USE_EPOCH_TIME
@@ -361,7 +367,6 @@ bool dispatch_button_release(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     return consumed;
 }
 
-
 bool dispatch_mouse_move(MSLLHOOKSTRUCT *mshook) {
     bool consumed = false;
     #ifdef USE_EPOCH_TIME
@@ -398,6 +403,12 @@ bool dispatch_mouse_move(MSLLHOOKSTRUCT *mshook) {
         uio_event.data.mouse.clicks = click_count;
         uio_event.data.mouse.x = (int16_t) mshook->pt.x;
         uio_event.data.mouse.y = (int16_t) mshook->pt.y;
+
+        logger(LOG_LEVEL_WARN, "#### %s [%u]: Mouse %s to %i, %i.\n",
+                __FUNCTION__, __LINE__,
+                mouse_dragged ? "dragged" : "moved",
+                last_moved.x - mshook->pt.x, last_moved.y - mshook->pt.y);
+        last_moved = mshook->pt;
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
                 __FUNCTION__, __LINE__,

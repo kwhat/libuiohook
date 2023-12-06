@@ -100,6 +100,8 @@ typedef struct _mouse_event_data {
     uint16_t clicks;
     int16_t x;
     int16_t y;
+    int16_t dx;
+    int16_t dy;
 } mouse_event_data,
   mouse_pressed_event_data,
   mouse_released_event_data,

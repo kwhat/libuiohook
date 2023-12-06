@@ -265,7 +265,7 @@ static int create_event_runloop_info(event_runloop_info **hook) {
 
     // Create the event tap.
     (*hook)->port = CGEventTapCreate(
-            kCGSessionEventTap,       // kCGHIDEventTap
+            kCGSessionEventTap,       // kCGHIDEventTap requires privileges?
             kCGHeadInsertEventTap,    // kCGTailAppendEventTap
             kCGEventTapOptionDefault, // kCGEventTapOptionListenOnly See https://github.com/kwhat/jnativehook/issues/22
             event_mask,

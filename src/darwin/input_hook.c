@@ -53,9 +53,6 @@ TISEventMessage *tis_event_message;
 // Event runloop reference.
 CFRunLoopRef event_loop;
 
-// Flag to restart the event tap incase of timeout.
-static Boolean restart_tap = false;
-
 // Modifiers for tracking key masks.
 static uint16_t current_modifiers = 0x0000;
 
@@ -101,6 +98,10 @@ static uiohook_event event;
 
 // Event dispatch callback.
 static dispatcher_t dispatcher = NULL;
+
+// We define the event_runloop_info as a static so that hook_event_proc can
+// re-enable the tap when it gets disabled by a timeout
+static event_runloop_info *hook = NULL;
 
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
@@ -235,7 +236,7 @@ static void hook_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity ac
 
             // Fire the hook stop event.
             dispatch_event(&event);
-            
+
             // Deinitialize native input helper functions.
             unload_input_helper();
             break;
@@ -989,9 +990,10 @@ CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventR
                 logger(LOG_LEVEL_WARN, "%s [%u]: CGEventTap timeout!\n",
                         __FUNCTION__, __LINE__);
 
-                // We need to restart the tap!
-                restart_tap = true;
-                CFRunLoopStop(CFRunLoopGetCurrent());
+                // We need to re-enable the tap
+                if (hook->port) {
+                    CGEventTapEnable(hook->port, true);
+                }
             } else {
                 // In theory this *should* never execute.
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled Darwin event: %#X.\n",
@@ -1276,128 +1278,122 @@ UIOHOOK_API int hook_run() {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopGetCurrent successful.\n",
                     __FUNCTION__, __LINE__);
 
-            do {
-                // Reset the restart flag...
-                restart_tap = false;
+            // Initialize starting modifiers.
+            initialize_modifiers();
 
-                // Initialize starting modifiers.
-                initialize_modifiers();
-
-                // Try and allocate memory for event_runloop_info.
-                event_runloop_info *hook = NULL;
-                int event_runloop_status = create_event_runloop_info(&hook);
-                if (event_runloop_status != UIOHOOK_SUCCESS) {
-                    destroy_event_runloop_info(&hook);
-                    return event_runloop_status;
-                }
-
-
-                tis_keycode_message = (TISKeycodeMessage *) calloc(1, sizeof(TISKeycodeMessage));
-                if (tis_keycode_message == NULL) {
-                    logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
-                                __FUNCTION__, __LINE__);
-
-                    return UIOHOOK_ERROR_OUT_OF_MEMORY;
-                }
-
-                #ifdef USE_OBJC
-                tis_event_message = (TISEventMessage *) calloc(1, sizeof(TISEventMessage));
-                if (tis_event_message == NULL) {
-                    logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS event structure!\n",
-                                __FUNCTION__, __LINE__);
-
-                    return UIOHOOK_ERROR_OUT_OF_MEMORY;
-                }
-                #endif
-
-                // If we are not running on the main runloop, we need to setup a runloop dispatcher.
-                if (!CFEqual(event_loop, CFRunLoopGetMain())) {
-                    // Dynamically load dispatch_sync_f to maintain 10.5 compatibility.
-                    *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
-                    const char *dlError = dlerror();
-                    if (dlError != NULL) {
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
-                                __FUNCTION__, __LINE__, dlError);
-                    }
-
-                    // This load is equivalent to calling dispatch_get_main_queue().  We use
-                    // _dispatch_main_q because dispatch_get_main_queue is not exported from
-                    // libdispatch.dylib and the upstream function only dereferences the pointer.
-                    dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
-                    dlError = dlerror();
-                    if (dlError != NULL) {
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
-                                __FUNCTION__, __LINE__, dlError);
-                    }
-
-                    if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
-                                __FUNCTION__, __LINE__);
-
-                        #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
-                        logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to runloop signaling.\n",
-                                __FUNCTION__, __LINE__);
-
-                        // TODO The only thing that maybe needed in this struct is the .perform
-                        CFRunLoopSourceContext main_runloop_keycode_context = {
-                            .version         = 0,
-                            .info            = tis_keycode_message,
-                            .retain          = NULL,
-                            .release         = NULL,
-                            .copyDescription = NULL,
-                            .equal           = NULL,
-                            .hash            = NULL,
-                            .schedule        = NULL,
-                            .cancel          = NULL,
-                            .perform         = main_runloop_keycode_proc
-                        };
-
-                        int keycode_runloop_status = create_main_runloop_info(&main_runloop_keycode, &main_runloop_keycode_context);
-                        if (keycode_runloop_status != UIOHOOK_SUCCESS) {
-                            destroy_main_runloop_info(&main_runloop_keycode);
-                            return keycode_runloop_status;
-                        }
-                        #endif
-                    }
-                }
-
-                #ifdef USE_OBJC
-                // Contributed by Alex <universailp@web.de>
-                // Create a garbage collector to handle Cocoa events correctly.
-                Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
-                id pool = class_createInstance(NSAutoreleasePool_class, 0);
-
-                id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
-                auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
-                #endif
-
-
-                // Start the hook thread runloop.
-                CFRunLoopRun();
-
-
-                #ifdef USE_OBJC
-                // Contributed by Alex <universailp@web.de>
-                eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
-                #endif
-
-                #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
-                pthread_mutex_lock(&main_runloop_mutex);
-                if (!CFEqual(event_loop, CFRunLoopGetMain())) {
-                    if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
-                        destroy_main_runloop_info(&main_runloop_keycode);
-                    }
-                }
-                pthread_mutex_unlock(&main_runloop_mutex);
-                #endif
-
-                #ifdef USE_OBJC
-                free(tis_event_message);
-                #endif
-                free(tis_keycode_message);
-
+            // Try and allocate memory for event_runloop_info.
+            int event_runloop_status = create_event_runloop_info(&hook);
+            if (event_runloop_status != UIOHOOK_SUCCESS) {
                 destroy_event_runloop_info(&hook);
-            } while (restart_tap);
+                return event_runloop_status;
+            }
+
+
+            tis_keycode_message = (TISKeycodeMessage *) calloc(1, sizeof(TISKeycodeMessage));
+            if (tis_keycode_message == NULL) {
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS message structure!\n",
+                            __FUNCTION__, __LINE__);
+
+                return UIOHOOK_ERROR_OUT_OF_MEMORY;
+            }
+
+            #ifdef USE_OBJC
+            tis_event_message = (TISEventMessage *) calloc(1, sizeof(TISEventMessage));
+            if (tis_event_message == NULL) {
+                logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for TIS event structure!\n",
+                            __FUNCTION__, __LINE__);
+
+                return UIOHOOK_ERROR_OUT_OF_MEMORY;
+            }
+            #endif
+
+            // If we are not running on the main runloop, we need to setup a runloop dispatcher.
+            if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+                // Dynamically load dispatch_sync_f to maintain 10.5 compatibility.
+                *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
+                const char *dlError = dlerror();
+                if (dlError != NULL) {
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+                            __FUNCTION__, __LINE__, dlError);
+                }
+
+                // This load is equivalent to calling dispatch_get_main_queue().  We use
+                // _dispatch_main_q because dispatch_get_main_queue is not exported from
+                // libdispatch.dylib and the upstream function only dereferences the pointer.
+                dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
+                dlError = dlerror();
+                if (dlError != NULL) {
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
+                            __FUNCTION__, __LINE__, dlError);
+                }
+
+                if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
+                            __FUNCTION__, __LINE__);
+
+                    #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to runloop signaling.\n",
+                            __FUNCTION__, __LINE__);
+
+                    // TODO The only thing that maybe needed in this struct is the .perform
+                    CFRunLoopSourceContext main_runloop_keycode_context = {
+                        .version         = 0,
+                        .info            = tis_keycode_message,
+                        .retain          = NULL,
+                        .release         = NULL,
+                        .copyDescription = NULL,
+                        .equal           = NULL,
+                        .hash            = NULL,
+                        .schedule        = NULL,
+                        .cancel          = NULL,
+                        .perform         = main_runloop_keycode_proc
+                    };
+
+                    int keycode_runloop_status = create_main_runloop_info(&main_runloop_keycode, &main_runloop_keycode_context);
+                    if (keycode_runloop_status != UIOHOOK_SUCCESS) {
+                        destroy_main_runloop_info(&main_runloop_keycode);
+                        return keycode_runloop_status;
+                    }
+                    #endif
+                }
+            }
+
+            #ifdef USE_OBJC
+            // Contributed by Alex <universailp@web.de>
+            // Create a garbage collector to handle Cocoa events correctly.
+            Class NSAutoreleasePool_class = (Class) objc_getClass("NSAutoreleasePool");
+            id pool = class_createInstance(NSAutoreleasePool_class, 0);
+
+            id (*eventWithoutCGEvent)(id, SEL) = (id (*)(id, SEL)) objc_msgSend;
+            auto_release_pool = eventWithoutCGEvent(pool, sel_registerName("init"));
+            #endif
+
+
+            // Start the hook thread runloop.
+            CFRunLoopRun();
+
+
+            #ifdef USE_OBJC
+            // Contributed by Alex <universailp@web.de>
+            eventWithoutCGEvent(auto_release_pool, sel_registerName("release"));
+            #endif
+
+            #if !defined(USE_CARBON_LEGACY) && defined(USE_APPLICATION_SERVICES)
+            pthread_mutex_lock(&main_runloop_mutex);
+            if (!CFEqual(event_loop, CFRunLoopGetMain())) {
+                if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
+                    destroy_main_runloop_info(&main_runloop_keycode);
+                }
+            }
+            pthread_mutex_unlock(&main_runloop_mutex);
+            #endif
+
+            #ifdef USE_OBJC
+            free(tis_event_message);
+            #endif
+            free(tis_keycode_message);
+
+            destroy_event_runloop_info(&hook);
         } else {
             logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopGetCurrent failure!\n",
                     __FUNCTION__, __LINE__);
@@ -1423,9 +1419,6 @@ UIOHOOK_API int hook_stop() {
     CFStringRef mode = CFRunLoopCopyCurrentMode(event_loop);
     if (mode != NULL) {
         CFRelease(mode);
-
-        // Make sure the tap doesn't restart.
-        restart_tap = false;
 
         // Stop the run loop.
         CFRunLoopStop(event_loop);

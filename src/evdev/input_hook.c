@@ -37,70 +37,98 @@
 #include "input_helper.h"
 #include "logger.h"
 
+static int rel_x = 0, rel_y = 0;
+static int wheel_h = 0, wheel_v = 0;
+
+static void hook_button_proc(struct input_event *ev) {
+    // TODO There doesn't appear to be a keysym here and I don't understand what replaces XGetPointerMapping
+    if (ev->value > 0) {
+        dispatch_mouse_press(ev);
+    } else {
+        dispatch_mouse_release(ev);
+    }
+}
+
+static void hook_key_proc(struct input_event *ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    xkb_keycode_t keycode = event_to_keycode(ev->code);
+    xkb_keysym_t keysym = event_to_keysym(keycode, ev->value);
+
+    if (ev->value > 0) {
+      dispatch_key_press(timestamp, keycode, keysym);
+    } else {
+      dispatch_key_release(timestamp, keycode, keysym);
+    }
+}
+
+static void hook_sync_proc(struct input_event *ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    if (rel_x != 0 || rel_y != 0) {
+        dispatch_mouse_move(timestamp, rel_x, rel_y);
+        rel_x = rel_y = 0;
+    }
+
+    if (wheel_v != 0) {
+        dispatch_mouse_wheel(timestamp, wheel_v, WHEEL_VERTICAL_DIRECTION);
+        wheel_v = 0;
+    }
+
+    if (wheel_h != 0) {
+        dispatch_mouse_wheel(timestamp, wheel_v, WHEEL_HORIZONTAL_DIRECTION);
+        wheel_h = 0;
+    }
+
+}
 
 void hook_event_proc(struct input_event *ev) {
-/*
-    logger(LOG_LEVEL_INFO, "%s [%u]: TYPE: '0x%X'\n",
-            __FUNCTION__, __LINE__,
-            ev->type);
-//*/
+    switch (ev->type) {
+        case EV_KEY:
+            switch (ev->code) {
+                case BTN_LEFT:
+                case BTN_RIGHT:
+                case BTN_MIDDLE:
+                case BTN_SIDE:
+                case BTN_EXTRA:
+                case BTN_FORWARD:
+                case BTN_BACK:
+                    hook_button_proc(ev);
+                    break;
 
-    if (ev->type == EV_KEY) {
-        switch (ev->code) {
-            case BTN_LEFT:
-            case BTN_RIGHT:
-            case BTN_MIDDLE:
-            case BTN_SIDE:
-            case BTN_EXTRA:
-            case BTN_FORWARD:
-            case BTN_BACK:
-                // TODO There doesn't appear to be a keysym here and I don't understand what replaces XGetPointerMapping
-                if (ev->value > 0) {
-                    dispatch_mouse_press(ev);
-                } else {
-                    dispatch_mouse_release(ev);
-                }
-                break;
+                default:
+                    hook_key_proc(ev);
+            }
+            break;
 
-            default:
-                if (ev->value > 0) {
-                    dispatch_key_press(ev);
-                } else {
-                    dispatch_key_release(ev);
-                }
-        }
-    } else if (ev->type == EV_REL) {
-        switch (ev->code) {
-            case REL_X:
-            case REL_Y:
-                //dispatch_mouse_move(ev);
-                break;
+        case EV_REL:
+            switch (ev->code) {
+                case REL_X:
+                    rel_x += ev->value;
+                case REL_Y:
+                    rel_y += ev->value;
+                    break;
 
-            case REL_WHEEL_HI_RES:
-            case REL_HWHEEL_HI_RES:
-                logger(LOG_LEVEL_INFO, "%s [%u]: HI RES WHEEL: %d\n",
-                      __FUNCTION__, __LINE__,
-                      ev->value);
-                      break;
+                case REL_WHEEL_HI_RES:
+                    wheel_v += ev->value;
+                    break;
+                case REL_HWHEEL_HI_RES:
+                    wheel_h += ev->value;
+                    break;
+            }
+            break;
 
-            case REL_WHEEL:
-            case REL_HWHEEL:
-                dispatch_mouse_wheel(ev);
-                break;
-        }
-    } else if (ev->type == EV_SYN) {
-        logger(LOG_LEVEL_INFO, "%s [%u]: FLUSH: %d %lu\n",
-              __FUNCTION__, __LINE__,
-              ev->value, ev->time);
-        /*
-        if (item->mouse_x != 0 || item->mouse_y != 0) {
-            item->mouse_x = item->mouse_y = 0;
-        }
-        if (item->mouse_wheel != 0 || item->mouse_hwheel != 0) {
-            dispatch_mouse_wheel(ev);
-            item->mouse_wheel = item->mouse_hwheel = 0;
-        }
-        */
+        case EV_SYN:
+            hook_sync_proc(ev);
+            break;
     }
 
     /*
@@ -109,69 +137,14 @@ void hook_event_proc(struct input_event *ev) {
         libevdev_uinput_write_event(info->uinput, ev.type, ev.code, ev.value);
     }
     //*/
-
-/*
-    XEvent event;
-    wire_data_to_event(recorded_data, &event);
-
-    XRecordDatum *data = (XRecordDatum *) recorded_data->data;
-    switch (recorded_data->category) {
-        case XRecordStartOfData:
-            dispatch_hook_enabled((XAnyEvent *) &event);
-            break;
-
-        case XRecordEndOfData:
-            dispatch_hook_disabled((XAnyEvent *) &event);
-            break;
-
-        //case XRecordFromClient: // TODO Should we be listening for Client Events?
-        case XRecordFromServer:
-            switch (data->type) {
-                case KeyPress:
-                    dispatch_key_press((XKeyPressedEvent *) &event);
-                    break;
-
-                case KeyRelease:
-                    dispatch_key_release((XKeyReleasedEvent *) &event);
-                    break;
-
-                case ButtonPress:
-                    dispatch_mouse_press((XButtonPressedEvent *) &event);
-                    break;
-
-                case ButtonRelease:
-                    dispatch_mouse_release((XButtonReleasedEvent *) &event);
-                    break;
-
-                case MotionNotify:
-                    dispatch_mouse_move((XMotionEvent *) &event);
-                    break;
-
-                case MappingNotify:
-                    // FIXME
-                    // event with a request member of MappingKeyboard or MappingModifier occurs
-                    //XRefreshKeyboardMapping(event_map)
-                    //XMappingEvent *event_map;
-                    break;
-
-                default:
-                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Unhandled X11 event: %#X.\n",
-                            __FUNCTION__, __LINE__,
-                            (unsigned int) data->type);
-            }
-            break;
-
-        default:
-            logger(LOG_LEVEL_WARN, "%s [%u]: Unhandled X11 hook category! (%#X)\n",
-                    __FUNCTION__, __LINE__, recorded_data->category);
-    }
-
-    // TODO There is no way to consume the XRecord event.
-    */
 }
 
-
-
+/*
+struct hook_info {
+    struct libevdev *evdev;
+    struct libevdev_uinput *uinput;
+};
+*/
 static int create_evdev(char *path, struct libevdev **evdev) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {

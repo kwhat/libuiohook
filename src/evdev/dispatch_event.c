@@ -116,15 +116,7 @@ void dispatch_hook_disabled() {
     unload_input_helper();
 }
 
-void dispatch_key_press(struct input_event *const ev) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
-    #else
-    uint64_t timestamp = get_seq_timestamp();
-    #endif
-
-    xkb_keycode_t keycode = event_to_keycode(ev->code);
-    xkb_keysym_t keysym = event_to_keysym(keycode, ev->value);
+void dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
     uint16_t uiocode = keysym_to_uiocode(keysym);
 
     // Populate key pressed event.
@@ -171,15 +163,7 @@ void dispatch_key_press(struct input_event *const ev) {
     }
 }
 
-void dispatch_key_release(struct input_event *const ev) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
-    #else
-    uint64_t timestamp = get_seq_timestamp();
-    #endif
-
-    xkb_keycode_t keycode = event_to_keycode(ev->code);
-    xkb_keysym_t keysym = event_to_keysym(keycode, ev->value);
+void dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
     uint16_t uiocode = keysym_to_uiocode(keysym);
 
     // Populate key released event.
@@ -198,50 +182,6 @@ void dispatch_key_release(struct input_event *const ev) {
             uio_event.data.keyboard.keycode, uio_event.data.keyboard.rawcode);
 
     // Fire key released event.
-    dispatch_event(&uio_event);
-}
-
-void dispatch_mouse_wheel(struct input_event *const ev) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
-    #else
-    uint64_t timestamp = get_seq_timestamp();
-    #endif
-
-    // Reset the click count and previous button.
-    click.count = 0;
-    click.button = MOUSE_NOBUTTON;
-
-    // Populate mouse wheel event.
-    uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
-
-    uio_event.type = EVENT_MOUSE_WHEEL;
-    uio_event.mask = get_modifiers();
-
-    // FIXME Need to calculate abs pos
-    //uio_event.data.wheel.x = x_event->x_root;
-    //uio_event.data.wheel.y = x_event->y_root;
-
-    /* Linux does not have an API call for acquiring the mouse scroll type or amount. For the time being we will just
-     * use the unit scroll at 100. */
-    uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
-    uio_event.data.wheel.delta = 100;
-    uio_event.data.wheel.rotation = 3 * uio_event.data.wheel.delta * ev->value;
-
-    if (ev->code == REL_HWHEEL) {
-        uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-    } else {
-        uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-    }
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
-            __FUNCTION__, __LINE__,
-            uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
-            uio_event.data.wheel.type, uio_event.data.wheel.direction,
-            uio_event.data.wheel.x, uio_event.data.wheel.y);
-
-    // Fire mouse wheel event.
     dispatch_event(&uio_event);
 }
 
@@ -449,13 +389,7 @@ static void dispatch_mouse_button_clicked(XButtonEvent *const x_event) {
 }
 */
 
-void dispatch_mouse_move(struct input_event *const ev) {
-    #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
-    #else
-    uint64_t timestamp = get_seq_timestamp();
-    #endif
-    
+bool dispatch_mouse_move(uint64_t timestamp, int16_t x, int16_t y) {
     // Reset the click count.
     /* FIXME This needs to happen somewhere, just not here.
     if (click.count != 0 && x_event->serial - click.time > hook_get_multi_click_time()) {
@@ -470,28 +404,63 @@ void dispatch_mouse_move(struct input_event *const ev) {
 
     // Check the upper half of virtual modifiers for non-zero values and set the mouse
     // dragged flag.  The last 3 bits are reserved for lock masks.
-    bool is_dragged = (bool) (get_modifiers() & 0x1F00);
+    bool is_dragged = (bool) (uio_event.mask & 0x1F00);
     if (is_dragged) {
-        // Create Mouse Dragged event.
         uio_event.type = EVENT_MOUSE_DRAGGED;
     } else {
-        // Create a Mouse Moved event.
         uio_event.type = EVENT_MOUSE_MOVED;
     }
 
     uio_event.data.mouse.button = MOUSE_NOBUTTON;
     uio_event.data.mouse.clicks = click.count;
 
-    /*
-    uio_event.data.mouse.x = x_event->x_root;
-    uio_event.data.mouse.y = x_event->y_root;
-    */
+    // FIXME These are the relative coordinates
+    uio_event.data.mouse.x = x;
+    uio_event.data.mouse.y = y;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i. (%#X)\n",
             __FUNCTION__, __LINE__,
             is_dragged ? "dragged" : "moved",
-            uio_event.data.mouse.x, uio_event.data.mouse.y, uio_event.mask);
+            uio_event.data.mouse.x, uio_event.data.mouse.y,
+            uio_event.mask);
 
     // Fire mouse move event.
     dispatch_event(&uio_event);
+
+    return uio_event.reserved & 0x01;
+}
+
+bool dispatch_mouse_wheel(uint64_t timestamp, int16_t rotation, uint8_t direction) {
+    // Reset the click count and previous button.
+    click.count = 0;
+    click.button = MOUSE_NOBUTTON;
+
+    // Populate mouse wheel event.
+    uio_event.time = timestamp;
+    uio_event.reserved = 0x00;
+
+    uio_event.type = EVENT_MOUSE_WHEEL;
+    uio_event.mask = get_modifiers();
+
+    // FIXME Need to calculate abs pos
+    //uio_event.data.wheel.x = x_event->x_root;
+    //uio_event.data.wheel.y = x_event->y_root;
+
+    /* Linux does not have an API call for acquiring the mouse scroll type or amount. For the time being we will just
+     * use the unit scroll at 100. */
+    uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
+    uio_event.data.wheel.delta = 120;
+    uio_event.data.wheel.rotation = 3 * uio_event.data.wheel.delta * rotation; // TODO Im not sure this calcuation is correct, compare to windows.
+    uio_event.data.wheel.direction = direction;
+
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
+            __FUNCTION__, __LINE__,
+            uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
+            uio_event.data.wheel.type, uio_event.data.wheel.direction,
+            uio_event.data.wheel.x, uio_event.data.wheel.y);
+
+    // Fire mouse wheel event.
+    dispatch_event(&uio_event);
+
+    return uio_event.reserved & 0x01;
 }

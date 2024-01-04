@@ -26,14 +26,14 @@ extern void dispatch_hook_enabled();
 
 extern void dispatch_hook_disabled();
 
-extern void dispatch_key_press(struct input_event *const ev);
+extern void dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym);
 
-extern void dispatch_key_release(struct input_event *const ev);
+extern void dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym);
 
 extern void dispatch_mouse_press(struct input_event *const ev);
 
 extern void dispatch_mouse_release(struct input_event *const ev);
 
-extern void dispatch_mouse_wheel(struct input_event *const ev);
+extern bool dispatch_mouse_move(uint64_t timestamp, int16_t x, int16_t y);
 
-extern void dispatch_mouse_move(struct input_event *const ev);
+extern bool dispatch_mouse_wheel(uint64_t timestamp, int16_t rotation, uint8_t direction);

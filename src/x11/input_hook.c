@@ -345,7 +345,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
             // Populate key pressed event.
             event.time = timestamp;
-            event.reserved = 0x00;
+            event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
             event.type = EVENT_KEY_PRESSED;
             event.mask = get_modifiers();
@@ -365,7 +365,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                 for (unsigned int i = 0; i < count; i++) {
                     // Populate key typed event.
                     event.time = timestamp;
-                    event.reserved = 0x00;
+                    event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
                     event.type = EVENT_KEY_TYPED;
                     event.mask = get_modifiers();
@@ -439,7 +439,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
             // Populate key released event.
             event.time = timestamp;
-            event.reserved = 0x00;
+            event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
             event.type = EVENT_KEY_RELEASED;
             event.mask = get_modifiers();
@@ -473,7 +473,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
                 // Populate mouse wheel event.
                 event.time = timestamp;
-                event.reserved = 0x00;
+                event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
                 event.type = EVENT_MOUSE_WHEEL;
                 event.mask = get_modifiers();
@@ -592,7 +592,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
                 // Populate mouse pressed event.
                 event.time = timestamp;
-                event.reserved = 0x00;
+                event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
                 event.type = EVENT_MOUSE_PRESSED;
                 event.mask = get_modifiers();
@@ -667,7 +667,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
 
                 // Populate mouse released event.
                 event.time = timestamp;
-                event.reserved = 0x00;
+                event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
                 event.type = EVENT_MOUSE_RELEASED;
                 event.mask = get_modifiers();
@@ -702,7 +702,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
                 if (event.reserved ^ 0x01 && hook->input.mouse.is_dragged != true) {
                     // Populate mouse clicked event.
                     event.time = timestamp;
-                    event.reserved = 0x00;
+                    event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
                     event.type = EVENT_MOUSE_CLICKED;
                     event.mask = get_modifiers();
@@ -748,7 +748,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
             
             // Populate mouse move event.
             event.time = timestamp;
-            event.reserved = 0x00;
+            event.reserved = data->event.u.u.type & 0x80 ? 0x02 : 0x00;
 
             event.mask = get_modifiers();
 

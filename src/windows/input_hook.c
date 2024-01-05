@@ -178,7 +178,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
 
     // Populate key pressed event.
     event.time = kbhook->time;
-    event.reserved = 0x00;
+    event.reserved = kbhook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
     event.type = EVENT_KEY_PRESSED;
     event.mask = get_modifiers();
@@ -203,7 +203,7 @@ static void process_key_pressed(KBDLLHOOKSTRUCT *kbhook) {
         for (unsigned int i = 0; i < count; i++) {
             // Populate key typed event.
             event.time = kbhook->time;
-            event.reserved = 0x00;
+            event.reserved = kbhook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
             event.type = EVENT_KEY_TYPED;
             event.mask = get_modifiers();
@@ -237,7 +237,7 @@ static void process_key_released(KBDLLHOOKSTRUCT *kbhook) {
 
     // Populate key pressed event.
     event.time = kbhook->time;
-    event.reserved = 0x00;
+    event.reserved = kbhook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
     event.type = EVENT_KEY_RELEASED;
     event.mask = get_modifiers();
@@ -313,7 +313,7 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 
     // Populate mouse pressed event.
     event.time = timestamp;
-    event.reserved = 0x00;
+    event.reserved = mshook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
     event.type = EVENT_MOUSE_PRESSED;
     event.mask = get_modifiers();
@@ -335,7 +335,7 @@ static void process_button_pressed(MSLLHOOKSTRUCT *mshook, uint16_t button) {
 static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     // Populate mouse released event.
     event.time = mshook->time;
-    event.reserved = 0x00;
+    event.reserved = mshook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
     event.type = EVENT_MOUSE_RELEASED;
     event.mask = get_modifiers();
@@ -358,7 +358,7 @@ static void process_button_released(MSLLHOOKSTRUCT *mshook, uint16_t button) {
     if (event.reserved ^ 0x01 && last_click.x == mshook->pt.x && last_click.y == mshook->pt.y) {
         // Populate mouse clicked event.
         event.time = mshook->time;
-        event.reserved = 0x00;
+        event.reserved = mshook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
         event.type = EVENT_MOUSE_CLICKED;
         event.mask = get_modifiers();
@@ -396,7 +396,7 @@ static void process_mouse_moved(MSLLHOOKSTRUCT *mshook) {
 
         // Populate mouse move event.
         event.time = timestamp;
-        event.reserved = 0x00;
+        event.reserved = mshook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
         event.mask = get_modifiers();
 
@@ -432,7 +432,7 @@ static void process_mouse_wheel(MSLLHOOKSTRUCT *mshook, uint8_t direction) {
 
     // Populate mouse wheel event.
     event.time = mshook->time;
-    event.reserved = 0x00;
+    event.reserved = mshook->flags & (LLKHF_INJECTED | LLKHF_LOWER_IL_INJECTED) ? 0x02 : 0x00;
 
     event.type = EVENT_MOUSE_WHEEL;
     event.mask = get_modifiers();

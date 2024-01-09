@@ -116,7 +116,7 @@ void dispatch_hook_disabled() {
     unload_input_helper();
 }
 
-void dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
+bool dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
     uint16_t uiocode = keysym_to_uiocode(keysym);
 
     // Populate key pressed event.
@@ -161,9 +161,11 @@ void dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t 
             dispatch_event(&uio_event);
         }
     }
+
+    return uio_event.reserved & 0x01;
 }
 
-void dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
+bool dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
     uint16_t uiocode = keysym_to_uiocode(keysym);
 
     // Populate key released event.
@@ -183,9 +185,11 @@ void dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_
 
     // Fire key released event.
     dispatch_event(&uio_event);
+
+    return uio_event.reserved & 0x01;
 }
 
-void dispatch_mouse_press(struct input_event *const ev) {
+bool dispatch_mouse_press(struct input_event *const ev) {
 /*
     switch (x_event->button) {
         case Button1:
@@ -276,9 +280,11 @@ void dispatch_mouse_press(struct input_event *const ev) {
     // Fire mouse pressed event.
     dispatch_event(&uio_event);
     */
+
+    return false;
 }
 
-void dispatch_mouse_release(struct input_event *const ev) {
+bool dispatch_mouse_release(struct input_event *const ev) {
     switch (0 /* FIXME button_map_lookup(x_event->button) */) {
     /*
         case Button1:
@@ -350,6 +356,8 @@ void dispatch_mouse_release(struct input_event *const ev) {
     // Fire mouse released event.
     dispatch_event(&uio_event);
 */
+
+    return false;
 }
 
 /*

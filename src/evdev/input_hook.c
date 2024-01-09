@@ -40,16 +40,21 @@
 static int rel_x = 0, rel_y = 0;
 static int wheel_h = 0, wheel_v = 0;
 
-static void hook_button_proc(struct input_event *ev) {
-    // TODO There doesn't appear to be a keysym here and I don't understand what replaces XGetPointerMapping
+static bool hook_button_proc(struct input_event *ev) {
+    bool consumed = false;
+
     if (ev->value > 0) {
-        dispatch_mouse_press(ev);
+        consumed = dispatch_mouse_press(ev);
     } else {
-        dispatch_mouse_release(ev);
+        consumed = dispatch_mouse_release(ev);
     }
+
+    return consumed;
 }
 
-static void hook_key_proc(struct input_event *ev) {
+static bool hook_key_proc(struct input_event *ev) {
+    bool consumed = false;
+
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(&ev->time);
     #else
@@ -60,13 +65,17 @@ static void hook_key_proc(struct input_event *ev) {
     xkb_keysym_t keysym = event_to_keysym(keycode, ev->value);
 
     if (ev->value > 0) {
-      dispatch_key_press(timestamp, keycode, keysym);
+      consumed = dispatch_key_press(timestamp, keycode, keysym);
     } else {
-      dispatch_key_release(timestamp, keycode, keysym);
+      consumed = dispatch_key_release(timestamp, keycode, keysym);
     }
+
+    return consumed;
 }
 
-static void hook_sync_proc(struct input_event *ev) {
+static bool hook_sync_proc(struct input_event *ev) {
+    bool consumed = false;
+
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(&ev->time);
     #else
@@ -74,23 +83,26 @@ static void hook_sync_proc(struct input_event *ev) {
     #endif
 
     if (rel_x != 0 || rel_y != 0) {
-        dispatch_mouse_move(timestamp, rel_x, rel_y);
+        consumed = dispatch_mouse_move(timestamp, rel_x, rel_y);
         rel_x = rel_y = 0;
     }
 
     if (wheel_v != 0) {
-        dispatch_mouse_wheel(timestamp, wheel_v, WHEEL_VERTICAL_DIRECTION);
+        consumed = dispatch_mouse_wheel(timestamp, wheel_v, WHEEL_VERTICAL_DIRECTION);
         wheel_v = 0;
     }
 
     if (wheel_h != 0) {
-        dispatch_mouse_wheel(timestamp, wheel_v, WHEEL_HORIZONTAL_DIRECTION);
+        consumed = dispatch_mouse_wheel(timestamp, wheel_v, WHEEL_HORIZONTAL_DIRECTION);
         wheel_h = 0;
     }
 
+    return consumed;
 }
 
-void hook_event_proc(struct input_event *ev) {
+bool hook_event_proc(struct input_event *ev) {
+    bool consumed = false;
+
     switch (ev->type) {
         case EV_KEY:
             switch (ev->code) {
@@ -101,11 +113,11 @@ void hook_event_proc(struct input_event *ev) {
                 case BTN_EXTRA:
                 case BTN_FORWARD:
                 case BTN_BACK:
-                    hook_button_proc(ev);
+                    consumed = hook_button_proc(ev);
                     break;
 
                 default:
-                    hook_key_proc(ev);
+                    consumed = hook_key_proc(ev);
             }
             break;
 
@@ -127,25 +139,20 @@ void hook_event_proc(struct input_event *ev) {
             break;
 
         case EV_SYN:
-            hook_sync_proc(ev);
+            consumed = hook_sync_proc(ev);
             break;
     }
 
-    /*
-    if (ev.type == EV_KEY && ev.code == KEY_HOME) {
-        ev.code = KEY_B;
-        libevdev_uinput_write_event(info->uinput, ev.type, ev.code, ev.value);
-    }
-    //*/
+    return consumed;
 }
 
-/*
-struct hook_info {
+
+struct input_hook {
     struct libevdev *evdev;
     struct libevdev_uinput *uinput;
 };
-*/
-static int create_evdev(char *path, struct libevdev **evdev) {
+
+static int create_hook(char *path, struct input_hook **hook) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open input device: %s! (%d)\n",
@@ -154,7 +161,14 @@ static int create_evdev(char *path, struct libevdev **evdev) {
         return UIOHOOK_FAILURE;
     }
 
-    int err = libevdev_new_from_fd(fd, evdev);
+    *hook = malloc(sizeof(struct input_hook));
+    if (hook == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for evdev buffer!\n",
+                __FUNCTION__, __LINE__);
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    int err = libevdev_new_from_fd(fd, &(*hook)->evdev);
     if (err < 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create evdev from file descriptor! (%d)\n",
                 __FUNCTION__, __LINE__,
@@ -162,13 +176,45 @@ static int create_evdev(char *path, struct libevdev **evdev) {
         return UIOHOOK_FAILURE;
     }
 
-    // On success, grab the device so we can consume events.
-     //libevdev_grab(*evdev, LIBEVDEV_GRAB);
+    // We need to wait until no key is being pressed becasue we are going to grab below and that will cause keys to stick.
+    struct input_event ev;
+    for (unsigned int i = 0; i < KEY_MAX; i++) {
+        while (libevdev_get_event_value((*hook)->evdev, EV_KEY, i)) {
+            int status = -EAGAIN;
+            unsigned int flags = LIBEVDEV_READ_FLAG_NORMAL;
+            do {
+                status = libevdev_next_event((*hook)->evdev, flags, &ev);
+                if (status == LIBEVDEV_READ_STATUS_SYNC) {
+                    flags = LIBEVDEV_READ_FLAG_SYNC;
+                }
+            } while (status == LIBEVDEV_READ_STATUS_SYNC);
+        }
+    }
+
+    err = libevdev_uinput_create_from_device((*hook)->evdev, LIBEVDEV_UINPUT_OPEN_MANAGED, &(*hook)->uinput);
+    if (err < 0) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to create uinput from device! (%d)\n",
+                __FUNCTION__, __LINE__,
+                err);
+
+        (*hook)->uinput = NULL;
+    } else {
+        // On success, grab the device so we can consume events.
+        err = libevdev_grab((*hook)->evdev, LIBEVDEV_GRAB);
+        if (err != 0) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to grab evdev! (%d)\n",
+                    __FUNCTION__, __LINE__,
+                    err);
+
+            libevdev_uinput_destroy((*hook)->uinput);
+            (*hook)->uinput = NULL;
+        }
+    }
 
     char *label;
-    if (libevdev_has_event_type(*evdev, EV_REP) && libevdev_has_event_code(*evdev, EV_KEY, KEY_ESC)) {
+    if (libevdev_has_event_type((*hook)->evdev, EV_REP) && libevdev_has_event_code((*hook)->evdev, EV_KEY, KEY_ESC)) {
         label = "keyboard";
-    } else if (libevdev_has_event_type(*evdev, EV_REL) && libevdev_has_event_code(*evdev, EV_KEY, BTN_LEFT)) {
+    } else if (libevdev_has_event_type((*hook)->evdev, EV_REL) && libevdev_has_event_code((*hook)->evdev, EV_KEY, BTN_LEFT)) {
         label = "pointing";
     } else {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Unsupported input device: %s.\n",
@@ -184,11 +230,23 @@ static int create_evdev(char *path, struct libevdev **evdev) {
     return UIOHOOK_SUCCESS;
 }
 
-static void destroy_evdev(struct libevdev **evdev) {
-    if (*evdev != NULL) {
-        int fd = libevdev_get_fd(*evdev);
-        libevdev_free(*evdev);
-        *evdev = NULL;
+static void destroy_hook(struct input_hook **hook) {
+    if (*hook != NULL) {
+        int fd = libevdev_get_fd((*hook)->evdev);
+
+        if ((*hook)->evdev != NULL) {
+            libevdev_grab((*hook)->evdev, LIBEVDEV_UNGRAB);
+            libevdev_free((*hook)->evdev);
+            (*hook)->evdev = NULL;
+        }
+
+        if ((*hook)->uinput != NULL) {
+            libevdev_uinput_destroy((*hook)->uinput);
+            (*hook)->uinput = NULL;
+        }
+
+        free(*hook);
+        *hook = NULL;
 
         if (fd >= 0) {
             close(fd);
@@ -244,21 +302,21 @@ static int create_event_listeners(int epoll_fd, struct epoll_event **listeners) 
 
     int found = 0;
     for (int i = 0; i < glob_buffer.gl_pathc; i++) {
-        struct libevdev *evdev = NULL;
-        if (create_evdev(glob_buffer.gl_pathv[i], &evdev) != UIOHOOK_SUCCESS) {
-            destroy_evdev(&evdev);
+        struct input_hook *hook = NULL;
+        if (create_hook(glob_buffer.gl_pathv[i], &hook) != UIOHOOK_SUCCESS) {
+            destroy_hook(&hook);
             continue;
         }
 
         event_buffer[found].events = EPOLLIN;
-        event_buffer[found].data.ptr = evdev;
+        event_buffer[found].data.ptr = hook;
 
-        int fd = libevdev_get_fd(evdev);
+        int fd = libevdev_get_fd(hook->evdev);
         if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &event_buffer[found]) < 0) {
             logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to add file descriptor to epoll! (%d)\n",
                     __FUNCTION__, __LINE__);
             
-            destroy_evdev(&evdev);
+            destroy_hook(&hook);
             event_buffer[found].data.ptr = NULL;
             continue;
         }
@@ -326,18 +384,22 @@ UIOHOOK_API int hook_run() {
 		int event_count = epoll_wait(epoll_fd, event_buffer, EVENT_BUFFER_SIZE, EVENT_BUFFER_WAIT * 1000);
 
         for (int i = 0; i < event_count; i++) {
-            struct libevdev *evdev = event_buffer[i].data.ptr;
+            struct input_hook *hook = event_buffer[i].data.ptr;
 
             int status = -EAGAIN;
             unsigned int flags = LIBEVDEV_READ_FLAG_NORMAL;
             do {
-                status = libevdev_next_event(evdev, flags, &ev);
-                if (err == LIBEVDEV_READ_STATUS_SYNC) {
+                status = libevdev_next_event(hook->evdev, flags, &ev);
+                if (status == LIBEVDEV_READ_STATUS_SYNC) {
                     flags = LIBEVDEV_READ_FLAG_SYNC;
                 }
 
                 if (status != -EAGAIN) {
-                    hook_event_proc(&ev);
+                    bool consumed = hook_event_proc(&ev);
+
+                    if (hook->uinput != NULL && !consumed) {
+                        libevdev_uinput_write_event(hook->uinput, ev.type, ev.code, ev.value);
+                    }
                 }
             } while (status != -EAGAIN);
         }

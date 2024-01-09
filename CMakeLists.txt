@@ -25,7 +25,7 @@ if (WIN32 OR WIN64)
 elseif (APPLE)
     set(UIOHOOK_SOURCE_DIR "darwin")
 else()
-    set(UIOHOOK_SOURCE_DIR "x11")
+    set(UIOHOOK_SOURCE_DIR "evdev")
 endif()
 
 add_library(uiohook
@@ -139,6 +139,32 @@ endif()
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
 
+    pkg_check_modules(EVDEV REQUIRED libevdev)
+    target_include_directories(uiohook PRIVATE "${EVDEV_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${EVDEV_LDFLAGS}")
+
+    #pkg_check_modules(XCB REQUIRED xcb)
+    #target_include_directories(uiohook PRIVATE "${XCB_INCLUDE_DIRS}")
+    #target_link_libraries(uiohook "${XCB_LDFLAGS}")
+
+    pkg_check_modules(XCB_X11 REQUIRED x11-xcb)
+    target_include_directories(uiohook PRIVATE "${XCB_X11_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${XCB_X11_LDFLAGS}")
+
+    pkg_check_modules(XKB REQUIRED xkbcommon)
+    target_include_directories(uiohook PRIVATE "${XKB_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${XKB_LDFLAGS}")
+
+    pkg_check_modules(XKB_X11 REQUIRED xkbcommon-x11)
+    target_include_directories(uiohook PRIVATE "${XKB_X11_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${XKB_X11_LDFLAGS}")
+
+    # FIXME Check for header X11/extensions/XKB.h
+    include(CheckIncludeFile)
+    check_include_file(X11/extensions/XKB.h HAVE_XKB_H)
+
+
+
     pkg_check_modules(X11 REQUIRED x11)
     target_include_directories(uiohook PRIVATE "${X11_INCLUDE_DIRS}")
     target_link_libraries(uiohook "${X11_LDFLAGS}")
@@ -147,11 +173,18 @@ if(UNIX AND NOT APPLE)
     target_include_directories(uiohook PRIVATE "${XTST_INCLUDE_DIRS}")
     target_link_libraries(uiohook "${XTST_LDFLAGS}")
 
+    pkg_check_modules(XINPUT REQUIRED xi)
+    target_include_directories(uiohook PRIVATE "${XINPUT_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${XINPUT_LDFLAGS}")
+
+
+
+    include(CMakePrintHelpers)
+    cmake_print_variables(EVDEV_INCLUDE_DIRS)
+
     include(CheckLibraryExists)
     check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)
 
-    include(CheckIncludeFile)
-    check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
 
     option(USE_XT "X Toolkit Extension (default: ON)" ON)
     if(USE_XT)

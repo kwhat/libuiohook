@@ -49,21 +49,6 @@
 
 #define MAX_WINDOWS_COORD_VALUE (1 << 16)
 
-// TODO I doubt this table is complete.
-// http://letcoderock.blogspot.fr/2011/10/sendinput-with-shift-key-not-work.html
-static const uint16_t extend_key_table[10] = {
-    VK_UP,
-    VK_DOWN,
-    VK_LEFT,
-    VK_RIGHT,
-    VK_HOME,
-    VK_END,
-    VK_PRIOR, // PgUp
-    VK_NEXT,  //  PgDn
-    VK_INSERT,
-    VK_DELETE
-};
-
 
 static LONG convert_to_relative_position(int coordinate, int screen_size) {
     // See https://stackoverflow.com/a/4555214 and its comments
@@ -73,7 +58,6 @@ static LONG convert_to_relative_position(int coordinate, int screen_size) {
 
 static int map_keyboard_event(uiohook_event * const event, INPUT * const input) {
     input->type = INPUT_KEYBOARD; // | KEYEVENTF_SCANCODE
-    //input->ki.wScan = event->data.keyboard.rawcode;
     //input->ki.time = GetSystemTime();
 
     switch (event->type) {
@@ -98,12 +82,10 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
         return UIOHOOK_FAILURE;
     }
 
-    // FIXME Why is this checking MASK_SHIFT
-    if (event->mask & MASK_SHIFT) {
-        for (int i = 0; i < sizeof(extend_key_table) / sizeof(uint16_t)
-                && input->ki.wVk == extend_key_table[i]; i++) {
-            input->ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
-        }
+    input->ki.wScan = MapVirtualKeyW(input->ki.wVk, MAPVK_VK_TO_VSC_EX);
+
+    if (HIBYTE(input->ki.wScan)) {
+        input->ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
     }
 
     return UIOHOOK_SUCCESS;

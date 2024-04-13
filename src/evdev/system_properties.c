@@ -121,6 +121,7 @@ static void *settings_thread_proc(void *arg) {
 }
 #endif
 
+// FIXME XINERAMA and XRADNR can prob be replaced by https://wayland.app/protocols/xdg-output-unstable-v1#zxdg_output_v1:event:logical_size on wayland.
 UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     *count = 0;
     screen_data *screens = NULL;

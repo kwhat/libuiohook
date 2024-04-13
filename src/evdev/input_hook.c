@@ -16,41 +16,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <inttypes.h>
-#include <limits.h>
-
-#include <glob.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/epoll.h>
+#include <fcntl.h>
+#include <glob.h>
 #include <libevdev/libevdev.h>
 #include <libevdev/libevdev-uinput.h>
-
-
-#include <stdint.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 #include <uiohook.h>
-
+#include <unistd.h>
 
 #include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
 
+#define EVENT_GLOB_PATTERN "/dev/input/event*"
+
+
+struct input_hook {
+    struct libevdev *evdev;
+    struct libevdev_uinput *uinput;
+};
+
 static int rel_x = 0, rel_y = 0;
 static int wheel_h = 0, wheel_v = 0;
 
-static bool hook_button_proc(struct input_event *ev) {
-    bool consumed = false;
-
-    if (ev->value > 0) {
-        consumed = dispatch_mouse_press(ev);
-    } else {
-        consumed = dispatch_mouse_release(ev);
-    }
-
-    return consumed;
-}
 
 static bool hook_key_proc(struct input_event *ev) {
     bool consumed = false;
@@ -68,6 +58,18 @@ static bool hook_key_proc(struct input_event *ev) {
       consumed = dispatch_key_press(timestamp, keycode, keysym);
     } else {
       consumed = dispatch_key_release(timestamp, keycode, keysym);
+    }
+
+    return consumed;
+}
+
+static bool hook_button_proc(struct input_event *ev) {
+    bool consumed = false;
+
+    if (ev->value > 0) {
+        consumed = dispatch_mouse_press(ev);
+    } else {
+        consumed = dispatch_mouse_release(ev);
     }
 
     return consumed;
@@ -100,7 +102,7 @@ static bool hook_sync_proc(struct input_event *ev) {
     return consumed;
 }
 
-bool hook_event_proc(struct input_event *ev) {
+static bool hook_event_proc(struct input_event *ev) {
     bool consumed = false;
 
     switch (ev->type) {
@@ -145,12 +147,6 @@ bool hook_event_proc(struct input_event *ev) {
 
     return consumed;
 }
-
-
-struct input_hook {
-    struct libevdev *evdev;
-    struct libevdev_uinput *uinput;
-};
 
 static int create_hook(char *path, struct input_hook **hook) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -254,8 +250,7 @@ static void destroy_hook(struct input_hook **hook) {
     }
 }
 
-/**********************************************************************************************************************/
-#define EVENT_GLOB_PATTERN "/dev/input/event*"
+
 static int create_glob_buffer(glob_t *glob_buffer) {
     int status = glob(EVENT_GLOB_PATTERN,  GLOB_ERR | GLOB_NOSORT | GLOB_NOESCAPE, NULL, glob_buffer);
     switch (status) {
@@ -280,7 +275,6 @@ static int create_glob_buffer(glob_t *glob_buffer) {
 static void destroy_glob(glob_t *glob_buffer) {
     globfree(glob_buffer);
 }
-/**********************************************************************************************************************/
 
 
 static int create_event_listeners(int epoll_fd, struct epoll_event **listeners) {

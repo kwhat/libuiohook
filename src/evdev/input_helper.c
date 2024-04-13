@@ -617,56 +617,6 @@ static void initialize_locks() {
     }
 }
 
-// Initialize the modifier mask to the current modifiers.
-static void initialize_modifiers() {
-    modifier_mask = 0x0000;
-
-    KeyCode keycode;
-    char keymap[32];
-
-    // TODO https://www.mail-archive.com/wayland-devel@lists.freedesktop.org/msg10845.html
-    XQueryKeymap(display, keymap);
-
-    keycode = XKeysymToKeycode(display, XK_Shift_L);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_L); }
-
-    keycode = XKeysymToKeycode(display, XK_Shift_R);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_SHIFT_R); }
-
-    keycode = XKeysymToKeycode(display, XK_Control_L);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_L);  }
-
-    keycode = XKeysymToKeycode(display, XK_Control_R);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_CTRL_R);  }
-
-    keycode = XKeysymToKeycode(display, XK_Alt_L);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_L);   }
-
-    keycode = XKeysymToKeycode(display, XK_Alt_R);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_ALT_R);   }
-
-    keycode = XKeysymToKeycode(display, XK_Super_L);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_L);  }
-
-    keycode = XKeysymToKeycode(display, XK_Super_R);
-    if (keymap[keycode / 8] & (1 << (keycode % 8))) { set_modifier_mask(MASK_META_R);  }
-
-
-    Window unused_win;
-    int unused_int;
-    unsigned int mask;
-    if (XQueryPointer(display, XDefaultRootWindow(display), &unused_win, &unused_win, &unused_int, &unused_int, &unused_int, &unused_int, &mask)) {
-        if (mask & Button1Mask) { set_modifier_mask(MASK_BUTTON1); }
-        if (mask & Button2Mask) { set_modifier_mask(MASK_BUTTON2); }
-        if (mask & Button3Mask) { set_modifier_mask(MASK_BUTTON3); }
-        if (mask & Button4Mask) { set_modifier_mask(MASK_BUTTON4); }
-        if (mask & Button5Mask) { set_modifier_mask(MASK_BUTTON5); }
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: XQueryPointer failed to get initial mouse state!\n",
-                __FUNCTION__, __LINE__);
-    }
-}
-
 #ifdef USE_EPOCH_TIME
 /* Get the current timestamp in unix epoch time. */
 uint64_t get_unix_timestamp(struct timeval *event_time) {

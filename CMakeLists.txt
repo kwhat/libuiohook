@@ -205,11 +205,6 @@ if(UNIX AND NOT APPLE)
         target_link_libraries(uiohook "${XINERAMA_LDFLAGS}")
     endif()
 
-    option(USE_XRECORD_ASYNC "XRecord Asynchronous API (default: OFF)" OFF)
-    if(USE_XRECORD_ASYNC)
-        add_compile_definitions(uiohook PRIVATE USE_XRECORD_ASYNC)
-    endif()
-
     option(USE_XTEST "XTest API (default: ON)" ON)
     if(USE_XTEST)
         # XTest API is provided by Xtst

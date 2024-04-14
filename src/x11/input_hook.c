@@ -19,10 +19,6 @@
 #include <inttypes.h>
 #include <limits.h>
 
-#ifdef USE_XRECORD_ASYNC
-#include <pthread.h>
-#endif
-
 #include <stdint.h>
 #include <uiohook.h>
 
@@ -50,14 +46,6 @@
 
 #include "logger.h"
 #include "input_helper.h"
-
-// Thread and hook handles.
-#ifdef USE_XRECORD_ASYNC
-static bool running;
-
-static pthread_cond_t hook_xrecord_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t hook_xrecord_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 typedef struct _hook_info {
     struct _data {
@@ -849,60 +837,13 @@ static inline int xrecord_block() {
     //XPointer closeure = (XPointer) (ctrl_display);
     XPointer closeure = NULL;
 
-    #ifdef USE_XRECORD_ASYNC
-    // Async requires that we loop so that our thread does not return.
-    if (XRecordEnableContextAsync(hook->data.display, context, hook_event_proc, closeure) != 0) {
-        // Time in MS to sleep the runloop.
-        int timesleep = 100;
-
-        // Allow the thread loop to block.
-        pthread_mutex_lock(&hook_xrecord_mutex);
-        running = true;
-
-        do {
-            // Unlock the mutex from the previous iteration.
-            pthread_mutex_unlock(&hook_xrecord_mutex);
-
-            XRecordProcessReplies(hook->data.display);
-
-            // Prevent 100% CPU utilization.
-            struct timeval tv;
-            gettimeofday(&tv, NULL);
-
-            struct timespec ts;
-            ts.tv_sec = time(NULL) + timesleep / 1000;
-            ts.tv_nsec = tv.tv_usec * 1000 + 1000 * 1000 * (timesleep % 1000);
-            ts.tv_sec += ts.tv_nsec / (1000 * 1000 * 1000);
-            ts.tv_nsec %= (1000 * 1000 * 1000);
-
-            pthread_mutex_lock(&hook_xrecord_mutex);
-            pthread_cond_timedwait(&hook_xrecord_cond, &hook_xrecord_mutex, &ts);
-        } while (running);
-
-        // Unlock after loop exit.
-        pthread_mutex_unlock(&hook_xrecord_mutex);
-
-        // Set the exit status.
-        status = NULL;
-    }
-    #else
     // Sync blocks until XRecordDisableContext() is called.
     if (XRecordEnableContext(hook->data.display, hook->ctrl.context, hook_event_proc, closeure) != 0) {
         status = UIOHOOK_SUCCESS;
-    }
-    #endif
-    else {
+    } else {
         logger(LOG_LEVEL_ERROR, "%s [%u]: XRecordEnableContext failure!\n",
                 __FUNCTION__, __LINE__);
 
-        #ifdef USE_XRECORD_ASYNC
-        // Reset the running state.
-        pthread_mutex_lock(&hook_xrecord_mutex);
-        running = false;
-        pthread_mutex_unlock(&hook_xrecord_mutex);
-        #endif
-
-        // Set the exit status.
         status = UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT;
     }
 
@@ -1103,13 +1044,6 @@ UIOHOOK_API int hook_stop() {
             if (XRecordGetContext(hook->ctrl.display, hook->ctrl.context, &state) != 0) {
                 // Try to exit the thread naturally.
                 if (state->enabled && XRecordDisableContext(hook->ctrl.display, hook->ctrl.context) != 0) {
-                    #ifdef USE_XRECORD_ASYNC
-                    pthread_mutex_lock(&hook_xrecord_mutex);
-                    running = false;
-                    pthread_cond_signal(&hook_xrecord_cond);
-                    pthread_mutex_unlock(&hook_xrecord_mutex);
-                    #endif
-
                     // See Bug 42356 for more information.
                     // https://bugs.freedesktop.org/show_bug.cgi?id=42356#c4
                     //XFlush(hook->ctrl.display);

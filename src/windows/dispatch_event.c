@@ -404,11 +404,11 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
     uio_event.data.wheel.x = (int16_t) mshook->pt.x;
     uio_event.data.wheel.y = (int16_t) mshook->pt.y;
 
-    /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
+    /* The GET_WHEEL_DELTA_WPARAM(mshook->mouseData) macro returns the high-order word of mouseData which represents
+     * the wheel delta.
+     * A positive value indicates that the wheel was rotated forward, away from the user.
+     * A negative value indicates that the wheel was rotated backward, toward the user.
+     * One wheel click is defined as WHEEL_DELTA, which is 120. */
     uio_event.data.wheel.rotation = (int16_t) GET_WHEEL_DELTA_WPARAM(mshook->mouseData);
     uio_event.data.wheel.delta = WHEEL_DELTA;
 

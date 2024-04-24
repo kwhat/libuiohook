@@ -19,7 +19,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef USE_APPLICATION_SERVICES
 #include <ApplicationServices/ApplicationServices.h>
+#else
+#include <CoreGraphics/CoreGraphics.h>
+#endif
 
 extern bool dispatch_hook_enabled(uint64_t timestamp);
 

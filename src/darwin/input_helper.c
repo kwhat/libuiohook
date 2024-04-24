@@ -33,8 +33,11 @@
 #include <objc/objc-runtime.h>
 #endif
 
-
 // Dynamic library loading for dispatch_sync_f to offload tasks that must run on the main runloop.
+#if (defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED < __MAC_10_6) \
+    || (defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_4_0)
+typedef struct dispatch_queue_s *dispatch_queue_t;
+#endif
 static struct dispatch_queue_s *dispatch_main_queue_s;
 static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 
@@ -549,10 +552,10 @@ static void tis_message_to_nsevent(void *info) {
             if (data_ref != NULL) {
                 if (CFDataGetLength(data_ref) >= 132) {
                     UInt8 buffer[4];
-                    CFDataGetBytes(data_ref, CFRangeMake(120, 4), &buffer);
+                    CFDataGetBytes(data_ref, CFRangeMake(120, 4), &buffer[0]);
                     tis->subtype = CFSwapInt32BigToHost(*((UInt32 *) &buffer));
 
-                    CFDataGetBytes(data_ref, CFRangeMake(128, 4), &buffer);
+                    CFDataGetBytes(data_ref, CFRangeMake(128, 4), &buffer[0]);
                     tis->data1 = CFSwapInt32BigToHost(*((UInt32 *) &buffer));
 
                     CFRelease(data_ref);
@@ -728,7 +731,6 @@ static void tis_message_to_unicode(void *info) {
                             tis->length = 0;
                         }
                     }
-
                 }
             }
 

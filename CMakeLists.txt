@@ -194,21 +194,29 @@ if(UNIX AND NOT APPLE)
     endif()
 elseif(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5")
-
-    find_package(Threads REQUIRED)
-    target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
-
-    find_library(CARBON Carbon REQUIRED)
-    target_include_directories(uiohook PRIVATE "${CARBON}")
-    target_link_libraries(uiohook "${CARBON}")
 
     option(USE_APPLICATION_SERVICES "ApplicationServices framework (default: ON)" ON)
     if(USE_APPLICATION_SERVICES)
+        find_package(Threads REQUIRED)
+        target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
+
+        find_library(CARBON Carbon REQUIRED)
+        target_include_directories(uiohook PRIVATE "${CARBON}")
+        target_link_libraries(uiohook "${CARBON}")
+
         find_library(APPLICATION_SERVICES ApplicationServices REQUIRED)
         add_compile_definitions(USE_APPLICATION_SERVICES)
         target_include_directories(uiohook PRIVATE "${APPLICATION_SERVICES}")
         target_link_libraries(uiohook "${APPLICATION_SERVICES}")
+    else()
+        # If we aren't using APPLICATION_SERVICES, we need to link against other required libraries.
+        find_library(CORE_FOUNDATION CoreFoundation REQUIRED)
+        target_include_directories(uiohook PRIVATE "${CORE_FOUNDATION}")
+        target_link_libraries(uiohook "${CORE_FOUNDATION}")
+
+        find_library(CORE_GRAPHICS CoreGraphics REQUIRED)
+        target_include_directories(uiohook PRIVATE "${CORE_GRAPHICS}")
+        target_link_libraries(uiohook "${CORE_GRAPHICS}")
     endif()
 
     option(USE_IOKIT "IOKit framework (default: ON)" ON)

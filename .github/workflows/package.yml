@@ -5,7 +5,7 @@ on:
       - '**'
 
 jobs:
-  apple-arm64:
+  catalyst-arm64:
     runs-on: macos-latest
 
     steps:
@@ -17,13 +17,94 @@ jobs:
       - name: Compile
         env:
           CC: clang
-          CFLAGS: '-O2 -g -target arm64-apple-macos10.5 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          CFLAGS: '-O2 -g -target arm64-apple-ios-macabi -miphoneos-version-min=13.1 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
           LDFLAGS: '-Wl,-dead_strip_dylibs'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/arm64 \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/catalyst/arm64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D USE_APPLICATION_SERVICES=OFF \
+            -D USE_IOKIT=OFF \
+            -D USE_APPKIT=OFF \
+            -D BUILD_DEMO=OFF
+
+          cmake --build ${{github.workspace}}/build \
+            --parallel 2 \
+            --config RelWithDebInfo \
+            --clean-first
+
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{github.job}}
+          path: ${{github.workspace}}/dist/**/*
+          overwrite: true
+
+  catalyst-x86_64:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Compile
+        env:
+          CC: clang
+          CFLAGS: '-O2 -g -target x86_64-apple-ios-macabi -miphoneos-version-min=13.1 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          LDFLAGS: '-Wl,-dead_strip_dylibs'
+        shell: bash
+        run: |
+          cmake -B ${{github.workspace}}/build \
+            -G "Unix Makefiles" \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/catalyst/x86_64 \
+            -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D BUILD_SHARED_LIBS=ON \
+            -D USE_APPLICATION_SERVICES=OFF \
+            -D USE_IOKIT=OFF \
+            -D USE_APPKIT=OFF \
+            -D BUILD_DEMO=OFF
+
+          cmake --build ${{github.workspace}}/build \
+            --parallel 2 \
+            --config RelWithDebInfo \
+            --clean-first
+
+          cmake --install ${{github.workspace}}/build --config RelWithDebInfo
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{github.job}}
+          path: ${{github.workspace}}/dist/**/*
+          overwrite: true
+
+
+  macos-arm64:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+
+      - name: Compile
+        env:
+          CC: clang
+          CFLAGS: '-O2 -g -target arm64-apple-macos -mmacosx-version-min=10.5 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          LDFLAGS: '-Wl,-dead_strip_dylibs'
+        shell: bash
+        run: |
+          cmake -B ${{github.workspace}}/build \
+            -G "Unix Makefiles" \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/macos/arm64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D BUILD_DEMO=ON
@@ -36,12 +117,13 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
-  apple-x86_64:
+  macos-x86_64:
     runs-on: macos-latest
 
     steps:
@@ -53,13 +135,13 @@ jobs:
       - name: Compile
         env:
           CC: clang
-          CFLAGS: '-O2 -g -target x86_64-apple-macos10.5 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
+          CFLAGS: '-O2 -g -target x86_64-apple-macos -mmacosx-version-min=10.5 -flto -fomit-frame-pointer -fno-stack-protector -pipe'
           LDFLAGS: '-Wl,-dead_strip_dylibs'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
-            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/darwin/x86_64 \
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/macos/x86_64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D BUILD_DEMO=ON
@@ -72,10 +154,11 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
 
   linux-arm:
@@ -97,7 +180,7 @@ jobs:
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
           deb [arch=amd64,i386] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-          
+
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
@@ -145,10 +228,11 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
   linux-arm64:
     runs-on: ubuntu-latest
@@ -217,10 +301,11 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
   linux-x86:
     runs-on: ubuntu-latest
@@ -283,10 +368,11 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
   linux-x86_64:
     runs-on: ubuntu-latest
@@ -333,10 +419,11 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
 
   windows-arm:
@@ -370,10 +457,11 @@ jobs:
           cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
   windows-x86:
     runs-on: windows-latest
@@ -406,10 +494,11 @@ jobs:
           cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true
 
   windows-x86_64:
     runs-on: windows-latest
@@ -442,7 +531,8 @@ jobs:
           cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: nightly-build
+          name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
+          overwrite: true

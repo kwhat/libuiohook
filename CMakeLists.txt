@@ -17,7 +17,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(uiohook VERSION 1.2.0 LANGUAGES C)
+project(uiohook VERSION 1.3.0 LANGUAGES C)
 
 
 if (WIN32 OR WIN64)

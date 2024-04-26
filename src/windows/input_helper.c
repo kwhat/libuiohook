@@ -301,8 +301,19 @@ uint16_t vkcode_to_uiocode(DWORD vk_code, DWORD flags) {
     if (vk_code < sizeof(uiocode_vkcode_table) / sizeof(uiocode_vkcode_table[0])) {
         uiocode = uiocode_vkcode_table[vk_code][0];
 
+        // Check the extended key flag as defined at:
+        // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#extended-key-flag
         if (flags & LLKHF_EXTENDED) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: Using extended lookup for vk_code: %li\n",
+                    __FUNCTION__, __LINE__, vk_code);
+
+            switch (vk_code) {
+                case VK_RETURN:
+                    uiocode = VC_KP_ENTER;
+                    break;
+            }
+        } else {
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using normal lookup for vk_code: %li\n",
                     __FUNCTION__, __LINE__, vk_code);
 
             switch (vk_code) {
@@ -319,14 +330,7 @@ uint16_t vkcode_to_uiocode(DWORD vk_code, DWORD flags) {
                 case VK_DELETE:
                     uiocode |= 0xEE00;
                     break;
-
-                case VK_RETURN:
-                    uiocode |= 0x0E00;
-                    break;
             }
-        } else {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using normal lookup for vk_code: %li\n",
-                    __FUNCTION__, __LINE__, vk_code);
         }
     }
 

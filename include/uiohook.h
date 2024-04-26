@@ -298,17 +298,17 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 #define VC_KP_8                                  0x0068
 #define VC_KP_9                                  0x0069
 
-#define VC_KP_END                                0xEE00 | VC_KP_1
-#define VC_KP_DOWN                               0xEE00 | VC_KP_2
-#define VC_KP_PAGE_DOWN                          0xEE00 | VC_KP_3
-#define VC_KP_LEFT                               0xEE00 | VC_KP_4
-#define VC_KP_BEGIN                              0xEE00 | VC_KP_5
-#define VC_KP_RIGHT                              0xEE00 | VC_KP_6
-#define VC_KP_HOME                               0xEE00 | VC_KP_7
-#define VC_KP_UP                                 0xEE00 | VC_KP_8
-#define VC_KP_PAGE_UP                            0xEE00 | VC_KP_9
-#define VC_KP_INSERT                             0xEE00 | VC_KP_0
-#define VC_KP_DELETE                             0xEE00 | VC_KP_SEPARATOR
+#define VC_KP_END                                0xEE00 | VC_END
+#define VC_KP_DOWN                               0xEE00 | VC_DOWN
+#define VC_KP_PAGE_DOWN                          0xEE00 | VC_PAGE_DOWN
+#define VC_KP_LEFT                               0xEE00 | VC_LEFT
+#define VC_KP_BEGIN                              0xEE00 | VC_BEGIN
+#define VC_KP_RIGHT                              0xEE00 | VC_RIGHT
+#define VC_KP_HOME                               0xEE00 | VC_HOME
+#define VC_KP_UP                                 0xEE00 | VC_UP
+#define VC_KP_PAGE_UP                            0xEE00 | VC_PAGE_UP
+#define VC_KP_INSERT                             0xEE00 | VC_INSERT
+#define VC_KP_DELETE                             0xEE00 | VC_DELETE
 // End Numeric Zone
 
 

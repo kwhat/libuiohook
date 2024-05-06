@@ -86,6 +86,22 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
 
     if (HIBYTE(input->ki.wScan)) {
         input->ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+    } else {
+        switch (event->data.keyboard.keycode) {
+            case VC_UP:
+            case VC_DOWN:
+            case VC_LEFT:
+            case VC_RIGHT:
+            case VC_HOME:
+            case VC_END:
+            case VC_PAGE_UP:
+            case VC_PAGE_DOWN:
+            case VC_INSERT:
+            case VC_DELETE:
+            case VC_KP_ENTER:
+                input->ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
+                break;
+        }
     }
 
     return UIOHOOK_SUCCESS;

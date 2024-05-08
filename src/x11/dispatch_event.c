@@ -251,13 +251,14 @@ static bool dispatch_mouse_wheel_rotated(XButtonEvent * const x_event) {
     /* Some scroll wheel properties are available via the new XInput2 (XI2) extension. Unfortunately the extension is
      * not available on my development platform at this time. For the time being we will just use the Windows default
      * value of 3. */
+    uio_event.data.wheel.amount = WHEEL_AMOUNT;
     uio_event.data.wheel.delta = 100;
     if (x_event->button == WheelDown || x_event->button == WheelLeft) {
         // Wheel Rotated Up and Away.
-        uio_event.data.wheel.rotation = -3 * uio_event.data.wheel.delta;
+        uio_event.data.wheel.rotation = -1 * uio_event.data.wheel.delta;
     } else { // event.button == WheelUp || event.button == WheelRight
         // Wheel Rotated Down and Towards.
-        uio_event.data.wheel.rotation = 3 * uio_event.data.wheel.delta;
+        uio_event.data.wheel.rotation = uio_event.data.wheel.delta;
     }
 
     if (x_event->button == WheelUp || x_event->button == WheelDown) {

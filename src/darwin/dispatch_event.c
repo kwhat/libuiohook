@@ -623,32 +623,46 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
         CGEventSourceRef source = CGEventCreateSourceFromEvent(event_ref);
         double ppl = CGEventSourceGetPixelsPerLine(source);
 
+        unsigned int wheel_amount = 10;
         if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) != 0) {
             // continuous device (trackpad)
-            ppl *= 1;
+            wheel_amount = 1;
+
+            ppl *= wheel_amount;
             uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
 
             if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
                 uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * ppl * 1);
+                uio_event.data.wheel.rotation = (int16_t) (
+                    CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * ppl * wheel_amount
+                );
             } else if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
                 uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) * ppl * 1);
+                uio_event.data.wheel.rotation = (int16_t) (
+                    CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) * ppl * wheel_amount
+                );
             }
         } else {
             // non-continuous device (wheel mice)
-            ppl *= 10;
+            wheel_amount = 10;
+
+            ppl *= wheel_amount;
             uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
 
             if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
                 uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis1) * ppl * 10);
+                uio_event.data.wheel.rotation = (int16_t) (
+                    CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis1) * ppl * wheel_amount
+                );
             } else if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
                 uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis2) * ppl * 10);
+                uio_event.data.wheel.rotation = (int16_t) (
+                    CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis2) * ppl * wheel_amount
+                );
             }
         }
 
+        uio_event.data.wheel.amount = (uint8_t) wheel_amount;
         uio_event.data.wheel.delta = (uint16_t) ppl;
 
         if (source) {
@@ -657,12 +671,9 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
                 __FUNCTION__, __LINE__,
-                uio_event.data.wheel.rotation,
-                uio_event.data.wheel.delta,
-                uio_event.data.wheel.type,
-                uio_event.data.wheel.direction,
-                uio_event.data.wheel.x,
-                uio_event.data.wheel.y);
+                uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
+                uio_event.data.wheel.type, uio_event.data.wheel.direction,
+                uio_event.data.wheel.x, uio_event.data.wheel.y);
 
         // Fire mouse wheel event.
         dispatch_event(&uio_event);

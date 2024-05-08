@@ -391,11 +391,11 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
     uio_event.data.wheel.x = (int16_t) mshook->pt.x;
     uio_event.data.wheel.y = (int16_t) mshook->pt.y;
 
-    /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
+    /* The GET_WHEEL_DELTA_WPARAM(mshook->mouseData) macro returns the high-order word of mouseData which represents
+     * the wheel delta.
+     * A positive value indicates that the wheel was rotated forward, away from the user.
+     * A negative value indicates that the wheel was rotated backward, toward the user.
+     * One wheel click is defined as WHEEL_DELTA, which is 120. */
     uio_event.data.wheel.rotation = (int16_t) GET_WHEEL_DELTA_WPARAM(mshook->mouseData);
     uio_event.data.wheel.delta = WHEEL_DELTA;
 
@@ -412,6 +412,7 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
 
             uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
             uio_event.data.wheel.rotation *= 1;
+            uio_event.data.wheel.amount = 1;
         } else {
             /* If this number is 0, no scrolling should occur.
              * If the number of lines to scroll is greater than the number of lines viewable, the scroll operation
@@ -419,6 +420,7 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
 
             uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
             uio_event.data.wheel.rotation *= wheel_amount;
+            uio_event.data.wheel.amount = wheel_amount;
         }
 
         // Set the direction based on what event was received.

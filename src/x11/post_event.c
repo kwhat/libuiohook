@@ -119,40 +119,43 @@ static int post_mouse_button_event(uiohook_event * const event) {
 static int post_mouse_wheel_event(uiohook_event * const event) {
     int status = UIOHOOK_FAILURE;
 
-    XButtonEvent btn_event = {
-        .serial = 0,
-        .send_event = False,
-        .display = helper_disp,
+    if (event->data.wheel.delta > 0) {
+        XButtonEvent btn_event = {
+            .serial = 0,
+            .send_event = False,
+            .display = helper_disp,
 
-        .window = None,                                /* “event” window it is reported relative to */
-        .root = None,                                  /* root window that the event occurred on */
-        .subwindow = XDefaultRootWindow(helper_disp),  /* child window */
+            .window = None,                                /* “event” window it is reported relative to */
+            .root = None,                                  /* root window that the event occurred on */
+            .subwindow = XDefaultRootWindow(helper_disp),  /* child window */
 
-        .time = CurrentTime,
+            .time = CurrentTime,
 
-        .x = event->data.wheel.x,                      /* pointer x, y coordinates in event window */
-        .y = event->data.wheel.y,
+            .x = event->data.wheel.x,                      /* pointer x, y coordinates in event window */
+            .y = event->data.wheel.y,
 
-        .x_root = 0,                                   /* coordinates relative to root */
-        .y_root = 0,
+            .x_root = 0,                                   /* coordinates relative to root */
+            .y_root = 0,
 
-        .state = 0x00,                                 /* key or button mask */
-        .same_screen = True
-    };
+            .state = 0x00,                                 /* key or button mask */
+            .same_screen = True
+        };
 
-    // Wheel events should be the same as click events on X11.
-    // type, amount and rotation
-    unsigned int button = button_map_lookup(event->data.wheel.rotation < 0 ? WheelUp : WheelDown);
+        unsigned int button = button_map_lookup(event->data.wheel.rotation < 0 ? WheelUp : WheelDown);
 
-    if (XTestFakeButtonEvent(helper_disp, button, True, 0) != 0) {
+        // X11 does not support a rotation amount so we will emulate the number of rotations based on the static wheel amount.
+        // TODO What are we going to do about type=WHEEL_BLOCK_SCROLL?
+        // TODO What are we going to do about amount=? Is this really a setting, not event property?
         status = UIOHOOK_SUCCESS;
+        for (int i = abs(event->data.wheel.rotation) / (event->data.wheel.delta * event->data.wheel.amount); i > 0 && status == UIOHOOK_SUCCESS; i--) {
+            // Wheel events are be the same as click events on X11.
+            if (!XTestFakeButtonEvent(helper_disp, button, True, 0) || !XTestFakeButtonEvent(helper_disp, button, False, 0)) {
+                status = UIOHOOK_FAILURE;
+            }
+        }
     }
 
-    if (status == UIOHOOK_SUCCESS && XTestFakeButtonEvent(helper_disp, button, False, 0) == 0) {
-        status = UIOHOOK_FAILURE;
-    }
-
-    return UIOHOOK_SUCCESS;
+    return status;
 }
 
 static int post_mouse_motion_event(uiohook_event * const event) {

@@ -23,7 +23,7 @@
 #include "logger.h"
 
 // Flag to recognize touch events: https://stackoverflow.com/questions/45473673/how-to-distinguish-touch-vs-mouse-event-from-setwindowshookex-in-c-sharp
-static int TOUCH_FLAG = 0xFF515700;
+static ULONG_PTR TOUCH_FLAG = 0xFF515700;
 
 // Virtual event pointer.
 static uiohook_event uio_event;
@@ -256,7 +256,7 @@ bool dispatch_button_press(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t 
     if (mshook->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) {
         uio_event.mask |= MASK_EMULATED;
     }
-    if(mshook->dwExtraInfo & TOUCH_FLAG) {
+    if((mshook->dwExtraInfo & TOUCH_FLAG) == TOUCH_FLAG) {
         uio_event.mask |= MASK_TOUCHED;
     }
 
@@ -288,7 +288,7 @@ bool dispatch_button_release(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_
     if (mshook->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) {
         uio_event.mask |= MASK_EMULATED;
     }
-    if(mshook->dwExtraInfo & TOUCH_FLAG) {
+    if((mshook->dwExtraInfo & TOUCH_FLAG) == TOUCH_FLAG) {
         uio_event.mask |= MASK_TOUCHED;
     }
 
@@ -359,7 +359,7 @@ bool dispatch_mouse_move(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
         if (mshook->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) {
             uio_event.mask |= MASK_EMULATED;
         }
-        if(mshook->dwExtraInfo & TOUCH_FLAG) {
+        if((mshook->dwExtraInfo & TOUCH_FLAG) == TOUCH_FLAG) {
             uio_event.mask |= MASK_TOUCHED;
         }
 

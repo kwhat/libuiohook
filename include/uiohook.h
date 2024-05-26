@@ -453,6 +453,7 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 #define MASK_CAPS_LOCK                           1 << 14
 #define MASK_SCROLL_LOCK                         1 << 15
 
+#define MASK_TOUCHED                             1 << 29
 #define MASK_EMULATED                            1 << 30
 #define MASK_CONSUMED                            1 << 31
 /* End Virtual Modifier Masks */

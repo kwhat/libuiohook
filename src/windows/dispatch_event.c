@@ -30,6 +30,7 @@ static unsigned short click_count = 0;
 static uint64_t click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 static POINT last_click;
+static POINT last_moved;
 
 // Event dispatch callback.
 static dispatcher_t dispatch = NULL;
@@ -77,6 +78,12 @@ static void dispatch_event(uiohook_event *const event) {
 
 bool dispatch_hook_enable(uint64_t timestamp) {
     bool consumed = false;
+
+    // FIXME I am not sure where this should live, it use to be with the call to load_input_helper() before refactor.
+    if (!GetCursorPos(&last_moved)) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to locate cursor position!\n",
+                __FUNCTION__, __LINE__);
+    }
 
     // Populate the hook start event.
     uio_event.time = timestamp;
@@ -358,6 +365,12 @@ bool dispatch_mouse_move(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
         uio_event.data.mouse.clicks = click_count;
         uio_event.data.mouse.x = (int16_t) mshook->pt.x;
         uio_event.data.mouse.y = (int16_t) mshook->pt.y;
+// FIXME This looks like testing logging that should be at LOG_LEVEL_DEBUG like below...
+        logger(LOG_LEVEL_WARN, "#### %s [%u]: Mouse %s to %i, %i.\n",
+                __FUNCTION__, __LINE__,
+                mouse_dragged ? "dragged" : "moved",
+                last_moved.x - mshook->pt.x, last_moved.y - mshook->pt.y);
+        last_moved = mshook->pt;
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
                 __FUNCTION__, __LINE__,

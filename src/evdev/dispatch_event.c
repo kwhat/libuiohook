@@ -116,7 +116,15 @@ void dispatch_hook_disabled() {
     unload_input_helper();
 }
 
-bool dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
+bool dispatch_key_press(struct input_event *const ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    xkb_keycode_t keycode = event_to_keycode(ev->code);
+    xkb_keysym_t keysym = event_to_keysym(keycode, ev->value);
     uint16_t uiocode = keysym_to_uiocode(keysym);
 
     // Populate key pressed event.
@@ -165,7 +173,15 @@ bool dispatch_key_press(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t 
     return uio_event.reserved & 0x01;
 }
 
-bool dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_t keysym) {
+bool dispatch_key_release(struct input_event *const ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    xkb_keycode_t keycode = event_to_keycode(ev->code);
+    xkb_keysym_t keysym = event_to_keysym(keycode, ev->value);
     uint16_t uiocode = keysym_to_uiocode(keysym);
 
     // Populate key released event.
@@ -189,46 +205,69 @@ bool dispatch_key_release(uint64_t timestamp, xkb_keycode_t keycode, xkb_keysym_
     return uio_event.reserved & 0x01;
 }
 
-bool dispatch_mouse_press(struct input_event *const ev) {
-/*
-    switch (x_event->button) {
-        case Button1:
-            x_event->button = MOUSE_BUTTON1;
-            set_modifier_mask(MASK_BUTTON1);
+// Set to true by dispatch_mouse_move between a button press and release so we know
+// whether to synthesize an EVENT_MOUSE_CLICKED on release.
+static bool mouse_dragged = false;
+
+static uint16_t button_to_uiocode(uint16_t code, uint16_t *mask) {
+    uint16_t button;
+
+    switch (code) {
+        case BTN_LEFT:
+            button = MOUSE_BUTTON1;
+            *mask = MASK_BUTTON1;
             break;
 
-        case Button2:
-            x_event->button = MOUSE_BUTTON2;
-            set_modifier_mask(MASK_BUTTON2);
+        case BTN_RIGHT:
+            button = MOUSE_BUTTON2;
+            *mask = MASK_BUTTON2;
             break;
 
-        case Button3:
-            x_event->button = MOUSE_BUTTON3;
-            set_modifier_mask(MASK_BUTTON3);
+        case BTN_MIDDLE:
+            button = MOUSE_BUTTON3;
+            *mask = MASK_BUTTON3;
             break;
 
-        case XButton1:
-            x_event->button = MOUSE_BUTTON4;
-            set_modifier_mask(MASK_BUTTON5);
+        case BTN_SIDE:
+        case BTN_BACK:
+            button = MOUSE_BUTTON4;
+            *mask = MASK_BUTTON4;
             break;
 
-        case XButton2:
-            x_event->button = MOUSE_BUTTON5;
-            set_modifier_mask(MASK_BUTTON5);
+        case BTN_EXTRA:
+        case BTN_FORWARD:
+            button = MOUSE_BUTTON5;
+            *mask = MASK_BUTTON5;
             break;
 
         default:
-            if (x_event->button > XButton2) {
-                // Do not set modifier masks past button MASK_BUTTON5.
-                x_event->button = MOUSE_BUTTON5 + (x_event->button - XButton2);
-            } else {
-                // Something screwed up, default to MOUSE_NOBUTTON
-                x_event->button = MOUSE_NOBUTTON;
-            }
+            // Something screwed up, default to MOUSE_NOBUTTON.
+            button = MOUSE_NOBUTTON;
+            *mask = 0x0000;
     }
 
+    return button;
+}
+
+bool dispatch_mouse_press(struct input_event *const ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    uint16_t mask;
+    uint16_t button = button_to_uiocode(ev->code, &mask);
+    if (button == MOUSE_NOBUTTON) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Unmapped mouse button code %#X!\n",
+                __FUNCTION__, __LINE__, ev->code);
+        return false;
+    }
+
+    set_modifier_mask(mask);
+
     // Track the number of clicks, the button must match the previous button.
-    if (x_event->button == click.button && x_event->serial - click.time <= hook_get_multi_click_time()) {
+    if (button == click.button && timestamp - click.time <= hook_get_multi_click_time()) {
         if (click.count < UINT16_MAX) {
             click.count++;
         } else {
@@ -240,154 +279,50 @@ bool dispatch_mouse_press(struct input_event *const ev) {
         click.count = 1;
 
         // Set the last clicked button.
-        click.button = x_event->button;
+        click.button = button;
     }
 
     // Save this events time to calculate multi-clicks.
-    click.time = x_event->serial;
+    click.time = timestamp;
+
+    // Reset drag tracking; any motion before release cancels the clicked event.
+    mouse_dragged = false;
 
     // Populate mouse pressed event.
-    uio_event.time = x_event->serial;
+    uio_event.time = timestamp;
     uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_MOUSE_PRESSED;
     uio_event.mask = get_modifiers();
 
-    uio_event.data.mouse.button = x_event->button;
+    uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
-    uio_event.data.mouse.x = x_event->x_root;
-    uio_event.data.mouse.y = x_event->y_root;
+    get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
-    #if defined(USE_XINERAMA) || defined(USE_XRANDR)
-    // FIXME There is something still broken about this.
-    uint8_t count;
-    screen_data *screens = hook_create_screen_info(&count);
-    if (count > 1) {
-        uio_event.data.mouse.x -= screens[0].x;
-        uio_event.data.mouse.y -= screens[0].y;
-    }
-
-    if (screens != NULL) {
-        free(screens);
-    }
-    #endif
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u pressed %u time(s). (%i, %i)\n",
             __FUNCTION__, __LINE__,
             uio_event.data.mouse.button, uio_event.data.mouse.clicks,
             uio_event.data.mouse.x, uio_event.data.mouse.y);
 
     // Fire mouse pressed event.
     dispatch_event(&uio_event);
-    */
 
-    return false;
+    return uio_event.reserved & 0x01;
 }
 
-bool dispatch_mouse_release(struct input_event *const ev) {
-    switch (0 /* FIXME button_map_lookup(x_event->button) */) {
-    /*
-        case Button1:
-            x_event->button = MOUSE_BUTTON1;
-            unset_modifier_mask(MASK_BUTTON1);
-            break;
-
-        case Button2:
-            x_event->button = MOUSE_BUTTON2;
-            unset_modifier_mask(MASK_BUTTON2);
-            break;
-
-        case Button3:
-            x_event->button = MOUSE_BUTTON3;
-            unset_modifier_mask(MASK_BUTTON3);
-            break;
-
-        case XButton1:
-            x_event->button = MOUSE_BUTTON4;
-            unset_modifier_mask(MASK_BUTTON5);
-            break;
-
-        case XButton2:
-            x_event->button = MOUSE_BUTTON5;
-            unset_modifier_mask(MASK_BUTTON5);
-            break;
-
-        default:
-            if (x_event->button > XButton2) {
-                // Do not set modifier masks past button MASK_BUTTON5.
-                x_event->button = MOUSE_BUTTON5 + (x_event->button - XButton2);
-            } else {
-                // Something screwed up, default to MOUSE_NOBUTTON
-                x_event->button = MOUSE_NOBUTTON;
-            }
-            */
-    }
-/*
-    // Populate mouse released event.
-    uio_event.time = x_event->serial;
-    uio_event.reserved = 0x00;
-
-    uio_event.type = EVENT_MOUSE_RELEASED;
-    uio_event.mask = get_modifiers();
-
-    uio_event.data.mouse.button = x_event->button;
-    uio_event.data.mouse.clicks = click.count;
-    uio_event.data.mouse.x = x_event->x_root;
-    uio_event.data.mouse.y = x_event->y_root;
-
-    #if defined(USE_XINERAMA) || defined(USE_XRANDR)
-    uint8_t count;
-    screen_data *screens = hook_create_screen_info(&count);
-    if (count > 1) {
-        uio_event.data.mouse.x -= screens[0].x;
-        uio_event.data.mouse.y -= screens[0].y;
-    }
-
-    if (screens != NULL) {
-        free(screens);
-    }
-    #endif
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
-            __FUNCTION__, __LINE__,
-            uio_event.data.mouse.button, uio_event.data.mouse.clicks,
-            uio_event.data.mouse.x, uio_event.data.mouse.y);
-
-    // Fire mouse released event.
-    dispatch_event(&uio_event);
-*/
-
-    return false;
-}
-
-/*
-static void dispatch_mouse_button_clicked(XButtonEvent *const x_event) {
+static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
     // Populate mouse clicked event.
-    uio_event.time = x_event->serial;
+    uio_event.time = timestamp;
     uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_MOUSE_CLICKED;
     uio_event.mask = get_modifiers();
 
-    uio_event.data.mouse.button = x_event->button;
+    uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
-    uio_event.data.mouse.x = x_event->x_root;
-    uio_event.data.mouse.y = x_event->y_root;
+    get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
-    #if defined(USE_XINERAMA) || defined(USE_XRANDR)
-    uint8_t count;
-    screen_data *screens = hook_create_screen_info(&count);
-    if (count > 1) {
-        uio_event.data.mouse.x -= screens[0].x;
-        uio_event.data.mouse.y -= screens[0].y;
-    }
-
-    if (screens != NULL) {
-        free(screens);
-    }
-    #endif
-
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%i, %i)\n",
             __FUNCTION__, __LINE__,
             uio_event.data.mouse.button, uio_event.data.mouse.clicks,
             uio_event.data.mouse.x, uio_event.data.mouse.y);
@@ -395,14 +330,68 @@ static void dispatch_mouse_button_clicked(XButtonEvent *const x_event) {
     // Fire mouse clicked event.
     dispatch_event(&uio_event);
 }
-*/
 
-bool dispatch_mouse_move(uint64_t timestamp, int16_t x, int16_t y) {
-    // Reset the click count.
-    /* FIXME This needs to happen somewhere, just not here.
-    if (click.count != 0 && x_event->serial - click.time > hook_get_multi_click_time()) {
+bool dispatch_mouse_release(struct input_event *const ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    uint16_t mask;
+    uint16_t button = button_to_uiocode(ev->code, &mask);
+    if (button == MOUSE_NOBUTTON) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Unmapped mouse button code %#X!\n",
+                __FUNCTION__, __LINE__, ev->code);
+        return false;
+    }
+
+    unset_modifier_mask(mask);
+
+    // Populate mouse released event.
+    uio_event.time = timestamp;
+    uio_event.reserved = 0x00;
+
+    uio_event.type = EVENT_MOUSE_RELEASED;
+    uio_event.mask = get_modifiers();
+
+    uio_event.data.mouse.button = button;
+    uio_event.data.mouse.clicks = click.count;
+    get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
+
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%i, %i)\n",
+            __FUNCTION__, __LINE__,
+            uio_event.data.mouse.button, uio_event.data.mouse.clicks,
+            uio_event.data.mouse.x, uio_event.data.mouse.y);
+
+    // Fire mouse released event.
+    dispatch_event(&uio_event);
+    bool consumed = uio_event.reserved & 0x01;
+
+    // If the pointer didn't move between press and release, fire a clicked event.
+    if (button == click.button && !mouse_dragged) {
+        dispatch_mouse_clicked(timestamp, button);
+    }
+
+    // Reset the click count if the multi-click interval has elapsed.
+    if (button == click.button && timestamp - click.time > hook_get_multi_click_time()) {
         click.count = 0;
-    }*/
+    }
+
+    return consumed;
+}
+
+bool dispatch_mouse_move(struct input_event *const ev) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
+    // Reset the click count if the multi-click interval has elapsed.
+    if (click.count != 0 && timestamp - click.time > hook_get_multi_click_time()) {
+        click.count = 0;
+    }
 
     // Populate mouse move event.
     uio_event.time = timestamp;
@@ -415,6 +404,9 @@ bool dispatch_mouse_move(uint64_t timestamp, int16_t x, int16_t y) {
     bool is_dragged = (bool) (uio_event.mask & 0x1F00);
     if (is_dragged) {
         uio_event.type = EVENT_MOUSE_DRAGGED;
+
+        // Motion with a button held cancels the clicked event on release.
+        mouse_dragged = true;
     } else {
         uio_event.type = EVENT_MOUSE_MOVED;
     }
@@ -422,9 +414,9 @@ bool dispatch_mouse_move(uint64_t timestamp, int16_t x, int16_t y) {
     uio_event.data.mouse.button = MOUSE_NOBUTTON;
     uio_event.data.mouse.clicks = click.count;
 
-    // FIXME These are the relative coordinates
-    uio_event.data.mouse.x = x;
-    uio_event.data.mouse.y = y;
+    // evdev only reports relative deltas; query the display server for the
+    // resulting absolute pointer position.
+    get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i. (%#X)\n",
             __FUNCTION__, __LINE__,
@@ -438,7 +430,13 @@ bool dispatch_mouse_move(uint64_t timestamp, int16_t x, int16_t y) {
     return uio_event.reserved & 0x01;
 }
 
-bool dispatch_mouse_wheel(uint64_t timestamp, int16_t rotation, uint8_t direction) {
+bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction) {
+    #ifdef USE_EPOCH_TIME
+    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    #else
+    uint64_t timestamp = get_seq_timestamp();
+    #endif
+
     // Reset the click count and previous button.
     click.count = 0;
     click.button = MOUSE_NOBUTTON;
@@ -450,9 +448,8 @@ bool dispatch_mouse_wheel(uint64_t timestamp, int16_t rotation, uint8_t directio
     uio_event.type = EVENT_MOUSE_WHEEL;
     uio_event.mask = get_modifiers();
 
-    // FIXME Need to calculate abs pos
-    //uio_event.data.wheel.x = x_event->x_root;
-    //uio_event.data.wheel.y = x_event->y_root;
+    // evdev has no position for wheel events; query the display server.
+    get_pointer_position(&uio_event.data.wheel.x, &uio_event.data.wheel.y);
 
     /* Linux does not have an API call for acquiring the mouse scroll type or amount. For the time being we will just
      * use the unit scroll at 100. */

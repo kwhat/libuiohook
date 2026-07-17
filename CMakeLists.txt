@@ -143,6 +143,10 @@ if(UNIX AND NOT APPLE)
     target_include_directories(uiohook PRIVATE "${EVDEV_INCLUDE_DIRS}")
     target_link_libraries(uiohook "${EVDEV_LDFLAGS}")
 
+    pkg_check_modules(UDEV REQUIRED libudev)
+    target_include_directories(uiohook PRIVATE "${UDEV_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${UDEV_LDFLAGS}")
+
     #pkg_check_modules(XCB REQUIRED xcb)
     #target_include_directories(uiohook PRIVATE "${XCB_INCLUDE_DIRS}")
     #target_link_libraries(uiohook "${XCB_LDFLAGS}")

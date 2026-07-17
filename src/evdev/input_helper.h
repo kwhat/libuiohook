@@ -19,6 +19,7 @@
 #ifndef _included_input_helper
 #define _included_input_helper
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <xkbcommon/xkbcommon.h>
 #include <sys/time.h>
@@ -51,6 +52,21 @@ extern xkb_keycode_t event_to_keycode(uint16_t code);
 
 /* FIXME Write Doc */
 extern xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_state);
+
+/* Query the current absolute pointer position. */
+extern int query_pointer_position(int16_t *x, int16_t *y);
+
+/* Initialize absolute pointer tracking (compute display bounds and seed position). */
+extern void init_pointer_tracking();
+
+/* Apply a relative motion delta to the tracked absolute pointer position. */
+extern void track_pointer_delta(int dx, int dy);
+
+/* Anchor the tracked pointer position to a known absolute coordinate (seed / resync). */
+extern void set_pointer_position(int16_t x, int16_t y);
+
+/* Get the current tracked absolute pointer position. */
+extern void get_pointer_position(int16_t *x, int16_t *y);
 
 /* Set the native modifier mask for future events. */
 extern void set_modifier_mask(uint16_t mask);

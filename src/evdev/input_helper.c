@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <uiohook.h>
 
 #ifdef USE_EPOCH_TIME
 #include <sys/time.h>
@@ -88,6 +89,9 @@ static struct xkb_state *state = NULL;
 
 
 static uint16_t modifier_mask;
+
+// Sync the lock masks (caps/num/scroll) from the xkb LED state; defined below.
+static void initialize_locks();
 
 static const uint32_t keysym_vcode_table[][2] = {
     { VC_ESCAPE,                XKB_KEY_Escape                },
@@ -489,9 +493,6 @@ uint16_t keysym_to_uiocode(xkb_keysym_t keysym) {
     else if (uiocode == VC_META_L)    { set_modifier_mask(MASK_META_L);  }
     else if (uiocode == VC_META_R)    { set_modifier_mask(MASK_META_R);  }
 
-    // FIXME We shouldn't be doing this on each key press, do something similar to above.
-    //initialize_locks();
-
     if ((get_modifiers() & MASK_NUM_LOCK) == 0) {
         switch (uiocode) {
             case VC_KP_SEPARATOR:
@@ -551,6 +552,10 @@ xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_sta
         } else {
             xkb_state_update_key(state, keycode, XKB_KEY_DOWN);
         }
+
+        // The xkb state tracks locked modifiers, re-sync the lock masks in case
+        // this key toggled one of them.
+        initialize_locks();
     }
 
     return keysym;
@@ -579,6 +584,130 @@ uint8_t button_map_lookup(uint8_t button) {
     else if (map_button == Button3) { map_button = Button2; }
 
     return map_button;
+}
+
+// Self-tracked absolute pointer position.  evdev only reports relative deltas, so we
+// accumulate them into an absolute position and clamp it to the display bounds.  The
+// clamp doubles as a free re-anchor: the compositor pins the cursor at every screen edge,
+// so clamping our tracked value to the same bounds re-syncs an axis whenever the pointer
+// is driven into an edge.  Ground-truth seed / resync providers feed set_pointer_position.
+static int tracked_x = 0, tracked_y = 0;
+
+// Cached pointer bounding box (inclusive) derived from the monitor layout.
+static bool bounds_valid = false;
+static int bounds_min_x = 0, bounds_min_y = 0;
+static int bounds_max_x = 0, bounds_max_y = 0;
+
+static int clamp_int(int value, int lo, int hi) {
+    if (value < lo) { return lo; }
+    if (value > hi) { return hi; }
+    return value;
+}
+
+// Recompute the pointer bounding box across all monitors from the current layout.
+static void refresh_pointer_bounds() {
+    unsigned char count = 0;
+    screen_data *screens = hook_create_screen_info(&count);
+
+    if (screens != NULL && count > 0) {
+        int min_x = screens[0].x;
+        int min_y = screens[0].y;
+        int max_x = screens[0].x + screens[0].width;
+        int max_y = screens[0].y + screens[0].height;
+
+        for (unsigned char i = 1; i < count; i++) {
+            if (screens[i].x < min_x) { min_x = screens[i].x; }
+            if (screens[i].y < min_y) { min_y = screens[i].y; }
+            if (screens[i].x + screens[i].width  > max_x) { max_x = screens[i].x + screens[i].width;  }
+            if (screens[i].y + screens[i].height > max_y) { max_y = screens[i].y + screens[i].height; }
+        }
+
+        bounds_min_x = min_x;
+        bounds_min_y = min_y;
+        bounds_max_x = max_x - 1; // last addressable pixel
+        bounds_max_y = max_y - 1;
+        bounds_valid = true;
+    } else {
+        bounds_valid = false;
+        logger(LOG_LEVEL_WARN, "%s [%u]: Unable to determine display bounds for pointer tracking!\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    if (screens != NULL) {
+        free(screens);
+    }
+}
+
+// Query the current absolute pointer position from the X server.
+// FIXME This is a stop-gap; replace with a Wayland-native provider (or uinput corner-slam)
+// so the evdev backend doesn't depend on X11 for the initial seed.
+int query_pointer_position(int16_t *x, int16_t *y) {
+    if (display == NULL) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay is unavailable!\n",
+                __FUNCTION__, __LINE__);
+        return UIOHOOK_ERROR_X_OPEN_DISPLAY;
+    }
+
+    Window root, child;
+    int root_x = 0, root_y = 0;
+    int win_x = 0, win_y = 0;
+    unsigned int mask = 0;
+
+    // Query relative to the default root window; root_x/root_y come back in
+    // root (global) coordinates regardless of which screen the pointer is on.
+    if (!XQueryPointer(display, DefaultRootWindow(display), &root, &child, &root_x, &root_y, &win_x, &win_y, &mask)) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: XQueryPointer failed!\n",
+                __FUNCTION__, __LINE__);
+        return UIOHOOK_FAILURE;
+    }
+
+    *x = (int16_t) root_x;
+    *y = (int16_t) root_y;
+
+    return UIOHOOK_SUCCESS;
+}
+
+// Initialize pointer tracking: compute bounds and seed from the X server, falling back
+// to the top-left corner if the pointer position cannot be queried.
+// TODO Replace the fallback with a uinput corner-slam so the real cursor matches on startup.
+void init_pointer_tracking() {
+    refresh_pointer_bounds();
+
+    int16_t seed_x, seed_y;
+    if (query_pointer_position(&seed_x, &seed_y) == UIOHOOK_SUCCESS) {
+        set_pointer_position(seed_x, seed_y);
+    } else {
+        tracked_x = bounds_min_x;
+        tracked_y = bounds_min_y;
+    }
+}
+
+// Apply a relative motion delta to the tracked absolute pointer position.
+void track_pointer_delta(int dx, int dy) {
+    tracked_x += dx;
+    tracked_y += dy;
+
+    if (bounds_valid) {
+        tracked_x = clamp_int(tracked_x, bounds_min_x, bounds_max_x);
+        tracked_y = clamp_int(tracked_y, bounds_min_y, bounds_max_y);
+    }
+}
+
+// Anchor the tracked position to a known absolute coordinate (seed / ground-truth resync).
+void set_pointer_position(int16_t x, int16_t y) {
+    tracked_x = x;
+    tracked_y = y;
+
+    if (bounds_valid) {
+        tracked_x = clamp_int(tracked_x, bounds_min_x, bounds_max_x);
+        tracked_y = clamp_int(tracked_y, bounds_min_y, bounds_max_y);
+    }
+}
+
+// Return the current tracked absolute pointer position.
+void get_pointer_position(int16_t *x, int16_t *y) {
+    *x = (int16_t) tracked_x;
+    *y = (int16_t) tracked_y;
 }
 
 // Set the native modifier mask for future events.
@@ -725,6 +854,11 @@ void load_input_helper() {
     }
     state = xkb_x11_state_new_from_device(keymap, xcb_connection, device_id);
 
+    // Seed the lock masks (caps/num/scroll) from the current server state.
+    if (state != NULL) {
+        initialize_locks();
+    }
+
     // Setup memory for mouse button mapping.
     mouse_button_table = malloc(sizeof(unsigned char) * BUTTON_TABLE_MAX);
     if (mouse_button_table == NULL) {
@@ -733,6 +867,9 @@ void load_input_helper() {
 
         //return UIOHOOK_ERROR_OUT_OF_MEMORY;
     }
+
+    // Initialize absolute pointer tracking from the current monitor layout.
+    init_pointer_tracking();
 }
 
 void unload_input_helper() {

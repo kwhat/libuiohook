@@ -50,6 +50,9 @@ extern size_t keycode_to_utf8(xkb_keycode_t keycode, wchar_t *surrogate, size_t 
 /* FIXME Write Doc */
 extern xkb_keycode_t event_to_keycode(uint16_t code);
 
+/* Converts an XKB key code back to the evdev scancode (inverse of event_to_keycode). */
+extern uint16_t keycode_to_event(xkb_keycode_t keycode);
+
 /* FIXME Write Doc */
 extern xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_state);
 

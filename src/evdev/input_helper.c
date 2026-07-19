@@ -74,6 +74,8 @@ static XkbDescPtr keyboard_map;
 
 #include "input_helper.h"
 #include "logger.h"
+#include "wayland_helper.h"
+#include "x11_helper.h"
 
 #define BUTTON_TABLE_MAX 16
 
@@ -514,24 +516,53 @@ uint16_t keysym_to_uiocode(xkb_keysym_t keysym) {
     return uiocode;
 }
 
-xkb_keycode_t uiocode_to_keycode(uint16_t vcode) {
-    KeyCode keycode = 0x0000;
-    KeyCode keysym = NoSymbol;
+// Scan the active keymap for a key code that produces the given keysym at the base
+// (unshifted) level.  Replaces XKeysymToKeycode so the reverse lookup needs no X server.
+static xkb_keycode_t keymap_keycode_for_keysym(xkb_keysym_t target) {
+    if (keymap == NULL) {
+        return 0;
+    }
 
-    for (unsigned int i = 0; i < sizeof(keysym_vcode_table) / sizeof(keysym_vcode_table[0]); i++) {
-        if (vcode == keysym_vcode_table[i][0]) {
-            keycode = keysym_vcode_table[i][1];
-            if (keysym = XKeysymToKeycode(display, keycode)) {
-                break;
+    xkb_keycode_t min = xkb_keymap_min_keycode(keymap);
+    xkb_keycode_t max = xkb_keymap_max_keycode(keymap);
+
+    for (xkb_keycode_t keycode = min; keycode <= max; keycode++) {
+        const xkb_keysym_t *syms = NULL;
+        int count = xkb_keymap_key_get_syms_by_level(keymap, keycode, 0, 0, &syms);
+        for (int i = 0; i < count; i++) {
+            if (syms[i] == target) {
+                return keycode;
             }
         }
     }
 
-    return keysym;
+    return 0;
+}
+
+xkb_keycode_t uiocode_to_keycode(uint16_t vcode) {
+    for (unsigned int i = 0; i < sizeof(keysym_vcode_table) / sizeof(keysym_vcode_table[0]); i++) {
+        if (vcode == keysym_vcode_table[i][0]) {
+            xkb_keycode_t keycode = keymap_keycode_for_keysym(keysym_vcode_table[i][1]);
+            if (keycode != 0) {
+                return keycode;
+            }
+        }
+    }
+
+    return 0;
 }
 
 xkb_keycode_t event_to_keycode(uint16_t code) {
     return XkbMinLegalKeyCode + code;
+}
+
+uint16_t keycode_to_event(xkb_keycode_t keycode) {
+    // Inverse of event_to_keycode(); recovers the evdev scancode used by uinput.
+    if (keycode < XkbMinLegalKeyCode) {
+        return 0;
+    }
+
+    return (uint16_t) (keycode - XkbMinLegalKeyCode);
 }
 
 xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_state) {
@@ -566,7 +597,7 @@ uint8_t button_map_lookup(uint8_t button) {
 
     if (display != NULL) {
         if (mouse_button_table != NULL) {
-            int map_size = XGetPointerMapping(display, mouse_button_table, BUTTON_TABLE_MAX);
+            int map_size = x11.XGetPointerMapping(display, mouse_button_table, BUTTON_TABLE_MAX);
             if (map_button > 0 && map_button <= map_size) {
                 map_button = mouse_button_table[map_button -1];
             }
@@ -638,10 +669,20 @@ static void refresh_pointer_bounds() {
     }
 }
 
-// Query the current absolute pointer position from the X server.
-// FIXME This is a stop-gap; replace with a Wayland-native provider (or uinput corner-slam)
-// so the evdev backend doesn't depend on X11 for the initial seed.
+// Query the current absolute pointer position.  Used only to seed the self-tracker at
+// startup; there is no per-event query.
 int query_pointer_position(int16_t *x, int16_t *y) {
+    // Favor the Wayland layer-shell probe: XWayland's XQueryPointer only knows the cursor
+    // while it is over X surfaces, so it is unreliable under a Wayland session.
+    if (getenv("WAYLAND_DISPLAY") != NULL) {
+        if (wayland_query_pointer_position(x, y) == UIOHOOK_SUCCESS) {
+            return UIOHOOK_SUCCESS;
+        }
+
+        logger(LOG_LEVEL_WARN, "%s [%u]: Wayland pointer probe failed, trying X11.\n",
+                __FUNCTION__, __LINE__);
+    }
+
     if (display == NULL) {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay is unavailable!\n",
                 __FUNCTION__, __LINE__);
@@ -655,7 +696,7 @@ int query_pointer_position(int16_t *x, int16_t *y) {
 
     // Query relative to the default root window; root_x/root_y come back in
     // root (global) coordinates regardless of which screen the pointer is on.
-    if (!XQueryPointer(display, DefaultRootWindow(display), &root, &child, &root_x, &root_y, &win_x, &win_y, &mask)) {
+    if (!x11.XQueryPointer(display, DefaultRootWindow(display), &root, &child, &root_x, &root_y, &win_x, &win_y, &mask)) {
         logger(LOG_LEVEL_WARN, "%s [%u]: XQueryPointer failed!\n",
                 __FUNCTION__, __LINE__);
         return UIOHOOK_FAILURE;
@@ -815,12 +856,12 @@ size_t keycode_to_utf8(xkb_keycode_t keycode, wchar_t *surrogate, size_t length)
 }
 
 void load_input_helper() {
-    display = XOpenDisplay(NULL);
+    // The shared X11 connection is owned by the library constructor (see system_properties.c).
+    display = x11_display();
     if (display == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open X11 display!\n",
+        logger(LOG_LEVEL_ERROR, "%s [%u]: X11 display is unavailable!\n",
                 __FUNCTION__, __LINE__);
     }
-    xcb_connection_t *xcb_connection = XGetXCBConnection(display);
 
     ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
     if (!ctx) {
@@ -841,18 +882,50 @@ void load_input_helper() {
                 __FUNCTION__, __LINE__);
     }
 
-    int32_t device_id = xkb_x11_get_core_keyboard_device_id(xcb_connection);
-    if (device_id == -1) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to get core keyboard device id!\n",
-                __FUNCTION__, __LINE__);
+    // Load the active keymap.  Prefer the Wayland compositor's keymap, fall back to the
+    // X server, then to a default layout so key translation still works with no display
+    // server (bare console).
+    if (getenv("WAYLAND_DISPLAY") != NULL) {
+        char *keymap_string = wayland_get_keymap(NULL, NULL);
+        if (keymap_string != NULL) {
+            keymap = xkb_keymap_new_from_string(ctx, keymap_string, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+            if (keymap == NULL) {
+                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to compile the Wayland keymap!\n",
+                        __FUNCTION__, __LINE__);
+            }
+
+            free(keymap_string);
+        }
     }
 
-    keymap = xkb_x11_keymap_new_from_device(ctx, xcb_connection, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-    if (!keymap) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create x11 keymap from device!\n",
-                __FUNCTION__, __LINE__);
+    if (keymap == NULL && x11_has(X11_CAP_XKB)) {
+        xcb_connection_t *xcb_connection = x11.XGetXCBConnection(display);
+
+        int32_t device_id = x11.xkb_x11_get_core_keyboard_device_id(xcb_connection);
+        if (device_id == -1) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to get core keyboard device id!\n",
+                    __FUNCTION__, __LINE__);
+        }
+
+        keymap = x11.xkb_x11_keymap_new_from_device(ctx, xcb_connection, device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+        if (keymap == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create x11 keymap from device!\n",
+                    __FUNCTION__, __LINE__);
+        }
     }
-    state = xkb_x11_state_new_from_device(keymap, xcb_connection, device_id);
+
+    if (keymap == NULL) {
+        // Neither display server provided a keymap; fall back to the compiled default.
+        keymap = xkb_keymap_new_from_names(ctx, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);
+        if (keymap == NULL) {
+            logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create a default keymap!\n",
+                    __FUNCTION__, __LINE__);
+        }
+    }
+
+    if (keymap != NULL) {
+        state = xkb_state_new(keymap);
+    }
 
     // Seed the lock masks (caps/num/scroll) from the current server state.
     if (state != NULL) {
@@ -893,10 +966,8 @@ void unload_input_helper() {
         ctx = NULL;
     }
 
-    if (display != NULL) {
-        XCloseDisplay(display);
-        display = NULL;
-    }
+    // The shared connection is owned by the library constructor, not unloaded here.
+    display = NULL;
 
     if (mouse_button_table != NULL) {
         free(mouse_button_table);

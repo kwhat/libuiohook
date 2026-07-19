@@ -21,6 +21,7 @@
 #include <libevdev/libevdev.h>
 #include <libevdev/libevdev-uinput.h>
 #include <libudev.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
@@ -37,6 +38,14 @@ struct input_hook {
     struct libevdev *evdev;
     struct libevdev_uinput *uinput;
     char *devnode;
+
+    // Device DPI from the MOUSE_DPI udev property (0 = unknown / no normalization).  The
+    // uinput clone carries no MOUSE_DPI, so libinput cannot normalize its motion to the
+    // 1000-DPI reference; we pre-scale reinjected REL_X/REL_Y by 1000/dpi to compensate.
+    // carry_x/carry_y hold the sub-unit remainder between events so nothing is lost.
+    int dpi;
+    int64_t carry_x, carry_y;
+
     struct input_hook *next;
 };
 
@@ -148,7 +157,7 @@ static bool hook_event_proc(struct input_event *ev) {
     return false;
 }
 
-static int create_hook(const char *path, struct input_hook **hook) {
+static int create_hook(const char *path, int dpi, struct input_hook **hook) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open input device: %s! (%d)\n",
@@ -168,6 +177,7 @@ static int create_hook(const char *path, struct input_hook **hook) {
     }
 
     (*hook)->devnode = strdup(path);
+    (*hook)->dpi = dpi;
 
     int err = libevdev_new_from_fd(fd, &(*hook)->evdev);
     if (err < 0) {
@@ -291,10 +301,38 @@ static bool is_device_hooked(const char *devnode) {
     return false;
 }
 
+// Parse the active DPI from a device's MOUSE_DPI udev property, e.g.
+// "1200@1000 *2400@1000 3200@1000" -> 2400 (the entry marked active with '*', else the
+// first entry).  Returns 0 when absent/unparseable, in which case reinjected motion is
+// passed through unscaled.
+static int get_device_dpi(struct udev_device *device) {
+    const char *prop = udev_device_get_property_value(device, "MOUSE_DPI");
+    if (prop == NULL) {
+        return 0;
+    }
+
+    int first_dpi = 0;
+    for (const char *p = prop; *p != '\0'; ) {
+        while (*p == ' ') { p++; }
+        if (*p == '\0') { break; }
+
+        bool active = *p == '*';
+        if (active) { p++; }
+
+        int dpi = atoi(p);      // reads the leading digits, stops at '@'
+        if (first_dpi == 0) { first_dpi = dpi; }
+        if (active && dpi > 0) { return dpi; }
+
+        while (*p != ' ' && *p != '\0') { p++; }
+    }
+
+    return first_dpi;
+}
+
 // Hook a device node, register it with epoll and link it into hook_list.
-static int attach_device(int epoll_fd, const char *devnode, const char *label) {
+static int attach_device(int epoll_fd, const char *devnode, int dpi, const char *label) {
     struct input_hook *hook = NULL;
-    if (create_hook(devnode, &hook) != UIOHOOK_SUCCESS) {
+    if (create_hook(devnode, dpi, &hook) != UIOHOOK_SUCCESS) {
         destroy_hook(&hook);
         return UIOHOOK_FAILURE;
     }
@@ -373,7 +411,7 @@ static int create_event_listeners(int epoll_fd) {
         const char *devnode = udev_device_get_devnode(device);
         const char *label = get_device_label(device);
         if (devnode != NULL && label != NULL && !is_device_hooked(devnode)) {
-            attach_device(epoll_fd, devnode, label);
+            attach_device(epoll_fd, devnode, get_device_dpi(device), label);
         }
 
         udev_device_unref(device);
@@ -410,7 +448,7 @@ static void hook_monitor_proc(int epoll_fd) {
             // them again, cascading into an infinite chain of grabbed virtual devices.
             const char *label = get_device_label(device);
             if (label != NULL && !is_device_hooked(devnode)) {
-                attach_device(epoll_fd, devnode, label);
+                attach_device(epoll_fd, devnode, get_device_dpi(device), label);
             }
         } else if (strcmp(action, "remove") == 0) {
             for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
@@ -451,7 +489,25 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
             bool consumed = hook_event_proc(&ev);
 
             if (hook->uinput != NULL && !consumed) {
-                libevdev_uinput_write_event(hook->uinput, ev.type, ev.code, ev.value);
+                int value = ev.value;
+                bool emit = true;
+
+                // Normalize relative motion to libinput's 1000-DPI reference.  The clone
+                // has no MOUSE_DPI, so libinput would pass its raw counts through unscaled
+                // and a high-DPI mouse would feel over-accelerated only while hooked.
+                if (hook->dpi > 0 && hook->dpi != 1000
+                        && ev.type == EV_REL && (ev.code == REL_X || ev.code == REL_Y)) {
+                    int64_t *carry = ev.code == REL_X ? &hook->carry_x : &hook->carry_y;
+                    int64_t numerator = (int64_t) ev.value * 1000 + *carry;
+
+                    value = (int) (numerator / hook->dpi);
+                    *carry = numerator - (int64_t) value * hook->dpi;
+                    emit = value != 0;
+                }
+
+                if (emit) {
+                    libevdev_uinput_write_event(hook->uinput, ev.type, ev.code, value);
+                }
             }
         }
     } while (read_status == LIBEVDEV_READ_STATUS_SUCCESS || read_status == LIBEVDEV_READ_STATUS_SYNC);

@@ -35,17 +35,13 @@
 #include <X11/extensions/Xrandr.h>
 #endif
 
-#ifdef USE_XT
-#include <X11/Intrinsic.h>
-
-static XtAppContext xt_context;
-static Display *xt_disp;
-#endif
 
 static Display *display;
 
 #include "input_helper.h"
 #include "logger.h"
+#include "wayland_helper.h"
+#include "x11_helper.h"
 
 #ifdef USE_XRANDR
 static pthread_mutex_t xrandr_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -126,79 +122,60 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     *count = 0;
     screen_data *screens = NULL;
 
-    // Check and make sure we could connect to the x server.
-    if (display != NULL) {
-        #if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-        if (XineramaIsActive(display)) {
-            int xine_count = 0;
-            XineramaScreenInfo *xine_info = XineramaQueryScreens(display, &xine_count);
-
-            if (xine_info != NULL) {
-                if (xine_count > UINT8_MAX) {
-                    *count = UINT8_MAX;
-
-                    logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
-                            __FUNCTION__, __LINE__);
-                } else {
-                    *count = (uint8_t) xine_count;
-                }
-
-                screens = malloc(sizeof(screen_data) * xine_count);
-
-                if (screens != NULL) {
-                    for (int i = 0; i < xine_count; i++) {
-                        screens[i] = (screen_data) {
-                            .number = xine_info[i].screen_number,
-                            .x = xine_info[i].x_org,
-                            .y = xine_info[i].y_org,
-                            .width = xine_info[i].width,
-                            .height = xine_info[i].height
-                        };
-                    }
-                }
-
-                XFree(xine_info);
-            }
+    // Favor Wayland: XOpenDisplay() succeeds under XWayland but reports XWayland's view,
+    // so whenever a Wayland session is present use the native xdg-output layout first.
+    if (getenv("WAYLAND_DISPLAY") != NULL) {
+        screen_data *wl_screens = wayland_create_screen_info(count);
+        if (wl_screens != NULL) {
+            return wl_screens;
         }
-        #elif defined(USE_XRANDR)
-        pthread_mutex_lock(&xrandr_mutex);
-        if (xrandr_resources != NULL) {
-            int xrandr_count = xrandr_resources->ncrtc;
-            if (xrandr_count > UINT8_MAX) {
+
+        logger(LOG_LEVEL_WARN, "%s [%u]: Wayland screen info unavailable, trying X11.\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    Display *display = x11_display();
+    if (display == NULL) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: X11 display is unavailable!\n",
+                __FUNCTION__, __LINE__);
+        return NULL;
+    }
+
+    // Prefer the multi-monitor layout from Xinerama; query it fresh so a monitor
+    // hotplug is always reflected without a cached-resource watcher.
+    if (x11_has(X11_CAP_XINERAMA) && x11.XineramaIsActive(display)) {
+        int xine_count = 0;
+        XineramaScreenInfo *xine_info = x11.XineramaQueryScreens(display, &xine_count);
+
+        if (xine_info != NULL) {
+            if (xine_count > UINT8_MAX) {
                 *count = UINT8_MAX;
 
                 logger(LOG_LEVEL_WARN, "%s [%u]: Screen count overflow detected!\n",
                         __FUNCTION__, __LINE__);
             } else {
-                *count = (uint8_t) xrandr_count;
+                *count = (uint8_t) xine_count;
             }
 
-            screens = malloc(sizeof(screen_data) * xrandr_count);
+            screens = malloc(sizeof(screen_data) * xine_count);
 
             if (screens != NULL) {
-                for (int i = 0; i < xrandr_count; i++) {
-                    XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, xrandr_resources, xrandr_resources->crtcs[i]);
-
-                    if (crtc_info != NULL) {
-                        screens[i] = (screen_data) {
-                            .number = i + 1,
-                            .x = crtc_info->x,
-                            .y = crtc_info->y,
-                            .width = crtc_info->width,
-                            .height = crtc_info->height
-                        };
-
-                        XRRFreeCrtcInfo(crtc_info);
-                    } else {
-                        logger(LOG_LEVEL_WARN, "%s [%u]: XRandr failed to return crtc information! (%#X)\n",
-                                __FUNCTION__, __LINE__, xrandr_resources->crtcs[i]);
-                    }
+                for (int i = 0; i < xine_count; i++) {
+                    screens[i] = (screen_data) {
+                        .number = xine_info[i].screen_number,
+                        .x = xine_info[i].x_org,
+                        .y = xine_info[i].y_org,
+                        .width = xine_info[i].width,
+                        .height = xine_info[i].height
+                    };
                 }
             }
+
+            x11.XFree(xine_info);
         }
-        pthread_mutex_unlock(&xrandr_mutex);
-        #else
-        Screen* default_screen = DefaultScreenOfDisplay(display);
+    } else {
+        // Single-screen fallback from the default screen geometry.
+        Screen *default_screen = DefaultScreenOfDisplay(display);
 
         if (default_screen->width > 0 && default_screen->height > 0) {
             screens = malloc(sizeof(screen_data));
@@ -214,10 +191,6 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                 };
             }
         }
-        #endif
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay display is unavailable!\n",
-                __FUNCTION__, __LINE__);
     }
 
     return screens;
@@ -228,11 +201,21 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
     long int value = -1;
     unsigned int delay = 0, rate = 0;
 
+    // Favor the compositor's wl_keyboard repeat_info under Wayland.
+    if (getenv("WAYLAND_DISPLAY") != NULL) {
+        int32_t wl_rate = -1, wl_delay = -1;
+        if (wayland_get_repeat_info(&wl_rate, &wl_delay) == UIOHOOK_SUCCESS && wl_rate > 0) {
+            // Wayland reports repeats per second; return the inter-repeat interval in ms
+            // to match the value the XKB path historically returned.
+            return (long int) (1000 / wl_rate);
+        }
+    }
+
     // Check and make sure we could connect to the x server.
     if (display != NULL) {
         // Attempt to acquire the keyboard auto repeat rate using the XKB extension.
         if (!successful) {
-            successful = XkbGetAutoRepeatRate(display, XkbUseCoreKbd, &delay, &rate);
+            successful = x11.XkbGetAutoRepeatRate(display, XkbUseCoreKbd, &delay, &rate);
 
             if (successful) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
@@ -271,11 +254,20 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
     long int value = -1;
     unsigned int delay = 0, rate = 0;
 
+    // Favor the compositor's wl_keyboard repeat_info under Wayland.  The delay is in ms
+    // on both, so it is returned directly.
+    if (getenv("WAYLAND_DISPLAY") != NULL) {
+        int32_t wl_rate = -1, wl_delay = -1;
+        if (wayland_get_repeat_info(&wl_rate, &wl_delay) == UIOHOOK_SUCCESS && wl_delay >= 0) {
+            return (long int) wl_delay;
+        }
+    }
+
     // Check and make sure we could connect to the x server.
     if (display != NULL) {
         // Attempt to acquire the keyboard auto repeat rate using the XKB extension.
         if (!successful) {
-            successful = XkbGetAutoRepeatRate(display, XkbUseCoreKbd, &delay, &rate);
+            successful = x11.XkbGetAutoRepeatRate(display, XkbUseCoreKbd, &delay, &rate);
 
             if (successful) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: XkbGetAutoRepeatRate: %u.\n",
@@ -315,7 +307,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
 
     // Check and make sure we could connect to the x server.
     if (display != NULL) {
-        XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
+        x11.XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
         if (accel_denominator >= 0) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, accel_denominator);
@@ -336,7 +328,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
 
     // Check and make sure we could connect to the x server.
     if (display != NULL) {
-        XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
+        x11.XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
         if (threshold >= 0) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, threshold);
@@ -357,7 +349,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
 
     // Check and make sure we could connect to the x server.
     if (display != NULL) {
-        XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
+        x11.XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
         if (accel_numerator >= 0) {
             logger(LOG_LEVEL_DEBUG, "%s [%u]: XGetPointerControl: %i.\n",
                     __FUNCTION__, __LINE__, accel_numerator);
@@ -377,31 +369,11 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     int click_time;
     bool successful = false;
 
-    #ifdef USE_XT
-    // Check and make sure we could connect to the x server.
-    if (xt_disp != NULL) {
-        // Try and use the Xt extention to get the current multi-click.
-        if (!successful) {
-            // Fall back to the X Toolkit extension if available and other efforts failed.
-            click_time = XtGetMultiClickTime(xt_disp);
-            if (click_time >= 0) {
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: XtGetMultiClickTime: %i.\n",
-                        __FUNCTION__, __LINE__, click_time);
-
-                successful = true;
-            }
-        }
-    } else {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
-                __FUNCTION__, __LINE__, "XOpenDisplay failure!");
-    }
-    #endif
-
     // Check and make sure we could connect to the x server.
     if (display != NULL) {
         // Try and acquire the multi-click time from the user defined X defaults.
         if (!successful) {
-            char *xprop = XGetDefault(display, "*", "multiClickTime");
+            char *xprop = x11.XGetDefault(display, "*", "multiClickTime");
             if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'multiClickTime' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
@@ -411,7 +383,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
         }
 
         if (!successful) {
-            char *xprop = XGetDefault(display, "OpenWindows", "MultiClickTimeout");
+            char *xprop = x11.XGetDefault(display, "OpenWindows", "MultiClickTimeout");
             if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'MultiClickTimeout' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
@@ -434,18 +406,14 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 // Create a shared object constructor.
 __attribute__ ((constructor))
 void on_library_load() {
-    // Make sure we are initialized for threading.
-    XInitThreads();
-
-    // Open local display.
-    display = XOpenDisplay(XDisplayName(NULL));
-    if (display == NULL) {
+    // Load the X11 libraries at runtime and open the shared connection (also calls
+    // XInitThreads).  Owned here for the whole library lifetime so the public property
+    // queries work whether or not the hook is currently running.
+    if (load_x11_helper() != UIOHOOK_SUCCESS) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
-                __FUNCTION__, __LINE__, "XOpenDisplay failure!");
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: %s\n",
-                __FUNCTION__, __LINE__, "XOpenDisplay success.");
+                __FUNCTION__, __LINE__, "Failed to open shared X11 display!");
     }
+    display = x11_display();
 
     #ifdef USE_XRANDR
     // Create the thread attribute.
@@ -464,15 +432,6 @@ void on_library_load() {
     // Make sure the thread attribute is removed.
     pthread_attr_destroy(&settings_thread_attr);
     #endif
-
-    #ifdef USE_XT
-    XtToolkitInitialize();
-    xt_context = XtCreateApplicationContext();
-
-    int argc = 0;
-    char ** argv = { NULL };
-    xt_disp = XtOpenDisplay(xt_context, NULL, "UIOHook", "libuiohook", NULL, 0, &argc, argv);
-    #endif
 }
 
 // Create a shared object destructor.
@@ -484,14 +443,7 @@ void on_library_unload() {
     // Cleanup.
     unload_input_helper();
 
-    #ifdef USE_XT
-    XtCloseDisplay(xt_disp);
-    XtDestroyApplicationContext(xt_context);
-    #endif
-
-    // Destroy the native displays.
-    if (display != NULL) {
-        XCloseDisplay(display);
-        display = NULL;
-    }
+    // Closes the shared connection and dlcloses the X11 libraries.
+    unload_x11_helper();
+    display = NULL;
 }

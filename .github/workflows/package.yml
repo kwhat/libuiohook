@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -128,7 +128,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -166,7 +166,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -241,7 +241,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -316,7 +316,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -385,7 +385,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -434,25 +434,25 @@ jobs:
           overwrite: true
 
 
-  windows-arm:
+  windows-arm64:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
       - name: Setup
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: amd64_arm
+          arch: amd64_arm64
 
       - name: Compile
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 17 2022" -A ARM ^
-            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm ^
+            -A ARM64 ^
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm64 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^
             -D BUILD_DEMO=ON
@@ -475,7 +475,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -488,7 +488,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 17 2022" -A Win32 ^
+            -A Win32 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^
@@ -512,7 +512,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -525,7 +525,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 17 2022" -A x64 ^
+            -A x64 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86_64 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^

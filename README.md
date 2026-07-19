@@ -7,15 +7,20 @@ libUIOHook: Cross-platform keyboard and mouse hooking from userland.
 Prerequisites: 
  * [cmake](https://cmake.org)
  * gcc, clang or msvc
- * x11 dependencies:
+ * Linux dependencies:
+   * libevdev-dev
+   * libudev-dev
+   * libwayland-dev
+   * libwayland-bin _(provides `wayland-scanner`)_
+   * wayland-protocols
    * libx11-dev
-   * libxtst-dev
-   * libxt-dev
-   * libxinerama-dev
    * libx11-xcb-dev
+   * libxinerama-dev
    * libxkbcommon-dev
    * libxkbcommon-x11-dev
-   * libxkbfile-dev 
+
+   X11 and Wayland are used at runtime only if available, so the library still loads and
+   runs on a pure X11, pure Wayland, or headless system.
 
 ```
 $ git clone https://github.com/kwhat/libuiohook

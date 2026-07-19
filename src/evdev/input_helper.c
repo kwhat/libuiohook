@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2024 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -789,9 +789,9 @@ static void initialize_locks() {
 
 #ifdef USE_EPOCH_TIME
 /* Get the current timestamp in unix epoch time. */
-uint64_t get_unix_timestamp(struct timeval *event_time) {
+uint64_t get_unix_timestamp(uint64_t seconds, uint64_t microseconds) {
     // Convert the event time to a Unix epoch in MS.
-    uint64_t timestamp = (event_time->tv_sec * 1000) + (event_time->tv_usec / 1000);
+    uint64_t timestamp = (seconds * 1000) + (microseconds / 1000);
 
     return timestamp;
 }

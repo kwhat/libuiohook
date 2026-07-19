@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2024 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ enum xkb_key_state_t {
 
 // Helper display used by input helper, properties and post event.
 #ifdef USE_EPOCH_TIME
-extern uint64_t get_unix_timestamp(struct timeval *event_time);
+extern uint64_t get_unix_timestamp(uint64_t seconds, uint64_t microseconds);
 #else
 extern uint64_t get_seq_timestamp();
 #endif

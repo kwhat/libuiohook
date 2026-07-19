@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2024 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -76,7 +76,7 @@ void dispatch_hook_enabled() {
     struct timeval system_time;
     gettimeofday(&system_time, NULL);
 
-    uint64_t timestamp = get_unix_timestamp(&system_time);
+    uint64_t timestamp = get_unix_timestamp(system_time.tv_sec, system_time.tv_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -97,7 +97,7 @@ void dispatch_hook_disabled() {
     struct timeval system_time;
     gettimeofday(&system_time, NULL);
 
-    uint64_t timestamp = get_unix_timestamp(&system_time);
+    uint64_t timestamp = get_unix_timestamp(system_time.tv_sec, system_time.tv_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -118,7 +118,7 @@ void dispatch_hook_disabled() {
 
 bool dispatch_key_press(struct input_event *const ev) {
     #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -175,7 +175,7 @@ bool dispatch_key_press(struct input_event *const ev) {
 
 bool dispatch_key_release(struct input_event *const ev) {
     #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -251,7 +251,7 @@ static uint16_t button_to_uiocode(uint16_t code, uint16_t *mask) {
 
 bool dispatch_mouse_press(struct input_event *const ev) {
     #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -333,7 +333,7 @@ static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
 
 bool dispatch_mouse_release(struct input_event *const ev) {
     #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -383,7 +383,7 @@ bool dispatch_mouse_release(struct input_event *const ev) {
 
 bool dispatch_mouse_move(struct input_event *const ev) {
     #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
@@ -432,7 +432,7 @@ bool dispatch_mouse_move(struct input_event *const ev) {
 
 bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction) {
     #ifdef USE_EPOCH_TIME
-    uint64_t timestamp = get_unix_timestamp(&ev->time);
+    uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif

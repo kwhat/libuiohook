@@ -16,11 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <xkbcommon/xkbcommon.h>
-#include <linux/input.h>
-#include <uiohook.h>
+#ifndef _included_dispatch_event
+#define _included_dispatch_event
 
-extern void dispatch_event(uiohook_event *const uio_event);
+#include <linux/input.h>
+#include <stdbool.h>
+#include <uiohook.h>
 
 extern void dispatch_hook_enabled();
 
@@ -30,10 +31,12 @@ extern bool dispatch_key_press(struct input_event *const ev);
 
 extern bool dispatch_key_release(struct input_event *const ev);
 
-extern bool dispatch_mouse_press(struct input_event *const ev);
+extern bool dispatch_mouse_press(struct input_event *const ev, uint16_t button);
 
-extern bool dispatch_mouse_release(struct input_event *const ev);
+extern bool dispatch_mouse_release(struct input_event *const ev, uint16_t button);
 
 extern bool dispatch_mouse_move(struct input_event *const ev);
 
 extern bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction);
+
+#endif

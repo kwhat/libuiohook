@@ -22,7 +22,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <xkbcommon/xkbcommon.h>
-#include <sys/time.h>
 
 /* The meaning of the input_event 'value' field. */
 enum xkb_key_state_t {
@@ -31,7 +30,7 @@ enum xkb_key_state_t {
     KEY_STATE_REPEAT = 2
 };
 
-// Helper display used by input helper, properties and post event.
+/* Event timestamp source: real Unix epoch time, or a monotonic sequence counter. */
 #ifdef USE_EPOCH_TIME
 extern uint64_t get_unix_timestamp(uint64_t seconds, uint64_t microseconds);
 #else
@@ -79,9 +78,6 @@ extern void unset_modifier_mask(uint16_t mask);
 
 /* Get the current native modifier mask state. */
 extern uint16_t get_modifiers();
-
-/* Enable detectable auto-repeat for keys */
-extern bool enable_key_repeat();
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be

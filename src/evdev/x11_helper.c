@@ -30,7 +30,7 @@ static void *lib_x11_xcb = NULL;
 static void *lib_xkb_x11 = NULL;
 static void *lib_xinerama = NULL;
 
-static Display *shared_display = NULL;
+static Display *disp = NULL;
 static unsigned int capabilities = 0;
 
 // Resolve one symbol into its function pointer slot.  Uses a void ** cast so we do not
@@ -44,20 +44,28 @@ static unsigned int capabilities = 0;
         }                                                                              \
     } while (0)
 
+
+bool x11_has(enum x11_capability cap) {
+    return (capabilities & cap) == (unsigned int) cap;
+}
+
+Display *x11_display(void) {
+    return disp;
+}
+
 int load_x11_helper(void) {
     // libX11: display connection, pointer and keycode queries.
     lib_x11 = dlopen("libX11.so.6", RTLD_NOW | RTLD_GLOBAL);
     if (lib_x11 == NULL) {
-        logger(LOG_LEVEL_WARN, "%s [%u]: libX11 is unavailable: %s\n",
+        logger(LOG_LEVEL_INFO, "%s [%u]: libX11 is unavailable: %s\n",
                 __FUNCTION__, __LINE__, dlerror());
         return UIOHOOK_ERROR_X_OPEN_DISPLAY;
     }
 
-    RESOLVE(lib_x11, XInitThreads,       "XInitThreads");
-    RESOLVE(lib_x11, XOpenDisplay,       "XOpenDisplay");
-    RESOLVE(lib_x11, XCloseDisplay,      "XCloseDisplay");
-    RESOLVE(lib_x11, XQueryPointer,      "XQueryPointer");
-    RESOLVE(lib_x11, XGetPointerMapping,   "XGetPointerMapping");
+    RESOLVE(lib_x11, XInitThreads,         "XInitThreads");
+    RESOLVE(lib_x11, XOpenDisplay,         "XOpenDisplay");
+    RESOLVE(lib_x11, XCloseDisplay,        "XCloseDisplay");
+    RESOLVE(lib_x11, XQueryPointer,        "XQueryPointer");
     RESOLVE(lib_x11, XGetPointerControl,   "XGetPointerControl");
     RESOLVE(lib_x11, XGetDefault,          "XGetDefault");
     RESOLVE(lib_x11, XkbGetAutoRepeatRate, "XkbGetAutoRepeatRate");
@@ -71,10 +79,10 @@ int load_x11_helper(void) {
 
     // Open the single shared connection every query-style caller uses.
     if (x11.XOpenDisplay != NULL) {
-        shared_display = x11.XOpenDisplay(NULL);
+        disp = x11.XOpenDisplay(NULL);
     }
 
-    if (shared_display == NULL) {
+    if (disp == NULL) {
         logger(LOG_LEVEL_WARN, "%s [%u]: Failed to open shared X11 display!\n",
                 __FUNCTION__, __LINE__);
         unload_x11_helper();
@@ -123,10 +131,10 @@ int load_x11_helper(void) {
 }
 
 void unload_x11_helper(void) {
-    if (shared_display != NULL && x11.XCloseDisplay != NULL) {
-        x11.XCloseDisplay(shared_display);
+    if (disp != NULL && x11.XCloseDisplay != NULL) {
+        x11.XCloseDisplay(disp);
     }
-    shared_display = NULL;
+    disp = NULL;
 
     if (lib_xinerama != NULL) {
         dlclose(lib_xinerama);
@@ -150,12 +158,4 @@ void unload_x11_helper(void) {
 
     memset(&x11, 0, sizeof(x11));
     capabilities = 0;
-}
-
-bool x11_has(enum x11_capability cap) {
-    return (capabilities & cap) == (unsigned int) cap;
-}
-
-Display *x11_display(void) {
-    return shared_display;
 }

@@ -77,10 +77,6 @@ static XkbDescPtr keyboard_map;
 #include "wayland_helper.h"
 #include "x11_helper.h"
 
-#define BUTTON_TABLE_MAX 16
-
-static unsigned char *mouse_button_table;
-
 // FIXME This should be static
 Display *display = NULL;
 static struct xkb_context *ctx = NULL;
@@ -474,6 +470,25 @@ static const uint32_t keysym_vcode_table[][2] = {
 };
 
 
+#ifdef USE_EPOCH_TIME
+/* Get the current timestamp in unix epoch time. */
+uint64_t get_unix_timestamp(uint64_t seconds, uint64_t microseconds) {
+    // Convert the event time to a Unix epoch in MS.
+    uint64_t timestamp = (seconds * 1000) + (microseconds / 1000);
+
+    return timestamp;
+}
+#else
+static uint64_t seq_timestamp = 0;
+uint64_t get_seq_timestamp() {
+    if (seq_timestamp == UINT64_MAX) {
+        // TODO Warning
+        seq_timestamp = 0;
+    }
+    return seq_timestamp++;
+}
+#endif
+
 uint16_t keysym_to_uiocode(xkb_keysym_t keysym) {
     uint16_t uiocode = VC_UNDEFINED;
 
@@ -566,6 +581,11 @@ uint16_t keycode_to_event(xkb_keycode_t keycode) {
 }
 
 xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_state) {
+    // load_input_helper tolerates a failed keymap/state init, so guard the per-event path.
+    if (state == NULL) {
+        return XKB_KEY_NoSymbol;
+    }
+
     xkb_keysym_t keysym = xkb_state_key_get_one_sym(state, keycode);
 
     if (key_state != KEY_STATE_REPEAT || xkb_keymap_key_repeats(keymap, keycode)) {
@@ -590,31 +610,6 @@ xkb_keysym_t event_to_keysym(xkb_keycode_t keycode, enum xkb_key_state_t key_sta
     }
 
     return keysym;
-}
-
-uint8_t button_map_lookup(uint8_t button) {
-    unsigned int map_button = button;
-
-    if (display != NULL) {
-        if (mouse_button_table != NULL) {
-            int map_size = x11.XGetPointerMapping(display, mouse_button_table, BUTTON_TABLE_MAX);
-            if (map_button > 0 && map_button <= map_size) {
-                map_button = mouse_button_table[map_button -1];
-            }
-        } else {
-            logger(LOG_LEVEL_WARN, "%s [%u]: Mouse button map memory is unavailable!\n",
-                    __FUNCTION__, __LINE__);
-        }
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay helper_disp is unavailable!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    // X11 numbers buttons 2 & 3 backwards from other platforms so we normalize them.
-    if      (map_button == Button2) { map_button = Button3; }
-    else if (map_button == Button3) { map_button = Button2; }
-
-    return map_button;
 }
 
 // Self-tracked absolute pointer position.  evdev only reports relative deltas, so we
@@ -787,33 +782,26 @@ static void initialize_locks() {
     }
 }
 
-#ifdef USE_EPOCH_TIME
-/* Get the current timestamp in unix epoch time. */
-uint64_t get_unix_timestamp(uint64_t seconds, uint64_t microseconds) {
-    // Convert the event time to a Unix epoch in MS.
-    uint64_t timestamp = (seconds * 1000) + (microseconds / 1000);
-
-    return timestamp;
-}
-#else
-static uint64_t seq_timestamp = 0;
-uint64_t get_seq_timestamp() {
-    if (seq_timestamp == UINT64_MAX) {
-        // TODO Warning
-        seq_timestamp = 0;
-    }
-    return seq_timestamp++;
-}
-#endif
-
 size_t keycode_to_utf8(xkb_keycode_t keycode, wchar_t *surrogate, size_t length) {
     size_t count = 0;
     if (surrogate == NULL || length == 0) {
         return count;
     }
 
+    if (state == NULL) {
+        return count;
+    }
+
     char buffer[5] = {};
     count = xkb_state_key_get_utf8(state, keycode, buffer, sizeof(buffer));
+
+    // xkb_state_key_get_utf8 returns the number of bytes required (snprintf-style), which can
+    // exceed the buffer for multi-codepoint strings.  The single-codepoint decode below indexes
+    // utf8_bitmask_table[count] and reads buffer[0..count-1], so bail out rather than run past
+    // either when the string did not fit.
+    if (count >= sizeof(buffer)) {
+        return 0;
+    }
 
 
     // If we produced a string and we have a buffer, convert to 16-bit surrogate pairs.
@@ -932,15 +920,6 @@ void load_input_helper() {
         initialize_locks();
     }
 
-    // Setup memory for mouse button mapping.
-    mouse_button_table = malloc(sizeof(unsigned char) * BUTTON_TABLE_MAX);
-    if (mouse_button_table == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for mouse button map!\n",
-                __FUNCTION__, __LINE__);
-
-        //return UIOHOOK_ERROR_OUT_OF_MEMORY;
-    }
-
     // Initialize absolute pointer tracking from the current monitor layout.
     init_pointer_tracking();
 }
@@ -968,9 +947,4 @@ void unload_input_helper() {
 
     // The shared connection is owned by the library constructor, not unloaded here.
     display = NULL;
-
-    if (mouse_button_table != NULL) {
-        free(mouse_button_table);
-        mouse_button_table = NULL;
-    }
 }

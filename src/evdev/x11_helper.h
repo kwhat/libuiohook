@@ -44,7 +44,6 @@ struct x11_api {
     Display *(*XOpenDisplay)(const char *);
     int      (*XCloseDisplay)(Display *);
     Bool     (*XQueryPointer)(Display *, Window, Window *, Window *, int *, int *, int *, int *, unsigned int *);
-    int      (*XGetPointerMapping)(Display *, unsigned char *, int);
     int      (*XGetPointerControl)(Display *, int *, int *, int *);
     char    *(*XGetDefault)(Display *, const char *, const char *);
     Bool     (*XkbGetAutoRepeatRate)(Display *, unsigned int, unsigned int *, unsigned int *);
@@ -65,18 +64,18 @@ struct x11_api {
 
 extern struct x11_api x11;
 
+// True when every library backing the capability is loaded and usable.
+extern bool x11_has(enum x11_capability cap);
+
+/* The shared display connection, or NULL when X11 is unavailable. */
+extern Display *x11_display(void);
+
 // dlopen the available X11 libraries, resolve their symbols and open the single shared
 // display connection.  Returns UIOHOOK_SUCCESS when at least X11_CAP_DISPLAY is available.
 // Safe to call when X is absent; callers must still gate use on x11_has()/x11_display().
 extern int load_x11_helper(void);
 
-// Close the shared connection and dlclose every handle.  Idempotent.
+/* Close the shared connection and dlclose every handle.  Idempotent. */
 extern void unload_x11_helper(void);
-
-// True when every library backing the capability is loaded and usable.
-extern bool x11_has(enum x11_capability cap);
-
-// The shared display connection, or NULL when X11 is unavailable.
-extern Display *x11_display(void);
 
 #endif

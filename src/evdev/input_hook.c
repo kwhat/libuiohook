@@ -70,28 +70,38 @@ static char monitor_tag;
 // Handle an EV_KEY event.  Mouse buttons route through the pointer dispatch; every
 // other code is treated as a keyboard key.
 static bool hook_key_proc(struct input_event *ev) {
+    uint16_t button;
+    uint16_t mask;
+
     switch (ev->code) {
-        case BTN_LEFT:
-        case BTN_RIGHT:
-        case BTN_MIDDLE:
+        case BTN_LEFT:    button = MOUSE_BUTTON1; mask = MASK_BUTTON1; break;
+        case BTN_RIGHT:   button = MOUSE_BUTTON2; mask = MASK_BUTTON2; break;
+        case BTN_MIDDLE:  button = MOUSE_BUTTON3; mask = MASK_BUTTON3; break;
+
         case BTN_SIDE:
+        case BTN_BACK:    button = MOUSE_BUTTON4; mask = MASK_BUTTON4; break;
+
         case BTN_EXTRA:
-        case BTN_FORWARD:
-        case BTN_BACK:
+        case BTN_FORWARD: button = MOUSE_BUTTON5; mask = MASK_BUTTON5; break;
+
+        default:
+            // Not a pointer button; treat as a keyboard key.
+            // value 1 (press) and 2 (autorepeat) both dispatch as a press.
+            // TODO If we time the delta between 1 and 2 we can get the key repeat interval.
             if (ev->value > 0) {
-                return dispatch_mouse_press(ev);
+                return dispatch_key_press(ev);
             }
 
-            return dispatch_mouse_release(ev);
+            return dispatch_key_release(ev);
     }
 
-    // value 1 (press) and 2 (autorepeat) both dispatch as a press.
-    // TODO If we time the delta between 1 and 2 we can get the key repeat interval.
     if (ev->value > 0) {
-        return dispatch_key_press(ev);
+        set_modifier_mask(mask);
+        return dispatch_mouse_press(ev, button);
     }
 
-    return dispatch_key_release(ev);
+    unset_modifier_mask(mask);
+    return dispatch_mouse_release(ev, button);
 }
 
 // Handle an EV_REL event: accumulate motion and wheel deltas until the next EV_SYN
@@ -111,8 +121,6 @@ static bool hook_rel_proc(struct input_event *ev) {
             break;
 
         case REL_HWHEEL_HI_RES:
-            // FIXME hook_sync_proc() dispatches the horizontal wheel with wheel_v
-            // instead of wheel_h, so horizontal scroll reports the vertical delta.
             wheel_h += ev->value;
             break;
     }
@@ -125,17 +133,17 @@ static bool hook_sync_proc(struct input_event *ev) {
 
     if (rel_x != 0 || rel_y != 0) {
         track_pointer_delta(rel_x, rel_y);
-        consumed = dispatch_mouse_move(ev);
+        consumed |= dispatch_mouse_move(ev);
         rel_x = rel_y = 0;
     }
 
     if (wheel_v != 0) {
-        consumed = dispatch_mouse_wheel(ev, wheel_v, WHEEL_VERTICAL_DIRECTION);
+        consumed |= dispatch_mouse_wheel(ev, wheel_v, WHEEL_VERTICAL_DIRECTION);
         wheel_v = 0;
     }
 
     if (wheel_h != 0) {
-        consumed = dispatch_mouse_wheel(ev, wheel_v, WHEEL_HORIZONTAL_DIRECTION);
+        consumed |= dispatch_mouse_wheel(ev, wheel_h, WHEEL_HORIZONTAL_DIRECTION);
         wheel_h = 0;
     }
 

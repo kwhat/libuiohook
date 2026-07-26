@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-
 #include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
@@ -54,8 +53,7 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_d
 
 
 // Send out an event if a dispatcher was set.
-// FIXME Should be static void dispatch_event(
-void dispatch_event(uiohook_event *const uio_event) {
+static void dispatch_event(uiohook_event *const uio_event) {
     if (dispatch != NULL) {
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Dispatching event type %u.\n",
                 __FUNCTION__, __LINE__, uio_event->type);
@@ -205,66 +203,17 @@ bool dispatch_key_release(struct input_event *const ev) {
     return uio_event.reserved & 0x01;
 }
 
+// FIXME Why doesn't this live in the click structure? click.is_drag?
 // Set to true by dispatch_mouse_move between a button press and release so we know
 // whether to synthesize an EVENT_MOUSE_CLICKED on release.
 static bool mouse_dragged = false;
 
-static uint16_t button_to_uiocode(uint16_t code, uint16_t *mask) {
-    uint16_t button;
-
-    switch (code) {
-        case BTN_LEFT:
-            button = MOUSE_BUTTON1;
-            *mask = MASK_BUTTON1;
-            break;
-
-        case BTN_RIGHT:
-            button = MOUSE_BUTTON2;
-            *mask = MASK_BUTTON2;
-            break;
-
-        case BTN_MIDDLE:
-            button = MOUSE_BUTTON3;
-            *mask = MASK_BUTTON3;
-            break;
-
-        case BTN_SIDE:
-        case BTN_BACK:
-            button = MOUSE_BUTTON4;
-            *mask = MASK_BUTTON4;
-            break;
-
-        case BTN_EXTRA:
-        case BTN_FORWARD:
-            button = MOUSE_BUTTON5;
-            *mask = MASK_BUTTON5;
-            break;
-
-        default:
-            // Something screwed up, default to MOUSE_NOBUTTON.
-            button = MOUSE_NOBUTTON;
-            *mask = 0x0000;
-    }
-
-    return button;
-}
-
-bool dispatch_mouse_press(struct input_event *const ev) {
+bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
-
-    uint16_t mask;
-    uint16_t button = button_to_uiocode(ev->code, &mask);
-    if (button == MOUSE_NOBUTTON) {
-        logger(LOG_LEVEL_WARN, "%s [%u]: Unmapped mouse button code %#X!\n",
-                __FUNCTION__, __LINE__, ev->code);
-        return false;
-    }
-
-    set_modifier_mask(mask);
 
     // Track the number of clicks, the button must match the previous button.
     if (button == click.button && timestamp - click.time <= hook_get_multi_click_time()) {
@@ -331,22 +280,12 @@ static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
     dispatch_event(&uio_event);
 }
 
-bool dispatch_mouse_release(struct input_event *const ev) {
+bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
     uint64_t timestamp = get_seq_timestamp();
     #endif
-
-    uint16_t mask;
-    uint16_t button = button_to_uiocode(ev->code, &mask);
-    if (button == MOUSE_NOBUTTON) {
-        logger(LOG_LEVEL_WARN, "%s [%u]: Unmapped mouse button code %#X!\n",
-                __FUNCTION__, __LINE__, ev->code);
-        return false;
-    }
-
-    unset_modifier_mask(mask);
 
     // Populate mouse released event.
     uio_event.time = timestamp;
@@ -368,8 +307,9 @@ bool dispatch_mouse_release(struct input_event *const ev) {
     dispatch_event(&uio_event);
     bool consumed = uio_event.reserved & 0x01;
 
-    // If the pointer didn't move between press and release, fire a clicked event.
-    if (button == click.button && !mouse_dragged) {
+    // If the release was not consumed and the pointer didn't move between press and release,
+    // fire a clicked event.
+    if (!consumed && !mouse_dragged) {
         dispatch_mouse_clicked(timestamp, button);
     }
 
@@ -451,11 +391,12 @@ bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_
     // evdev has no position for wheel events; query the display server.
     get_pointer_position(&uio_event.data.wheel.x, &uio_event.data.wheel.y);
 
-    /* Linux does not have an API call for acquiring the mouse scroll type or amount. For the time being we will just
-     * use the unit scroll at 100. */
+    /* Linux has no API for the scroll type or lines-per-notch, so we report unit scroll with a
+     * fixed delta of 120 (matching the Windows WHEEL_DELTA convention).  Following that convention
+     * rotation is a signed multiple of delta, i.e. one wheel detent equals one delta. */
     uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
     uio_event.data.wheel.delta = 120;
-    uio_event.data.wheel.rotation = 3 * uio_event.data.wheel.delta * rotation; // TODO Im not sure this calcuation is correct, compare to windows.
+    uio_event.data.wheel.rotation = (int16_t) (rotation * (int16_t) uio_event.data.wheel.delta);
     uio_event.data.wheel.direction = direction;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",

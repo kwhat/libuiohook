@@ -23,101 +23,12 @@
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 
-#ifdef USE_XF86MISC
-#include <X11/extensions/xf86misc.h>
-#include <X11/extensions/xf86mscstr.h>
-#endif
-
-#if defined(USE_XINERAMA) && !defined(USE_XRANDR)
-#include <X11/extensions/Xinerama.h>
-#elif defined(USE_XRANDR)
-#include <pthread.h>
-#include <X11/extensions/Xrandr.h>
-#endif
-
-
-static Display *display;
-
 #include "input_helper.h"
 #include "logger.h"
 #include "wayland_helper.h"
 #include "x11_helper.h"
 
-#ifdef USE_XRANDR
-static pthread_mutex_t xrandr_mutex = PTHREAD_MUTEX_INITIALIZER;
-static XRRScreenResources *xrandr_resources = NULL;
 
-static void settings_cleanup_proc(void *arg) {
-    if (pthread_mutex_trylock(&xrandr_mutex) == 0) {
-        if (xrandr_resources != NULL) {
-            XRRFreeScreenResources(xrandr_resources);
-            xrandr_resources = NULL;
-        }
-
-        if (arg != NULL) {
-            XCloseDisplay((Display *) arg);
-            arg = NULL;
-        }
-
-        pthread_mutex_unlock(&xrandr_mutex);
-    }
-}
-
-static void *settings_thread_proc(void *arg) {
-    Display *settings_disp = XOpenDisplay(XDisplayName(NULL));;
-    if (settings_disp != NULL) {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: %s\n",
-                __FUNCTION__, __LINE__, "XOpenDisplay success.");
-
-        pthread_cleanup_push(settings_cleanup_proc, settings_disp);
-
-        int event_base = 0;
-        int error_base = 0;
-        if (XRRQueryExtension(settings_disp, &event_base, &error_base)) {
-            Window root = XDefaultRootWindow(settings_disp);
-            unsigned long event_mask = RRScreenChangeNotifyMask;
-            XRRSelectInput(settings_disp, root, event_mask);
-
-            XEvent ev;
-
-            while(settings_disp != NULL) {
-                XNextEvent(settings_disp, &ev);
-
-                if (ev.type == event_base + RRScreenChangeNotifyMask) {
-                    logger(LOG_LEVEL_DEBUG, "%s [%u]: Received XRRScreenChangeNotifyEvent.\n",
-                            __FUNCTION__, __LINE__);
-
-                    pthread_mutex_lock(&xrandr_mutex);
-                    if (xrandr_resources != NULL) {
-                        XRRFreeScreenResources(xrandr_resources);
-                    }
-
-                    xrandr_resources = XRRGetScreenResources(settings_disp, root);
-                    if (xrandr_resources == NULL) {
-                        logger(LOG_LEVEL_WARN, "%s [%u]: XRandR could not get screen resources!\n",
-                                __FUNCTION__, __LINE__);
-                    }
-                    pthread_mutex_unlock(&xrandr_mutex);
-                } else {
-                    logger(LOG_LEVEL_WARN, "%s [%u]: XRandR is not currently available!\n",
-                            __FUNCTION__, __LINE__);
-                }
-            }
-        }
-
-        // Execute the thread cleanup handler.
-        pthread_cleanup_pop(1);
-
-    } else {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: XOpenDisplay failure!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    return NULL;
-}
-#endif
-
-// FIXME XINERAMA and XRADNR can prob be replaced by https://wayland.app/protocols/xdg-output-unstable-v1#zxdg_output_v1:event:logical_size on wayland.
 UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     *count = 0;
     screen_data *screens = NULL;
@@ -212,6 +123,7 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
     }
 
     // Check and make sure we could connect to the x server.
+    Display *display = x11_display();
     if (display != NULL) {
         // Attempt to acquire the keyboard auto repeat rate using the XKB extension.
         if (!successful) {
@@ -222,21 +134,6 @@ UIOHOOK_API long int hook_get_auto_repeat_rate() {
                         __FUNCTION__, __LINE__, rate);
             }
         }
-
-        #ifdef USE_XF86MISC
-        // Fallback to the XF86 Misc extension if available and other efforts failed.
-        if (!successful) {
-            XF86MiscKbdSettings kb_info;
-            successful = (bool) XF86MiscGetKbdSettings(display, &kb_info);
-            if (successful) {
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
-                        __FUNCTION__, __LINE__, kbdinfo.rate);
-
-                delay = (unsigned int) kbdinfo.delay;
-                rate = (unsigned int) kbdinfo.rate;
-            }
-        }
-        #endif
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay display is unavailable!\n",
                 __FUNCTION__, __LINE__);
@@ -264,6 +161,7 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
     }
 
     // Check and make sure we could connect to the x server.
+    Display *display = x11_display();
     if (display != NULL) {
         // Attempt to acquire the keyboard auto repeat rate using the XKB extension.
         if (!successful) {
@@ -274,21 +172,6 @@ UIOHOOK_API long int hook_get_auto_repeat_delay() {
                         __FUNCTION__, __LINE__, delay);
             }
         }
-
-        #ifdef USE_XF86MISC
-        // Fallback to the XF86 Misc extension if available and other efforts failed.
-        if (!successful) {
-            XF86MiscKbdSettings kb_info;
-            successful = (bool) XF86MiscGetKbdSettings(display, &kb_info);
-            if (successful) {
-                logger(LOG_LEVEL_DEBUG, "%s [%u]: XF86MiscGetKbdSettings: %i.\n",
-                        __FUNCTION__, __LINE__, kbdinfo.delay);
-
-                delay = (unsigned int) kbdinfo.delay;
-                rate = (unsigned int) kbdinfo.rate;
-            }
-        }
-        #endif
     } else {
         logger(LOG_LEVEL_WARN, "%s [%u]: XDisplay display is unavailable!\n",
                 __FUNCTION__, __LINE__);
@@ -306,6 +189,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_multiplier() {
     int accel_numerator, accel_denominator, threshold;
 
     // Check and make sure we could connect to the x server.
+    Display *display = x11_display();
     if (display != NULL) {
         x11.XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
         if (accel_denominator >= 0) {
@@ -327,6 +211,7 @@ UIOHOOK_API long int hook_get_pointer_acceleration_threshold() {
     int accel_numerator, accel_denominator, threshold;
 
     // Check and make sure we could connect to the x server.
+    Display *display = x11_display();
     if (display != NULL) {
         x11.XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
         if (threshold >= 0) {
@@ -348,6 +233,7 @@ UIOHOOK_API long int hook_get_pointer_sensitivity() {
     int accel_numerator, accel_denominator, threshold;
 
     // Check and make sure we could connect to the x server.
+    Display *display = x11_display();
     if (display != NULL) {
         x11.XGetPointerControl(display, &accel_numerator, &accel_denominator, &threshold);
         if (accel_numerator >= 0) {
@@ -370,11 +256,12 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     bool successful = false;
 
     // Check and make sure we could connect to the x server.
+    Display *display = x11_display();
     if (display != NULL) {
         // Try and acquire the multi-click time from the user defined X defaults.
         if (!successful) {
             char *xprop = x11.XGetDefault(display, "*", "multiClickTime");
-            if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
+            if (xprop != NULL && sscanf(xprop, "%4i", &click_time) == 1) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'multiClickTime' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
 
@@ -384,7 +271,7 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 
         if (!successful) {
             char *xprop = x11.XGetDefault(display, "OpenWindows", "MultiClickTimeout");
-            if (xprop != NULL && sscanf(xprop, "%4i", &click_time) != EOF) {
+            if (xprop != NULL && sscanf(xprop, "%4i", &click_time) == 1) {
                 logger(LOG_LEVEL_DEBUG, "%s [%u]: X default 'MultiClickTimeout' property: %i.\n",
                         __FUNCTION__, __LINE__, click_time);
 
@@ -413,25 +300,6 @@ void on_library_load() {
         logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
                 __FUNCTION__, __LINE__, "Failed to open shared X11 display!");
     }
-    display = x11_display();
-
-    #ifdef USE_XRANDR
-    // Create the thread attribute.
-    pthread_attr_t settings_thread_attr;
-    pthread_attr_init(&settings_thread_attr);
-
-    pthread_t settings_thread_id;
-    if (pthread_create(&settings_thread_id, &settings_thread_attr, settings_thread_proc, NULL) == 0) {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Successfully created settings thread.\n",
-                __FUNCTION__, __LINE__);
-    } else {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create settings thread!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    // Make sure the thread attribute is removed.
-    pthread_attr_destroy(&settings_thread_attr);
-    #endif
 }
 
 // Create a shared object destructor.
@@ -445,5 +313,4 @@ void on_library_unload() {
 
     // Closes the shared connection and dlcloses the X11 libraries.
     unload_x11_helper();
-    display = NULL;
 }

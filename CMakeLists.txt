@@ -155,6 +155,13 @@ if(UNIX AND NOT APPLE)
     # so we need libdl.
     target_link_libraries(uiohook ${CMAKE_DL_LIBS})
 
+    # wayland_helper.c uses shm_open/shm_unlink for the cursor-probe buffer.  These live in
+    # librt on glibc < 2.34 (folded into libc since); link it when present so older systems build.
+    find_library(RT_LIBRARY rt)
+    if(RT_LIBRARY)
+        target_link_libraries(uiohook "${RT_LIBRARY}")
+    endif()
+
     # Wayland xdg-output screen enumeration.  libwayland-client is dlopen'd (not linked),
     # but the wl_*_interface data symbols are compiled in from generated protocol code, so
     # scan both the core wayland protocol and xdg-output.  Headers only, no link.
@@ -219,6 +226,9 @@ if(UNIX AND NOT APPLE)
 
     pkg_check_modules(X11 REQUIRED x11)
     target_include_directories(uiohook PRIVATE "${X11_INCLUDE_DIRS}")
+
+    pkg_check_modules(XINERAMA REQUIRED xinerama)
+    target_include_directories(uiohook PRIVATE "${XINERAMA_INCLUDE_DIRS}")
 
     # libxkbcommon (not the x11 variant) is used directly for keysym translation.
     pkg_check_modules(XKB REQUIRED xkbcommon)

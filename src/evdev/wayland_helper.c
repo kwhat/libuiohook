@@ -16,19 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE  // memfd_create
-
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <time.h>
 #include <uiohook.h>
 #include <unistd.h>
-
-// Real prototypes and core types (struct wl_proxy, wl_interface, ...).  Included before
-// the redirect macros so libwayland's own declarations are seen unmodified.
 #include <wayland-client-core.h>
 
 #include "logger.h"
@@ -67,7 +66,7 @@ static void               (*p_wl_proxy_set_user_data)(struct wl_proxy *, void *)
 
 static void unload_wayland(void);
 
-#define WL_LOAD(sym)                                                                    \
+#define WL_LOAD(sym)                                                                   \
     do {                                                                               \
         *(void **) (&p_##sym) = dlsym(lib_wayland, #sym);                              \
         if (p_##sym == NULL) {                                                         \
@@ -498,7 +497,22 @@ static struct wl_buffer *probe_create_buffer(struct probe_state *state, int32_t 
     int32_t stride = width * 4;
     size_t size = (size_t) stride * height;
 
-    int fd = memfd_create("uiohook-cursor-probe", MFD_CLOEXEC);
+    // shm_open (POSIX) is used instead of memfd_create so the file does not depend on _GNU_SOURCE.
+    // The object is created O_EXCL under a name unique to this process+time and unlinked right away,
+    // leaving an anonymous fd that stays valid until close().
+    int fd = -1;
+    for (int attempt = 0; attempt < 16; attempt++) {
+        char name[64];
+        snprintf(name, sizeof(name), "/uiohook-cursor-probe-%d-%ld-%d",
+                 (int) getpid(), (long) time(NULL), attempt);
+
+        fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+        if (fd >= 0) {
+            shm_unlink(name);
+            break;
+        }
+    }
+
     if (fd < 0) {
         return NULL;
     }
@@ -579,10 +593,25 @@ static void probe_pointer_enter(void *data, struct wl_pointer *pointer, uint32_t
     }
 }
 
-static void probe_pointer_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) { }
-static void probe_pointer_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) { }
-static void probe_pointer_button(void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) { }
-static void probe_pointer_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value) { }
+static void probe_pointer_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {
+    // The pointer left one of our overlays (fires as we tear them down).  Intentionally
+    // blank: the probe samples the cursor once from the enter event, nothing to do here.
+}
+
+static void probe_pointer_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
+    // The pointer moved within an overlay.  Intentionally blank: the position comes from
+    // the enter event, so ongoing motion is irrelevant to a one-shot probe.
+}
+
+static void probe_pointer_button(void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
+    // A button was pressed/released over an overlay.  Intentionally blank: the probe never
+    // consumes or forwards input, it only reads the cursor position.
+}
+
+static void probe_pointer_axis(void *data, struct wl_pointer *pointer, uint32_t time, uint32_t axis, wl_fixed_t value) {
+    // A scroll/axis event occurred over an overlay.  Intentionally blank for the same
+    // reason: the probe cares only about where the pointer is.
+}
 
 // wl_pointer is bound at version 1, so only these five classic events are ever delivered;
 // the newer members of the listener struct stay NULL and are never called.
@@ -713,21 +742,22 @@ int wayland_query_pointer_position(int16_t *x, int16_t *y) {
         struct probe_output *next = output->next;
 
         if (output->layer_surface != NULL) { zwlr_layer_surface_v1_destroy(output->layer_surface); }
-        if (output->surface != NULL) { wl_surface_destroy(output->surface); }
-        if (output->buffer != NULL) { wl_buffer_destroy(output->buffer); }
-        if (output->xdg_output != NULL) { zxdg_output_v1_destroy(output->xdg_output); }
-        if (output->output != NULL) { wl_output_destroy(output->output); }
+        if (output->surface       != NULL) { wl_surface_destroy(output->surface);                  }
+        if (output->buffer        != NULL) { wl_buffer_destroy(output->buffer);                    }
+        if (output->xdg_output    != NULL) { zxdg_output_v1_destroy(output->xdg_output);           }
+        if (output->output        != NULL) { wl_output_destroy(output->output);                    }
 
         free(output);
         output = next;
     }
 
-    if (state.pointer != NULL) { wl_pointer_destroy(state.pointer); }
-    if (state.seat != NULL) { wl_seat_destroy(state.seat); }
-    if (state.layer_shell != NULL) { zwlr_layer_shell_v1_destroy(state.layer_shell); }
+    if (state.pointer            != NULL) { wl_pointer_destroy(state.pointer);                        }
+    if (state.seat               != NULL) { wl_seat_destroy(state.seat);                              }
+    if (state.layer_shell        != NULL) { zwlr_layer_shell_v1_destroy(state.layer_shell);           }
     if (state.xdg_output_manager != NULL) { zxdg_output_manager_v1_destroy(state.xdg_output_manager); }
-    if (state.shm != NULL) { wl_shm_destroy(state.shm); }
-    if (state.compositor != NULL) { wl_compositor_destroy(state.compositor); }
+    if (state.shm                != NULL) { wl_shm_destroy(state.shm);                                }
+    if (state.compositor         != NULL) { wl_compositor_destroy(state.compositor);                  }
+
     wl_registry_destroy(registry);
     wl_display_disconnect(display);
 

@@ -10,7 +10,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -128,7 +128,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -166,7 +166,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -178,14 +178,16 @@ jobs:
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          deb [arch=amd64,i386] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          # This only seems to be required on GitHub images.  Left disabled: it upgrades
+          # libgcc-s1:amd64 ahead of the armhf ports version, and libgcc-s1 must match across
+          # architectures, which breaks the libc6:armhf / libffi8:armhf cross dependencies.
+          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
 
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
-          deb [arch=arm64,armhf] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
           " > /etc/apt/sources.list'
 
           sudo dpkg --add-architecture armhf
@@ -193,17 +195,19 @@ jobs:
 
           sudo apt-get install \
             binutils-arm-linux-gnueabihf \
-            gcc-arm-linux-gnueabihf
+            gcc-arm-linux-gnueabihf \
+            libwayland-bin \
+            wayland-protocols
 
           sudo apt-get install \
+            libevdev-dev:armhf \
+            libudev-dev:armhf \
+            libwayland-dev:armhf \
             libx11-dev:armhf \
-            libxtst-dev:armhf \
-            libxt-dev:armhf \
-            libxinerama-dev:armhf \
             libx11-xcb-dev:armhf \
+            libxinerama-dev:armhf \
             libxkbcommon-dev:armhf \
-            libxkbcommon-x11-dev:armhf \
-            libxkbfile-dev:armhf
+            libxkbcommon-x11-dev:armhf
 
       - name: Compile
         env:
@@ -239,7 +243,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -252,13 +256,13 @@ jobs:
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
-          deb [arch=amd64,i386] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
 
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
-          deb [arch=arm64,armhf] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
           " > /etc/apt/sources.list'
 
           sudo dpkg --add-architecture arm64
@@ -266,17 +270,19 @@ jobs:
 
           sudo apt-get install \
             binutils-aarch64-linux-gnu \
-            gcc-aarch64-linux-gnu
+            gcc-aarch64-linux-gnu \
+            libwayland-bin \
+            wayland-protocols
 
           sudo apt-get install \
+            libevdev-dev:arm64 \
+            libudev-dev:arm64 \
+            libwayland-dev:arm64 \
             libx11-dev:arm64 \
-            libxtst-dev:arm64 \
-            libxt-dev:arm64 \
-            libxinerama-dev:arm64 \
             libx11-xcb-dev:arm64 \
+            libxinerama-dev:arm64 \
             libxkbcommon-dev:arm64 \
-            libxkbcommon-x11-dev:arm64 \
-            libxkbfile-dev:arm64
+            libxkbcommon-x11-dev:arm64
 
       - name: Compile
         env:
@@ -312,7 +318,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -325,7 +331,7 @@ jobs:
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
-          deb [arch=amd64,i386] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
           " > /etc/apt/sources.list'
 
           sudo dpkg --add-architecture i386
@@ -333,17 +339,19 @@ jobs:
 
           sudo apt-get install \
             binutils-i686-linux-gnu \
-            gcc-i686-linux-gnu
+            gcc-i686-linux-gnu \
+            libwayland-bin \
+            wayland-protocols
 
           sudo apt-get install \
+            libevdev-dev:i386 \
+            libudev-dev:i386 \
+            libwayland-dev:i386 \
             libx11-dev:i386 \
-            libxtst-dev:i386 \
-            libxt-dev:i386 \
-            libxinerama-dev:i386 \
             libx11-xcb-dev:i386 \
+            libxinerama-dev:i386 \
             libxkbcommon-dev:i386 \
-            libxkbcommon-x11-dev:i386 \
-            libxkbfile-dev:i386
+            libxkbcommon-x11-dev:i386
 
       - name: Compile
         env:
@@ -379,7 +387,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -387,14 +395,16 @@ jobs:
         shell: bash
         run: |
           sudo apt-get install \
+            libevdev-dev:amd64 \
+            libudev-dev:amd64 \
+            libwayland-dev:amd64 \
+            libwayland-bin \
+            wayland-protocols \
             libx11-dev:amd64 \
-            libxtst-dev:amd64 \
-            libxt-dev:amd64 \
-            libxinerama-dev:amd64 \
             libx11-xcb-dev:amd64 \
+            libxinerama-dev:amd64 \
             libxkbcommon-dev:amd64 \
-            libxkbcommon-x11-dev:amd64 \
-            libxkbfile-dev:amd64
+            libxkbcommon-x11-dev:amd64
 
       - name: Compile
         env:
@@ -426,25 +436,25 @@ jobs:
           overwrite: true
 
 
-  windows-arm:
+  windows-arm64:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
       - name: Setup
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: amd64_arm
+          arch: amd64_arm64
 
       - name: Compile
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 17 2022" -A ARM ^
-            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm ^
+            -A ARM64 ^
+            -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\arm64 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^
             -D BUILD_DEMO=ON
@@ -467,7 +477,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -480,7 +490,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 17 2022" -A Win32 ^
+            -A Win32 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^
@@ -504,7 +514,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -517,7 +527,7 @@ jobs:
         shell: cmd
         run: |
           cmake -B ${{github.workspace}}\build ^
-            -G "Visual Studio 17 2022" -A x64 ^
+            -A x64 ^
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}\dist\windows\x86_64 ^
             -D CMAKE_VERBOSE_MAKEFILE=true ^
             -D BUILD_SHARED_LIBS=ON ^

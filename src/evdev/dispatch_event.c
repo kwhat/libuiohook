@@ -81,7 +81,6 @@ void dispatch_hook_enabled() {
 
     // Populate the hook start event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_HOOK_ENABLED;
     uio_event.mask = 0x00;
@@ -102,7 +101,6 @@ void dispatch_hook_disabled() {
 
     // Populate the hook stop event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_HOOK_DISABLED;
     uio_event.mask = 0x00;
@@ -127,7 +125,6 @@ bool dispatch_key_press(struct input_event *const ev) {
 
     // Populate key pressed event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_KEY_PRESSED;
     uio_event.mask = get_modifiers();
@@ -144,13 +141,12 @@ bool dispatch_key_press(struct input_event *const ev) {
     dispatch_event(&uio_event);
 
     // If the pressed event was not consumed and we got a char in the buffer.
-    if (uio_event.reserved ^ 0x01) {
+    if (!(uio_event.mask & MASK_CONSUMED)) {
         wchar_t surrogate[4] = {};
         size_t count = keycode_to_utf8(keycode, surrogate, sizeof(surrogate));
         for (unsigned int i = 0; i < count; i++) {
             // Populate key typed event.
             uio_event.time = timestamp;
-            uio_event.reserved = 0x00;
 
             uio_event.type = EVENT_KEY_TYPED;
             uio_event.mask = get_modifiers();
@@ -168,7 +164,7 @@ bool dispatch_key_press(struct input_event *const ev) {
         }
     }
 
-    return uio_event.reserved & 0x01;
+    return uio_event.mask & MASK_CONSUMED;
 }
 
 bool dispatch_key_release(struct input_event *const ev) {
@@ -184,7 +180,6 @@ bool dispatch_key_release(struct input_event *const ev) {
 
     // Populate key released event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_KEY_RELEASED;
     uio_event.mask = get_modifiers();
@@ -200,7 +195,7 @@ bool dispatch_key_release(struct input_event *const ev) {
     // Fire key released event.
     dispatch_event(&uio_event);
 
-    return uio_event.reserved & 0x01;
+    return uio_event.mask & MASK_CONSUMED;
 }
 
 // FIXME Why doesn't this live in the click structure? click.is_drag?
@@ -239,7 +234,6 @@ bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
 
     // Populate mouse pressed event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_MOUSE_PRESSED;
     uio_event.mask = get_modifiers();
@@ -256,13 +250,12 @@ bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
     // Fire mouse pressed event.
     dispatch_event(&uio_event);
 
-    return uio_event.reserved & 0x01;
+    return uio_event.mask & MASK_CONSUMED;
 }
 
 static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
     // Populate mouse clicked event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_MOUSE_CLICKED;
     uio_event.mask = get_modifiers();
@@ -289,7 +282,6 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
 
     // Populate mouse released event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_MOUSE_RELEASED;
     uio_event.mask = get_modifiers();
@@ -305,7 +297,7 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
 
     // Fire mouse released event.
     dispatch_event(&uio_event);
-    bool consumed = uio_event.reserved & 0x01;
+    bool consumed = uio_event.mask & MASK_CONSUMED;
 
     // If the release was not consumed and the pointer didn't move between press and release,
     // fire a clicked event.
@@ -335,7 +327,6 @@ bool dispatch_mouse_move(struct input_event *const ev) {
 
     // Populate mouse move event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.mask = get_modifiers();
 
@@ -367,7 +358,7 @@ bool dispatch_mouse_move(struct input_event *const ev) {
     // Fire mouse move event.
     dispatch_event(&uio_event);
 
-    return uio_event.reserved & 0x01;
+    return uio_event.mask & MASK_CONSUMED;
 }
 
 bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction) {
@@ -383,7 +374,6 @@ bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_
 
     // Populate mouse wheel event.
     uio_event.time = timestamp;
-    uio_event.reserved = 0x00;
 
     uio_event.type = EVENT_MOUSE_WHEEL;
     uio_event.mask = get_modifiers();
@@ -422,5 +412,5 @@ bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_
     // Fire mouse wheel event.
     dispatch_event(&uio_event);
 
-    return uio_event.reserved & 0x01;
+    return uio_event.mask & MASK_CONSUMED;
 }

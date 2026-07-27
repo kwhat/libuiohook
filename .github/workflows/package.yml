@@ -178,8 +178,10 @@ jobs:
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          # This only seems to be required on GitHub images.  Left disabled: it upgrades
+          # libgcc-s1:amd64 ahead of the armhf ports version, and libgcc-s1 must match across
+          # architectures, which breaks the libc6:armhf / libffi8:armhf cross dependencies.
+          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
 
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe

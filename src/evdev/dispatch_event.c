@@ -396,7 +396,21 @@ bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_
      * rotation is a signed multiple of delta, i.e. one wheel detent equals one delta. */
     uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
     uio_event.data.wheel.delta = 120;
-    uio_event.data.wheel.rotation = (int16_t) (rotation * (int16_t) uio_event.data.wheel.delta);
+
+    // Scale in a wider type and clamp to the int16_t rotation field so a large scroll pins
+    // to the range limit instead of silently wrapping.
+    int32_t scaled_rotation = (int32_t) rotation * uio_event.data.wheel.delta;
+    if (scaled_rotation > INT16_MAX) {
+        scaled_rotation = INT16_MAX;
+        logger(LOG_LEVEL_WARN, "%s [%u]: Wheel rotation overflow detected!\n",
+                __FUNCTION__, __LINE__);
+    } else if (scaled_rotation < INT16_MIN) {
+        scaled_rotation = INT16_MIN;
+        logger(LOG_LEVEL_WARN, "%s [%u]: Wheel rotation underflow detected!\n",
+                __FUNCTION__, __LINE__);
+    }
+
+    uio_event.data.wheel.rotation = (int16_t) scaled_rotation;
     uio_event.data.wheel.direction = direction;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",

@@ -18,6 +18,7 @@
 
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -38,6 +39,10 @@
 // (wayland-protocol.c / xdg-output-protocol.c), which sidesteps the extern-symbol
 // conflict a data-symbol macro redirect would create.
 static void *lib_wayland = NULL;
+
+// Serializes the one-time dlopen + symbol resolution in load_wayland() so concurrent callers
+// (e.g. the hook thread seeding the pointer while a property query runs) cannot race it.
+static pthread_mutex_t wayland_load_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static struct wl_display *(*p_wl_display_connect)(const char *);
 static void               (*p_wl_display_disconnect)(struct wl_display *);
@@ -66,19 +71,24 @@ static void               (*p_wl_proxy_set_user_data)(struct wl_proxy *, void *)
 
 static void unload_wayland(void);
 
-#define WL_LOAD(sym)                                                                   \
-    do {                                                                               \
-        *(void **) (&p_##sym) = dlsym(lib_wayland, #sym);                              \
-        if (p_##sym == NULL) {                                                         \
-            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to resolve %s: %s\n",              \
-                    __FUNCTION__, __LINE__, #sym, dlerror());                          \
-            unload_wayland();                                                          \
-            return UIOHOOK_FAILURE;                                                    \
-        }                                                                              \
-    } while (0)
+// Resolve one libwayland-client symbol into its function pointer.  target is the address of the
+// p_wl_* pointer cast to void **, matching how dlsym returns an untyped object pointer.
+static bool wl_resolve(void **target, const char *name) {
+    *target = dlsym(lib_wayland, name);
+    if (*target == NULL) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to resolve %s: %s\n",
+                __FUNCTION__, __LINE__, name, dlerror());
+        return false;
+    }
+
+    return true;
+}
 
 static int load_wayland(void) {
+    pthread_mutex_lock(&wayland_load_mutex);
+
     if (lib_wayland != NULL) {
+        pthread_mutex_unlock(&wayland_load_mutex);
         return UIOHOOK_SUCCESS;
     }
 
@@ -86,19 +96,34 @@ static int load_wayland(void) {
     if (lib_wayland == NULL) {
         logger(LOG_LEVEL_WARN, "%s [%u]: libwayland-client is unavailable: %s\n",
                 __FUNCTION__, __LINE__, dlerror());
+        pthread_mutex_unlock(&wayland_load_mutex);
         return UIOHOOK_FAILURE;
     }
 
-    WL_LOAD(wl_display_connect);
-    WL_LOAD(wl_display_disconnect);
-    WL_LOAD(wl_display_roundtrip);
-    WL_LOAD(wl_proxy_marshal_flags);
-    WL_LOAD(wl_proxy_add_listener);
-    WL_LOAD(wl_proxy_destroy);
-    WL_LOAD(wl_proxy_get_version);
-    WL_LOAD(wl_proxy_get_user_data);
-    WL_LOAD(wl_proxy_set_user_data);
+    static const struct {
+        void **target;
+        const char *name;
+    } symbols[] = {
+        { (void **) &p_wl_display_connect,     "wl_display_connect"     },
+        { (void **) &p_wl_display_disconnect,  "wl_display_disconnect"  },
+        { (void **) &p_wl_display_roundtrip,   "wl_display_roundtrip"   },
+        { (void **) &p_wl_proxy_marshal_flags, "wl_proxy_marshal_flags" },
+        { (void **) &p_wl_proxy_add_listener,  "wl_proxy_add_listener"  },
+        { (void **) &p_wl_proxy_destroy,       "wl_proxy_destroy"       },
+        { (void **) &p_wl_proxy_get_version,   "wl_proxy_get_version"   },
+        { (void **) &p_wl_proxy_get_user_data, "wl_proxy_get_user_data" },
+        { (void **) &p_wl_proxy_set_user_data, "wl_proxy_set_user_data" }
+    };
 
+    for (size_t i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+        if (!wl_resolve(symbols[i].target, symbols[i].name)) {
+            unload_wayland();
+            pthread_mutex_unlock(&wayland_load_mutex);
+            return UIOHOOK_FAILURE;
+        }
+    }
+
+    pthread_mutex_unlock(&wayland_load_mutex);
     return UIOHOOK_SUCCESS;
 }
 
@@ -178,6 +203,10 @@ static void registry_global(void *data, struct wl_registry *registry, uint32_t n
         if (monitor != NULL) {
             uint32_t bind_version = version < 2 ? version : 2;
             monitor->output = wl_registry_bind(registry, name, &wl_output_interface, bind_version);
+            if (monitor->output == NULL) {
+                free(monitor);
+                return;
+            }
 
             monitor->next = state->monitors;
             state->monitors = monitor;
@@ -214,7 +243,10 @@ screen_data *wayland_create_screen_info(unsigned char *count) {
     wl_registry_add_listener(registry, &registry_listener, &state);
 
     // First roundtrip: receive the globals (output manager and each wl_output).
-    wl_display_roundtrip(display);
+    if (wl_display_roundtrip(display) < 0) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Wayland roundtrip failed during screen enumeration!\n",
+                __FUNCTION__, __LINE__);
+    }
 
     screen_data *screens = NULL;
 
@@ -227,7 +259,10 @@ screen_data *wayland_create_screen_info(unsigned char *count) {
         }
 
         // Second roundtrip: receive logical_position / logical_size for each output.
-        wl_display_roundtrip(display);
+        if (wl_display_roundtrip(display) < 0) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Wayland roundtrip failed reading output geometry!\n",
+                    __FUNCTION__, __LINE__);
+        }
 
         unsigned int found = 0;
         for (struct wl_monitor *monitor = state.monitors; monitor != NULL; monitor = monitor->next) {
@@ -371,7 +406,9 @@ static void seat_registry_global(void *data, struct wl_registry *registry, uint3
         // repeat_info requires wl_seat version 4; keymap works from version 1.
         uint32_t bind_version = version < 7 ? version : 7;
         capture->seat = wl_registry_bind(registry, name, &wl_seat_interface, bind_version);
-        wl_seat_add_listener(capture->seat, &seat_listener, capture);
+        if (capture->seat != NULL) {
+            wl_seat_add_listener(capture->seat, &seat_listener, capture);
+        }
     }
 }
 
@@ -407,10 +444,14 @@ static void capture_seat_info(struct wl_seat_capture *capture) {
 
     // Roundtrip 1 binds the seat, 2 delivers its capabilities (and binds the keyboard),
     // 3 delivers the keyboard's keymap / repeat_info events.
-    wl_display_roundtrip(display);
-    if (capture->seat != NULL) {
-        wl_display_roundtrip(display);
-        wl_display_roundtrip(display);
+    bool success = wl_display_roundtrip(display) >= 0;
+    if (success && capture->seat != NULL) {
+        success = wl_display_roundtrip(display) >= 0 && wl_display_roundtrip(display) >= 0;
+    }
+
+    if (!success) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Wayland roundtrip failed while reading seat info!\n",
+                __FUNCTION__, __LINE__);
     }
 
     if (capture->keyboard != NULL) {
@@ -576,6 +617,24 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
     .closed = layer_surface_closed
 };
 
+// Narrow a global coordinate to the int16_t the public API uses, clamping instead of wrapping.
+// A layout wider/taller than +-32767px is unlikely, but pinning to the edge beats a sign-flip.
+static int16_t clamp_coordinate(int32_t value) {
+    if (value > INT16_MAX) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Pointer coordinate overflow (%d) clamped to %d!\n",
+                __FUNCTION__, __LINE__, value, INT16_MAX);
+        return INT16_MAX;
+    }
+
+    if (value < INT16_MIN) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Pointer coordinate underflow (%d) clamped to %d!\n",
+                __FUNCTION__, __LINE__, value, INT16_MIN);
+        return INT16_MIN;
+    }
+
+    return (int16_t) value;
+}
+
 static void probe_pointer_enter(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t sx, wl_fixed_t sy) {
     struct probe_state *state = data;
     if (state->have_position) {
@@ -585,8 +644,8 @@ static void probe_pointer_enter(void *data, struct wl_pointer *pointer, uint32_t
     // Match the entered surface to its output and add the output's layout origin.
     for (struct probe_output *output = state->outputs; output != NULL; output = output->next) {
         if (output->surface == surface) {
-            state->global_x = (int16_t) (output->origin_x + wl_fixed_to_int(sx));
-            state->global_y = (int16_t) (output->origin_y + wl_fixed_to_int(sy));
+            state->global_x = clamp_coordinate(output->origin_x + wl_fixed_to_int(sx));
+            state->global_y = clamp_coordinate(output->origin_y + wl_fixed_to_int(sy));
             state->have_position = true;
             break;
         }
@@ -651,11 +710,18 @@ static void probe_registry_global(void *data, struct wl_registry *registry, uint
         state->xdg_output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 3);
     } else if (strcmp(interface, wl_seat_interface.name) == 0 && state->seat == NULL) {
         state->seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
-        wl_seat_add_listener(state->seat, &probe_seat_listener, state);
+        if (state->seat != NULL) {
+            wl_seat_add_listener(state->seat, &probe_seat_listener, state);
+        }
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         struct probe_output *output = calloc(1, sizeof(struct probe_output));
         if (output != NULL) {
             output->output = wl_registry_bind(registry, name, &wl_output_interface, version < 2 ? version : 2);
+            if (output->output == NULL) {
+                free(output);
+                return;
+            }
+
             output->next = state->outputs;
             state->outputs = output;
         }
@@ -711,8 +777,11 @@ int wayland_query_pointer_position(int16_t *x, int16_t *y) {
 
             zwlr_layer_surface_v1_add_listener(output->layer_surface, &layer_surface_listener, output);
             zwlr_layer_surface_v1_set_anchor(output->layer_surface,
-                    ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
-                    | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+                    ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | 
+                    ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM | 
+                    ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | 
+                    ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
+                );
             zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
             zwlr_layer_surface_v1_set_size(output->layer_surface, 0, 0);
             wl_surface_commit(output->surface);

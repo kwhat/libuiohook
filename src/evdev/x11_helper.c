@@ -33,16 +33,16 @@ static void *lib_xinerama = NULL;
 static Display *disp = NULL;
 static unsigned int capabilities = 0;
 
-// Resolve one symbol into its function pointer slot.  Uses a void ** cast so we do not
-// trip the ISO C warning about converting object pointers to function pointers.
-#define RESOLVE(handle, field, name)                                                   \
-    do {                                                                               \
-        *(void **) (&x11.field) = dlsym((handle), (name));                             \
-        if (x11.field == NULL) {                                                       \
-            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to resolve %s: %s\n",              \
-                    __FUNCTION__, __LINE__, (name), dlerror());                        \
-        }                                                                              \
-    } while (0)
+// Resolve one symbol into its function-pointer slot.  target is the address of the x11.*
+// pointer cast to void **, which also avoids the ISO C warning about converting object
+// pointers to function pointers.
+static void x11_resolve(void **target, void *handle, const char *name) {
+    *target = dlsym(handle, name);
+    if (*target == NULL) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to resolve %s: %s\n",
+                __FUNCTION__, __LINE__, name, dlerror());
+    }
+}
 
 
 bool x11_has(enum x11_capability cap) {
@@ -62,14 +62,14 @@ int load_x11_helper(void) {
         return UIOHOOK_ERROR_X_OPEN_DISPLAY;
     }
 
-    RESOLVE(lib_x11, XInitThreads,         "XInitThreads");
-    RESOLVE(lib_x11, XOpenDisplay,         "XOpenDisplay");
-    RESOLVE(lib_x11, XCloseDisplay,        "XCloseDisplay");
-    RESOLVE(lib_x11, XQueryPointer,        "XQueryPointer");
-    RESOLVE(lib_x11, XGetPointerControl,   "XGetPointerControl");
-    RESOLVE(lib_x11, XGetDefault,          "XGetDefault");
-    RESOLVE(lib_x11, XkbGetAutoRepeatRate, "XkbGetAutoRepeatRate");
-    RESOLVE(lib_x11, XFree,                "XFree");
+    x11_resolve((void **) &x11.XInitThreads,         lib_x11, "XInitThreads");
+    x11_resolve((void **) &x11.XOpenDisplay,         lib_x11, "XOpenDisplay");
+    x11_resolve((void **) &x11.XCloseDisplay,        lib_x11, "XCloseDisplay");
+    x11_resolve((void **) &x11.XQueryPointer,        lib_x11, "XQueryPointer");
+    x11_resolve((void **) &x11.XGetPointerControl,   lib_x11, "XGetPointerControl");
+    x11_resolve((void **) &x11.XGetDefault,          lib_x11, "XGetDefault");
+    x11_resolve((void **) &x11.XkbGetAutoRepeatRate, lib_x11, "XkbGetAutoRepeatRate");
+    x11_resolve((void **) &x11.XFree,                lib_x11, "XFree");
 
     // The shared connection is read from both the hook thread and API callers, so put
     // Xlib into thread-safe mode before opening it.  Must precede any other Xlib call.
@@ -96,15 +96,13 @@ int load_x11_helper(void) {
     lib_x11_xcb = dlopen("libX11-xcb.so.1", RTLD_NOW | RTLD_GLOBAL);
     lib_xkb_x11 = dlopen("libxkbcommon-x11.so.0", RTLD_NOW | RTLD_GLOBAL);
     if (lib_x11_xcb != NULL && lib_xkb_x11 != NULL) {
-        RESOLVE(lib_x11_xcb, XGetXCBConnection,                    "XGetXCBConnection");
-        RESOLVE(lib_xkb_x11, xkb_x11_get_core_keyboard_device_id, "xkb_x11_get_core_keyboard_device_id");
-        RESOLVE(lib_xkb_x11, xkb_x11_keymap_new_from_device,      "xkb_x11_keymap_new_from_device");
-        RESOLVE(lib_xkb_x11, xkb_x11_state_new_from_device,       "xkb_x11_state_new_from_device");
+        x11_resolve((void **) &x11.XGetXCBConnection,                   lib_x11_xcb, "XGetXCBConnection");
+        x11_resolve((void **) &x11.xkb_x11_get_core_keyboard_device_id, lib_xkb_x11, "xkb_x11_get_core_keyboard_device_id");
+        x11_resolve((void **) &x11.xkb_x11_keymap_new_from_device,      lib_xkb_x11, "xkb_x11_keymap_new_from_device");
 
         if (x11.XGetXCBConnection != NULL
                 && x11.xkb_x11_get_core_keyboard_device_id != NULL
-                && x11.xkb_x11_keymap_new_from_device != NULL
-                && x11.xkb_x11_state_new_from_device != NULL) {
+                && x11.xkb_x11_keymap_new_from_device != NULL) {
             capabilities |= X11_CAP_XKB;
         }
     } else {
@@ -116,8 +114,8 @@ int load_x11_helper(void) {
     // default screen when it is absent.
     lib_xinerama = dlopen("libXinerama.so.1", RTLD_NOW | RTLD_GLOBAL);
     if (lib_xinerama != NULL) {
-        RESOLVE(lib_xinerama, XineramaIsActive,     "XineramaIsActive");
-        RESOLVE(lib_xinerama, XineramaQueryScreens, "XineramaQueryScreens");
+        x11_resolve((void **) &x11.XineramaIsActive,     lib_xinerama, "XineramaIsActive");
+        x11_resolve((void **) &x11.XineramaQueryScreens, lib_xinerama, "XineramaQueryScreens");
 
         if (x11.XineramaIsActive != NULL && x11.XineramaQueryScreens != NULL) {
             capabilities |= X11_CAP_XINERAMA;

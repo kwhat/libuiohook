@@ -59,7 +59,6 @@ struct x11_api {
     // libxkbcommon-x11
     int32_t (*xkb_x11_get_core_keyboard_device_id)(xcb_connection_t *);
     struct xkb_keymap *(*xkb_x11_keymap_new_from_device)(struct xkb_context *, xcb_connection_t *, int32_t, enum xkb_keymap_compile_flags);
-    struct xkb_state  *(*xkb_x11_state_new_from_device)(struct xkb_keymap *, xcb_connection_t *, int32_t);
 };
 
 extern struct x11_api x11;

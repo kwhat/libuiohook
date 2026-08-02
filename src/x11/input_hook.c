@@ -138,6 +138,7 @@ void hook_event_proc(XPointer closeure, XRecordInterceptData *recorded_data) {
     }
 
     // TODO There is no way to consume the XRecord event.
+    XRecordFreeData(recorded_data);
 }
 
 static int xrecord_block() {

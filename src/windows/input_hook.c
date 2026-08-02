@@ -28,6 +28,8 @@
 static DWORD hook_thread_id = 0;
 static HHOOK keyboard_event_hhook = NULL, mouse_event_hhook = NULL;
 
+static volatile bool g_keep_checking = true;
+static volatile bool g_debugger_detected = false;
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
 extern HINSTANCE hInst;
 
@@ -222,6 +224,33 @@ LRESULT CALLBACK mouse_hook_event_proc(int nCode, WPARAM wParam, LPARAM lParam) 
     return hook_result;
 }
 
+DWORD WINAPI debugger_check_thread(LPVOID lpParameter) {
+    while (g_keep_checking) {
+        bool debugger_present = IsDebuggerPresent();
+        if (debugger_present != g_debugger_detected) {
+            g_debugger_detected = debugger_present;
+            if (debugger_present) {
+                logger(LOG_LEVEL_WARN, "%s [%u]: Debugger detected.\n",
+                        __FUNCTION__, __LINE__);
+                PostThreadMessage(hook_thread_id, WM_QUIT, 0, 0);
+            } else {
+                logger(LOG_LEVEL_INFO, "%s [%u]: Debugger detached.\n",
+                        __FUNCTION__, __LINE__);
+            }
+        }
+        Sleep(100); 
+    }
+    return 0;
+}
+
+bool register_running_hooks() {
+    // Create the native hooks.
+    keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
+    mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
+
+    return (keyboard_event_hhook != NULL && mouse_event_hhook != NULL);
+}
+
 UIOHOOK_API int hook_run() {
     int status = UIOHOOK_FAILURE;
 
@@ -243,64 +272,79 @@ UIOHOOK_API int hook_run() {
         }
     }
 
-    // Create the native hooks.
-    keyboard_event_hhook = SetWindowsHookEx(WH_KEYBOARD_LL, keyboard_hook_event_proc, hInst, 0);
-    mouse_event_hhook = SetWindowsHookEx(WH_MOUSE_LL, mouse_hook_event_proc, hInst, 0);
-
-    // If we did not encounter a problem, start processing events.
-    if (keyboard_event_hhook != NULL && mouse_event_hhook != NULL) {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: SetWindowsHookEx() successful.\n",
-                __FUNCTION__, __LINE__);
-
-        // Set the exit status.
-        status = UIOHOOK_SUCCESS;
-
-        // Get the local system time in UNIX epoch form.
-        #ifdef USE_EPOCH_TIME
-        uint64_t timestamp = get_unix_timestamp();
-        #else
-        uint64_t timestamp = GetMessageTime();
-        #endif
-
-        // Initialize native input helper.
-        int input_helper_status = load_input_helper();
-        if (input_helper_status != UIOHOOK_SUCCESS) {
-            unload_input_helper();
-            return input_helper_status;
-        }
-
-        // Windows does not have a hook start event or callback so we need to manually fake it.
-        dispatch_hook_enable(timestamp);
-
-        // Block until the thread receives an WM_QUIT request.
-        MSG message;
-        while (GetMessage(&message, (HWND) NULL, 0, 0) > 0) {
-            TranslateMessage(&message);
-            DispatchMessage(&message);
-        }
-
-        // Get the local system time in UNIX epoch form.
-        #ifdef USE_EPOCH_TIME
-        timestamp = get_unix_timestamp();
-        #else
-        timestamp = GetMessageTime();
-        #endif
-
-        // We must explicitly call the cleanup handler because Windows does not
-        // provide a thread cleanup method like POSIX pthread_cleanup_push/pop.
-        dispatch_hook_disable(timestamp);
-
-        // Uninitialize the native input helper.
+    // Initialize native input helper.
+    int input_helper_status = load_input_helper();
+    if (input_helper_status != UIOHOOK_SUCCESS) {
         unload_input_helper();
-    } else {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
-                __FUNCTION__, __LINE__, (unsigned long) GetLastError());
-
-        status = UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX;
+        return input_helper_status;
     }
 
-    // Unregister any hooks that may still be installed.
+    // Start a thread to check for debugger presence
+    HANDLE debugger_thread = CreateThread(NULL, 0, debugger_check_thread, NULL, 0, NULL);
+    if (debugger_thread == NULL) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create debugger check thread! (%#lX)\n",
+                __FUNCTION__, __LINE__, (unsigned long) GetLastError());
+        unload_input_helper();
+        return UIOHOOK_FAILURE;
+    }
+
+    while (g_keep_checking) {
+        if (!g_debugger_detected) {
+            if (!register_running_hooks()) {
+                logger(LOG_LEVEL_ERROR, "%s [%u]: SetWindowsHookEx() failed! (%#lX)\n",
+                        __FUNCTION__, __LINE__, (unsigned long) GetLastError());
+                status = UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX;
+                break;
+            }
+
+            status = UIOHOOK_SUCCESS;
+
+            logger(LOG_LEVEL_DEBUG, "%s [%u]: Hooks registered successfully.\n",
+                    __FUNCTION__, __LINE__);
+
+            #ifdef USE_EPOCH_TIME
+            uint64_t timestamp = get_unix_timestamp();
+            #else
+            uint64_t timestamp = GetMessageTime();
+            #endif
+
+            // Windows does not have a hook start event or callback so we need to manually fake it.
+            dispatch_hook_enable(timestamp);
+
+            // Process messages
+            MSG message;
+            while (GetMessage(&message, (HWND) NULL, 0, 0) > 0 && !g_debugger_detected) {
+                TranslateMessage(&message);
+                DispatchMessage(&message);
+            }
+
+            // Unregister hooks if debugger was detected
+            if (g_debugger_detected) {
+                unregister_running_hooks();
+
+                #ifdef USE_EPOCH_TIME
+                timestamp = get_unix_timestamp();
+                #else
+                timestamp = GetMessageTime();
+                #endif
+
+                dispatch_hook_disable(timestamp);
+                logger(LOG_LEVEL_WARN, "%s [%u]: Debugger detected, hooks unregistered.\n",
+                        __FUNCTION__, __LINE__);
+            }
+        }
+    }
+
+    if (debugger_thread != NULL) {
+        WaitForSingleObject(debugger_thread, INFINITE);
+        CloseHandle(debugger_thread);
+    }
+
+    // Ensure hooks are unregistered
     unregister_running_hooks();
+
+    // Uninitialize the native input helper.
+    unload_input_helper();
 
     return status;
 }
@@ -308,7 +352,10 @@ UIOHOOK_API int hook_run() {
 UIOHOOK_API int hook_stop() {
     int status = UIOHOOK_FAILURE;
 
-    // Try to exit the thread naturally.
+    // Signal the hook processing to stop
+    g_keep_checking = false;
+
+    // Try to exit the message loop naturally
     if (PostThreadMessage(hook_thread_id, WM_QUIT, (WPARAM) NULL, (LPARAM) NULL)) {
         status = UIOHOOK_SUCCESS;
     }

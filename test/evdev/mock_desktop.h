@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2022 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -16,19 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <X11/Xlib.h>
+#ifndef UIOHOOK_MOCK_DESKTOP_H
+#define UIOHOOK_MOCK_DESKTOP_H
+
+#include <stdbool.h>
+#include <stdint.h>
 #include <uiohook.h>
 
-extern bool dispatch_hook_enabled(uint64_t timestamp);
+struct mock_desktop_state {
+    bool x11_available;
+    bool xinerama_available;
+    bool repeat_success;
+    int32_t wayland_rate, wayland_delay;
+    int wayland_status;
+    unsigned int x11_rate, x11_delay;
+    int numerator, denominator, threshold;
+    const char *click_time;
+    const char *fallback_click_time;
+    bool wayland_screens;
+    int x11_calls, wayland_calls;
+};
 
-extern bool dispatch_hook_disabled(uint64_t timestamp);
+extern struct mock_desktop_state mock_desktop;
+extern void mock_desktop_reset(void);
 
-extern bool dispatch_key_press(uint64_t timestamp, XKeyPressedEvent * const x_event);
-
-extern bool dispatch_key_release(uint64_t timestamp, XKeyReleasedEvent * const x_event);
-
-extern bool dispatch_mouse_press(uint64_t timestamp, XButtonEvent * const x_event);
-
-extern bool dispatch_mouse_release(uint64_t timestamp, XButtonEvent * const x_event);
-
-extern bool dispatch_mouse_move(uint64_t timestamp, XMotionEvent * const x_event);
+#endif

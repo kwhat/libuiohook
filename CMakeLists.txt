@@ -25,7 +25,7 @@ if (WIN32 OR WIN64)
 elseif (APPLE)
     set(UIOHOOK_SOURCE_DIR "darwin")
 else()
-    set(UIOHOOK_SOURCE_DIR "x11")
+    set(UIOHOOK_SOURCE_DIR "evdev")
 endif()
 
 add_library(uiohook
@@ -36,6 +36,13 @@ add_library(uiohook
     "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
     "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
+
+if(UNIX AND NOT APPLE)
+    target_sources(uiohook PRIVATE
+        "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c"
+        "src/${UIOHOOK_SOURCE_DIR}/touchpad_helper.c"
+    )
+endif()
 
 set_target_properties(uiohook PROPERTIES
     C_STANDARD 99
@@ -119,17 +126,7 @@ if (BUILD_DEMO)
     install(TARGETS demo_hook demo_hook_async demo_post demo_properties RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-if(ENABLE_TEST)
-    add_executable(uiohook_tests
-        "./test/input_helper_test.c"
-        "./test/system_properties_test.c"
-        "./test/minunit.h"
-        "./test/uiohook_test.c"
-    )
-
-    target_include_directories(uiohook_tests PRIVATE "./src/${UIOHOOK_SOURCE_DIR}")
-    target_link_libraries(uiohook_tests uiohook "${CMAKE_THREAD_LIBS_INIT}")
-endif()
+option(ENABLE_TEST "Build isolated unit tests with CTest" OFF)
 
 option(USE_EPOCH_TIME "Use Unix epoch time for event timestamps (default: ON)" ON)
 if(USE_EPOCH_TIME)
@@ -139,28 +136,117 @@ endif()
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
 
+    pkg_check_modules(EVDEV REQUIRED libevdev)
+    target_include_directories(uiohook PRIVATE "${EVDEV_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${EVDEV_LDFLAGS}")
+
+    pkg_check_modules(LIBINPUT REQUIRED libinput)
+    target_include_directories(uiohook PRIVATE "${LIBINPUT_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${LIBINPUT_LDFLAGS}")
+
+    pkg_check_modules(UDEV REQUIRED libudev)
+    target_include_directories(uiohook PRIVATE "${UDEV_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${UDEV_LDFLAGS}")
+
+    # X11 and Wayland are loaded at runtime via dlopen (x11_helper.c / wayland_helper.c),
+    # so we need libdl.
+    target_link_libraries(uiohook ${CMAKE_DL_LIBS})
+
+    # wayland_helper.c uses shm_open/shm_unlink for the cursor-probe buffer.  These live in
+    # librt on glibc < 2.34 (folded into libc since); link it when present so older systems build.
+    find_library(RT_LIBRARY rt)
+    if(RT_LIBRARY)
+        target_link_libraries(uiohook "${RT_LIBRARY}")
+    endif()
+
+    # Wayland xdg-output screen enumeration.  libwayland-client is dlopen'd (not linked),
+    # but the wl_*_interface data symbols are compiled in from generated protocol code, so
+    # scan both the core wayland protocol and xdg-output.  Headers only, no link.
+    find_program(WAYLAND_SCANNER_EXECUTABLE NAMES wayland-scanner REQUIRED)
+    pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
+    pkg_get_variable(WAYLAND_CORE_DIR wayland-scanner pkgdatadir)
+    pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
+
+    set(WAYLAND_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/wayland")
+    file(MAKE_DIRECTORY "${WAYLAND_GEN_DIR}")
+
+    set(WAYLAND_CORE_XML "${WAYLAND_CORE_DIR}/wayland.xml")
+    set(XDG_OUTPUT_XML "${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-output/xdg-output-unstable-v1.xml")
+    set(XDG_SHELL_XML "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml")
+    # wlr-layer-shell is not part of wayland-protocols, so it is vendored in-tree.
+    set(LAYER_SHELL_XML "${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml")
+
+    add_custom_command(
+        OUTPUT "${WAYLAND_GEN_DIR}/wayland-protocol.c"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${WAYLAND_CORE_XML}" "${WAYLAND_GEN_DIR}/wayland-protocol.c"
+        DEPENDS "${WAYLAND_CORE_XML}"
+        VERBATIM)
+
+    add_custom_command(
+        OUTPUT "${WAYLAND_GEN_DIR}/xdg-output-protocol.c" "${WAYLAND_GEN_DIR}/xdg-output-client-protocol.h"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${XDG_OUTPUT_XML}" "${WAYLAND_GEN_DIR}/xdg-output-protocol.c"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${XDG_OUTPUT_XML}" "${WAYLAND_GEN_DIR}/xdg-output-client-protocol.h"
+        DEPENDS "${XDG_OUTPUT_XML}"
+        VERBATIM)
+
+    # xdg-shell is scanned only for its interface data symbols, which the layer-shell
+    # code references (get_popup takes an xdg_popup); we do not use xdg-shell directly.
+    add_custom_command(
+        OUTPUT "${WAYLAND_GEN_DIR}/xdg-shell-protocol.c"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${XDG_SHELL_XML}" "${WAYLAND_GEN_DIR}/xdg-shell-protocol.c"
+        DEPENDS "${XDG_SHELL_XML}"
+        VERBATIM)
+
+    add_custom_command(
+        OUTPUT "${WAYLAND_GEN_DIR}/wlr-layer-shell-protocol.c" "${WAYLAND_GEN_DIR}/wlr-layer-shell-client-protocol.h"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" private-code "${LAYER_SHELL_XML}" "${WAYLAND_GEN_DIR}/wlr-layer-shell-protocol.c"
+        COMMAND "${WAYLAND_SCANNER_EXECUTABLE}" client-header "${LAYER_SHELL_XML}" "${WAYLAND_GEN_DIR}/wlr-layer-shell-client-protocol.h"
+        DEPENDS "${LAYER_SHELL_XML}"
+        VERBATIM)
+
+    target_sources(uiohook PRIVATE
+        "src/${UIOHOOK_SOURCE_DIR}/wayland_helper.c"
+        "${WAYLAND_GEN_DIR}/wayland-protocol.c"
+        "${WAYLAND_GEN_DIR}/xdg-output-protocol.c"
+        "${WAYLAND_GEN_DIR}/xdg-shell-protocol.c"
+        "${WAYLAND_GEN_DIR}/wlr-layer-shell-protocol.c")
+    target_include_directories(uiohook PRIVATE "${WAYLAND_GEN_DIR}" "${WAYLAND_CLIENT_INCLUDE_DIRS}")
+
+    # libX11, libX11-xcb, libxkbcommon-x11 and libXinerama are loaded at runtime via
+    # dlopen (see x11_helper.c).  We still need their headers for the type definitions,
+    # so keep the include dirs but do not link the libraries.
+    pkg_check_modules(XCB_X11 REQUIRED x11-xcb)
+    target_include_directories(uiohook PRIVATE "${XCB_X11_INCLUDE_DIRS}")
+
+    pkg_check_modules(XKB_X11 REQUIRED xkbcommon-x11)
+    target_include_directories(uiohook PRIVATE "${XKB_X11_INCLUDE_DIRS}")
+
     pkg_check_modules(X11 REQUIRED x11)
     target_include_directories(uiohook PRIVATE "${X11_INCLUDE_DIRS}")
-    target_link_libraries(uiohook "${X11_LDFLAGS}")
 
-    pkg_check_modules(XTST REQUIRED xtst)
-    target_include_directories(uiohook PRIVATE "${XTST_INCLUDE_DIRS}")
-    target_link_libraries(uiohook "${XTST_LDFLAGS}")
+    pkg_check_modules(XINERAMA REQUIRED xinerama)
+    target_include_directories(uiohook PRIVATE "${XINERAMA_INCLUDE_DIRS}")
+
+    # libxkbcommon (not the x11 variant) is used directly for keysym translation.
+    pkg_check_modules(XKB REQUIRED xkbcommon)
+    target_include_directories(uiohook PRIVATE "${XKB_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${XKB_LDFLAGS}")
+
+    # FIXME Check for header X11/extensions/XKB.h
+    include(CheckIncludeFile)
+    check_include_file(X11/extensions/XKB.h HAVE_XKB_H)
+
+
+
+    include(CMakePrintHelpers)
+    cmake_print_variables(EVDEV_INCLUDE_DIRS)
 
     include(CheckLibraryExists)
     check_library_exists(Xtst XRecordQueryVersion "" HAVE_XRECORD)
 
-    include(CheckIncludeFile)
-    check_include_file(X11/extensions/record.h HAVE_RECORD_H "-include X11/Xlib.h")
 
-    option(USE_XT "X Toolkit Extension (default: ON)" ON)
-    if(USE_XT)
-        pkg_check_modules(XT REQUIRED xt)
-        add_compile_definitions(uiohook PRIVATE USE_XT)
-        target_include_directories(uiohook PRIVATE "${XT_INCLUDE_DIRS}")
-        target_link_libraries(uiohook "${XT_LDFLAGS}")
-    endif()
-
+    # Multi-click time now comes from the X resource database (XGetDefault) with a
+    # sane default, so the X Toolkit (libXt) dependency has been dropped.
 
     option(USE_XF86MISC "XFree86-Misc X Extension (default: OFF)" OFF)
     if(USE_XF86MISC)
@@ -183,7 +269,7 @@ if(UNIX AND NOT APPLE)
         pkg_check_modules(XINERAMA REQUIRED xinerama)
         add_compile_definitions(uiohook PRIVATE USE_XINERAMA)
         target_include_directories(uiohook PRIVATE "${XINERAMA_INCLUDE_DIRS}")
-        target_link_libraries(uiohook "${XINERAMA_LDFLAGS}")
+        # Loaded at runtime via dlopen (see x11_helper.c); headers only, no link.
     endif()
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -243,3 +329,8 @@ list(REMOVE_DUPLICATES INTERFACE_LINK_LIBRARIES)
 string(REPLACE ";" " " COMPILE_LIBRARIES "${INTERFACE_LINK_LIBRARIES}")
 configure_file("pc/uiohook.pc.in" "${PROJECT_BINARY_DIR}/uiohook.pc" @ONLY)
 install(FILES "${PROJECT_BINARY_DIR}/uiohook.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+if(ENABLE_TEST)
+    enable_testing()
+    add_subdirectory(test)
+endif()

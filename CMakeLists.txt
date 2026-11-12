@@ -38,7 +38,10 @@ add_library(uiohook
 )
 
 if(UNIX AND NOT APPLE)
-    target_sources(uiohook PRIVATE "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c")
+    target_sources(uiohook PRIVATE
+        "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c"
+        "src/${UIOHOOK_SOURCE_DIR}/touchpad_helper.c"
+    )
 endif()
 
 set_target_properties(uiohook PROPERTIES

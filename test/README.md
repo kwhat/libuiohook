@@ -22,8 +22,8 @@ Tests are not built by default.
 | `common.logger` | All | Production logger with a mock callback |
 | `<backend>.input_helper` | evdev, Windows, macOS | Production key mappings and modifier masks with fixed native/virtual code fixtures |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
-| `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and modifier state |
-| `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real hook cleanup |
+| `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
+| `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
 | `package.*_consumer` | All | Independent CMake consumers of build-tree and installed packages |
 
 CTest and the assertion helper are portable. Native keycodes, native event
@@ -52,16 +52,24 @@ Wayland preference, X11 fallback, and monitor layouts including negative origins
 Input-helper cases cover known mappings, unmapped keys, evdev/XKB offsets,
 independent modifier bits, keymap lookup, and pointer bounds.
 
-The touchpad test currently includes `input_hook.c` to reach its private functions
-and substitutes libinput calls with test functions. It exercises movement,
-vertical/horizontal scrolling, consumption, observation mode, and
-press/drag/release dispatch. Initialization cases cover successful creation,
-missing or inaccessible uinput, failed libinput context/device initialization,
-and resource cleanup. The newer-scroll-event check is enabled only with libinput
-1.19 or later; older headers still build and run the rest of the suite. It uses
-`/dev/null` to verify that a failed grab falls back to observation without needing
-an input device. This source-inclusion technique is confined to the evdev test;
-extracting the translator into a separate internal module would remove it.
+`evdev/touchpad_helper_test.c` compiles `src/evdev/touchpad_helper.c` as a
+separate source file and accesses it through `touchpad_helper.h`. Mock libinput
+and uinput functions are supplied at link time; the test does not link libinput,
+include implementation files, or rename functions with preprocessor macros.
+The helper's state is opaque to the test.
+
+The tests exercise fractional movement, independent state for multiple touchpads,
+vertical/horizontal scrolling, consumption, observation mode, device removal,
+dispatch errors, and press/drag/release dispatch. The real mouse dispatcher and
+pointer/modifier tracker run against the mock desktop providers. The button
+callback is a test implementation of the callback supplied by the hook manager.
+
+Initialization cases cover successful creation, descriptor and virtual-device
+queries, missing or inaccessible uinput, failed libinput context/device
+initialization, and resource cleanup. The newer-scroll-event check is enabled
+only with libinput 1.19 or later; older headers still build and run the rest of
+the suite. The tests use `/dev/null` through libinput's captured open/close
+callbacks to verify observation mode and failed-grab fallback without hardware.
 
 ## Package and CI checks
 

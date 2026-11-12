@@ -44,10 +44,14 @@ if(UNIX AND NOT APPLE)
         set_tests_properties(evdev.properties.${property} PROPERTIES LABELS "unit;evdev")
     endforeach()
 
-    add_executable(touchpad_test touchpad_test.c)
+    add_executable(touchpad_test
+        evdev/touchpad_helper_test.c
+        "${PROJECT_SOURCE_DIR}/src/evdev/touchpad_helper.c"
+    )
     configure_unit_test(touchpad_test)
-    target_include_directories(touchpad_test PRIVATE ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS} ${UDEV_INCLUDE_DIRS})
-    target_link_libraries(touchpad_test evdev_test_backend ${LIBINPUT_LDFLAGS} ${EVDEV_LDFLAGS} ${UDEV_LDFLAGS})
+    target_include_directories(touchpad_test PRIVATE ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS})
+    # libinput and uinput calls are provided by the test, not a live backend.
+    target_link_libraries(touchpad_test evdev_test_backend ${EVDEV_LDFLAGS})
     # New scroll events are only used to check that legacy and new events are
     # not both dispatched. Keep the test buildable with older libinput headers.
     if(LIBINPUT_VERSION VERSION_GREATER_EQUAL "1.19")

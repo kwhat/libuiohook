@@ -39,6 +39,7 @@ static enum libinput_event_type test_event_type;
 static double dx, dy, axis;
 static bool pending, consume;
 static int moves, wheels, presses, releases;
+static int last_dx, last_dy;
 static int emitted_x, emitted_y, emitted_wheel, emitted_buttons, destroyed;
 static enum libinput_button_state button_state;
 static int uinput_destroyed;
@@ -236,17 +237,21 @@ static void test_callback(uiohook_event *const event, void *data) {
         case EVENT_MOUSE_MOVED:
         case EVENT_MOUSE_DRAGGED:
             TEST_ASSERT(event->data.mouse.button == MOUSE_NOBUTTON);
+            last_dx = event->data.mouse.dx;
+            last_dy = event->data.mouse.dy;
             TEST_ASSERT((event->type == EVENT_MOUSE_DRAGGED) == ((get_modifiers() & 0x1F00) != 0));
             moves++;
             break;
 
         case EVENT_MOUSE_PRESSED:
             TEST_ASSERT(event->data.mouse.button == MOUSE_BUTTON1);
+            TEST_ASSERT(event->data.mouse.dx == 0 && event->data.mouse.dy == 0);
             presses++;
             break;
 
         case EVENT_MOUSE_RELEASED:
             TEST_ASSERT(event->data.mouse.button == MOUSE_BUTTON1);
+            TEST_ASSERT(event->data.mouse.dx == 0 && event->data.mouse.dy == 0);
             releases++;
             break;
 
@@ -348,6 +353,7 @@ static void test_translation(void) {
     TEST_ASSERT(moves == 0);
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
     TEST_ASSERT(moves == 1 && emitted_x == 1 && emitted_y == -1);
+    TEST_ASSERT(last_dx == 1 && last_dy == -1);
     consume = true;
     dx = 2;
     dy = -2;
@@ -355,6 +361,7 @@ static void test_translation(void) {
     int16_t x, y;
     get_pointer_position(&x, &y);
     TEST_ASSERT(moves == 2 && x == 3 && y == -3);
+    TEST_ASSERT(last_dx == 2 && last_dy == -2);
     TEST_ASSERT(emitted_x == 1 && emitted_y == -1);
     consume = false;
     axis = 7.5;
@@ -404,6 +411,7 @@ static void test_translation(void) {
     dy = 3;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
     TEST_ASSERT(moves == 3 && emitted_x == 1 && emitted_y == -1);
+    TEST_ASSERT(last_dx == 3 && last_dy == 3);
     button_state = LIBINPUT_BUTTON_STATE_PRESSED;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
     TEST_ASSERT(presses == 2 && emitted_buttons == 1);
@@ -414,6 +422,7 @@ static void test_translation(void) {
     TEST_ASSERT((get_modifiers() & MASK_BUTTON1) != 0);
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
     TEST_ASSERT(last_mouse_type == EVENT_MOUSE_DRAGGED);
+    TEST_ASSERT(last_dx == 3 && last_dy == 3);
     button_state = LIBINPUT_BUTTON_STATE_RELEASED;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
     TEST_ASSERT(last_mouse_type == EVENT_MOUSE_RELEASED);

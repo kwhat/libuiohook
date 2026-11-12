@@ -21,6 +21,7 @@ Tests are not built by default.
 | --- | --- | --- |
 | `common.logger` | All | Production logger with a mock callback |
 | `<backend>.input_helper` | evdev, Windows, macOS | Production key mappings and modifier masks with fixed native/virtual code fixtures |
+| `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
 | `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
 | `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
@@ -50,7 +51,11 @@ xkbcommon library parses the fixture; key conversion methods are not mocked.
 Property cases cover successful queries, missing displays, invalid responses,
 Wayland preference, X11 fallback, and monitor layouts including negative origins.
 Input-helper cases cover known mappings, unmapped keys, evdev/XKB offsets,
-independent modifier bits, keymap lookup, and pointer bounds.
+independent modifier bits, keymap lookup, and pointer bounds. Relative-motion
+cases cover signed deltas, dragging, absolute-coordinate clamping at screen
+edges, delta saturation, consumption, and zero deltas on button/click events.
+Touchpad cases also verify that fractional and observation-mode motion populate
+`dx` and `dy`.
 
 `evdev/touchpad_helper_test.c` compiles `src/evdev/touchpad_helper.c` as a
 separate source file and accesses it through `touchpad_helper.h`. Mock libinput

@@ -35,7 +35,7 @@ extern bool dispatch_mouse_press(struct input_event *const ev, uint16_t button);
 
 extern bool dispatch_mouse_release(struct input_event *const ev, uint16_t button);
 
-extern bool dispatch_mouse_move(struct input_event *const ev);
+extern bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy);
 
 extern bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction);
 

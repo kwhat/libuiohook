@@ -36,6 +36,12 @@ if(UNIX AND NOT APPLE)
     target_link_libraries(evdev_test_backend PUBLIC ${XKB_LDFLAGS})
     target_link_libraries(uiohook_tests evdev_test_backend)
 
+    add_executable(relative_mouse_test evdev/relative_mouse_test.c)
+    configure_unit_test(relative_mouse_test)
+    target_link_libraries(relative_mouse_test evdev_test_backend)
+    add_test(NAME evdev.relative_mouse COMMAND relative_mouse_test)
+    set_tests_properties(evdev.relative_mouse PROPERTIES LABELS "unit;evdev")
+
     add_executable(system_properties_test system_properties_test.c)
     configure_unit_test(system_properties_test)
     target_link_libraries(system_properties_test evdev_test_backend)

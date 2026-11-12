@@ -135,7 +135,7 @@ static bool hook_sync_proc(struct input_event *ev) {
 
     if (rel_x != 0 || rel_y != 0) {
         track_pointer_delta(rel_x, rel_y);
-        consumed |= dispatch_mouse_move(ev);
+        consumed |= dispatch_mouse_move(ev, rel_x, rel_y);
         rel_x = rel_y = 0;
     }
 

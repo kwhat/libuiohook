@@ -1,0 +1,35 @@
+name: Unit Tests
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libevdev-dev libinput-dev libudev-dev \
+            libwayland-dev libwayland-bin wayland-protocols \
+            libx11-dev libx11-xcb-dev libxinerama-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DENABLE_TEST=ON -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 2
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure

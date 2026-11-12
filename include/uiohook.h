@@ -39,6 +39,8 @@
 #define UIOHOOK_ERROR_X_RECORD_ENABLE_CONTEXT    0x24
 #define UIOHOOK_ERROR_X_RECORD_GET_CONTEXT       0x25
 
+#define UIOHOOK_ERROR_EPOLL_CREATE               0x26
+
 // Windows specific errors.
 #define UIOHOOK_ERROR_SET_WINDOWS_HOOK_EX        0x30
 #define UIOHOOK_ERROR_GET_MODULE_HANDLE          0x31
@@ -454,7 +456,7 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 #define MASK_SCROLL_LOCK                         1 << 15
 
 #define MASK_EMULATED                            1 << 30
-#define MASK_CONSUMED                            1 << 31
+#define MASK_CONSUMED                            1U << 31
 /* End Virtual Modifier Masks */
 
 

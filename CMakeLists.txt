@@ -123,17 +123,7 @@ if (BUILD_DEMO)
     install(TARGETS demo_hook demo_hook_async demo_post demo_properties RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
-if(ENABLE_TEST)
-    add_executable(uiohook_tests
-        "./test/input_helper_test.c"
-        "./test/system_properties_test.c"
-        "./test/minunit.h"
-        "./test/uiohook_test.c"
-    )
-
-    target_include_directories(uiohook_tests PRIVATE "./src/${UIOHOOK_SOURCE_DIR}")
-    target_link_libraries(uiohook_tests uiohook "${CMAKE_THREAD_LIBS_INIT}")
-endif()
+option(ENABLE_TEST "Build isolated unit tests with CTest" OFF)
 
 option(USE_EPOCH_TIME "Use Unix epoch time for event timestamps (default: ON)" ON)
 if(USE_EPOCH_TIME)
@@ -146,6 +136,10 @@ if(UNIX AND NOT APPLE)
     pkg_check_modules(EVDEV REQUIRED libevdev)
     target_include_directories(uiohook PRIVATE "${EVDEV_INCLUDE_DIRS}")
     target_link_libraries(uiohook "${EVDEV_LDFLAGS}")
+
+    pkg_check_modules(LIBINPUT REQUIRED libinput)
+    target_include_directories(uiohook PRIVATE "${LIBINPUT_INCLUDE_DIRS}")
+    target_link_libraries(uiohook "${LIBINPUT_LDFLAGS}")
 
     pkg_check_modules(UDEV REQUIRED libudev)
     target_include_directories(uiohook PRIVATE "${UDEV_INCLUDE_DIRS}")
@@ -332,3 +326,8 @@ list(REMOVE_DUPLICATES INTERFACE_LINK_LIBRARIES)
 string(REPLACE ";" " " COMPILE_LIBRARIES "${INTERFACE_LINK_LIBRARIES}")
 configure_file("pc/uiohook.pc.in" "${PROJECT_BINARY_DIR}/uiohook.pc" @ONLY)
 install(FILES "${PROJECT_BINARY_DIR}/uiohook.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+if(ENABLE_TEST)
+    enable_testing()
+    add_subdirectory(test)
+endif()

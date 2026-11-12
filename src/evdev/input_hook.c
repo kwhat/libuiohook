@@ -20,12 +20,15 @@
 #include <fcntl.h>
 #include <libevdev/libevdev.h>
 #include <libevdev/libevdev-uinput.h>
+#include <libinput.h>
 #include <libudev.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
 #include <uiohook.h>
 #include <unistd.h>
 
@@ -38,6 +41,8 @@ struct input_hook {
     struct libevdev *evdev;
     struct libevdev_uinput *uinput;
     char *devnode;
+    struct libinput *touchpad;
+    double motion_x, motion_y, scroll_x, scroll_y;
 
     // Device DPI from the MOUSE_DPI udev property (0 = unknown / no normalization).  The
     // uinput clone carries no MOUSE_DPI, so libinput cannot normalize its motion to the
@@ -165,7 +170,211 @@ static bool hook_event_proc(struct input_event *ev) {
     return false;
 }
 
-static int create_hook(const char *path, int dpi, struct input_hook **hook) {
+// Only grab the device when a virtual mouse can forward its events. Otherwise
+// leave desktop input untouched and observe events, as the raw evdev path does.
+static int touchpad_open(const char *path, int flags, void *data) {
+    struct input_hook *hook = data;
+    int fd = open(path, flags | O_CLOEXEC);
+    if (fd < 0) {
+        int error = errno;
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open touchpad: %s! (%d)\n",
+                __FUNCTION__, __LINE__, path, error);
+        return -error;
+    }
+
+    if (hook->uinput != NULL && ioctl(fd, EVIOCGRAB, 1) < 0) {
+        int error = errno;
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to grab touchpad: %s! (%d); observing only.\n",
+                __FUNCTION__, __LINE__, path, error);
+        libevdev_uinput_destroy(hook->uinput);
+        hook->uinput = NULL;
+    }
+
+    return fd;
+}
+
+static void touchpad_close(int fd, void *data) {
+    struct input_hook *hook = data;
+    if (hook->uinput != NULL) {
+        ioctl(fd, EVIOCGRAB, 0);
+    }
+    close(fd);
+}
+
+static const struct libinput_interface touchpad_interface = {
+    .open_restricted = touchpad_open,
+    .close_restricted = touchpad_close
+};
+
+static int create_touchpad(const char *path, struct input_hook **result) {
+    struct input_hook *hook = calloc(1, sizeof(struct input_hook));
+    if (hook == NULL) {
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    *result = hook;
+    hook->devnode = strdup(path);
+    if (hook->devnode == NULL) {
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    struct libevdev *mouse = libevdev_new();
+    if (mouse == NULL) {
+        return UIOHOOK_ERROR_OUT_OF_MEMORY;
+    }
+
+    libevdev_set_name(mouse, "libuiohook touchpad pointer");
+    libevdev_set_id_bustype(mouse, BUS_VIRTUAL);
+
+    const int codes[] = { REL_X, REL_Y, REL_WHEEL, REL_HWHEEL };
+    int error = 0;
+    for (unsigned int i = 0; i < sizeof(codes) / sizeof(codes[0]); i++) {
+        if (libevdev_enable_event_code(mouse, EV_REL, codes[i], NULL) < 0) {
+            error = -1;
+        }
+    }
+
+    for (int code = BTN_LEFT; code <= BTN_MIDDLE; code++) {
+        if (libevdev_enable_event_code(mouse, EV_KEY, code, NULL) < 0) {
+            error = -1;
+        }
+    }
+
+    if (error == 0) {
+        error = libevdev_uinput_create_from_device(mouse, LIBEVDEV_UINPUT_OPEN_MANAGED, &hook->uinput);
+    }
+
+    libevdev_free(mouse);
+    if (error < 0) {
+        hook->uinput = NULL;
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to create touchpad virtual mouse! (%d); "
+                "observing only, event consumption is unavailable.\n",
+                __FUNCTION__, __LINE__, error);
+    }
+
+    hook->touchpad = libinput_path_create_context(&touchpad_interface, hook);
+    if (hook->touchpad == NULL) {
+        return UIOHOOK_FAILURE;
+    }
+
+    struct libinput_device *device = libinput_path_add_device(hook->touchpad, path);
+    if (device == NULL) {
+        return UIOHOOK_FAILURE;
+    }
+
+    libinput_device_config_tap_set_enabled(device, LIBINPUT_CONFIG_TAP_ENABLED);
+    libinput_device_config_scroll_set_method(device, LIBINPUT_CONFIG_SCROLL_2FG);
+
+    logger(LOG_LEVEL_INFO, "%s [%u]: Attached touchpad: %s (%s).\n",
+            __FUNCTION__, __LINE__, path,
+            hook->uinput != NULL ? "forwarding through virtual mouse" : "observing only");
+
+    return UIOHOOK_SUCCESS;
+}
+
+static int hook_fd(struct input_hook *hook) {
+    return hook->touchpad != NULL ? libinput_get_fd(hook->touchpad) : libevdev_get_fd(hook->evdev);
+}
+
+/* Retain fractional motion between events so slow movement is not lost. */
+static int touchpad_delta(double delta, double *remainder) {
+    *remainder += delta;
+    int value = (int) *remainder;
+    *remainder -= value;
+
+    return value;
+}
+
+static void touchpad_emit(struct input_hook *hook, unsigned int type, unsigned int code, int value) {
+    if (hook->uinput != NULL) {
+        libevdev_uinput_write_event(hook->uinput, type, code, value);
+    }
+}
+
+static int touchpad_dispatch(struct input_hook *hook) {
+    int status = libinput_dispatch(hook->touchpad);
+    if (status < 0) {
+        return status;
+    }
+
+    struct libinput_event *event;
+    while ((event = libinput_get_event(hook->touchpad)) != NULL) {
+        enum libinput_event_type type = libinput_event_get_type(event);
+        if (type == LIBINPUT_EVENT_DEVICE_REMOVED) {
+            libinput_event_destroy(event);
+            return -ENODEV;
+        }
+
+        // Use only the legacy axis event, which libinput also emits alongside
+        // newer scroll events. Processing both would double the scroll distance.
+        if (type == LIBINPUT_EVENT_POINTER_MOTION || type == LIBINPUT_EVENT_POINTER_BUTTON
+                || type == LIBINPUT_EVENT_POINTER_AXIS) {
+            struct libinput_event_pointer *pointer = libinput_event_get_pointer_event(event);
+            struct input_event ev = { 0 };
+
+            // libinput timestamps are monotonic; dispatch expects wall time when
+            // USE_EPOCH_TIME is enabled, just like the existing evdev path.
+            gettimeofday(&ev.time, NULL);
+
+            if (type == LIBINPUT_EVENT_POINTER_MOTION) {
+                int dx = touchpad_delta(libinput_event_pointer_get_dx(pointer), &hook->motion_x);
+                int dy = touchpad_delta(libinput_event_pointer_get_dy(pointer), &hook->motion_y);
+                if (dx != 0 || dy != 0) {
+                    track_pointer_delta(dx, dy);
+                    if (!dispatch_mouse_move(&ev)) {
+                        touchpad_emit(hook, EV_REL, REL_X, dx);
+                        touchpad_emit(hook, EV_REL, REL_Y, dy);
+                    }
+                }
+            } else if (type == LIBINPUT_EVENT_POINTER_BUTTON) {
+                ev.type = EV_KEY;
+                ev.code = libinput_event_pointer_get_button(pointer);
+                ev.value = libinput_event_pointer_get_button_state(pointer) == LIBINPUT_BUTTON_STATE_PRESSED;
+                if (!hook_key_proc(&ev)) {
+                    touchpad_emit(hook, EV_KEY, ev.code, ev.value);
+                }
+            } else {
+                const enum libinput_pointer_axis axes[] = {
+                    LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL,
+                    LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL
+                };
+                for (int i = 0; i < 2; i++) {
+                    if (!libinput_event_pointer_has_axis(pointer, axes[i])) {
+                        continue;
+                    }
+                    double delta = libinput_event_pointer_get_axis_value(pointer, axes[i]);
+                    double *carry = i == 0 ? &hook->scroll_y : &hook->scroll_x;
+                    if (delta == 0) {
+                        *carry = 0;
+                        continue;
+                    }
+
+                    // libinput's conventional wheel step is 15 scroll units.
+                    int steps = touchpad_delta(delta / 15.0, carry);
+                    // Match evdev: positive vertical wheel values scroll up.
+                    if (i == 0) {
+                        steps = -steps;
+                    }
+                    if (steps != 0 && !dispatch_mouse_wheel(&ev, steps,
+                            i == 0 ? WHEEL_VERTICAL_DIRECTION : WHEEL_HORIZONTAL_DIRECTION)) {
+                        touchpad_emit(hook, EV_REL, i == 0 ? REL_WHEEL : REL_HWHEEL, steps);
+                    }
+                }
+            }
+            touchpad_emit(hook, EV_SYN, SYN_REPORT, 0);
+        }
+
+        libinput_event_destroy(event);
+    }
+
+    return 0;
+}
+
+static int create_hook(const char *path, int dpi, const char *label, struct input_hook **hook) {
+    if (strcmp(label, "touchpad") == 0) {
+        return create_touchpad(path, hook);
+    }
+
     int fd = open(path, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open input device: %s! (%d)\n",
@@ -199,7 +408,7 @@ static int create_hook(const char *path, int dpi, struct input_hook **hook) {
         return UIOHOOK_FAILURE;
     }
 
-    // We need to wait until no key is being pressed because we are going 
+    // We need to wait until no key is being pressed because we are going
     // to grab below and that will cause keys to stick.
     struct input_event ev;
     for (unsigned int i = 0; i < KEY_MAX; i++) {
@@ -242,6 +451,11 @@ static void destroy_hook(struct input_hook **hook) {
     if (*hook != NULL) {
         int fd = -1;
 
+        if ((*hook)->touchpad != NULL) {
+            libinput_unref((*hook)->touchpad);
+            (*hook)->touchpad = NULL;
+        }
+
         if ((*hook)->evdev != NULL) {
             fd = libevdev_get_fd((*hook)->evdev);
 
@@ -282,8 +496,9 @@ static const char * get_device_label(struct udev_device *device) {
         return "pointing stick";
     }
 
-    // TODO ID_INPUT_TOUCHPAD devices use EV_ABS + BTN_TOUCH which will require touch-to-pointer
-    // processing in hook_event_proc before they can be enumerated here.
+    if (udev_device_get_property_value(device, "ID_INPUT_TOUCHPAD") != NULL) {
+        return "touchpad";
+    }
 
     return NULL;
 }
@@ -309,10 +524,11 @@ static bool is_device_hooked(const char *devnode) {
     return false;
 }
 
-// Parse the active DPI from a device's MOUSE_DPI udev property, e.g.
-// "1200@1000 *2400@1000 3200@1000" -> 2400 (the entry marked active with '*', else the
-// first entry).  Returns 0 when absent/unparseable, in which case reinjected motion is
-// passed through unscaled.
+/* TODO Can we refactor this fucntion to be a little easier to follow
+ * Parse the active DPI from a device's MOUSE_DPI udev property, e.g.
+ * "1200@1000 *2400@1000 3200@1000" -> 2400 (the entry marked active with '*', else the
+ * first entry).  Returns 0 when absent/unparseable, in which case reinjected motion is
+ * passed through unscaled. */
 static int get_device_dpi(struct udev_device *device) {
     const char *prop = udev_device_get_property_value(device, "MOUSE_DPI");
     if (prop == NULL) {
@@ -321,17 +537,31 @@ static int get_device_dpi(struct udev_device *device) {
 
     int first_dpi = 0;
     for (const char *p = prop; *p != '\0'; ) {
-        while (*p == ' ') { p++; }
-        if (*p == '\0') { break; }
+        while (*p == ' ') {
+            p++;
+        }
 
-        bool active = *p == '*';
-        if (active) { p++; }
+        if (*p == '\0') {
+            break;
+        }
 
-        int dpi = atoi(p);      // reads the leading digits, stops at '@'
-        if (first_dpi == 0) { first_dpi = dpi; }
-        if (active && dpi > 0) { return dpi; }
+        bool active = (*p == '*');
+        if (active) {
+            p++;
+        }
 
-        while (*p != ' ' && *p != '\0') { p++; }
+        int dpi = atoi(p); // reads the leading digits, stops at '@'
+        if (first_dpi == 0) {
+            first_dpi = dpi;
+        }
+
+        if (active && dpi > 0) {
+            return dpi;
+        }
+
+        while (*p != ' ' && *p != '\0') {
+            p++;
+        }
     }
 
     return first_dpi;
@@ -340,7 +570,11 @@ static int get_device_dpi(struct udev_device *device) {
 // Hook a device node, register it with epoll and link it into hook_list.
 static int attach_device(int epoll_fd, const char *devnode, int dpi, const char *label) {
     struct input_hook *hook = NULL;
-    if (create_hook(devnode, dpi, &hook) != UIOHOOK_SUCCESS) {
+    int status = create_hook(devnode, dpi, label, &hook);
+    if (status != UIOHOOK_SUCCESS) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to attach %s device: %s!\n",
+                __FUNCTION__, __LINE__,
+                label, devnode);
         destroy_hook(&hook);
         return UIOHOOK_FAILURE;
     }
@@ -351,7 +585,7 @@ static int attach_device(int epoll_fd, const char *devnode, int dpi, const char 
         .data.ptr = hook
     };
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, libevdev_get_fd(hook->evdev), &event) < 0) {
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, hook_fd(hook), &event) < 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to add file descriptor to epoll! (%d)\n",
                 __FUNCTION__, __LINE__, errno);
 
@@ -380,8 +614,8 @@ static void detach_device(int epoll_fd, struct input_hook *hook) {
         *indirect = hook->next;
     }
 
-    if (hook->evdev != NULL) {
-        int fd = libevdev_get_fd(hook->evdev);
+    if (hook->evdev != NULL || hook->touchpad != NULL) {
+        int fd = hook_fd(hook);
         if (fd >= 0) {
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
         }
@@ -444,7 +678,7 @@ static void hook_monitor_proc(int epoll_fd) {
         const char *devnode = udev_device_get_devnode(device);
         const char *sysname = udev_device_get_sysname(device);
 
-        // Filter out parent devices and legacy character nodes leaving, only the evdev nodes matching 
+        // Filter out parent devices and legacy character nodes leaving, only the evdev nodes matching
         // the filter applied by create_event_listeners().
         if (action == NULL || devnode == NULL || sysname == NULL || strncmp(sysname, "event", 5) != 0) {
             udev_device_unref(device);
@@ -471,8 +705,8 @@ static void hook_monitor_proc(int epoll_fd) {
     }
 }
 
-// Drain all pending events from a device epoll flagged readable, re-emitting each
-// through the uinput clone unless it was consumed.  Detaches the device on read failure.
+/* Drain all pending events from a device epoll flagged readable, re-emitting each
+ * through the uinput clone unless it was consumed.  Detaches the device on read failure. */
 static void hook_device_proc(int epoll_fd, void *ptr) {
     // Validate the hook is still attached; a hotplug remove processed earlier in this
     // same batch may have already detached and freed it.
@@ -481,6 +715,13 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
         hook = hook->next;
     }
     if (hook == NULL) {
+        return;
+    }
+
+    if (hook->touchpad != NULL) {
+        if (touchpad_dispatch(hook) < 0) {
+            detach_device(epoll_fd, hook);
+        }
         return;
     }
 
@@ -673,7 +914,6 @@ UIOHOOK_API int hook_run() {
 
     return status;
 }
-
 
 UIOHOOK_API int hook_stop() {
     int status = UIOHOOK_FAILURE;

@@ -8,6 +8,7 @@ Prerequisites:
  * [cmake](https://cmake.org)
  * gcc, clang or msvc
  * Linux dependencies:
+   * libinput-dev
    * libevdev-dev
    * libudev-dev
    * libwayland-dev
@@ -55,3 +56,85 @@ $ cmake --build . --parallel 2 --target install
 * [Properties Demo](demo/demo_properties.c)
 * [Public Interface](include/uiohook.h)
 * Please see the man pages for function documentation.
+
+### Linux touchpads
+
+Touchpads are processed with libinput and forwarded through a virtual mouse.
+This requires read access to the input device. Forwarding and event consumption
+also require permission to grab it and write access to `/dev/uinput`. If the virtual
+mouse cannot be created or the device cannot be grabbed, the hook observes events
+without grabbing the touchpad; desktop input continues normally, but consumption
+is unavailable. If initialization fails, the physical device is released.
+Single-finger movement, physical clicks, tap-to-click, dragging, and two-finger
+vertical/horizontal scrolling are translated into the existing mouse API.
+Scrolling currently accumulates into wheel steps (15 libinput scroll units per step).
+
+The hook uses its own libinput defaults, with tapping and two-finger scrolling
+requested where supported. Desktop touchpad settings are not imported. Pinch and
+swipe gestures are not forwarded to the desktop while the touchpad is grabbed.
+Pointer coordinates use the existing relative-motion tracker and may differ from
+the desktop cursor because the virtual mouse can receive further acceleration.
+
+For a hardware smoke test, run `build/demo_hook` with the required device access.
+Check movement, tap and physical clicks, dragging, both scroll directions, event
+consumption in your callback, and normal touchpad operation after stopping the hook.
+
+Hardware-independent unit tests (including touchpad translation) can be run with:
+
+```sh
+cmake -S . -B build -DENABLE_TEST=ON
+cmake --build build --parallel 2
+ctest --test-dir build --output-on-failure
+```
+
+See [test/README.md](test/README.md) for mock boundaries and platform coverage.
+
+### Enabling uinput on Linux
+
+Run the setup commands below in a root shell. To enable virtual-device forwarding
+and event consumption, load the `uinput` kernel module:
+
+```sh
+modprobe uinput
+```
+
+If the module is unavailable, enable `CONFIG_INPUT_UINPUT` in your kernel or
+install your distribution's package containing the module. On systems using
+`modules-load.d`, load it automatically at boot with:
+
+```sh
+echo uinput > /etc/modules-load.d/libuiohook.conf
+```
+
+Give the `input` group access to `/dev/uinput` by creating a udev rule:
+
+```sh
+echo 'KERNEL=="uinput", MODE="0660", GROUP="input"' > /etc/udev/rules.d/99-libuiohook.rules
+udevadm control --reload-rules
+udevadm trigger --action=change --subsystem-match=misc --sysname-match=uinput
+udevadm settle
+```
+
+Reloading udev rules does not update existing devices, so the targeted trigger
+applies the new permissions to an already loaded uinput device.
+See the [udevadm documentation](https://www.freedesktop.org/software/systemd/man/latest/udevadm.html).
+
+If the account running the application is not already in the `input` group, add
+it below, replacing `your_username` with that account's name. Log out and back in
+to that account before restarting the application:
+
+```sh
+usermod -aG input your_username
+```
+
+From the account running the application, check the device permissions and active
+groups:
+
+```sh
+ls -l /dev/uinput
+id -nG
+```
+
+The device should be owned by group `input` with group read/write permissions
+(`crw-rw----`). The application also needs read access to the physical
+`/dev/input/event*` devices, which commonly belong to the `input` group.

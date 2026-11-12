@@ -545,7 +545,9 @@ static xkb_keycode_t keymap_keycode_for_keysym(xkb_keysym_t target) {
         const xkb_keysym_t *syms = NULL;
         int count = xkb_keymap_key_get_syms_by_level(keymap, keycode, 0, 0, &syms);
         for (int i = 0; i < count; i++) {
-            if (syms[i] == target) {
+            // The virtual-code table stores letters in uppercase; base-level
+            // keymap symbols normally use lowercase.
+            if (syms[i] == target || xkb_keysym_to_upper(syms[i]) == target) {
                 return keycode;
             }
         }

@@ -201,6 +201,7 @@ jobs:
 
           sudo apt-get install \
             libevdev-dev:armhf \
+            libinput-dev:armhf \
             libudev-dev:armhf \
             libwayland-dev:armhf \
             libx11-dev:armhf \
@@ -276,6 +277,7 @@ jobs:
 
           sudo apt-get install \
             libevdev-dev:arm64 \
+            libinput-dev:arm64 \
             libudev-dev:arm64 \
             libwayland-dev:arm64 \
             libx11-dev:arm64 \
@@ -345,6 +347,7 @@ jobs:
 
           sudo apt-get install \
             libevdev-dev:i386 \
+            libinput-dev:i386 \
             libudev-dev:i386 \
             libwayland-dev:i386 \
             libx11-dev:i386 \
@@ -396,6 +399,7 @@ jobs:
         run: |
           sudo apt-get install \
             libevdev-dev:amd64 \
+            libinput-dev:amd64 \
             libudev-dev:amd64 \
             libwayland-dev:amd64 \
             libwayland-bin \

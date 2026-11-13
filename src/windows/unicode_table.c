@@ -16,10 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* This decoder continues the keyboard-table approach derived from
- * Marc-André Moreau's original code. See unicode_helper.c for the retained
- * attribution, permission notice, and archived original tutorial.
- */
+/**********************************************************************
+ *
+ * The original code was substantially modified to provide the following:
+ *   1) More dynamic code structure.
+ *   2) Support for compilers that do not implement _ptr64 (GCC / LLVM).
+ *   3) Support for Wow64 at runtime via 32-bit binary.
+ *   4) Support for contextual language switching.
+ *
+ * I have contacted Marc-André Moreau who has granted permission for
+ * his original source code to be used under the Public Domain.  Although
+ * the libUIOHook library as a whole is currently covered under the LGPLv3,
+ * please feel free to use and learn from the source code contained in the
+ * following functions under the terms of the Public Domain.
+ *
+ * For further reading and the original code, please visit:
+ *   http://legacy.docdroppers.org/wiki/index.php?title=Writing_Keyloggers
+ *   https://web.archive.org/web/20140210000534/http://techmantras.com/content/writing-keyloggers-full-length-tutorial
+ *
+ ***********************************************************************/
 
 #include <stdlib.h>
 #include <string.h>

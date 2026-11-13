@@ -16,12 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/***********************************************************************
- * The following code is based on code provided by Marc-André Moreau
- * to work around a failure to support dead keys in the ToUnicode() API.
- * According to the author some parts were taken directly from
- * Microsoft's kbd.h header file that is shipped with the Windows Driver
- * Development Kit.
+/**********************************************************************
  *
  * The original code was substantially modified to provide the following:
  *   1) More dynamic code structure.

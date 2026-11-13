@@ -1,5 +1,5 @@
 # Unit targets compile production sources directly, without loading libuiohook's
-# native startup code. Only the selected platform's SDK and fixtures are used.
+# native startup code. Platform SDKs are needed only by tests using native types.
 function(configure_unit_test target)
     set_target_properties(${target} PROPERTIES C_STANDARD 99 C_STANDARD_REQUIRED ON)
     target_include_directories(${target} PRIVATE
@@ -15,10 +15,31 @@ configure_unit_test(logger_test)
 add_test(NAME common.logger COMMAND logger_test)
 set_tests_properties(common.logger PROPERTIES LABELS "unit;common")
 
-add_executable(uiohook_tests uiohook_test.c input_helper_test.c)
-configure_unit_test(uiohook_tests)
+# Darwin's pure mapping/state module needs no Apple SDK or OS calls, so its
+# regression fixtures can run on every host, including Linux and Windows CI.
+add_executable(darwin_keycode_test
+    darwin/keycode_helper_test.c
+    "${PROJECT_SOURCE_DIR}/src/darwin/keycode_helper.c"
+)
+configure_unit_test(darwin_keycode_test)
+add_test(NAME darwin.keycode_helper COMMAND darwin_keycode_test)
+set_tests_properties(darwin.keycode_helper PROPERTIES LABELS "unit;darwin;portable")
+
+if(WIN32)
+    add_executable(windows_keycode_test
+        windows/keycode_helper_test.c
+        "${PROJECT_SOURCE_DIR}/src/windows/keycode_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/logger.c"
+    )
+    configure_unit_test(windows_keycode_test)
+    add_test(NAME windows.keycode_helper COMMAND windows_keycode_test)
+    set_tests_properties(windows.keycode_helper PROPERTIES LABELS "unit;windows")
+endif()
 
 if(UNIX AND NOT APPLE)
+    add_executable(uiohook_tests uiohook_test.c input_helper_test.c)
+    configure_unit_test(uiohook_tests)
+
     # Existing function-pointer APIs provide the X11 mock boundary. Wayland
     # functions are supplied by the fixture object instead of a live compositor.
     add_library(evdev_test_backend STATIC
@@ -67,31 +88,10 @@ if(UNIX AND NOT APPLE)
     set_tests_properties(evdev.touchpad_translation PROPERTIES LABELS "unit;evdev")
     add_test(NAME evdev.touchpad_initialization COMMAND touchpad_test initialization)
     set_tests_properties(evdev.touchpad_initialization PROPERTIES LABELS "unit;evdev")
-else()
-    # Mapping and mask tests never initialize native helpers or install hooks.
-    target_sources(uiohook_tests PRIVATE
-        "${PROJECT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
-        "${PROJECT_SOURCE_DIR}/src/logger.c"
-    )
-    if(WIN32)
-        target_link_libraries(uiohook_tests user32 advapi32)
-    elseif(APPLE)
-        find_package(Threads REQUIRED)
-        target_link_libraries(uiohook_tests "-framework CoreFoundation" "-framework CoreGraphics" Threads::Threads)
-        if(USE_APPLICATION_SERVICES)
-            target_link_libraries(uiohook_tests "-framework Carbon" "-framework ApplicationServices")
-        endif()
-        if(USE_APPKIT)
-            target_link_libraries(uiohook_tests "-framework AppKit")
-        endif()
-        if(USE_IOKIT)
-            target_link_libraries(uiohook_tests "-framework IOKit")
-        endif()
-    endif()
-endif()
 
-add_test(NAME ${UIOHOOK_SOURCE_DIR}.input_helper COMMAND uiohook_tests)
-set_tests_properties(${UIOHOOK_SOURCE_DIR}.input_helper PROPERTIES LABELS "unit;${UIOHOOK_SOURCE_DIR}")
+    add_test(NAME evdev.input_helper COMMAND uiohook_tests)
+    set_tests_properties(evdev.input_helper PROPERTIES LABELS "unit;evdev")
+endif()
 
 # Exercise find_package() from independent projects so missing exported
 # dependencies are caught for both build-tree and installed packages.

@@ -23,6 +23,8 @@
 #ifndef _included_input_helper
 #define _included_input_helper
 
+#include "keycode_helper.h"
+
 #ifdef USE_APPLICATION_SERVICES
 #include <ApplicationServices/ApplicationServices.h>
 #include <Carbon/Carbon.h> // For HIToolbox kVK_ key codes and TIS functions.
@@ -310,7 +312,7 @@ enum {
 
 #define kVK_RightCommand             0x36
 #define kVK_ContextMenu              0x6E // AKA kMenuPowerGlyph
-#define kVK_Undefined                0xFF
+#define kVK_Undefined                DARWIN_KEYCODE_UNDEFINED
 
 // These button codes do not appear to be defined by Apple.
 #define kVK_LBUTTON                  kCGMouseButtonLeft
@@ -330,32 +332,11 @@ enum {
 /* Check for access to Apples accessibility API. */
 extern bool is_accessibility_enabled();
 
-/* Converts an OSX keycode to the appropriate UIOHook scancode constant. */
-extern uint16_t keycode_to_uiocode(CGKeyCode keycode);
-
-/* Converts a UIOHook scancode constant to the appropriate OSX keycode. */
-extern CGKeyCode uiocode_to_keycode(uint16_t uiocode);
-
 /* Fill the buffer with unicode chars produced by the event_ref, returns how many chars where written */
 extern UniCharCount event_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size);
 
 /* Get objc subtype and data1 fields of a cg event. */
 extern void event_to_objc(CGEventRef event_ref, UInt32 *subtype, UInt32 *data1);
-
-/* Set the native modifier mask for future events. */
-extern void set_modifier_mask(uint16_t mask);
-
-/* Unset the native modifier mask for future events. */
-extern void unset_modifier_mask(uint16_t mask);
-
-/* Get the current native modifier mask state. */
-extern uint16_t get_modifiers();
-
-/* Returns a boolean flag that represents whether the mouse is being dragged. */
-extern bool is_mouse_dragged();
-
-/* Set a flag that represents whether the mouse is being dragged. */
-extern void set_mouse_dragged(bool dragged);
 
 /* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
  * functionality.  This method is called by OnLibraryLoad() and may need to be

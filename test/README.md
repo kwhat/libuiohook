@@ -20,25 +20,52 @@ Tests are not built by default.
 | Tests | Platforms | Dependencies exercised |
 | --- | --- | --- |
 | `common.logger` | All | Production logger with a mock callback |
-| `<backend>.input_helper` | evdev, Windows, macOS | Production key mappings and modifier masks with fixed native/virtual code fixtures |
+| `evdev.input_helper` | Linux/evdev | Production key mappings, modifier masks, and pointer tracking with mock desktop providers |
+| `windows.keycode_helper` | Windows | Production key mappings and modifier masks with fixed fixtures |
+| `darwin.keycode_helper` | All | Production Darwin key mappings, modifier masks, and drag state with fixed fixtures |
 | `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
 | `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
 | `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
 | `package.*_consumer` | All | Independent CMake consumers of build-tree and installed packages |
 
-CTest and the assertion helper are portable. Native keycodes, native event
-structures, and OS property providers differ, so backend fixtures must be built
-with the corresponding SDK on each platform. The Linux run does not establish
-that Windows or macOS works. Windows and macOS still need their own mocked
-system-property and event-dispatch suites; the shared mapping tests do not cover
-those OS interactions.
+CTest and the assertion helper are portable. Windows keycode tests require
+Windows SDK headers; Darwin's pure helper needs no Apple SDK and runs on every
+host. Native OS property providers and event dispatch still need their own
+platform-specific mocked suites. Mapping tests do not cover those OS interactions.
 
 Unit targets compile production sources directly and do not link the production
 `uiohook` library. The evdev property object's constructor and destructor call mock
-providers rather than opening a display or loading native helpers. Windows and macOS helper tests
-only call mapping and modifier functions, never helper initialization. They still
-link the platform SDK libraries needed to compile the helper object.
+providers rather than opening a display or loading native helpers. Windows and
+Darwin have dedicated `windows/keycode_helper_test.c` and
+`darwin/keycode_helper_test.c` files and CTest targets. Neither calls OS helper
+initialization.
+
+## Darwin isolation
+
+Darwin mapping, modifier, and drag-state tests compile
+`src/darwin/keycode_helper.c` directly, without Apple frameworks. Fixtures cover
+known keys, unknown keys, all mapped native keycodes, and independent state.
+Native keycode zero is valid (A); unknown reverse mappings return `0xFF`.
+Accessibility, keyboard layouts, Unicode translation, and run-loop integration
+remain outside this pure helper suite and require macOS testing.
+
+## Windows isolation
+
+Windows mapping and modifier tests compile `src/windows/keycode_helper.c` and
+its logger dependency directly. They do not compile the OS-dependent
+`input_helper.c`, query live keyboard layouts, access the registry, or load
+keyboard-layout DLLs. Windows SDK headers supply virtual-key constants and types.
+
+Fixtures check named keys, function keys, left/right modifiers, keypad Enter,
+keypad navigation, and unknown keys. Forward/reverse consistency is checked for
+all mapped Windows virtual keys with and without the extended-key flag. Explicit
+fixtures also verify the expected native values so round trips cannot hide a
+consistently incorrect mapping.
+
+Layout discovery, Unicode/dead-key handling, and modifier initialization from
+`GetKeyState` remain in `input_helper.c`. Testing those paths will require mock
+Windows API providers; they are not covered by the pure helper suite.
 
 ## evdev isolation
 
@@ -84,8 +111,13 @@ private prefix inside the test build directory before configuring the consumer.
 Neither check changes the system installation or runs the consumer executable.
 
 `.github/workflows/tests.yml` builds and runs CTest on native Linux, Windows, and
-macOS runners. Cross-compiled packaging jobs install the target architecture's
-libinput development package but do not try to execute foreign binaries.
+macOS runners. Linux CI uses Ubuntu 26.04 LTS explicitly. ARM64 packaging uses a
+native `ubuntu-26.04-arm` runner; ARM32 and x86 remain cross builds and do not try
+to execute foreign binaries. ARM32 uses a separately resolved target sysroot so ports-mirror libraries do not
+have to match packages installed on the x86 host. Its download-only apt state is
+isolated from the runner, and target package scripts/tools are never executed.
+The x86 cross build selects host GLib generators explicitly; both setups retain
+the Ubuntu security repositories.
 
 ## Hardware checks
 

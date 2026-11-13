@@ -162,7 +162,7 @@ jobs:
 
 
   linux-arm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -173,55 +173,84 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo rm -Rf /etc/apt/sources.list.d
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images.  Left disabled: it upgrades
-          # libgcc-s1:amd64 ahead of the armhf ports version, and libgcc-s1 must match across
-          # architectures, which breaks the libc6:armhf / libffi8:armhf cross dependencies.
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-          " > /etc/apt/sources.list'
-
-          sudo dpkg --add-architecture armhf
-          sudo apt-get update -m
-
-          sudo apt-get install \
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
             binutils-arm-linux-gnueabihf \
             gcc-arm-linux-gnueabihf \
             libwayland-bin \
             wayland-protocols
+          sudo bash -s -- "$RUNNER_TEMP/armhf-sysroot" <<'ARMHF_SETUP'
+          # Download an ARM32 development sysroot without installing foreign packages on
+          # the runner. Host and ports mirrors can publish different glibc/GLib patches;
+          # multiarch co-installation would require matching versions on both sides.
+          set -euo pipefail
 
-          sudo apt-get install \
-            libevdev-dev:armhf \
-            libinput-dev:armhf \
-            libudev-dev:armhf \
-            libwayland-dev:armhf \
-            libx11-dev:armhf \
-            libx11-xcb-dev:armhf \
-            libxinerama-dev:armhf \
-            libxkbcommon-dev:armhf \
-            libxkbcommon-x11-dev:armhf
+          sysroot=${1:?Missing ARM32 sysroot path}
+          if [[ "$sysroot" != /* || "$sysroot" == / ]]; then
+              echo "The sysroot must be an absolute directory other than /." >&2
+              exit 1
+          fi
+          source /etc/os-release
+          apt_workdir=$(mktemp -d)
+          trap 'rm -rf "$apt_workdir"' EXIT
+          chmod 755 "$apt_workdir"
+          mkdir -p "$apt_workdir/lists/partial" "$apt_workdir/archives/partial" "$sysroot"
+          touch "$apt_workdir/status"
+
+          # Ubuntu's runtime loader is also addressed through /lib. Package extraction
+          # does not run the filesystem setup that creates this merged-/usr alias.
+          mkdir -p "$sysroot/usr/lib"
+          if [[ ! -e "$sysroot/lib" && ! -L "$sysroot/lib" ]]; then
+              ln -s usr/lib "$sysroot/lib"
+          fi
+
+          cat > "$apt_workdir/sources.list" <<SOURCES
+          deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME} main universe
+          deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-updates main universe
+          deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main universe
+          SOURCES
+
+          apt_options=(
+              -o APT::Architecture=armhf
+              -o APT::Architectures::=armhf
+              -o "Dir::State::status=$apt_workdir/status"
+              -o "Dir::State::lists=$apt_workdir/lists"
+              -o "Dir::Cache::archives=$apt_workdir/archives"
+              -o "Dir::Etc::sourcelist=$apt_workdir/sources.list"
+              -o Dir::Etc::sourceparts=-
+          )
+          apt-get "${apt_options[@]}" update
+          apt-get "${apt_options[@]}" install -y --no-install-recommends --download-only \
+              libevdev-dev libinput-dev libudev-dev libwayland-dev libwayland-bin \
+              wayland-protocols libx11-dev libx11-xcb-dev libxinerama-dev \
+              libxkbcommon-dev libxkbcommon-x11-dev
+
+          # Package scripts and ARM tools are not executed; wayland-scanner runs on the
+          # host. The target dependency graph is resolved against an empty package state.
+          for archive in "$apt_workdir"/archives/*.deb; do
+              dpkg-deb --extract "$archive" "$sysroot"
+          done
+          ARMHF_SETUP
 
       - name: Compile
         env:
           CC: arm-linux-gnueabihf-gcc
           CFLAGS: '-Os -march=armv7ve -mfpu=vfp -mfloat-abi=hard -g -flto -fomit-frame-pointer -fno-stack-protector -pipe'
-          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
-          PKG_CONFIG_PATH: '/usr/lib/arm-linux-gnueabihf/pkgconfig'
+          LDFLAGS: '-Wl,-O1 -Wl,--as-needed'
+          PKG_CONFIG_PATH: '${{ runner.temp }}/armhf-sysroot/usr/lib/arm-linux-gnueabihf/pkgconfig:${{ runner.temp }}/armhf-sysroot/usr/share/pkgconfig'
+          PKG_CONFIG_SYSROOT_DIR: '${{ runner.temp }}/armhf-sysroot'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/linux/arm \
             -D CMAKE_VERBOSE_MAKEFILE=true \
+            -D CMAKE_SYSROOT="$RUNNER_TEMP/armhf-sysroot" \
+            -D CMAKE_SYSTEM_NAME=Linux \
+            -D CMAKE_SYSTEM_PROCESSOR=arm \
+            -D CMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+            -D CMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+            -D CMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
             -D BUILD_SHARED_LIBS=ON \
             -D BUILD_DEMO=ON
 
@@ -240,7 +269,7 @@ jobs:
           overwrite: true
 
   linux-arm64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
 
     steps:
       - name: Checkout
@@ -251,47 +280,25 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo rm -Rf /etc/apt/sources.list.d/*
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-          " > /etc/apt/sources.list'
-
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update -m
-
-          sudo apt-get install \
-            binutils-aarch64-linux-gnu \
-            gcc-aarch64-linux-gnu \
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libevdev-dev \
+            libinput-dev \
+            libudev-dev \
+            libwayland-dev \
             libwayland-bin \
-            wayland-protocols
-
-          sudo apt-get install \
-            libevdev-dev:arm64 \
-            libinput-dev:arm64 \
-            libudev-dev:arm64 \
-            libwayland-dev:arm64 \
-            libx11-dev:arm64 \
-            libx11-xcb-dev:arm64 \
-            libxinerama-dev:arm64 \
-            libxkbcommon-dev:arm64 \
-            libxkbcommon-x11-dev:arm64
+            wayland-protocols \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxinerama-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev
 
       - name: Compile
         env:
-          CC: aarch64-linux-gnu-gcc
+          CC: gcc
           CFLAGS: '-Os -march=armv8-a+crc -mtune=cortex-a53 -g -flto -fomit-frame-pointer -fno-stack-protector -pipe'
-          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
-          PKG_CONFIG_PATH: '/usr/lib/aarch64-linux-gnu/pkgconfig'
+          LDFLAGS: '-Wl,-O1 -Wl,--as-needed'
         shell: bash
         run: |
           cmake -B ${{github.workspace}}/build \
@@ -316,7 +323,7 @@ jobs:
           overwrite: true
 
   linux-x86:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -328,24 +335,28 @@ jobs:
         shell: bash
         run: |
           sudo rm -Rf /etc/apt/sources.list.d
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
+          sudo bash -c 'source /etc/os-release && echo "
+          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${VERSION_CODENAME} main universe
+          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${VERSION_CODENAME}-updates main universe
+          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu ${VERSION_CODENAME}-security main universe
+          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${VERSION_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
+          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${VERSION_CODENAME} main
           " > /etc/apt/sources.list'
 
           sudo dpkg --add-architecture i386
           sudo apt-get update -m
 
-          sudo apt-get install \
+          # libinput-dev pulls GLib through libwacom. GLib generators run on
+          # the amd64 host; select them before installing target development files.
+          sudo apt-get install -y --no-install-recommends \
             binutils-i686-linux-gnu \
             gcc-i686-linux-gnu \
+            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
-          sudo apt-get install \
+          sudo apt-get install -y --no-install-recommends \
             libevdev-dev:i386 \
             libinput-dev:i386 \
             libudev-dev:i386 \
@@ -360,7 +371,7 @@ jobs:
         env:
           CC: i686-linux-gnu-gcc
           CFLAGS: '-O2 -march=i686 -mtune=generic -g -fomit-frame-pointer -flto -fno-stack-protector -pipe'
-          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          LDFLAGS: '-Wl,-O1 -Wl,--as-needed'
           PKG_CONFIG_PATH: '/usr/lib/i386-linux-gnu/pkgconfig'
         shell: bash
         run: |
@@ -386,7 +397,7 @@ jobs:
           overwrite: true
 
   linux-x86_64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -397,7 +408,8 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo apt-get install \
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
             libevdev-dev:amd64 \
             libinput-dev:amd64 \
             libudev-dev:amd64 \
@@ -414,7 +426,7 @@ jobs:
         env:
           CC: x86_64-linux-gnu-gcc
           CFLAGS: '-O2 -march=x86-64 -mtune=generic -g -fomit-frame-pointer -flto -fno-stack-protector -pipe'
-          LDFLAGS: '-fuse-ld=gold -Wl,-O1 -Wl,--as-needed'
+          LDFLAGS: '-Wl,-O1 -Wl,--as-needed'
           PKG_CONFIG_PATH: '/usr/lib/x86_64-linux-gnu/pkgconfig'
         shell: bash
         run: |

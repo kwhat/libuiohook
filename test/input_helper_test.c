@@ -22,10 +22,8 @@
 #include "input_helper.h"
 #include "test_assert.h"
 
-#if !defined(_WIN32) && !defined(__APPLE__)
 #include <linux/input-event-codes.h>
 #include "evdev/mock_desktop.h"
-#endif
 
 static void test_key_mappings(void) {
     // Explicit expected mappings catch errors that a round trip can hide.
@@ -33,42 +31,16 @@ static void test_key_mappings(void) {
         uint16_t native;
         uint16_t virtual_code;
     } fixtures[] = {
-#if defined(_WIN32)
-        { VK_ESCAPE, VC_ESCAPE },
-        { VK_RETURN, VC_ENTER },
-        { VK_SPACE, VC_SPACE },
-        { 0x41, VC_A }
-#elif defined(__APPLE__)
-        { kVK_Escape, VC_ESCAPE },
-        { kVK_Return, VC_ENTER },
-        { kVK_Space, VC_SPACE },
-        { kVK_ANSI_A, VC_A }
-#else
         { XKB_KEY_Escape, VC_ESCAPE },
         { XKB_KEY_Return, VC_ENTER },
         { XKB_KEY_space, VC_SPACE },
         { XKB_KEY_a, VC_A }
-#endif
     };
 
     for (unsigned int i = 0; i < sizeof(fixtures) / sizeof(fixtures[0]); i++) {
-#if defined(_WIN32)
-        TEST_ASSERT(vkcode_to_uiocode(fixtures[i].native, 0) == fixtures[i].virtual_code);
-        TEST_ASSERT(uiocode_to_vkcode(fixtures[i].virtual_code) == fixtures[i].native);
-#elif defined(__APPLE__)
-        TEST_ASSERT(keycode_to_uiocode(fixtures[i].native) == fixtures[i].virtual_code);
-        TEST_ASSERT(uiocode_to_keycode(fixtures[i].virtual_code) == fixtures[i].native);
-#else
         TEST_ASSERT(keysym_to_uiocode(fixtures[i].native) == fixtures[i].virtual_code);
-#endif
     }
 
-#if defined(_WIN32)
-    TEST_ASSERT(vkcode_to_uiocode(0xFFFF, 0) == VC_UNDEFINED);
-    TEST_ASSERT(vkcode_to_uiocode(VK_RETURN, LLKHF_EXTENDED) == VC_KP_ENTER);
-#elif defined(__APPLE__)
-    TEST_ASSERT(keycode_to_uiocode(0xFFFF) == VC_UNDEFINED);
-#else
     TEST_ASSERT(keysym_to_uiocode(XKB_KEY_NoSymbol) == VC_UNDEFINED);
     TEST_ASSERT(event_to_keycode(KEY_A) == 38);
     TEST_ASSERT(keycode_to_event(38) == KEY_A);
@@ -76,7 +48,6 @@ static void test_key_mappings(void) {
     for (uint16_t code = 0; code <= KEY_MAX; code++) {
         TEST_ASSERT(keycode_to_event(event_to_keycode(code)) == code);
     }
-#endif
 }
 
 static void test_modifier_masks(void) {
@@ -92,7 +63,6 @@ static void test_modifier_masks(void) {
     TEST_ASSERT(get_modifiers() == 0);
 }
 
-#if !defined(_WIN32) && !defined(__APPLE__)
 static void test_fixture_keymap_and_pointer(void) {
     mock_desktop_reset();
     mock_desktop.wayland_screens = true;
@@ -116,12 +86,9 @@ static void test_fixture_keymap_and_pointer(void) {
     TEST_ASSERT(event_to_keysym(38, KEY_STATE_PRESS) == XKB_KEY_NoSymbol);
     unsetenv("WAYLAND_DISPLAY");
 }
-#endif
 
 void input_helper_tests(void) {
     test_key_mappings();
     test_modifier_masks();
-#if !defined(_WIN32) && !defined(__APPLE__)
     test_fixture_keymap_and_pointer();
-#endif
 }

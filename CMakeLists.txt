@@ -37,6 +37,10 @@ add_library(uiohook
     "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
 
+if(WIN32 OR APPLE)
+    target_sources(uiohook PRIVATE "src/${UIOHOOK_SOURCE_DIR}/keycode_helper.c")
+endif()
+
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
         "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c"
@@ -156,7 +160,8 @@ if(UNIX AND NOT APPLE)
     # librt on glibc < 2.34 (folded into libc since); link it when present so older systems build.
     find_library(RT_LIBRARY rt)
     if(RT_LIBRARY)
-        target_link_libraries(uiohook "${RT_LIBRARY}")
+        # Keep temporary cross-build sysroot paths out of exported targets.
+        target_link_libraries(uiohook rt)
     endif()
 
     # Wayland xdg-output screen enumeration.  libwayland-client is dlopen'd (not linked),

@@ -48,6 +48,8 @@
 #include <limits.h>
 #include <windows.h>
 
+#include "keycode_helper.h"
+
 #ifndef LPFN_ISWOW64PROCESS
 typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 #endif
@@ -127,23 +129,8 @@ typedef struct tagKbdLayer {
 } KBDTABLES, *PKBDTABLES;               // __ptr64
 
 
-/* Converts a uiohook virtual key code to the appropriate Windows VK key code. */
-extern DWORD uiocode_to_vkcode(uint16_t uiocode);
-
-/* Converts a Windows VK key code to the appropriate uiohook virtual key code. */
-extern uint16_t vkcode_to_uiocode(DWORD vk_code, DWORD flags);
-
 /* Converts a Windows vk code to it's unicode representation */
 extern SIZE_T vkcode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
-
-/* Set the native modifier mask for future events. */
-extern void set_modifier_mask(uint16_t mask);
-
-/* Unset the native modifier mask for future events. */
-extern void unset_modifier_mask(uint16_t mask);
-
-/* Get the current native modifier mask state. */
-extern uint16_t get_modifiers();
 
 /* Initialize the locale list and wow64 pointer size. */
 extern int load_input_helper();

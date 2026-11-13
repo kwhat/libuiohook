@@ -48,12 +48,10 @@ extern UniCharCount event_to_unicode(CGEventRef event_ref, UniChar *buffer, UniC
  * needed. */
 extern void event_to_objc(CGEventRef event_ref, UInt32 *subtype, UInt32 *data1);
 
-/* Initialize modifier and dead-key state and prepare main-thread dispatch or runloop fallback
- * resources; return UIOHOOK_SUCCESS or an initialization error. */
+/* Initialize hook input state and the main-thread translation queue. */
 extern int load_input_helper();
 
-/* Release the fallback main-runloop resources and retained keyboard-layout reference when
- * applicable. */
+/* Cancel pending translations and release helper resources after the hook stops. */
 extern void unload_input_helper();
 
 #endif

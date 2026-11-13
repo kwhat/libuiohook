@@ -20,43 +20,11 @@ cmake_minimum_required(VERSION 3.10)
 project(uiohook VERSION 1.3.0 LANGUAGES C)
 
 
-if (WIN32 OR WIN64)
-    set(UIOHOOK_SOURCE_DIR "windows")
-elseif (APPLE)
-    set(UIOHOOK_SOURCE_DIR "darwin")
-else()
-    set(UIOHOOK_SOURCE_DIR "evdev")
-endif()
-
 add_library(uiohook
     "src/input_state.c"
     "src/logger.c"
     "src/numeric_helper.c"
-    "src/${UIOHOOK_SOURCE_DIR}/dispatch_event.c"
-    "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
-    "src/${UIOHOOK_SOURCE_DIR}/keycode_helper.c"
-    "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
-    "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
-    "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
-
-if(UNIX)
-    target_sources(uiohook PRIVATE "src/${UIOHOOK_SOURCE_DIR}/mouse_helper.c")
-endif()
-
-if(WIN32)
-    target_sources(uiohook PRIVATE
-        "src/windows/unicode_helper.c"
-        "src/windows/unicode_table.c"
-    )
-endif()
-
-if(UNIX AND NOT APPLE)
-    target_sources(uiohook PRIVATE
-        "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c"
-        "src/${UIOHOOK_SOURCE_DIR}/touchpad_helper.c"
-    )
-endif()
 
 set_target_properties(uiohook PROPERTIES
     C_STANDARD 99
@@ -76,7 +44,6 @@ target_include_directories(uiohook
 
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}
 )
 
 
@@ -148,6 +115,19 @@ if(USE_EPOCH_TIME)
 endif()
 
 if(UNIX AND NOT APPLE)
+    target_sources(uiohook PRIVATE
+        "src/evdev/dispatch_event.c"
+        "src/evdev/input_helper.c"
+        "src/evdev/input_hook.c"
+        "src/evdev/keycode_helper.c"
+        "src/evdev/mouse_helper.c"
+        "src/evdev/post_event.c"
+        "src/evdev/system_properties.c"
+        "src/evdev/touchpad_helper.c"
+        "src/evdev/x11_helper.c"
+    )
+    target_include_directories(uiohook PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/evdev")
+
     find_package(PkgConfig REQUIRED)
 
     pkg_check_modules(EVDEV REQUIRED libevdev)
@@ -189,7 +169,7 @@ if(UNIX AND NOT APPLE)
     set(XDG_OUTPUT_XML "${WAYLAND_PROTOCOLS_DIR}/unstable/xdg-output/xdg-output-unstable-v1.xml")
     set(XDG_SHELL_XML "${WAYLAND_PROTOCOLS_DIR}/stable/xdg-shell/xdg-shell.xml")
     # wlr-layer-shell is not part of wayland-protocols, so it is vendored in-tree.
-    set(LAYER_SHELL_XML "${CMAKE_CURRENT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml")
+    set(LAYER_SHELL_XML "${CMAKE_CURRENT_SOURCE_DIR}/src/evdev/protocols/wlr-layer-shell-unstable-v1.xml")
 
     add_custom_command(
         OUTPUT "${WAYLAND_GEN_DIR}/wayland-protocol.c"
@@ -220,11 +200,11 @@ if(UNIX AND NOT APPLE)
         VERBATIM)
 
     target_sources(uiohook PRIVATE
-        "src/${UIOHOOK_SOURCE_DIR}/wayland_helper.c"
+        "src/evdev/wayland_helper.c"
         "${WAYLAND_GEN_DIR}/wayland-protocol.c"
+        "${WAYLAND_GEN_DIR}/wlr-layer-shell-protocol.c"
         "${WAYLAND_GEN_DIR}/xdg-output-protocol.c"
-        "${WAYLAND_GEN_DIR}/xdg-shell-protocol.c"
-        "${WAYLAND_GEN_DIR}/wlr-layer-shell-protocol.c")
+        "${WAYLAND_GEN_DIR}/xdg-shell-protocol.c")
     target_include_directories(uiohook PRIVATE "${WAYLAND_GEN_DIR}" "${WAYLAND_CLIENT_INCLUDE_DIRS}")
 
     # libX11, libX11-xcb, libxkbcommon-x11 and libXinerama are loaded at runtime via
@@ -294,13 +274,26 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 elseif(APPLE)
+    target_sources(uiohook PRIVATE
+        "src/darwin/dispatch_event.c"
+        "src/darwin/input_helper.c"
+        "src/darwin/input_hook.c"
+        "src/darwin/keycode_helper.c"
+        "src/darwin/mouse_helper.c"
+        "src/darwin/post_event.c"
+        "src/darwin/runloop_helper.c"
+        "src/darwin/runloop_queue.c"
+        "src/darwin/system_properties.c"
+    )
+    target_include_directories(uiohook PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/darwin")
+
     set(CMAKE_MACOSX_RPATH 1)
+
+    find_package(Threads REQUIRED)
+    target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
 
     option(USE_APPLICATION_SERVICES "ApplicationServices framework (default: ON)" ON)
     if(USE_APPLICATION_SERVICES)
-        find_package(Threads REQUIRED)
-        target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
-
         find_library(CARBON Carbon REQUIRED)
         target_include_directories(uiohook PRIVATE "${CARBON}")
         target_link_libraries(uiohook "${CARBON}")
@@ -336,6 +329,18 @@ elseif(APPLE)
         target_link_libraries(uiohook "${APPKIT}")
     endif()
 elseif(WIN32)
+    target_sources(uiohook PRIVATE
+        "src/windows/dispatch_event.c"
+        "src/windows/input_helper.c"
+        "src/windows/input_hook.c"
+        "src/windows/keycode_helper.c"
+        "src/windows/post_event.c"
+        "src/windows/system_properties.c"
+        "src/windows/unicode_helper.c"
+        "src/windows/unicode_table.c"
+    )
+    target_include_directories(uiohook PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/windows")
+
     target_link_libraries(uiohook Advapi32)
 endif()
 

@@ -164,3 +164,19 @@ not bytes. Translation handles dead-key sequences and ligatures, copies whole
 results without splitting them when capacity is short, and leaves state and
 output unchanged on insufficient capacity. IME composition remains outside this
 static layout-table translation path.
+
+### macOS main-runloop requirements
+
+Keyboard Unicode translation and system-key decoding run on the main thread.
+Applications that run the hook on a worker thread must continue servicing the
+main runloop. Both conversions use a shared request queue with a fixed Core
+Foundation source registered in common modes. A request that has not started
+within 250 ms is withdrawn and produces no translated characters/system-key
+data; it cannot later access the caller's event or buffer. A conversion already
+running finishes before its caller returns.
+
+Call `hook_stop()` before joining the hook thread. Stopping cancels queued
+translations before stopping the hook runloop, allowing shutdown even when the
+main thread is no longer pumping events. Calls made on the main thread execute
+directly. Restart creates a new queue generation so an old source cannot execute
+or cancel new work.

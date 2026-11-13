@@ -22,6 +22,16 @@
 #include "input_helper.h"
 #include "logger.h"
 
+// Signature for mouse events promoted from pen or touch input.
+// https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages
+#ifndef MI_WP_SIGNATURE
+#define MI_WP_SIGNATURE 0xFF515700
+#endif
+
+#ifndef SIGNATURE_MASK
+#define SIGNATURE_MASK  0xFFFFFF00
+#endif
+
 // Virtual event pointer.
 static uiohook_event uio_event;
 
@@ -253,6 +263,9 @@ bool dispatch_button_press(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t 
     if (mshook->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) {
         uio_event.mask |= MASK_EMULATED;
     }
+    if ((mshook->dwExtraInfo & SIGNATURE_MASK) == MI_WP_SIGNATURE) {
+        uio_event.mask |= MASK_TOUCHED;
+    }
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
@@ -281,6 +294,9 @@ bool dispatch_button_release(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_
     uio_event.mask = get_modifiers();
     if (mshook->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) {
         uio_event.mask |= MASK_EMULATED;
+    }
+    if ((mshook->dwExtraInfo & SIGNATURE_MASK) == MI_WP_SIGNATURE) {
+        uio_event.mask |= MASK_TOUCHED;
     }
 
     uio_event.data.mouse.button = button;
@@ -349,6 +365,9 @@ bool dispatch_mouse_move(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
         uio_event.mask = get_modifiers();
         if (mshook->flags & (LLMHF_INJECTED | LLMHF_LOWER_IL_INJECTED)) {
             uio_event.mask |= MASK_EMULATED;
+        }
+        if ((mshook->dwExtraInfo & SIGNATURE_MASK) == MI_WP_SIGNATURE) {
+            uio_event.mask |= MASK_TOUCHED;
         }
 
         // Check the modifier mask range for MASK_BUTTON1 - 5.

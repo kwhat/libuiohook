@@ -21,11 +21,13 @@
 
 #include <linux/input.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 struct touchpad;
 
 // Use the hook's shared button handler for modifier state and event consumption.
-typedef bool (*touchpad_button_proc)(struct input_event *event);
+// Source flags describe this event only and must not enter shared modifier state.
+typedef bool (*touchpad_button_proc)(struct input_event *event, uint32_t source_mask);
 
 // Creates a touchpad backend, falling back to observation if forwarding is
 // unavailable. On failure, resources are released and *touchpad is NULL.

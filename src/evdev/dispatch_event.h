@@ -31,12 +31,13 @@ extern bool dispatch_key_press(struct input_event *const ev);
 
 extern bool dispatch_key_release(struct input_event *const ev);
 
-extern bool dispatch_mouse_press(struct input_event *const ev, uint16_t button);
+// Source flags are combined with modifiers for this event, including synthesized clicks.
+extern bool dispatch_mouse_press(struct input_event *const ev, uint16_t button, uint32_t source_mask);
 
-extern bool dispatch_mouse_release(struct input_event *const ev, uint16_t button);
+extern bool dispatch_mouse_release(struct input_event *const ev, uint16_t button, uint32_t source_mask);
 
-extern bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy);
+extern bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy, uint32_t source_mask);
 
-extern bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction);
+extern bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction, uint32_t source_mask);
 
 #endif

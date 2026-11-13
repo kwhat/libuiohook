@@ -190,7 +190,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 int dy = touchpad_delta(libinput_event_pointer_get_dy(pointer), &touchpad->motion_y);
                 if (dx != 0 || dy != 0) {
                     track_pointer_delta(dx, dy);
-                    if (!dispatch_mouse_move(&ev, dx, dy)) {
+                    if (!dispatch_mouse_move(&ev, dx, dy, MASK_TOUCHED)) {
                         touchpad_emit(touchpad, EV_REL, REL_X, dx);
                         touchpad_emit(touchpad, EV_REL, REL_Y, dy);
                     }
@@ -199,7 +199,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 ev.type = EV_KEY;
                 ev.code = libinput_event_pointer_get_button(pointer);
                 ev.value = libinput_event_pointer_get_button_state(pointer) == LIBINPUT_BUTTON_STATE_PRESSED;
-                if (!touchpad->dispatch_button(&ev)) {
+                if (!touchpad->dispatch_button(&ev, MASK_TOUCHED)) {
                     touchpad_emit(touchpad, EV_KEY, ev.code, ev.value);
                 }
             } else {
@@ -225,7 +225,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                         steps = -steps;
                     }
                     if (steps != 0 && !dispatch_mouse_wheel(&ev, steps,
-                            i == 0 ? WHEEL_VERTICAL_DIRECTION : WHEEL_HORIZONTAL_DIRECTION)) {
+                            i == 0 ? WHEEL_VERTICAL_DIRECTION : WHEEL_HORIZONTAL_DIRECTION, MASK_TOUCHED)) {
                         touchpad_emit(touchpad, EV_REL, i == 0 ? REL_WHEEL : REL_HWHEEL, steps);
                     }
                 }

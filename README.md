@@ -68,6 +68,10 @@ is unavailable. If initialization fails, the physical device is released.
 Single-finger movement, physical clicks, tap-to-click, dragging, and two-finger
 vertical/horizontal scrolling are translated into the existing mouse API.
 Scrolling currently accumulates into wheel steps (15 libinput scroll units per step).
+Touchpad movement, drag, button, synthesized click, and scroll events carry
+`MASK_TOUCHED`, including in observation mode. This flag describes the source
+of each event; ordinary mouse events remain unmarked even when a touchpad button
+is held.
 
 The hook uses its own libinput defaults, with tapping and two-finger scrolling
 requested where supported. Desktop touchpad settings are not imported. Pinch and

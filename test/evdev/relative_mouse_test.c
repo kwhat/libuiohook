@@ -21,6 +21,8 @@
 
 #include "dispatch_event.h"
 #include "input_helper.h"
+#include "input_state.h"
+#include "mouse_helper.h"
 #include "mock_desktop.h"
 #include "test_assert.h"
 

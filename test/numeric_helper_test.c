@@ -17,27 +17,10 @@
  */
 
 #include <stdint.h>
-#include <math.h>
 #include "numeric_helper.h"
 #include "test_assert.h"
 
 int main(void) {
-    TEST_ASSERT(clamp_int8(INT64_MIN) == INT8_MIN);
-    TEST_ASSERT(clamp_int8(INT64_MAX) == INT8_MAX);
-    TEST_ASSERT(clamp_int8(INT8_MIN) == INT8_MIN);
-    TEST_ASSERT(clamp_int8(INT8_MAX) == INT8_MAX);
-    TEST_ASSERT(clamp_int8(42) == 42);
-    TEST_ASSERT(clamp_int8(-1) == -1);
-    TEST_ASSERT(clamp_int8((int64_t) INT8_MIN - 1) == INT8_MIN);
-    TEST_ASSERT(clamp_int8((int64_t) INT8_MAX + 1) == INT8_MAX);
-    TEST_ASSERT(clamp_uint8(INT64_MIN) == 0);
-    TEST_ASSERT(clamp_uint8(INT64_MAX) == UINT8_MAX);
-    TEST_ASSERT(clamp_uint8(0) == 0);
-    TEST_ASSERT(clamp_uint8(UINT8_MAX) == UINT8_MAX);
-    TEST_ASSERT(clamp_uint8(42) == 42);
-    TEST_ASSERT(clamp_uint8(-1) == 0);
-    TEST_ASSERT(clamp_uint8((int64_t) 0 - 1) == 0);
-    TEST_ASSERT(clamp_uint8((int64_t) UINT8_MAX + 1) == UINT8_MAX);
     TEST_ASSERT(clamp_int16(INT64_MIN) == INT16_MIN);
     TEST_ASSERT(clamp_int16(INT64_MAX) == INT16_MAX);
     TEST_ASSERT(clamp_int16(INT16_MIN) == INT16_MIN);
@@ -54,33 +37,5 @@ int main(void) {
     TEST_ASSERT(clamp_uint16(-1) == 0);
     TEST_ASSERT(clamp_uint16((int64_t) 0 - 1) == 0);
     TEST_ASSERT(clamp_uint16((int64_t) UINT16_MAX + 1) == UINT16_MAX);
-    TEST_ASSERT(clamp_int32(INT64_MIN) == INT32_MIN);
-    TEST_ASSERT(clamp_int32(INT64_MAX) == INT32_MAX);
-    TEST_ASSERT(clamp_int32(INT32_MIN) == INT32_MIN);
-    TEST_ASSERT(clamp_int32(INT32_MAX) == INT32_MAX);
-    TEST_ASSERT(clamp_int32(42) == 42);
-    TEST_ASSERT(clamp_int32(-1) == -1);
-    TEST_ASSERT(clamp_int32((int64_t) INT32_MIN - 1) == INT32_MIN);
-    TEST_ASSERT(clamp_int32((int64_t) INT32_MAX + 1) == INT32_MAX);
-    TEST_ASSERT(clamp_uint32(INT64_MIN) == 0);
-    TEST_ASSERT(clamp_uint32(INT64_MAX) == UINT32_MAX);
-    TEST_ASSERT(clamp_uint32(0) == 0);
-    TEST_ASSERT(clamp_uint32(UINT32_MAX) == UINT32_MAX);
-    TEST_ASSERT(clamp_uint32(42) == 42);
-    TEST_ASSERT(clamp_uint32(-1) == 0);
-    TEST_ASSERT(clamp_uint32((int64_t) 0 - 1) == 0);
-    TEST_ASSERT(clamp_uint32((int64_t) UINT32_MAX + 1) == UINT32_MAX);
-    TEST_ASSERT(clamp_int16_from_double(NAN) == 0);
-    TEST_ASSERT(clamp_int16_from_double(INFINITY) == INT16_MAX);
-    TEST_ASSERT(clamp_int16_from_double(-INFINITY) == INT16_MIN);
-    TEST_ASSERT(clamp_int16_from_double(32767.9) == INT16_MAX);
-    TEST_ASSERT(clamp_int16_from_double(-32768.9) == INT16_MIN);
-    TEST_ASSERT(clamp_int16_from_double(-12.75) == -12);
-    TEST_ASSERT(clamp_uint16_from_double(NAN) == 0);
-    TEST_ASSERT(clamp_uint16_from_double(INFINITY) == UINT16_MAX);
-    TEST_ASSERT(clamp_uint16_from_double(-INFINITY) == 0);
-    TEST_ASSERT(clamp_uint16_from_double(-1.0) == 0);
-    TEST_ASSERT(clamp_uint16_from_double(65535.9) == UINT16_MAX);
-    TEST_ASSERT(clamp_uint16_from_double(12.75) == 12);
     return 0;
 }

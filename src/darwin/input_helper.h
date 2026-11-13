@@ -34,6 +34,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Convert native floating-point values to int64_t, saturating overflow and mapping NaN to zero. */
+extern int64_t conv_double_to_int64(double value);
+
 #include "keycode_helper.h"
 
 /* Check whether accessibility access is enabled, requesting the native permission prompt when the

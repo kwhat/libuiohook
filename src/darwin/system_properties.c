@@ -79,10 +79,10 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                             //TODO: document the approach with examples in order to show different
                             //cases -> different resolutions (secondary monitors origin might be
                             //negative)
-                            .x = clamp_int16_from_double(boundsDisp.origin.x),
-                            .y = clamp_int16_from_double(boundsDisp.origin.y),
-                            .width = clamp_uint16_from_double(boundsDisp.size.width),
-                            .height = clamp_uint16_from_double(boundsDisp.size.height)
+                            .x = clamp_int16(conv_double_to_int64(boundsDisp.origin.x)),
+                            .y = clamp_int16(conv_double_to_int64(boundsDisp.origin.y)),
+                            .width = clamp_uint16(conv_double_to_int64(boundsDisp.size.width)),
+                            .height = clamp_uint16(conv_double_to_int64(boundsDisp.size.height))
                         };
                 }
                 }
@@ -103,8 +103,8 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                         .number = 1,
                         .x = 0,
                         .y = 0,
-                        .width = clamp_uint16_from_double(width),
-                        .height = clamp_uint16_from_double(height)
+                        .width = clamp_uint16(conv_double_to_int64(width)),
+                        .height = clamp_uint16(conv_double_to_int64(height))
                     };
                 }
             }

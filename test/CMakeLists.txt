@@ -127,3 +127,12 @@ add_executable(numeric_helper_test numeric_helper_test.c "${PROJECT_SOURCE_DIR}/
 configure_unit_test(numeric_helper_test)
 add_test(NAME common.numeric_helper COMMAND numeric_helper_test)
 set_tests_properties(common.numeric_helper PROPERTIES LABELS "unit;common;portable")
+
+# The conversion now lives in Darwin's native input helper.
+if(APPLE)
+    add_executable(darwin_numeric_conversion_test darwin/numeric_conversion_test.c)
+    configure_unit_test(darwin_numeric_conversion_test)
+    target_link_libraries(darwin_numeric_conversion_test uiohook)
+    add_test(NAME darwin.numeric_conversion COMMAND darwin_numeric_conversion_test)
+    set_tests_properties(darwin.numeric_conversion PROPERTIES LABELS "unit;darwin")
+endif()

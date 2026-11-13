@@ -22,15 +22,7 @@
 #include <stdint.h>
 
 // Saturating integer conversions. Negative unsigned inputs become zero.
-int8_t clamp_int8(int64_t value);
-uint8_t clamp_uint8(int64_t value);
 int16_t clamp_int16(int64_t value);
 uint16_t clamp_uint16(int64_t value);
-int32_t clamp_int32(int64_t value);
-uint32_t clamp_uint32(int64_t value);
-
-// Floating-point conversions truncate toward zero; NaN becomes zero.
-int16_t clamp_int16_from_double(double value);
-uint16_t clamp_uint16_from_double(double value);
 
 #endif

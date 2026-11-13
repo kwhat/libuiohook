@@ -30,11 +30,11 @@
 #define kVK_XBUTTON2                 4
 
 // These button masks do not appear to be defined by Apple.
-#define kCGEventFlagMaskButtonLeft   1U << 0
-#define kCGEventFlagMaskButtonRight  1U << 1
-#define kCGEventFlagMaskButtonCenter 1U << 2
-#define kCGEventFlagMaskXButton1     1U << 3
-#define kCGEventFlagMaskXButton2     1U << 4
+#define kCGEventFlagMaskButtonLeft   (1U << 0)
+#define kCGEventFlagMaskButtonRight  (1U << 1)
+#define kCGEventFlagMaskButtonCenter (1U << 2)
+#define kCGEventFlagMaskXButton1     (1U << 3)
+#define kCGEventFlagMaskXButton2     (1U << 4)
 
 /* Return the drag state tracked by the native mouse event handler. */
 extern bool is_mouse_dragged(void);

@@ -19,8 +19,6 @@
 #ifndef _included_keycode_helper
 #define _included_keycode_helper
 
-#include <stdint.h>
-
 // Native headers provide these constants when the corresponding services are enabled.
 #ifdef USE_APPLICATION_SERVICES
 #include <Carbon/Carbon.h>
@@ -28,6 +26,8 @@
 #ifdef USE_IOKIT
 #include <IOKit/hidsystem/ev_keymap.h>
 #endif
+
+#include <stdint.h>
 
 #ifndef USE_APPLICATION_SERVICES
 // If we are not using ApplicationServices, we don't need Carbon.HIToolbox but we still need some of the constants.
@@ -177,9 +177,7 @@ enum {
   kVK_JIS_Eisu                  = 0x66,
   kVK_JIS_Kana                  = 0x68
 };
-
 #endif
-
 
 #ifndef USE_IOKIT
 // Some of the system key codes that maybe missing from IOKit.  They appear to have shown up over the years.
@@ -292,12 +290,12 @@ enum {
 
 
 // These virtual key codes do not appear to be defined by Apple.
-#define kVK_NX_Power                 0xE0 | NX_POWER_KEY        /* 0xE6 */
-#define kVK_NX_Eject                 0xE0 | NX_KEYTYPE_EJECT    /* 0xEE */
+#define kVK_NX_Power                 (0xE0 | NX_POWER_KEY)        /* 0xE6 */
+#define kVK_NX_Eject                 (0xE0 | NX_KEYTYPE_EJECT)    /* 0xEE */
 
-#define kVK_MEDIA_Play               0xE0 | NX_KEYTYPE_PLAY     /* 0xF0 */
-#define kVK_MEDIA_Next               0xE0 | NX_KEYTYPE_NEXT     /* 0xF1 */
-#define kVK_MEDIA_Previous           0xE0 | NX_KEYTYPE_PREVIOUS /* 0xF2 */
+#define kVK_MEDIA_Play               (0xE0 | NX_KEYTYPE_PLAY)     /* 0xF0 */
+#define kVK_MEDIA_Next               (0xE0 | NX_KEYTYPE_NEXT)     /* 0xF1 */
+#define kVK_MEDIA_Previous           (0xE0 | NX_KEYTYPE_PREVIOUS) /* 0xF2 */
 
 #define kVK_RightCommand             0x36
 #define kVK_ContextMenu              0x6E // AKA kMenuPowerGlyph

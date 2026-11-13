@@ -23,6 +23,7 @@ Tests are not built by default.
 | `evdev.input_helper` | Linux/evdev | Production key mappings, modifier masks, and pointer tracking with mock desktop providers |
 | `windows.keycode_helper` | Windows | Production key mappings and modifier masks with fixed fixtures |
 | `darwin.keycode_helper` | All | Production Darwin key mappings, modifier masks, and drag state with fixed fixtures |
+| `evdev.post_event` | Linux/evdev | Crafted key posting before hook startup, real XKB translation, and mock uinput writes |
 | `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
 | `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
@@ -81,6 +82,10 @@ Input-helper cases cover known mappings, unmapped keys, evdev/XKB offsets,
 independent modifier bits, keymap lookup, and pointer bounds. Relative-motion
 cases cover signed deltas, dragging, absolute-coordinate clamping at screen
 edges, delta saturation, consumption, and zero deltas on button/click events.
+Posting cases verify arrow-key press/release translation before helper initialization,
+repeated initialization without resetting pointer state, and posting after helper
+cleanup. The real posting implementation builds a libevdev device template, while
+uinput creation, writes, and destruction are mocked.
 Touchpad cases also verify that fractional and observation-mode motion populate
 `dx` and `dy`.
 

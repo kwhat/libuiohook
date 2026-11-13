@@ -302,17 +302,17 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 #define VC_KP_8                                  0x0068
 #define VC_KP_9                                  0x0069
 
-#define VC_KP_END                                0xEE00 | VC_END
-#define VC_KP_DOWN                               0xEE00 | VC_DOWN
-#define VC_KP_PAGE_DOWN                          0xEE00 | VC_PAGE_DOWN
-#define VC_KP_LEFT                               0xEE00 | VC_LEFT
-#define VC_KP_BEGIN                              0xEE00 | VC_BEGIN
-#define VC_KP_RIGHT                              0xEE00 | VC_RIGHT
-#define VC_KP_HOME                               0xEE00 | VC_HOME
-#define VC_KP_UP                                 0xEE00 | VC_UP
-#define VC_KP_PAGE_UP                            0xEE00 | VC_PAGE_UP
-#define VC_KP_INSERT                             0xEE00 | VC_INSERT
-#define VC_KP_DELETE                             0xEE00 | VC_DELETE
+#define VC_KP_END                                (0xEE00 | VC_END)
+#define VC_KP_DOWN                               (0xEE00 | VC_DOWN)
+#define VC_KP_PAGE_DOWN                          (0xEE00 | VC_PAGE_DOWN)
+#define VC_KP_LEFT                               (0xEE00 | VC_LEFT)
+#define VC_KP_BEGIN                              (0xEE00 | VC_BEGIN)
+#define VC_KP_RIGHT                              (0xEE00 | VC_RIGHT)
+#define VC_KP_HOME                               (0xEE00 | VC_HOME)
+#define VC_KP_UP                                 (0xEE00 | VC_UP)
+#define VC_KP_PAGE_UP                            (0xEE00 | VC_PAGE_UP)
+#define VC_KP_INSERT                             (0xEE00 | VC_INSERT)
+#define VC_KP_DELETE                             (0xEE00 | VC_DELETE)
 // End Numeric Zone
 
 
@@ -432,33 +432,33 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 
 
 /* Begin Virtual Modifier Masks */
-#define MASK_SHIFT_L                             1 << 0
-#define MASK_CTRL_L                              1 << 1
-#define MASK_META_L                              1 << 2
-#define MASK_ALT_L                               1 << 3
+#define MASK_SHIFT_L                             (1 << 0)
+#define MASK_CTRL_L                              (1 << 1)
+#define MASK_META_L                              (1 << 2)
+#define MASK_ALT_L                               (1 << 3)
 
-#define MASK_SHIFT_R                             1 << 4
-#define MASK_CTRL_R                              1 << 5
-#define MASK_META_R                              1 << 6
-#define MASK_ALT_R                               1 << 7
+#define MASK_SHIFT_R                             (1 << 4)
+#define MASK_CTRL_R                              (1 << 5)
+#define MASK_META_R                              (1 << 6)
+#define MASK_ALT_R                               (1 << 7)
 
-#define MASK_SHIFT                               MASK_SHIFT_L | MASK_SHIFT_R
-#define MASK_CTRL                                MASK_CTRL_L  | MASK_CTRL_R
-#define MASK_META                                MASK_META_L  | MASK_META_R
-#define MASK_ALT                                 MASK_ALT_L   | MASK_ALT_R
+#define MASK_SHIFT                               (MASK_SHIFT_L | MASK_SHIFT_R)
+#define MASK_CTRL                                (MASK_CTRL_L  | MASK_CTRL_R)
+#define MASK_META                                (MASK_META_L  | MASK_META_R)
+#define MASK_ALT                                 (MASK_ALT_L   | MASK_ALT_R)
 
-#define MASK_BUTTON1                             1 << 8
-#define MASK_BUTTON2                             1 << 9
-#define MASK_BUTTON3                             1 << 10
-#define MASK_BUTTON4                             1 << 11
-#define MASK_BUTTON5                             1 << 12
+#define MASK_BUTTON1                             (1 << 8)
+#define MASK_BUTTON2                             (1 << 9)
+#define MASK_BUTTON3                             (1 << 10)
+#define MASK_BUTTON4                             (1 << 11)
+#define MASK_BUTTON5                             (1 << 12)
 
-#define MASK_NUM_LOCK                            1 << 13
-#define MASK_CAPS_LOCK                           1 << 14
-#define MASK_SCROLL_LOCK                         1 << 15
+#define MASK_NUM_LOCK                            (1 << 13)
+#define MASK_CAPS_LOCK                           (1 << 14)
+#define MASK_SCROLL_LOCK                         (1 << 15)
 
-#define MASK_EMULATED                            1 << 30
-#define MASK_CONSUMED                            1U << 31
+#define MASK_EMULATED                            (1 << 30)
+#define MASK_CONSUMED                            (1U << 31)
 /* End Virtual Modifier Masks */
 
 

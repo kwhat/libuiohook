@@ -30,6 +30,7 @@ static int clicks;
 
 static void capture_event(uiohook_event *const event, void *data) {
     (void) data;
+    TEST_ASSERT((event->mask & MASK_TOUCHED) == 0);
     received = *event;
     if (event->type == EVENT_MOUSE_PRESSED || event->type == EVENT_MOUSE_RELEASED
             || event->type == EVENT_MOUSE_CLICKED) {
@@ -57,65 +58,65 @@ static void test_relative_motion(struct input_event *event) {
     // A physical mouse's accumulated REL_X/REL_Y values are passed directly to
     // dispatch, rather than reconstructed by subtracting absolute coordinates.
     track_pointer_delta(8, -5);
-    TEST_ASSERT(!dispatch_mouse_move(event, 8, -5));
+    TEST_ASSERT(!dispatch_mouse_move(event, 8, -5, 0));
     TEST_ASSERT(received.type == EVENT_MOUSE_MOVED);
     TEST_ASSERT(received.data.mouse.x == 108 && received.data.mouse.y == 75);
     TEST_ASSERT(received.data.mouse.dx == 8 && received.data.mouse.dy == -5);
 
     set_pointer_position(1919, 1079);
     track_pointer_delta(17, 20);
-    dispatch_mouse_move(event, 17, 20);
+    dispatch_mouse_move(event, 17, 20, 0);
     TEST_ASSERT(received.data.mouse.x == 1919 && received.data.mouse.y == 1079);
     TEST_ASSERT(received.data.mouse.dx == 17 && received.data.mouse.dy == 20);
 
     set_pointer_position(0, 0);
     track_pointer_delta(-12, -9);
-    dispatch_mouse_move(event, -12, -9);
+    dispatch_mouse_move(event, -12, -9, 0);
     TEST_ASSERT(received.data.mouse.x == 0 && received.data.mouse.y == 0);
     TEST_ASSERT(received.data.mouse.dx == -12 && received.data.mouse.dy == -9);
 
     track_pointer_delta(0, 9);
-    dispatch_mouse_move(event, 0, 9);
+    dispatch_mouse_move(event, 0, 9, 0);
     TEST_ASSERT(received.data.mouse.dx == 0 && received.data.mouse.dy == 9);
 
     // Test narrowing at the dispatch boundary without overflowing the tracker's
     // integer position with deliberately extreme synthetic input values.
-    dispatch_mouse_move(event, INT_MAX, INT_MIN);
+    dispatch_mouse_move(event, INT_MAX, INT_MIN, 0);
     TEST_ASSERT(received.data.mouse.dx == INT16_MAX && received.data.mouse.dy == INT16_MIN);
-    dispatch_mouse_move(event, INT16_MIN, INT16_MAX);
+    dispatch_mouse_move(event, INT16_MIN, INT16_MAX, 0);
     TEST_ASSERT(received.data.mouse.dx == INT16_MIN && received.data.mouse.dy == INT16_MAX);
 
     consume = true;
     track_pointer_delta(3, -2);
-    TEST_ASSERT(dispatch_mouse_move(event, 3, -2));
+    TEST_ASSERT(dispatch_mouse_move(event, 3, -2, 0));
     TEST_ASSERT(received.data.mouse.dx == 3 && received.data.mouse.dy == -2);
     consume = false;
 }
 
 static void test_drag_and_button_events(struct input_event *event) {
     initialize_pointer();
-    dispatch_mouse_move(event, 29, -11);
+    dispatch_mouse_move(event, 29, -11, 0);
     set_modifier_mask(MASK_BUTTON1);
-    dispatch_mouse_press(event, MOUSE_BUTTON1);
+    dispatch_mouse_press(event, MOUSE_BUTTON1, 0);
     TEST_ASSERT(received.type == EVENT_MOUSE_PRESSED);
 
     track_pointer_delta(6, -4);
-    dispatch_mouse_move(event, 6, -4);
+    dispatch_mouse_move(event, 6, -4, 0);
     TEST_ASSERT(received.type == EVENT_MOUSE_DRAGGED);
     TEST_ASSERT((received.mask & MASK_BUTTON1) != 0);
     TEST_ASSERT(received.data.mouse.dx == 6 && received.data.mouse.dy == -4);
 
     unset_modifier_mask(MASK_BUTTON1);
-    dispatch_mouse_release(event, MOUSE_BUTTON1);
+    dispatch_mouse_release(event, MOUSE_BUTTON1, 0);
     TEST_ASSERT(received.type == EVENT_MOUSE_RELEASED && clicks == 0);
 
     // Wheel data shares the event union. Button events must clear deltas even
     // after another event type has overwritten that storage.
-    dispatch_mouse_wheel(event, 1, WHEEL_VERTICAL_DIRECTION);
+    dispatch_mouse_wheel(event, 1, WHEEL_VERTICAL_DIRECTION, 0);
     set_modifier_mask(MASK_BUTTON1);
-    dispatch_mouse_press(event, MOUSE_BUTTON1);
+    dispatch_mouse_press(event, MOUSE_BUTTON1, 0);
     unset_modifier_mask(MASK_BUTTON1);
-    dispatch_mouse_release(event, MOUSE_BUTTON1);
+    dispatch_mouse_release(event, MOUSE_BUTTON1, 0);
     TEST_ASSERT(received.type == EVENT_MOUSE_CLICKED && clicks == 1);
 }
 

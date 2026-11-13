@@ -203,7 +203,7 @@ bool dispatch_key_release(struct input_event *const ev) {
 // whether to synthesize an EVENT_MOUSE_CLICKED on release.
 static bool mouse_dragged = false;
 
-bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
+bool dispatch_mouse_press(struct input_event *const ev, uint16_t button, uint32_t source_mask) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
@@ -236,7 +236,7 @@ bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
     uio_event.time = timestamp;
 
     uio_event.type = EVENT_MOUSE_PRESSED;
-    uio_event.mask = get_modifiers();
+    uio_event.mask = get_modifiers() | source_mask;
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
@@ -255,12 +255,12 @@ bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
     return uio_event.mask & MASK_CONSUMED;
 }
 
-static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
+static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button, uint32_t source_mask) {
     // Populate mouse clicked event.
     uio_event.time = timestamp;
 
     uio_event.type = EVENT_MOUSE_CLICKED;
-    uio_event.mask = get_modifiers();
+    uio_event.mask = get_modifiers() | source_mask;
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
@@ -277,7 +277,7 @@ static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
     dispatch_event(&uio_event);
 }
 
-bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
+bool dispatch_mouse_release(struct input_event *const ev, uint16_t button, uint32_t source_mask) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
@@ -288,7 +288,7 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
     uio_event.time = timestamp;
 
     uio_event.type = EVENT_MOUSE_RELEASED;
-    uio_event.mask = get_modifiers();
+    uio_event.mask = get_modifiers() | source_mask;
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
@@ -308,7 +308,7 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
     // If the release was not consumed and the pointer didn't move between press and release,
     // fire a clicked event.
     if (!consumed && !mouse_dragged) {
-        dispatch_mouse_clicked(timestamp, button);
+        dispatch_mouse_clicked(timestamp, button, source_mask);
     }
 
     // Reset the click count if the multi-click interval has elapsed.
@@ -331,7 +331,7 @@ static int16_t clamp_mouse_delta(int delta) {
     return (int16_t) delta;
 }
 
-bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy) {
+bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy, uint32_t source_mask) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
@@ -346,7 +346,7 @@ bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy) {
     // Populate mouse move event.
     uio_event.time = timestamp;
 
-    uio_event.mask = get_modifiers();
+    uio_event.mask = get_modifiers() | source_mask;
 
     // Check the upper half of virtual modifiers for non-zero values and set the mouse
     // dragged flag.  The last 3 bits are reserved for lock masks.
@@ -383,7 +383,7 @@ bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy) {
     return uio_event.mask & MASK_CONSUMED;
 }
 
-bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction) {
+bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction, uint32_t source_mask) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
@@ -398,7 +398,7 @@ bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_
     uio_event.time = timestamp;
 
     uio_event.type = EVENT_MOUSE_WHEEL;
-    uio_event.mask = get_modifiers();
+    uio_event.mask = get_modifiers() | source_mask;
 
     // evdev has no position for wheel events; query the display server.
     get_pointer_position(&uio_event.data.wheel.x, &uio_event.data.wheel.y);

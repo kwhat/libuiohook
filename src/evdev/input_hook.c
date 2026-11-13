@@ -71,7 +71,7 @@ static char monitor_tag;
 
 // Handle an EV_KEY event.  Mouse buttons route through the pointer dispatch; every
 // other code is treated as a keyboard key.
-static bool hook_key_proc(struct input_event *ev) {
+static bool hook_key_proc(struct input_event *ev, uint32_t source_mask) {
     uint16_t button;
     uint16_t mask;
 
@@ -99,11 +99,11 @@ static bool hook_key_proc(struct input_event *ev) {
 
     if (ev->value > 0) {
         set_modifier_mask(mask);
-        return dispatch_mouse_press(ev, button);
+        return dispatch_mouse_press(ev, button, source_mask);
     }
 
     unset_modifier_mask(mask);
-    return dispatch_mouse_release(ev, button);
+    return dispatch_mouse_release(ev, button, source_mask);
 }
 
 // Handle an EV_REL event: accumulate motion and wheel deltas until the next EV_SYN
@@ -135,17 +135,17 @@ static bool hook_sync_proc(struct input_event *ev) {
 
     if (rel_x != 0 || rel_y != 0) {
         track_pointer_delta(rel_x, rel_y);
-        consumed |= dispatch_mouse_move(ev, rel_x, rel_y);
+        consumed |= dispatch_mouse_move(ev, rel_x, rel_y, 0);
         rel_x = rel_y = 0;
     }
 
     if (wheel_v != 0) {
-        consumed |= dispatch_mouse_wheel(ev, wheel_v, WHEEL_VERTICAL_DIRECTION);
+        consumed |= dispatch_mouse_wheel(ev, wheel_v, WHEEL_VERTICAL_DIRECTION, 0);
         wheel_v = 0;
     }
 
     if (wheel_h != 0) {
-        consumed |= dispatch_mouse_wheel(ev, wheel_h, WHEEL_HORIZONTAL_DIRECTION);
+        consumed |= dispatch_mouse_wheel(ev, wheel_h, WHEEL_HORIZONTAL_DIRECTION, 0);
         wheel_h = 0;
     }
 
@@ -155,7 +155,7 @@ static bool hook_sync_proc(struct input_event *ev) {
 static bool hook_event_proc(struct input_event *ev) {
     switch (ev->type) {
         case EV_KEY:
-            return hook_key_proc(ev);
+            return hook_key_proc(ev, 0);
 
         case EV_REL:
             return hook_rel_proc(ev);

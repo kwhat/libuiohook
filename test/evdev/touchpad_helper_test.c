@@ -36,6 +36,8 @@
 static enum libinput_event_type test_event_type;
 static double dx, dy, axis;
 static bool pending, consume;
+static bool expect_touched = true;
+static int clicks;
 static int moves, wheels, presses, releases;
 static int last_dx, last_dy;
 static int emitted_x, emitted_y, emitted_wheel, emitted_buttons, destroyed;
@@ -213,16 +215,17 @@ const char * libevdev_uinput_get_devnode(struct libevdev_uinput *device) {
 
 // The hook manager supplies this callback in production. Check that the helper
 // delivers a native button event, then use real dispatch to exercise drag state.
-static bool test_button_dispatch(struct input_event *event) {
+static bool test_button_dispatch(struct input_event *event, uint32_t source_mask) {
+    TEST_ASSERT(source_mask == (MASK_TOUCHED));
     TEST_ASSERT(event->type == EV_KEY && event->code == BTN_LEFT);
     TEST_ASSERT(event->input_event_sec == 1700000000);
     TEST_ASSERT(event->input_event_usec == 123456);
     if (event->value > 0) {
         set_modifier_mask(MASK_BUTTON1);
-        return dispatch_mouse_press(event, MOUSE_BUTTON1);
+        return dispatch_mouse_press(event, MOUSE_BUTTON1, source_mask);
     }
     unset_modifier_mask(MASK_BUTTON1);
-    return dispatch_mouse_release(event, MOUSE_BUTTON1);
+    return dispatch_mouse_release(event, MOUSE_BUTTON1, source_mask);
 }
 
 // Exercise the real mouse dispatcher and modifier state, including drag detection.
@@ -230,6 +233,7 @@ static event_type last_mouse_type;
 
 static void test_callback(uiohook_event *const event, void *data) {
     (void) data;
+    TEST_ASSERT(((event->mask & MASK_TOUCHED) != 0) == expect_touched);
     last_mouse_type = event->type;
     switch (event->type) {
         case EVENT_MOUSE_MOVED:
@@ -251,6 +255,10 @@ static void test_callback(uiohook_event *const event, void *data) {
             TEST_ASSERT(event->data.mouse.button == MOUSE_BUTTON1);
             TEST_ASSERT(event->data.mouse.dx == 0 && event->data.mouse.dy == 0);
             releases++;
+            break;
+
+        case EVENT_MOUSE_CLICKED:
+            clicks++;
             break;
 
         case EVENT_MOUSE_WHEEL:
@@ -471,12 +479,57 @@ static void test_translation(void) {
     puts("Touchpad translation tests passed");
 }
 
+static void test_event_origin(void) {
+    struct touchpad *touchpad = create_test_touchpad();
+    struct input_event mouse = { 0 };
+    mouse.input_event_sec = 1700000000;
+    mouse.input_event_usec = 123456;
+    active_axis = LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL;
+    expect_touched = true;
+    dx = 1;
+    dy = 0;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
+    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+
+    // A mouse moving while a touchpad button is held is still a mouse event.
+    expect_touched = false;
+    dispatch_mouse_move(&mouse, 1, 0, 0);
+    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_DRAGGED);
+    dispatch_mouse_wheel(&mouse, 1, WHEEL_VERTICAL_DIRECTION, 0);
+    expect_touched = true;
+    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+
+    // Synthesized clicked events must retain the release event's origin.
+    int previous_clicks = clicks;
+    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_CLICKED && clicks == previous_clicks + 1);
+
+    expect_touched = false;
+    set_modifier_mask(MASK_BUTTON1);
+    dispatch_mouse_press(&mouse, MOUSE_BUTTON1, 0);
+    unset_modifier_mask(MASK_BUTTON1);
+    dispatch_mouse_release(&mouse, MOUSE_BUTTON1, 0);
+    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_CLICKED && clicks == previous_clicks + 2);
+    dispatch_mouse_move(&mouse, 1, 0, 0);
+    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_MOVED);
+
+    expect_touched = true;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
+    touchpad_destroy(&touchpad);
+}
+
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "initialization") == 0) {
         test_initialization();
     } else {
         TEST_ASSERT(argc == 1);
         test_translation();
+        test_event_origin();
     }
     return EXIT_SUCCESS;
 }

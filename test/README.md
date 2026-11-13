@@ -82,7 +82,10 @@ independent modifier bits, keymap lookup, and pointer bounds. Relative-motion
 cases cover signed deltas, dragging, absolute-coordinate clamping at screen
 edges, delta saturation, consumption, and zero deltas on button/click events.
 Touchpad cases also verify that fractional and observation-mode motion populate
-`dx` and `dy`.
+`dx` and `dy`. Touchpad callbacks carry `MASK_TOUCHED` for motion, dragging,
+buttons, synthesized clicks, and both scroll axes, including consumed and
+observation-mode events. Mixed mouse/touchpad cases verify that the source flag
+stays specific to each event, even while a touchpad button is held.
 
 `evdev/touchpad_helper_test.c` compiles `src/evdev/touchpad_helper.c` as a
 separate source file and accesses it through `touchpad_helper.h`. Mock libinput

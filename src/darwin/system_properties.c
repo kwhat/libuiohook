@@ -29,8 +29,9 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
-#include "input_helper.h"
 #include "logger.h"
+#include "numeric_helper.h"
+#include "input_helper.h"
 
 #ifdef USE_IOKIT
 static io_connect_t connection;
@@ -78,10 +79,10 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                             //TODO: document the approach with examples in order to show different
                             //cases -> different resolutions (secondary monitors origin might be
                             //negative)
-                            .x = boundsDisp.origin.x,
-                            .y = boundsDisp.origin.y,
-                            .width = boundsDisp.size.width,
-                            .height = boundsDisp.size.height
+                            .x = clamp_int16_from_double(boundsDisp.origin.x),
+                            .y = clamp_int16_from_double(boundsDisp.origin.y),
+                            .width = clamp_uint16_from_double(boundsDisp.size.width),
+                            .height = clamp_uint16_from_double(boundsDisp.size.height)
                         };
                 }
                 }
@@ -102,8 +103,8 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                         .number = 1,
                         .x = 0,
                         .y = 0,
-                        .width = width,
-                        .height = height
+                        .width = clamp_uint16_from_double(width),
+                        .height = clamp_uint16_from_double(height)
                     };
                 }
             }

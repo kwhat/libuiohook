@@ -33,6 +33,7 @@ if(WIN32)
         "${PROJECT_SOURCE_DIR}/src/windows/keycode_helper.c"
         "${PROJECT_SOURCE_DIR}/src/input_state.c"
         "${PROJECT_SOURCE_DIR}/src/logger.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
     )
     configure_unit_test(windows_keycode_test)
     add_test(NAME windows.keycode_helper COMMAND windows_keycode_test)
@@ -47,6 +48,7 @@ if(UNIX AND NOT APPLE)
     # functions are supplied by the fixture object instead of a live compositor.
     add_library(evdev_test_backend STATIC
         "${PROJECT_SOURCE_DIR}/src/logger.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/input_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/keycode_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/mouse_helper.c"
@@ -120,3 +122,8 @@ foreach(mode build install)
     )
     set_tests_properties(package.${mode}_consumer PROPERTIES LABELS "package")
 endforeach()
+
+add_executable(numeric_helper_test numeric_helper_test.c "${PROJECT_SOURCE_DIR}/src/numeric_helper.c")
+configure_unit_test(numeric_helper_test)
+add_test(NAME common.numeric_helper COMMAND numeric_helper_test)
+set_tests_properties(common.numeric_helper PROPERTIES LABELS "unit;common;portable")

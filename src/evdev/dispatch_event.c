@@ -26,6 +26,7 @@
 #include "keycode_helper.h"
 #include "logger.h"
 #include "mouse_helper.h"
+#include "numeric_helper.h"
 
 typedef struct _mouse_click {
     uint16_t count;
@@ -315,18 +316,6 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
     return consumed;
 }
 
-// Relative device counts may exceed the public int16_t fields. Saturate them
-// instead of allowing a narrowing conversion to reverse the reported direction.
-static int16_t clamp_mouse_delta(int delta) {
-    if (delta > INT16_MAX) {
-        return INT16_MAX;
-    }
-    if (delta < INT16_MIN) {
-        return INT16_MIN;
-    }
-    return (int16_t) delta;
-}
-
 bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
@@ -359,8 +348,8 @@ bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy) {
     uio_event.data.mouse.button = MOUSE_NOBUTTON;
     uio_event.data.mouse.clicks = click.count;
 
-    uio_event.data.mouse.dx = clamp_mouse_delta(dx);
-    uio_event.data.mouse.dy = clamp_mouse_delta(dy);
+    uio_event.data.mouse.dx = clamp_int16(dx);
+    uio_event.data.mouse.dy = clamp_int16(dy);
 
     // Absolute coordinates come from the pointer tracker; retain the device
     // deltas even when that position is clamped at a screen edge.

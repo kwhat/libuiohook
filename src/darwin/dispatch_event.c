@@ -27,6 +27,7 @@
 #include "input_state.h"
 #include "logger.h"
 #include "mouse_helper.h"
+#include "numeric_helper.h"
 
 #ifdef USE_EPOCH_TIME
 #define TIMER_RESOLUTION_MS 1
@@ -475,8 +476,10 @@ bool dispatch_button_press(uint64_t timestamp, CGEventRef event_ref, uint16_t bu
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
-    uio_event.data.mouse.x = event_point.x;
-    uio_event.data.mouse.y = event_point.y;
+    uio_event.data.mouse.x = clamp_int16_from_double(event_point.x);
+    uio_event.data.mouse.y = clamp_int16_from_double(event_point.y);
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u pressed %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__,
@@ -505,8 +508,10 @@ bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
-    uio_event.data.mouse.x = event_point.x;
-    uio_event.data.mouse.y = event_point.y;
+    uio_event.data.mouse.x = clamp_int16_from_double(event_point.x);
+    uio_event.data.mouse.y = clamp_int16_from_double(event_point.y);
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__,
@@ -529,8 +534,10 @@ bool dispatch_button_release(uint64_t timestamp, CGEventRef event_ref, uint16_t 
 
         uio_event.data.mouse.button = button;
         uio_event.data.mouse.clicks = click_count;
-        uio_event.data.mouse.x = event_point.x;
-        uio_event.data.mouse.y = event_point.y;
+        uio_event.data.mouse.x = clamp_int16_from_double(event_point.x);
+        uio_event.data.mouse.y = clamp_int16_from_double(event_point.y);
+        uio_event.data.mouse.dx = 0;
+        uio_event.data.mouse.dy = 0;
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
                 __FUNCTION__, __LINE__,
@@ -561,12 +568,6 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
 
     CGPoint event_point = CGEventGetLocation(event_ref);
 
-
-    logger(LOG_LEVEL_WARN, "#### %s [%u]: Mouse %s to %i, %i.\n",
-            __FUNCTION__, __LINE__, is_mouse_dragged() ? "dragged" : "moved",
-            CGEventGetIntegerValueField(event_ref, kCGMouseEventDeltaX),
-            CGEventGetIntegerValueField(event_ref, kCGMouseEventDeltaY));
-    
     // Populate mouse motion event.
     uio_event.time = timestamp;
     if (is_mouse_dragged()) {
@@ -582,12 +583,15 @@ bool dispatch_mouse_move(uint64_t timestamp, CGEventRef event_ref) {
 
     uio_event.data.mouse.button = MOUSE_NOBUTTON;
     uio_event.data.mouse.clicks = click_count;
-    uio_event.data.mouse.x = event_point.x;
-    uio_event.data.mouse.y = event_point.y;
+    uio_event.data.mouse.x = clamp_int16_from_double(event_point.x);
+    uio_event.data.mouse.y = clamp_int16_from_double(event_point.y);
+    uio_event.data.mouse.dx = clamp_int16(CGEventGetIntegerValueField(event_ref, kCGMouseEventDeltaX));
+    uio_event.data.mouse.dy = clamp_int16(CGEventGetIntegerValueField(event_ref, kCGMouseEventDeltaY));
 
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i (dx=%i, dy=%i).\n",
             __FUNCTION__, __LINE__, is_mouse_dragged() ? "dragged" : "moved",
-            uio_event.data.mouse.x, uio_event.data.mouse.y);
+            uio_event.data.mouse.x, uio_event.data.mouse.y,
+            uio_event.data.mouse.dx, uio_event.data.mouse.dy);
 
     // Fire mouse motion event.
     dispatch_event(&uio_event);
@@ -617,8 +621,8 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
             uio_event.mask |= MASK_EMULATED;
         }
 
-        uio_event.data.wheel.x = event_point.x;
-        uio_event.data.wheel.y = event_point.y;
+        uio_event.data.wheel.x = clamp_int16_from_double(event_point.x);
+        uio_event.data.wheel.y = clamp_int16_from_double(event_point.y);
 
         uio_event.data.wheel.delta = 0;
         uio_event.data.wheel.rotation = 0;
@@ -638,10 +642,10 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
 
             if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
                 uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * ppl * 1);
+                uio_event.data.wheel.rotation = clamp_int16_from_double(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * ppl * 1);
             } else if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
                 uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) * ppl * 1);
+                uio_event.data.wheel.rotation = clamp_int16_from_double(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) * ppl * 1);
             }
         } else {
             // non-continuous device (wheel mice)
@@ -650,14 +654,14 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
 
             if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
                 uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis1) * ppl * 10);
+                uio_event.data.wheel.rotation = clamp_int16_from_double(CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis1) * ppl * 10);
             } else if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
                 uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-                uio_event.data.wheel.rotation = (int16_t) (CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis2) * ppl * 10);
+                uio_event.data.wheel.rotation = clamp_int16_from_double(CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis2) * ppl * 10);
             }
         }
 
-        uio_event.data.wheel.delta = (uint16_t) ppl;
+        uio_event.data.wheel.delta = clamp_uint16_from_double(ppl);
 
         if (source) {
             CFRelease(source);

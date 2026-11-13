@@ -19,8 +19,9 @@
 #include <uiohook.h>
 #include <windows.h>
 
-#include "input_helper.h"
 #include "logger.h"
+#include "numeric_helper.h"
+#include "input_helper.h"
 
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
 HINSTANCE hInst;
@@ -62,10 +63,10 @@ static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT
         screens->data[current_screen] = (screen_data) {
             // Should monitor count start @ zero? Currently it starts at 1.
             .number = screens->count,
-            .x = origin_x,
-            .y = origin_y,
-            .width = width,
-            .height = height
+            .x = clamp_int16(origin_x),
+            .y = clamp_int16(origin_y),
+            .width = clamp_uint16(width),
+            .height = clamp_uint16(height)
         };
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Monitor %d: %ldx%ld (%ld, %ld)\n",
@@ -107,8 +108,8 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                     .number = 1,
                     .x = 0,
                     .y = 0,
-                    .width = width,
-                    .height = height
+                    .width = clamp_uint16(width),
+                    .height = clamp_uint16(height)
                 };
             }
         }

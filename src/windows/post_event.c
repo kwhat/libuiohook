@@ -22,6 +22,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "wheel_helper.h"
 
 // Some buggy versions of MinGW and MSys do not include these constants in winuser.h.
 #ifndef MAPVK_VK_TO_VSC
@@ -179,15 +180,6 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
             event->type = EVENT_MOUSE_PRESSED;
             break;
 
-        case EVENT_MOUSE_WHEEL:
-            input->mi.dwFlags = MOUSEEVENTF_WHEEL;
-
-            // TODO What are we going to do about delta=? We could normalize with rotation *= (120 / delta)
-            // TODO What are we going to do about type=WHEEL_BLOCK_SCROLL?
-            // TODO What are we going to do about amount=? Is this really a setting, not event property?
-            input->mi.mouseData = event->data.wheel.rotation;
-            break;
-
         case EVENT_MOUSE_DRAGGED:
         case EVENT_MOUSE_MOVED:
             input->mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
@@ -202,7 +194,34 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
     return UIOHOOK_SUCCESS;
 }
 
+static int post_mouse_wheel_event(uiohook_event * const event) {
+    static double remainders[2][2];
+    unsigned int axis = event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION;
+    unsigned int mode = event->data.wheel.type == WHEEL_BLOCK_SCROLL;
+    double remainder = remainders[mode][axis];
+    int32_t rotation;
+    if (!wheel_post_rotation(&event->data.wheel, WHEEL_DELTA, &remainder, &rotation)) {
+        return UIOHOOK_FAILURE;
+    }
+    if (rotation != 0) {
+        INPUT input = { 0 };
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = axis ? MOUSEEVENTF_HWHEEL : MOUSEEVENTF_WHEEL;
+        input.mi.mouseData = (DWORD) rotation;
+        // Send physical motion; Windows applies its current line/page preference.
+        if (SendInput(1, &input, sizeof(input)) != 1) {
+            return UIOHOOK_FAILURE;
+        }
+    }
+    remainders[mode][axis] = remainder;
+    return UIOHOOK_SUCCESS;
+}
+
 UIOHOOK_API int hook_post_event(uiohook_event * const event) {
+    if (event->type == EVENT_MOUSE_WHEEL) {
+        return post_mouse_wheel_event(event);
+    }
+
     INPUT *input = (INPUT *) calloc(1, sizeof(INPUT))   ;
     if (input == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: failed to allocate memory: calloc!\n",
@@ -219,7 +238,6 @@ UIOHOOK_API int hook_post_event(uiohook_event * const event) {
 
         case EVENT_MOUSE_PRESSED:
         case EVENT_MOUSE_RELEASED:
-        case EVENT_MOUSE_WHEEL:
         case EVENT_MOUSE_MOVED:
         case EVENT_MOUSE_DRAGGED:
             status = map_mouse_event(event, input);

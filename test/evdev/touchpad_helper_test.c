@@ -255,6 +255,7 @@ static void test_callback(uiohook_event *const event, void *data) {
 
         case EVENT_MOUSE_WHEEL:
             TEST_ASSERT(event->data.wheel.delta == 120);
+            TEST_ASSERT(event->data.wheel.amount == 1);
             if (active_axis == LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL) {
                 TEST_ASSERT(event->data.wheel.direction == WHEEL_VERTICAL_DIRECTION);
                 wheels += event->data.wheel.rotation / 120;

@@ -357,16 +357,10 @@ extern bool is_mouse_dragged();
 /* Set a flag that represents whether the mouse is being dragged. */
 extern void set_mouse_dragged(bool dragged);
 
-/* Initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
- * functionality.  This method is called by OnLibraryLoad() and may need to be
- * called in combination with UnloadInputHelper() if the native keyboard layout
- * is changed. */
+/* Initialize hook input state and the main-thread translation queue. */
 extern int load_input_helper();
 
-/* De-initialize items required for KeyCodeToKeySym() and KeySymToUnicode()
- * functionality.  This method is called by OnLibraryUnload() and may need to be
- * called in combination with LoadInputHelper() if the native keyboard layout
- * is changed. */
+/* Cancel pending translations and release helper resources after the hook stops. */
 extern void unload_input_helper();
 
 #endif

@@ -29,6 +29,7 @@
 #include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
+#include "main_runloop_helper.h"
 
 
 typedef struct _event_runloop_info {
@@ -387,7 +388,7 @@ UIOHOOK_API int hook_run() {
     // Initialize native input helper.
     int input_helper_status = load_input_helper();
     if (input_helper_status != UIOHOOK_SUCCESS) {
-        unload_input_helper();
+        destroy_event_runloop_info(&hook);
         return input_helper_status;
     }
 
@@ -423,6 +424,9 @@ UIOHOOK_API int hook_run() {
 }
 
 UIOHOOK_API int hook_stop() {
+    // Release a hook thread waiting for main-thread translation before stopping
+    // its runloop. In particular, the main thread may join it after this call.
+    main_runloop_stop();
     if (hook != NULL) {
         CFStringRef mode = CFRunLoopCopyCurrentMode(hook->event);
         if (mode == NULL) {

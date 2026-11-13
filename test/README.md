@@ -19,6 +19,8 @@ Tests are not built by default.
 
 | Tests | Platforms | Dependencies exercised |
 | --- | --- | --- |
+| `darwin.runloop_queue` | Linux, macOS | Production request queue with controlled pthread callers and a mock scheduler |
+| `darwin.main_runloop_helper` | macOS | Actual Core Foundation source, main-thread execution, timeout, stop, and restart without an input hook |
 | `common.logger` | All | Production logger with a mock callback |
 | `<backend>.input_helper` | evdev, Windows, macOS | Production key mappings and modifier masks with fixed native/virtual code fixtures |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
@@ -89,3 +91,18 @@ virtual-device forwarding, libinput contact interpretation, and desktop behavior
 These checks are not part of the automated unit suite and must be performed on
 each supported OS. Windows and macOS native builds have not been verified by the
 Linux test run.
+
+## macOS main-runloop synchronization
+
+The queue tests compile the production pthread queue without Apple headers. They
+exercise independent completion for concurrent callers, cancellation while the
+scheduler is not running, preservation of a running request until its callback
+finishes, stale-session rejection, direct main-thread calls, and timeout removal
+of middle and final queue entries. Completion broadcasts wake other callers as
+well; each checks its own completion predicate before returning.
+
+The native helper test creates a real Core Foundation source and verifies that
+worker work executes on the main thread. It also leaves that loop unserviced,
+checks that the pending request times out without a late callback, and exercises
+stop, idempotent cleanup, and restart. It needs macOS CI; neither test installs
+an event tap or injects input.

@@ -37,6 +37,13 @@ add_library(uiohook
     "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
 
+if(APPLE)
+    target_sources(uiohook PRIVATE
+        "src/darwin/main_runloop_helper.c"
+        "src/darwin/runloop_queue.c"
+    )
+endif()
+
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
         "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c"
@@ -281,11 +288,11 @@ if(UNIX AND NOT APPLE)
 elseif(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
 
+    find_package(Threads REQUIRED)
+    target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
+
     option(USE_APPLICATION_SERVICES "ApplicationServices framework (default: ON)" ON)
     if(USE_APPLICATION_SERVICES)
-        find_package(Threads REQUIRED)
-        target_link_libraries(uiohook "${CMAKE_THREAD_LIBS_INIT}")
-
         find_library(CARBON Carbon REQUIRED)
         target_include_directories(uiohook PRIVATE "${CARBON}")
         target_link_libraries(uiohook "${CARBON}")

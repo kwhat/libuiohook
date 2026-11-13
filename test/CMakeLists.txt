@@ -10,6 +10,30 @@ function(configure_unit_test target)
     )
 endfunction()
 
+if(UNIX)
+    find_package(Threads REQUIRED)
+    add_executable(runloop_queue_test
+        darwin/runloop_queue_test.c
+        "${PROJECT_SOURCE_DIR}/src/darwin/runloop_queue.c"
+    )
+    configure_unit_test(runloop_queue_test)
+    target_link_libraries(runloop_queue_test PRIVATE "${CMAKE_THREAD_LIBS_INIT}")
+    add_test(NAME darwin.runloop_queue COMMAND runloop_queue_test)
+    set_tests_properties(darwin.runloop_queue PROPERTIES LABELS "unit;darwin;portable" TIMEOUT 20)
+endif()
+
+if(APPLE)
+    add_executable(main_runloop_helper_test
+        darwin/main_runloop_helper_test.c
+        "${PROJECT_SOURCE_DIR}/src/darwin/main_runloop_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/darwin/runloop_queue.c"
+    )
+    configure_unit_test(main_runloop_helper_test)
+    target_link_libraries(main_runloop_helper_test PRIVATE "${CMAKE_THREAD_LIBS_INIT}" "-framework CoreFoundation")
+    add_test(NAME darwin.main_runloop_helper COMMAND main_runloop_helper_test)
+    set_tests_properties(darwin.main_runloop_helper PROPERTIES LABELS "unit;darwin" TIMEOUT 20)
+endif()
+
 add_executable(logger_test logger_test.c "${PROJECT_SOURCE_DIR}/src/logger.c")
 configure_unit_test(logger_test)
 add_test(NAME common.logger COMMAND logger_test)
@@ -70,6 +94,10 @@ else()
     if(WIN32)
         target_link_libraries(uiohook_tests user32 advapi32)
     elseif(APPLE)
+        target_sources(uiohook_tests PRIVATE
+            "${PROJECT_SOURCE_DIR}/src/darwin/main_runloop_helper.c"
+            "${PROJECT_SOURCE_DIR}/src/darwin/runloop_queue.c"
+        )
         find_package(Threads REQUIRED)
         target_link_libraries(uiohook_tests "-framework CoreFoundation" "-framework CoreGraphics" Threads::Threads)
         if(USE_APPLICATION_SERVICES)

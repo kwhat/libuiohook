@@ -27,19 +27,12 @@
 #include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
+#include "main_runloop_helper.h"
 
 #ifdef USE_APPKIT
 #include <objc/objc.h>
 #include <objc/objc-runtime.h>
 #endif
-
-// Dynamic library loading for dispatch_sync_f to offload tasks that must run on the main runloop.
-#if (defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED < __MAC_10_6) \
-    || (defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_4_0)
-typedef struct dispatch_queue_s *dispatch_queue_t;
-#endif
-static struct dispatch_queue_s *dispatch_main_queue_s;
-static void (*dispatch_sync_f_f)(dispatch_queue_t, void *, void (*function)(void *));
 
 // Flag to check to see if we are in a mouse dragging state.
 static bool mouse_dragged = false;
@@ -48,13 +41,6 @@ static bool mouse_dragged = false;
 static uint16_t modifier_mask = 0x0000;
 
 #ifdef USE_APPLICATION_SERVICES
-// Tracks the source and observer for the main runloop.
-typedef struct _cf_runloop_info {
-    CFRunLoopSourceRef source;
-    CFRunLoopObserverRef observer;
-} cf_runloop_info;
-static cf_runloop_info *main_runloop_info = NULL;
-
 // Current dead key state.
 static UInt32 deadkey_state;
 
@@ -75,15 +61,6 @@ typedef struct {
     UInt32 subtype;
     UInt32 data1;
 } TISObjCMessage;
-
-#if defined(USE_APPLICATION_SERVICES)
-// If we are using application services we need pthreads to synchronize main runloop execution.
-#include <pthread.h>
-
-// FIXME Should we be init these differently? https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutex_init.html
-static pthread_cond_t main_runloop_cond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t main_runloop_mutex = PTHREAD_MUTEX_INITIALIZER;
-#endif
 
 // Scancode loopup table
 static const uint16_t uiocode_kvkcode_table[][2] = {
@@ -573,94 +550,18 @@ static void tis_message_to_nsevent(void *info) {
     }
 }
 
-#ifdef USE_APPLICATION_SERVICES
-/* Wrapper for tis_message_to_nsevent with mutex locking for use with runloop context switching. */
-static void main_runloop_objc_proc(void *info) {
-    // Lock the msg_port mutex as we enter the main runloop.
-    pthread_mutex_lock(&main_runloop_mutex);
-
-    tis_message_to_nsevent(info);
-
-    // Unlock the msg_port mutex to signal to the hook_thread that we have finished on the main runloop.
-    pthread_cond_broadcast(&main_runloop_cond);
-    pthread_mutex_unlock(&main_runloop_mutex);
-}
-#endif
-
 void event_to_objc(CGEventRef event_ref, UInt32 *subtype, UInt32 *data1) {
-    TISObjCMessage tis_objc_message = {
-        .event = event_ref,
-        .subtype = 0,
-        .data1 = 0
-    };
-
-    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for system key events.\n",
-                    __FUNCTION__, __LINE__);
-
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, &tis_objc_message, &tis_message_to_nsevent);
-        }
-        #ifdef USE_APPLICATION_SERVICES
-        else {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
-                    __FUNCTION__, __LINE__);
-
-            // Lock for code dealing with the main runloop.
-            pthread_mutex_lock(&main_runloop_mutex);
-
-            // Check to see if the main runloop is still running.
-            CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
-            if (mode != NULL) {
-                CFRelease(mode);
-
-                if (main_runloop_info != NULL) {
-                    // Lookup the Unicode representation for this event.
-                    CFRunLoopSourceContext *context = NULL;
-                    CFRunLoopSourceGetContext(main_runloop_info->source, context);
-
-                    if (context != NULL) {
-                        // Setup the context for this action
-                        context->info = &tis_objc_message;
-                        context->perform = main_runloop_objc_proc;
-
-                        // Signal the custom source and wakeup the main runloop.
-                        CFRunLoopSourceSignal(main_runloop_info->source);
-                        CFRunLoopWakeUp(CFRunLoopGetMain());
-
-                        // Wait for a lock while the main runloop processes they key typed event.
-                        pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
-                    } else {
-                        logger(LOG_LEVEL_ERROR, "%s [%u]: context is null!\n",
-                                __FUNCTION__, __LINE__);
-                    }
-                } else {
-                     logger(LOG_LEVEL_ERROR, "%s [%u]: main_runloop_info is null!\n",
-                             __FUNCTION__, __LINE__);
-                 }
-            } else {
-                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal main runloop!\n",
-                        __FUNCTION__, __LINE__);
-            }
-
-            // Unlock for code dealing with the main runloop.
-            pthread_mutex_unlock(&main_runloop_mutex);
-        }
-        #endif
-    } else {
-        // We are already on the main runloop, so no fancy context switching is required required.
-        tis_message_to_nsevent(&tis_objc_message);
-
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Using no runloop for objc message events.\n",
+    TISObjCMessage message = { .event = event_ref, .subtype = 0, .data1 = 0 };
+    if (!main_runloop_call(tis_message_to_nsevent, &message)) {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Main-runloop conversion cancelled.\n",
                 __FUNCTION__, __LINE__);
     }
-
-    *subtype = tis_objc_message.subtype;
-    *data1 = tis_objc_message.data1;
+    *subtype = message.subtype;
+    *data1 = message.data1;
 }
 
 
-// Preform Unicode lookup from the main runloop vui dispatch_sync_f_f or application services runloop signaling.
+// Perform Unicode lookup on the main thread through the shared request queue.
 static void tis_message_to_unicode(void *info) {
     TISKeycodeMessage *tis = (TISKeycodeMessage *) info;
 
@@ -770,212 +671,22 @@ static void tis_message_to_unicode(void *info) {
     }
 }
 
-#ifdef USE_APPLICATION_SERVICES
-/* Wrapper for tis_message_to_unicode with mutex locking for use with runloop context switching. */
-static void main_runloop_unicode_proc(void *info) {
-    // Lock the msg_port mutex as we enter the main runloop.
-    pthread_mutex_lock(&main_runloop_mutex);
-
-    tis_message_to_unicode(info);
-
-    // Unlock the msg_port mutex to signal to the hook_thread that we have finished on the main runloop.
-    pthread_cond_broadcast(&main_runloop_cond);
-    pthread_mutex_unlock(&main_runloop_mutex);
-}
-#endif
-
 UniCharCount event_to_unicode(CGEventRef event_ref, UniChar *buffer, UniCharCount size) {
-    TISKeycodeMessage tis_keycode_message = {
-        .event = event_ref,
-        .buffer = buffer,
-        .size = size,
-        .length = 0
+    TISKeycodeMessage message = {
+        .event = event_ref, .buffer = buffer, .size = size, .length = 0
     };
-
-    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-        if (dispatch_sync_f_f != NULL && dispatch_main_queue_s != NULL) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using dispatch_sync_f for key typed events.\n",
-                    __FUNCTION__, __LINE__);
-            (*dispatch_sync_f_f)(dispatch_main_queue_s, &tis_keycode_message, &tis_message_to_unicode);
-        }
-        #ifdef USE_APPLICATION_SERVICES
-        else {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Using CFRunLoopWakeUp for key typed events.\n",
-                    __FUNCTION__, __LINE__);
-
-            // Lock for code dealing with the main runloop.
-            pthread_mutex_lock(&main_runloop_mutex);
-
-            // Check to see if the main runloop is still running.
-            CFStringRef mode = CFRunLoopCopyCurrentMode(CFRunLoopGetMain());
-            if (mode != NULL) {
-                CFRelease(mode);
-
-                if (main_runloop_info != NULL) {
-                    // Lookup the Unicode representation for this event.
-                    CFRunLoopSourceContext *context = NULL;
-                    CFRunLoopSourceGetContext(main_runloop_info->source, context);
-
-                    if (context != NULL) {
-                        // Setup the context for this action
-                        context->info = &tis_keycode_message;
-                        context->perform = main_runloop_unicode_proc;
-
-                        // Signal the custom source and wakeup the main runloop.
-                        CFRunLoopSourceSignal(main_runloop_info->source);
-                        CFRunLoopWakeUp(CFRunLoopGetMain());
-
-                        // Wait for a lock while the main runloop processes they key typed event.
-                        pthread_cond_wait(&main_runloop_cond, &main_runloop_mutex);
-                    } else {
-                        logger(LOG_LEVEL_ERROR, "%s [%u]: context is null!\n",
-                                __FUNCTION__, __LINE__);
-                    }
-                } else {
-                     logger(LOG_LEVEL_ERROR, "%s [%u]: main_runloop_info is null!\n",
-                             __FUNCTION__, __LINE__);
-                 }
-            } else {
-                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to signal main runloop!\n",
-                        __FUNCTION__, __LINE__);
-            }
-
-            // Unlock for code dealing with the main runloop.
-            pthread_mutex_unlock(&main_runloop_mutex);
-        }
-        #endif
-    } else {
-        // We are already on the main runloop, so no fancy context switching is required required.
-        tis_message_to_unicode(&tis_keycode_message);
-
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Using no runloop for key typed events.\n",
+    if (!main_runloop_call(tis_message_to_unicode, &message)) {
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Main-runloop conversion cancelled.\n",
                 __FUNCTION__, __LINE__);
     }
-
-    return tis_keycode_message.length;
+    return message.length;
 }
-
-#ifdef USE_APPLICATION_SERVICES
-/* This is the callback for our cf_runloop_info.observer. */
-void main_runloop_status_proc(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info) {
-    switch (activity) {
-        case kCFRunLoopExit:
-            // Acquire a lock on the msg_port and signal that anyone waiting should continue.
-            pthread_mutex_lock(&main_runloop_mutex);
-            pthread_cond_broadcast(&main_runloop_cond);
-            pthread_mutex_unlock(&main_runloop_mutex);
-            break;
-    }
-}
-
-static int create_main_runloop_info(cf_runloop_info **main) {
-    if (*main != NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Expected unallocated cf_runloop_info pointer!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_FAILURE;
-    }
-
-    // Try and allocate memory for cf_runloop_info.
-    *main = malloc(sizeof(cf_runloop_info));
-    if (*main == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for cf_runloop_info structure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_OUT_OF_MEMORY;
-    }
-
-    // Allocate memory for the CFRunLoopSourceContext structure
-    CFRunLoopSourceContext *context = (CFRunLoopSourceContext *) calloc(1, sizeof(CFRunLoopSourceContext));
-    if (context == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to allocate memory for CFRunLoopSourceContext structure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_OUT_OF_MEMORY;
-    }
-
-    // Create a runloop observer for the main runloop.
-    (*main)->observer = CFRunLoopObserverCreate(
-            kCFAllocatorDefault,
-            kCFRunLoopExit, //kCFRunLoopEntry | kCFRunLoopExit, //kCFRunLoopAllActivities,
-            true,
-            0,
-            main_runloop_status_proc,
-            NULL
-        );
-    if ((*main)->observer == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopObserverCreate failure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_OBSERVER;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopObserverCreate success!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    (*main)->source = CFRunLoopSourceCreate(kCFAllocatorDefault, 0, context);
-
-    if ((*main)->source == NULL) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: CFRunLoopSourceCreate failure!\n",
-                __FUNCTION__, __LINE__);
-
-        return UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE;
-    } else {
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: CFRunLoopSourceCreate success!\n",
-                __FUNCTION__, __LINE__);
-    }
-
-    CFRunLoopRef main_loop = CFRunLoopGetMain();
-
-    pthread_mutex_lock(&main_runloop_mutex);
-
-    CFRunLoopAddSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
-    CFRunLoopAddObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
-
-    pthread_mutex_unlock(&main_runloop_mutex);
-
-    return UIOHOOK_SUCCESS;
-}
-
-static void destroy_main_runloop_info(cf_runloop_info **main) {
-    if (*main != NULL) {
-        CFRunLoopRef main_loop = CFRunLoopGetMain();
-
-        if ((*main)->observer != NULL) {
-            if (CFRunLoopContainsObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode)) {
-                CFRunLoopRemoveObserver(main_loop, (*main)->observer, kCFRunLoopDefaultMode);
-            }
-
-            CFRunLoopObserverInvalidate((*main)->observer);
-            CFRelease((*main)->observer);
-            (*main)->observer = NULL;
-        }
-
-        if ((*main)->source != NULL) {
-            // Lookup the Unicode representation for this event.
-            CFRunLoopSourceContext *context = NULL;
-            CFRunLoopSourceGetContext((*main)->source, context);
-
-            if (context != NULL) {
-                free(context);
-            }
-
-            if (CFRunLoopContainsSource(main_loop, (*main)->source, kCFRunLoopDefaultMode)) {
-                CFRunLoopRemoveSource(main_loop, (*main)->source, kCFRunLoopDefaultMode);
-            }
-
-            CFRelease((*main)->source);
-            (*main)->source = NULL;
-        }
-
-        // Free the main structure.
-        free(*main);
-        *main = NULL;
-    }
-}
-#endif
 
 int load_input_helper() {
+    int status = main_runloop_start();
+    if (status != UIOHOOK_SUCCESS) {
+        return status;
+    }
     #ifdef USE_APPLICATION_SERVICES
     // Start with a fresh dead key state.
     deadkey_state = 0;
@@ -984,57 +695,13 @@ int load_input_helper() {
     // Initialize the current state of the modifiers.
     initialize_modifiers();
 
-    // If we are not running on the main runloop, we need to setup a runloop dispatcher.
-    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-        // Dynamically load dispatch_sync_f to maintain 10.5 compatibility.
-        *(void **) (&dispatch_sync_f_f) = dlsym(RTLD_DEFAULT, "dispatch_sync_f");
-        const char *dlError = dlerror();
-        if (dlError != NULL) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
-                    __FUNCTION__, __LINE__, dlError);
-        }
-
-        // This load is equivalent to calling dispatch_get_main_queue().  We use
-        // _dispatch_main_q because dispatch_get_main_queue is not exported from
-        // libdispatch.dylib and the upstream function only dereferences the pointer.
-        dispatch_main_queue_s = (struct dispatch_queue_s *) dlsym(RTLD_DEFAULT, "_dispatch_main_q");
-        dlError = dlerror();
-        if (dlError != NULL) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: %s.\n",
-                    __FUNCTION__, __LINE__, dlError);
-        }
-
-        if (dispatch_sync_f_f == NULL || dispatch_main_queue_s == NULL) {
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Failed to locate dispatch_sync_f() or dispatch_get_main_queue()!\n",
-                    __FUNCTION__, __LINE__);
-
-            #ifdef USE_APPLICATION_SERVICES
-            logger(LOG_LEVEL_DEBUG, "%s [%u]: Falling back to runloop signaling.\n",
-                    __FUNCTION__, __LINE__);
-
-            int keycode_runloop_status = create_main_runloop_info(&main_runloop_info);
-            if (keycode_runloop_status != UIOHOOK_SUCCESS) {
-                destroy_main_runloop_info(&main_runloop_info);
-                return keycode_runloop_status;
-            }
-            #endif
-        }
-    }
-
     return UIOHOOK_SUCCESS;
 }
 
 void unload_input_helper() {
-    #ifdef USE_APPLICATION_SERVICES
-    if (!CFEqual(CFRunLoopGetCurrent(), CFRunLoopGetMain())) {
-        // TODO Are we using the right mutex type? PTHREAD_MUTEX_DEFAULT?
-        // TODO See: https://pubs.opengroup.org/onlinepubs/7908799/xsh/pthread_mutexattr_settype.html
-        // FIXME Need to check for errors on pthread_mutex_
-        pthread_mutex_lock(&main_runloop_mutex);
-        destroy_main_runloop_info(&main_runloop_info);
-        pthread_mutex_unlock(&main_runloop_mutex);
-    }
-    #endif
+    // Pending requests are cancelled; a running conversion has completed before
+    // its hook-thread caller can reach teardown and release the cached layout.
+    main_runloop_destroy();
 
     #ifdef USE_APPLICATION_SERVICES
     if (prev_keyboard_layout != NULL) {

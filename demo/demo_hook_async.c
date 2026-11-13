@@ -21,6 +21,7 @@
 #endif
 
 #include <inttypes.h>
+#include <locale.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -340,6 +341,9 @@ int hook_enable() {
 
 
 int main() {
+    // Set the locale for Unicode output before starting the hook thread.
+    setlocale(LC_ALL, "");
+
     // Lock the thread control mutex.  This will be unlocked when the
     // thread has finished starting, or when it has fully stopped.
     #ifdef _WIN32

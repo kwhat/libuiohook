@@ -5,7 +5,9 @@ function(configure_unit_test target)
     target_include_directories(${target} PRIVATE
         "${PROJECT_SOURCE_DIR}/include"
         "${PROJECT_SOURCE_DIR}/src"
-        "${PROJECT_SOURCE_DIR}/src/${UIOHOOK_SOURCE_DIR}"
+        "$<$<PLATFORM_ID:Darwin>:${PROJECT_SOURCE_DIR}/src/darwin>"
+        "$<$<PLATFORM_ID:Windows>:${PROJECT_SOURCE_DIR}/src/windows>"
+        "$<$<PLATFORM_ID:Linux>:${PROJECT_SOURCE_DIR}/src/evdev>"
         "${CMAKE_CURRENT_SOURCE_DIR}"
     )
 endfunction()
@@ -36,6 +38,28 @@ if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     target_link_libraries(unicode_helper_test user32 advapi32)
     add_test(NAME windows.unicode_helper COMMAND unicode_helper_test)
     set_tests_properties(windows.unicode_helper PROPERTIES LABELS "unit;windows")
+endif()
+
+if(APPLE)
+    find_package(Threads REQUIRED)
+    add_executable(runloop_queue_test
+        darwin/runloop_queue_test.c
+        "${PROJECT_SOURCE_DIR}/src/darwin/runloop_queue.c"
+    )
+    configure_unit_test(runloop_queue_test)
+    target_link_libraries(runloop_queue_test PRIVATE "${CMAKE_THREAD_LIBS_INIT}")
+    add_test(NAME darwin.runloop_queue COMMAND runloop_queue_test)
+    set_tests_properties(darwin.runloop_queue PROPERTIES LABELS "unit;darwin" TIMEOUT 20)
+
+    add_executable(runloop_helper_test
+        darwin/runloop_helper_test.c
+        "${PROJECT_SOURCE_DIR}/src/darwin/runloop_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/darwin/runloop_queue.c"
+    )
+    configure_unit_test(runloop_helper_test)
+    target_link_libraries(runloop_helper_test PRIVATE "${CMAKE_THREAD_LIBS_INIT}" "-framework CoreFoundation")
+    add_test(NAME darwin.runloop_helper COMMAND runloop_helper_test)
+    set_tests_properties(darwin.runloop_helper PROPERTIES LABELS "unit;darwin" TIMEOUT 20)
 endif()
 
 add_executable(logger_test logger_test.c "${PROJECT_SOURCE_DIR}/src/logger.c")

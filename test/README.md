@@ -22,6 +22,8 @@ Tests are not built by default.
 | `common.header` | All | Public macro precedence in mask operations, arithmetic, and keycode comparisons |
 | `windows.unicode_table` | Windows | Owned keyboard-table decoder with fixed x86, x64, and WOW64 byte fixtures |
 | `windows.unicode_helper` | Windows x64 | Real cache/loader code with mocked registry, DLL, memory-read, layout, and key-state APIs |
+| `darwin.runloop_queue` | macOS | Production request queue with controlled pthread callers and a mock scheduler |
+| `darwin.runloop_helper` | macOS | Actual Core Foundation source, main-thread execution, timeout, stop, and restart without an input hook |
 | `common.logger` | All | Production logger with a mock callback |
 | `common.numeric_helper` | All | Signed/unsigned 16-bit conversion boundaries and saturation |
 | `darwin.numeric_conversion` | macOS | Double-to-16-bit clamps, overflow, NaN/infinity, and fractional truncation |
@@ -186,3 +188,19 @@ new layout loading, registry failure cleanup, unreadable image failure cleanup,
 and immediate DLL unloading after import. Actual WOW64/ARM64 emulation and
 non-US layouts still need native Windows validation; byte fixtures do not
 establish that OS integration works on those machines.
+
+## macOS main-runloop synchronization
+
+The queue tests compile the production pthread queue without Core Foundation.
+The queue detects main-thread callers using Darwin's `pthread_main_np()`. They
+exercise independent completion for concurrent callers, cancellation while the
+scheduler is not running, preservation of a running request until its callback
+finishes, stale-session rejection, direct main-thread calls, and timeout removal
+of middle and final queue entries. Completion broadcasts wake other callers as
+well; each checks its own completion predicate before returning.
+
+The native helper test creates a real Core Foundation source and verifies that
+worker work executes on the main thread. It also leaves that loop unserviced,
+checks that the pending request times out without a late callback, and exercises
+stop, idempotent cleanup, and restart. It needs macOS CI; neither test installs
+an event tap or injects input.

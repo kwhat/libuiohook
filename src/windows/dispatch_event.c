@@ -143,11 +143,11 @@ bool dispatch_key_press(uint64_t timestamp, KBDLLHOOKSTRUCT *kbhook) {
 
     // If the pressed event was not consumed...
     if (!consumed) {
-        // Buffer for unicode typed chars. No more than 2 needed.
-        WCHAR buffer[2]; // = { WCH_NONE };
+        // A layout ligature can contain more than two UTF-16 code units.
+        WCHAR buffer[256];
 
         // If the pressed event was not consumed and a unicode char exists...
-        SIZE_T count = vkcode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer));
+        SIZE_T count = vkcode_to_unicode(kbhook->vkCode, buffer, sizeof(buffer) / sizeof(buffer[0]));
         for (unsigned int i = 0; i < count; i++) {
             // Populate key typed event.
             uio_event.time = timestamp;

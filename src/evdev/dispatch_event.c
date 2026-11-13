@@ -407,6 +407,7 @@ bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_
      * fixed delta of 120 (matching the Windows WHEEL_DELTA convention).  Following that convention
      * rotation is a signed multiple of delta, i.e. one wheel detent equals one delta. */
     uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
+    uio_event.data.wheel.amount = 1;
     uio_event.data.wheel.delta = 120;
 
     // Scale in a wider type and clamp to the int16_t rotation field so a large scroll pins

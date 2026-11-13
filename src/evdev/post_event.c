@@ -26,6 +26,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "wheel_helper.h"
 
 // Dedicated virtual device used to inject synthetic events.  Created lazily on the first
 // hook_post_event() call so hook-only users never spawn an unused virtual input device.
@@ -169,19 +170,23 @@ static int post_mouse_button_event(uiohook_event * const event) {
 }
 
 static int post_mouse_wheel_event(uiohook_event * const event) {
-    unsigned int code = event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION
-            ? REL_HWHEEL : REL_WHEEL;
-
-    // Post one notch per event in the rotation's direction.
-    int value = 0;
-    if (event->data.wheel.rotation > 0) {
-        value = 1;
-    } else if (event->data.wheel.rotation < 0) {
-        value = -1;
+    // Keep independent fractions for axes and native scroll modes.
+    static double remainders[2][2];
+    unsigned int axis = event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION;
+    unsigned int mode = event->data.wheel.type == WHEEL_BLOCK_SCROLL;
+    double remainder = remainders[mode][axis];
+    int32_t rotation;
+    if (!wheel_post_rotation(&event->data.wheel, 1, &remainder, &rotation)) {
+        return UIOHOOK_FAILURE;
     }
 
-    libevdev_uinput_write_event(post_uinput, EV_REL, code, value);
-
+    if (rotation != 0) {
+        unsigned int code = axis ? REL_HWHEEL : REL_WHEEL;
+        if (libevdev_uinput_write_event(post_uinput, EV_REL, code, rotation) != 0) {
+            return UIOHOOK_FAILURE;
+        }
+    }
+    remainders[mode][axis] = remainder;
     return UIOHOOK_SUCCESS;
 }
 
@@ -227,7 +232,9 @@ UIOHOOK_API int hook_post_event(uiohook_event * const event) {
 
     // Terminate the event frame so the kernel delivers it.
     if (status == UIOHOOK_SUCCESS) {
-        libevdev_uinput_write_event(post_uinput, EV_SYN, SYN_REPORT, 0);
+        if (libevdev_uinput_write_event(post_uinput, EV_SYN, SYN_REPORT, 0) != 0) {
+            status = UIOHOOK_FAILURE;
+        }
     }
 
     return status;

@@ -404,11 +404,11 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
     uio_event.data.wheel.x = (int16_t) mshook->pt.x;
     uio_event.data.wheel.y = (int16_t) mshook->pt.y;
 
-    /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
-     * A positive value indicates that the wheel was rotated
-     * forward, away from the user; a negative value indicates that
-     * the wheel was rotated backward, toward the user. One wheel
-     * click is defined as WHEEL_DELTA, which is 120. */
+    /* The GET_WHEEL_DELTA_WPARAM(mshook->mouseData) macro returns the high-order word of mouseData which represents
+     * the wheel delta.
+     * A positive value indicates that the wheel was rotated forward, away from the user.
+     * A negative value indicates that the wheel was rotated backward, toward the user.
+     * One wheel click is defined as WHEEL_DELTA, which is 120. */
     uio_event.data.wheel.rotation = (int16_t) GET_WHEEL_DELTA_WPARAM(mshook->mouseData);
     uio_event.data.wheel.delta = WHEEL_DELTA;
 
@@ -418,40 +418,38 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
     }
 
     UINT wheel_amount = 3;
-    if (SystemParametersInfo(uiAction, 0, &wheel_amount, 0)) {
-        if (wheel_amount == WHEEL_PAGESCROLL) {
-            /* If this number is WHEEL_PAGESCROLL, a wheel roll should be interpreted as clicking once in the page
-             * down or page up regions of the scroll bar. */
-
-            uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
-            uio_event.data.wheel.rotation *= 1;
-        } else {
-            /* If this number is 0, no scrolling should occur.
-             * If the number of lines to scroll is greater than the number of lines viewable, the scroll operation
-             * should also be interpreted as a page down or page up operation. */
-
-            uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
-            uio_event.data.wheel.rotation *= wheel_amount;
-        }
-
-        // Set the direction based on what event was received.
-        uio_event.data.wheel.direction = direction;
-
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
-                __FUNCTION__, __LINE__,
-                uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
-                uio_event.data.wheel.type, uio_event.data.wheel.direction,
-                uio_event.data.wheel.x, uio_event.data.wheel.y);
-
-        // Fire mouse wheel event.
-        dispatch_event(&uio_event);
-        consumed = uio_event.mask & MASK_CONSUMED;
-    } else {
-        logger(LOG_LEVEL_WARN, "%s [%u]: SystemParametersInfo() failed, event will be consumed.\n",
+    if (!SystemParametersInfo(uiAction, 0, &wheel_amount, 0)) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: SystemParametersInfo() failed; using the default scroll amount.\n",
                 __FUNCTION__, __LINE__);
-
-        consumed = true;
+        wheel_amount = 3;
     }
+    if (wheel_amount == WHEEL_PAGESCROLL) {
+        /* If this number is WHEEL_PAGESCROLL, a wheel roll should be interpreted as clicking once in the page
+         * down or page up regions of the scroll bar. */
+
+        uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
+        uio_event.data.wheel.amount = 1;
+    } else {
+        /* If this number is 0, no scrolling should occur.
+         * If the number of lines to scroll is greater than the number of lines viewable, the scroll operation
+         * should also be interpreted as a page down or page up operation. */
+
+        uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
+        uio_event.data.wheel.amount = wheel_amount > UINT8_MAX ? UINT8_MAX : (uint8_t) wheel_amount;
+    }
+
+    // Set the direction based on what event was received.
+    uio_event.data.wheel.direction = direction;
+
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
+            __FUNCTION__, __LINE__,
+            uio_event.data.wheel.rotation, uio_event.data.wheel.delta,
+            uio_event.data.wheel.type, uio_event.data.wheel.direction,
+            uio_event.data.wheel.x, uio_event.data.wheel.y);
+
+    // Fire mouse wheel event.
+    dispatch_event(&uio_event);
+    consumed = uio_event.mask & MASK_CONSUMED;
 
     return consumed;
 }

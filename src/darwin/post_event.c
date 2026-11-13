@@ -24,6 +24,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "wheel_helper.h"
 
 static CGEventFlags current_modifier_mask = 0x00;
 static CGEventType current_motion_event = kCGEventMouseMoved;
@@ -223,26 +224,22 @@ static int post_mouse_event(uiohook_event * const event, CGEventSourceRef src) {
 }
 
 static int post_mouse_wheel_event(uiohook_event * const event, CGEventSourceRef src) {
-    // FIXME Should I create a source event with the coords?
-    // It seems to automagically use the current location of the cursor.
-    // Two options: Query the mouse, move it to x/y, scroll, then move back
-    // OR disable x/y for scroll events on Windows & X11.
-    CGScrollEventUnit scroll_unit;
-    if (event->data.wheel.type == WHEEL_BLOCK_SCROLL) {
-        // Scrolling data is line-based.
-        scroll_unit = kCGScrollEventUnitLine;
-    } else {
-        // Scrolling data is pixel-based.
-        scroll_unit = kCGScrollEventUnitPixel;
+    static double remainders[2][2];
+    unsigned int axis = event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION;
+    unsigned int mode = event->data.wheel.type == WHEEL_BLOCK_SCROLL;
+    double remainder = remainders[mode][axis];
+    int32_t rotation;
+    if (!wheel_post_rotation(&event->data.wheel, 1, &remainder, &rotation)) {
+        return UIOHOOK_FAILURE;
+    }
+    if (rotation == 0) {
+        remainders[mode][axis] = remainder;
+        return UIOHOOK_SUCCESS;
     }
 
-    CGEventRef cg_event = CGEventCreateScrollWheelEvent(
-        src,
-        kCGScrollEventUnitLine,
-        // TODO Currently only support 1 wheel axis.
-        (CGWheelCount) 1, // 1 for Y-only, 2 for Y-X, 3 for Y-X-Z
-        event->data.wheel.rotation // TODO Is this value correct? Do we need PPL?
-    );
+    CGScrollEventUnit scroll_unit = mode ? kCGScrollEventUnitPixel : kCGScrollEventUnitLine;
+    CGEventRef cg_event = CGEventCreateScrollWheelEvent(src, scroll_unit,
+            (CGWheelCount) 2, axis ? 0 : rotation, axis ? rotation : 0);
 
     if (cg_event == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: CGEventCreateScrollWheelEvent failed!\n",
@@ -252,6 +249,8 @@ static int post_mouse_wheel_event(uiohook_event * const event, CGEventSourceRef 
 
     CGEventPost(kCGHIDEventTap, cg_event); // kCGSessionEventTap also works.
     CFRelease(cg_event);
+
+    remainders[mode][axis] = remainder;
 
     return UIOHOOK_SUCCESS;
 }

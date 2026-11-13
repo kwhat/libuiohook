@@ -184,8 +184,9 @@ void dispatch_proc(uiohook_event * const event, void *user_data) {
 
         case EVENT_MOUSE_WHEEL:
             snprintf(buffer + length, sizeof(buffer) - length,
-                ",type=%u,rotation=%i,delta=%u,direction=%u",
+                ",type=%u,amount=%u,rotation=%i,delta=%u,direction=%u",
                 event->data.wheel.type,
+                event->data.wheel.amount,
                 event->data.wheel.rotation,
                 event->data.wheel.delta,
                 event->data.wheel.direction);

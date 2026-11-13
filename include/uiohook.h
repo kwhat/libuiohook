@@ -113,8 +113,9 @@ typedef struct _mouse_wheel_event_data {
     int16_t x;
     int16_t y;
     uint8_t type;
-    int16_t rotation;
-    uint16_t delta;
+    uint8_t amount;    // Native scroll setting; informational and may be zero.
+    int16_t rotation;  // Signed movement; rotation / delta gives native scroll units.
+    uint16_t delta;    // Positive scale: 120 per wheel detent/line, 1 per macOS pixel.
     uint8_t direction;
 } mouse_wheel_event_data;
 

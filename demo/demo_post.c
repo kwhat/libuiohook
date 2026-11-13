@@ -133,6 +133,9 @@ int main() {
 
     event->data.wheel.x = 675;
     event->data.wheel.y = 675;
+    event->data.wheel.type = WHEEL_UNIT_SCROLL;
+    event->data.wheel.amount = 1;
+    event->data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
     event->data.wheel.rotation = 300;
     event->data.wheel.delta = 100;
     hook_post_event(event);

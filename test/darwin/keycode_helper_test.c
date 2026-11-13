@@ -93,7 +93,22 @@ static void test_modifier_and_drag_state(void) {
     TEST_ASSERT(get_modifiers() == 0);
 }
 
+static void test_macro_precedence(void) {
+    // Deliberately leave macro uses unwrapped inside larger expressions.
+    TEST_ASSERT((kVK_NX_Power & 0x1F) == NX_POWER_KEY);
+    TEST_ASSERT((kVK_NX_Eject & 0x1F) == NX_KEYTYPE_EJECT);
+    TEST_ASSERT((kVK_MEDIA_Play & 0x1F) == NX_KEYTYPE_PLAY);
+    TEST_ASSERT((kVK_MEDIA_Next & 0x1F) == NX_KEYTYPE_NEXT);
+    TEST_ASSERT((kVK_MEDIA_Previous & 0x1F) == NX_KEYTYPE_PREVIOUS);
+    TEST_ASSERT((kCGEventFlagMaskButtonLeft + 1U) == 2U);
+    TEST_ASSERT((kCGEventFlagMaskButtonRight + 1U) == 3U);
+    TEST_ASSERT((kCGEventFlagMaskButtonCenter + 1U) == 5U);
+    TEST_ASSERT((kCGEventFlagMaskXButton1 + 1U) == 9U);
+    TEST_ASSERT((kCGEventFlagMaskXButton2 + 1U) == 17U);
+}
+
 int main(void) {
+    test_macro_precedence();
     test_known_mappings();
     test_unknown_and_aliased_keys();
     test_modifier_and_drag_state();

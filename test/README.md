@@ -19,6 +19,7 @@ Tests are not built by default.
 
 | Tests | Platforms | Dependencies exercised |
 | --- | --- | --- |
+| `common.header` | All | Public macro precedence in mask operations, arithmetic, and keycode comparisons |
 | `common.logger` | All | Production logger with a mock callback |
 | `common.numeric_helper` | All | Signed/unsigned 16-bit conversion boundaries and saturation |
 | `darwin.numeric_conversion` | macOS | Double-to-16-bit clamps, overflow, NaN/infinity, and fractional truncation |

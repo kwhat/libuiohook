@@ -10,6 +10,11 @@ function(configure_unit_test target)
     )
 endfunction()
 
+add_executable(header_test header_test.c)
+configure_unit_test(header_test)
+add_test(NAME common.header COMMAND header_test)
+set_tests_properties(common.header PROPERTIES LABELS "unit;common;portable")
+
 add_executable(logger_test logger_test.c "${PROJECT_SOURCE_DIR}/src/logger.c")
 configure_unit_test(logger_test)
 add_test(NAME common.logger COMMAND logger_test)

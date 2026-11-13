@@ -116,8 +116,9 @@ native `ubuntu-26.04-arm` runner; ARM32 and x86 remain cross builds and do not t
 to execute foreign binaries. ARM32 uses a separately resolved target sysroot so ports-mirror libraries do not
 have to match packages installed on the x86 host. Its download-only apt state is
 isolated from the runner, and target package scripts/tools are never executed.
-The x86 cross build selects host GLib generators explicitly; both setups retain
-the Ubuntu security repositories.
+The x86 cross build preserves the runner's native repositories, adds an i386-only
+Ubuntu source, and selects host GLib generators explicitly. Both cross-build
+setups retain the Ubuntu security repositories.
 
 ## Hardware checks
 

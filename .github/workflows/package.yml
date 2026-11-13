@@ -334,18 +334,16 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo rm -Rf /etc/apt/sources.list.d
-          sudo bash -c 'source /etc/os-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${VERSION_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${VERSION_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu ${VERSION_CODENAME}-security main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${VERSION_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${VERSION_CODENAME} main
-          " > /etc/apt/sources.list'
+          # Keep the runner's native mirrors and supplemental repositories.
+          # Removing them can make installed packages newer than apt's candidates.
+          sudo bash -c 'source /etc/os-release && cat > /etc/apt/sources.list.d/libuiohook-i386.list <<SOURCES
+          deb [arch=i386 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu ${VERSION_CODENAME} main universe
+          deb [arch=i386 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu ${VERSION_CODENAME}-updates main universe
+          deb [arch=i386 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://security.ubuntu.com/ubuntu ${VERSION_CODENAME}-security main universe
+          SOURCES'
 
           sudo dpkg --add-architecture i386
-          sudo apt-get update -m
+          sudo apt-get update
 
           # libinput-dev pulls GLib through libwacom. GLib generators run on
           # the amd64 host; select them before installing target development files.

@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -28,7 +28,6 @@
 static CGEventFlags current_modifier_mask = 0x00;
 static CGEventType current_motion_event = kCGEventMouseMoved;
 static CGMouseButton current_motion_button = 0;
-
 
 static int post_key_event(uiohook_event * const event, CGEventSourceRef src) {
     bool is_pressed;

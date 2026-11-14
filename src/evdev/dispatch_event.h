@@ -23,20 +23,32 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
+/* Dispatch the hook-enabled notification. */
 extern void dispatch_hook_enabled();
 
+/* Dispatch the hook-disabled notification. */
 extern void dispatch_hook_disabled();
 
+/* Translate and dispatch a key press and any resulting typed characters; return whether the event
+ * was consumed. */
 extern bool dispatch_key_press(struct input_event *const ev);
 
+/* Translate and dispatch a key release; return whether the event was consumed. */
 extern bool dispatch_key_release(struct input_event *const ev);
 
+/* Reset drag tracking, update click tracking, and dispatch a mouse-button press; return whether the
+ * event was consumed. */
 extern bool dispatch_mouse_press(struct input_event *const ev, uint16_t button);
 
+/* Dispatch a mouse-button release and synthesize a click when no drag occurred; return whether the
+ * event was consumed. */
 extern bool dispatch_mouse_release(struct input_event *const ev, uint16_t button);
 
+/* Dispatch pointer motion as a move or drag event; return whether the event was consumed. */
 extern bool dispatch_mouse_move(struct input_event *const ev);
 
+/* Dispatch wheel motion with the supplied rotation and direction; return whether the event was
+ * consumed. */
 extern bool dispatch_mouse_wheel(struct input_event *const ev, int16_t rotation, uint8_t direction);
 
 #endif

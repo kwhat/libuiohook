@@ -30,6 +30,7 @@
 #include "dispatch_event.h"
 #include "input_helper.h"
 #include "logger.h"
+#include "mouse_helper.h"
 #include "touchpad_helper.h"
 
 struct touchpad {
@@ -139,6 +140,7 @@ int touchpad_create(const char *path, touchpad_button_proc dispatch_button, stru
             touchpad->uinput != NULL ? "forwarding through virtual mouse" : "observing only");
 
     *result = touchpad;
+
     return UIOHOOK_SUCCESS;
 }
 

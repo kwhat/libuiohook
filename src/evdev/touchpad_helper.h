@@ -24,24 +24,26 @@
 
 struct touchpad;
 
-// Use the hook's shared button handler for modifier state and event consumption.
+/* Handle a translated button event through the hook's shared modifier and consumption logic; return
+ * whether it was consumed. */
 typedef bool (*touchpad_button_proc)(struct input_event *event);
 
-// Creates a touchpad backend, falling back to observation if forwarding is
-// unavailable. On failure, resources are released and *touchpad is NULL.
+/* Create a libinput touchpad backend, falling back to observation when virtual forwarding is
+ * unavailable; return UIOHOOK_SUCCESS or an error, clearing the output pointer on failure. */
 extern int touchpad_create(const char *path, touchpad_button_proc dispatch_button, struct touchpad **touchpad);
 
-// Releases the libinput context and virtual mouse, and clears *touchpad.
+/* Release the touchpad backend and virtual mouse, then clear the caller's pointer; accept a null
+ * backend. */
 extern void touchpad_destroy(struct touchpad **touchpad);
 
-// Descriptor registered with the hook manager's epoll instance.
+/* Return the libinput descriptor to register with the hook manager's epoll instance. */
 extern int touchpad_get_fd(const struct touchpad *touchpad);
 
-// Virtual-device node to exclude from hotplug enumeration, or NULL when observing.
+/* Return the virtual-device node to exclude from hotplug enumeration, or NULL in observation mode. */
 extern const char * touchpad_get_devnode(const struct touchpad *touchpad);
 
-// Drains translated events. Returns 0 on success or a negative errno on failure
-// or device removal, allowing the hook manager to detach the device.
+/* Drain and translate pending libinput events; return zero on success or a negative errno on
+ * dispatch failure or device removal. */
 extern int touchpad_dispatch(struct touchpad *touchpad);
 
 #endif

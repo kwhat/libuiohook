@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -48,10 +48,13 @@
 #include <limits.h>
 #include <windows.h>
 
+#include "keycode_helper.h"
+
 #ifndef LPFN_ISWOW64PROCESS
 typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 #endif
 
+/* Return the native keyboard-layout descriptor exported by a layout DLL. */
 typedef void* (CALLBACK *KbdLayerDescriptor) (VOID);
 
 #define CAPLOK          0x01
@@ -126,29 +129,16 @@ typedef struct tagKbdLayer {
     DWORD dwSubType;
 } KBDTABLES, *PKBDTABLES;               // __ptr64
 
-
-/* Converts a uiohook virtual key code to the appropriate Windows VK key code. */
-extern DWORD uiocode_to_vkcode(uint16_t uiocode);
-
-/* Converts a Windows VK key code to the appropriate uiohook virtual key code. */
-extern uint16_t vkcode_to_uiocode(DWORD vk_code, DWORD flags);
-
-/* Converts a Windows vk code to it's unicode representation */
+/* Translate a Windows virtual-key code using the current keyboard layout and dead-key state; write
+ * UTF-16 characters and return the number written. */
 extern SIZE_T vkcode_to_unicode(DWORD keycode, PWCHAR buffer, SIZE_T size);
 
-/* Set the native modifier mask for future events. */
-extern void set_modifier_mask(uint16_t mask);
-
-/* Unset the native modifier mask for future events. */
-extern void unset_modifier_mask(uint16_t mask);
-
-/* Get the current native modifier mask state. */
-extern uint16_t get_modifiers();
-
-/* Initialize the locale list and wow64 pointer size. */
+/* Initialize modifier state, detect WOW64 pointer padding when needed, refresh keyboard layouts,
+ * and return UIOHOOK_SUCCESS. */
 extern int load_input_helper();
 
-/* Cleanup the initialized locales. */
+/* Unload keyboard-layout libraries, free the locale list, and clear the current locale and modifier
+ * mask. */
 extern void unload_input_helper();
 
 #endif

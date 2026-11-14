@@ -25,6 +25,7 @@
 #include <uiohook.h>
 
 #include "input_helper.h"
+#include "keycode_helper.h"
 #include "logger.h"
 
 // Dedicated virtual device used to inject synthetic events.  Created lazily on the first

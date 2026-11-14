@@ -28,7 +28,6 @@
 #include "wayland_helper.h"
 #include "x11_helper.h"
 
-
 UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     *count = 0;
     screen_data *screens = NULL;

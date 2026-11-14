@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 #define __FUNCTION__ __func__
 #endif
 
+/* Forward a formatted message to the registered logger callback; do nothing if no callback is set. */
 extern void logger(unsigned int level, const char *format, ...);
 
 #endif

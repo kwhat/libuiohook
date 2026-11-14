@@ -31,9 +31,10 @@
 
 #include "dispatch_event.h"
 #include "input_helper.h"
+#include "input_state.h"
 #include "logger.h"
+#include "mouse_helper.h"
 #include "touchpad_helper.h"
-
 
 struct input_hook {
     struct libevdev *evdev;
@@ -67,7 +68,6 @@ static struct udev_monitor *udev_mon = NULL;
 // is a struct input_hook validated against hook_list before use.
 static char stop_tag;
 static char monitor_tag;
-
 
 // Handle an EV_KEY event.  Mouse buttons route through the pointer dispatch; every
 // other code is treated as a keyboard key.

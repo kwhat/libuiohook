@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -28,8 +28,9 @@
 
 #include "dispatch_event.h"
 #include "input_helper.h"
+#include "input_state.h"
 #include "logger.h"
-
+#include "mouse_helper.h"
 
 typedef struct _event_runloop_info {
     CFMachPortRef port;
@@ -41,7 +42,6 @@ typedef struct _event_runloop_info {
 #ifdef USE_APPKIT
 static id auto_release_pool;
 #endif
-
 
 #ifdef USE_EPOCH_TIME
 #include <sys/time.h>
@@ -66,7 +66,6 @@ static uint64_t get_unix_timestamp() {
 	return timestamp;
 }
 #endif
-
 
 static CGEventRef hook_event_proc(CGEventTapProxy tap_proxy, CGEventType type, CGEventRef event_ref, void *refcon) {
     bool consumed = false;

@@ -1,5 +1,5 @@
 # libUIOHook: Cross-platform keyboard and mouse hooking from userland.
-# Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+# Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
 # https://github.com/kwhat/libuiohook/
 #
 # libUIOHook is free software: you can redistribute it and/or modify
@@ -30,12 +30,18 @@ endif()
 
 add_library(uiohook
     "src/logger.c"
+    "src/input_state.c"
     "src/${UIOHOOK_SOURCE_DIR}/dispatch_event.c"
     "src/${UIOHOOK_SOURCE_DIR}/input_helper.c"
+    "src/${UIOHOOK_SOURCE_DIR}/keycode_helper.c"
     "src/${UIOHOOK_SOURCE_DIR}/input_hook.c"
     "src/${UIOHOOK_SOURCE_DIR}/post_event.c"
     "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
+
+if(UNIX)
+    target_sources(uiohook PRIVATE "src/${UIOHOOK_SOURCE_DIR}/mouse_helper.c")
+endif()
 
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
@@ -156,7 +162,8 @@ if(UNIX AND NOT APPLE)
     # librt on glibc < 2.34 (folded into libc since); link it when present so older systems build.
     find_library(RT_LIBRARY rt)
     if(RT_LIBRARY)
-        target_link_libraries(uiohook "${RT_LIBRARY}")
+        # Keep temporary cross-build sysroot paths out of exported targets.
+        target_link_libraries(uiohook rt)
     endif()
 
     # Wayland xdg-output screen enumeration.  libwayland-client is dlopen'd (not linked),

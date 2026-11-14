@@ -33,9 +33,9 @@ static void *lib_xinerama = NULL;
 static Display *disp = NULL;
 static unsigned int capabilities = 0;
 
-// Resolve one symbol into its function-pointer slot.  target is the address of the x11.*
-// pointer cast to void **, which also avoids the ISO C warning about converting object
-// pointers to function pointers.
+/* Resolve one symbol into its function-pointer slot.  target is the address of the x11.*
+ * pointer cast to void **, which also avoids the ISO C warning about converting object
+ * pointers to function pointers. */
 static void x11_resolve(void **target, void *handle, const char *name) {
     *target = dlsym(handle, name);
     if (*target == NULL) {

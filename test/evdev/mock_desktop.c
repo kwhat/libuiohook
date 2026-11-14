@@ -20,8 +20,8 @@
 #include <string.h>
 
 #include "mock_desktop.h"
-#include "x11_helper.h"
 #include "wayland_helper.h"
+#include "x11_helper.h"
 
 struct mock_desktop_state mock_desktop;
 struct x11_api x11;

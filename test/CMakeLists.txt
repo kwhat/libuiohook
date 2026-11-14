@@ -102,6 +102,12 @@ if(UNIX AND NOT APPLE)
     add_test(NAME evdev.post_event COMMAND post_event_test)
     set_tests_properties(evdev.post_event PROPERTIES LABELS "unit;evdev")
 
+    add_executable(relative_mouse_test evdev/relative_mouse_test.c)
+    configure_unit_test(relative_mouse_test)
+    target_link_libraries(relative_mouse_test evdev_test_backend)
+    add_test(NAME evdev.relative_mouse COMMAND relative_mouse_test)
+    set_tests_properties(evdev.relative_mouse PROPERTIES LABELS "unit;evdev")
+
     add_executable(system_properties_test system_properties_test.c)
     configure_unit_test(system_properties_test)
     target_link_libraries(system_properties_test evdev_test_backend)

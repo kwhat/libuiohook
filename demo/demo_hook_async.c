@@ -176,8 +176,9 @@ void dispatch_proc(uiohook_event * const event, void *user_data) {
         case EVENT_MOUSE_MOVED:
         case EVENT_MOUSE_DRAGGED:
             snprintf(buffer + length, sizeof(buffer) - length, 
-                ",x=%i,y=%i,button=%i,clicks=%i",
+                ",x=%i,y=%i,dx=%i,dy=%i,button=%i,clicks=%i",
                 event->data.mouse.x, event->data.mouse.y,
+                event->data.mouse.dx, event->data.mouse.dy,
                 event->data.mouse.button, event->data.mouse.clicks);
             break;
 

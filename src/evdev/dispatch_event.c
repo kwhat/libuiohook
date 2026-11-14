@@ -26,6 +26,7 @@
 #include "keycode_helper.h"
 #include "logger.h"
 #include "mouse_helper.h"
+#include "numeric_helper.h"
 
 typedef struct _mouse_click {
     uint16_t count;
@@ -236,6 +237,8 @@ bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
     get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u pressed %u time(s). (%i, %i)\n",
@@ -258,6 +261,8 @@ static void dispatch_mouse_clicked(uint64_t timestamp, uint16_t button) {
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
     get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%i, %i)\n",
@@ -284,6 +289,8 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click.count;
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
     get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%i, %i)\n",
@@ -309,7 +316,7 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
     return consumed;
 }
 
-bool dispatch_mouse_move(struct input_event *const ev) {
+bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
     #else
@@ -326,10 +333,11 @@ bool dispatch_mouse_move(struct input_event *const ev) {
 
     uio_event.mask = get_modifiers();
 
-    // Check the upper half of virtual modifiers for non-zero values and set the mouse
-    // dragged flag.  The last 3 bits are reserved for lock masks.
-    bool is_dragged = (bool) (uio_event.mask & 0x1F00);
-    if (is_dragged) {
+    // Motion with any mouse button held is a drag event.
+    bool is_button_held = (bool) (uio_event.mask & (
+        MASK_BUTTON1 | MASK_BUTTON2 | MASK_BUTTON3 | MASK_BUTTON4 | MASK_BUTTON5
+    ));
+    if (is_button_held) {
         uio_event.type = EVENT_MOUSE_DRAGGED;
 
         // Motion with a button held cancels the clicked event on release.
@@ -341,14 +349,18 @@ bool dispatch_mouse_move(struct input_event *const ev) {
     uio_event.data.mouse.button = MOUSE_NOBUTTON;
     uio_event.data.mouse.clicks = click.count;
 
-    // evdev only reports relative deltas; query the display server for the
-    // resulting absolute pointer position.
+    uio_event.data.mouse.dx = clamp_int16(dx);
+    uio_event.data.mouse.dy = clamp_int16(dy);
+
+    // Absolute coordinates come from the pointer tracker; retain the device
+    // deltas even when that position is clamped at a screen edge.
     get_pointer_position(&uio_event.data.mouse.x, &uio_event.data.mouse.y);
 
-    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i. (%#X)\n",
+    logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i with delta %i, %i. (%#X)\n",
             __FUNCTION__, __LINE__,
-            is_dragged ? "dragged" : "moved",
+            is_button_held ? "dragged" : "moved",
             uio_event.data.mouse.x, uio_event.data.mouse.y,
+            uio_event.data.mouse.dx, uio_event.data.mouse.dy,
             uio_event.mask);
 
     // Fire mouse move event.

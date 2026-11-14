@@ -192,7 +192,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 int dy = touchpad_delta(libinput_event_pointer_get_dy(pointer), &touchpad->motion_y);
                 if (dx != 0 || dy != 0) {
                     track_pointer_delta(dx, dy);
-                    if (!dispatch_mouse_move(&ev)) {
+                    if (!dispatch_mouse_move(&ev, dx, dy)) {
                         touchpad_emit(touchpad, EV_REL, REL_X, dx);
                         touchpad_emit(touchpad, EV_REL, REL_Y, dy);
                     }

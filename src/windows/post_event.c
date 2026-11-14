@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -48,7 +48,6 @@
 #endif
 
 #define MAX_WINDOWS_COORD_VALUE (1 << 16)
-
 
 static LONG convert_to_relative_position(int coordinate, int screen_size) {
     // See https://stackoverflow.com/a/4555214 and its comments

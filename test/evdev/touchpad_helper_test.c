@@ -28,8 +28,10 @@
 
 #include "dispatch_event.h"
 #include "input_helper.h"
-#include "touchpad_helper.h"
+#include "input_state.h"
+#include "mouse_helper.h"
 #include "test_assert.h"
+#include "touchpad_helper.h"
 
 // Native dependencies are supplied at link time. The real helper is compiled
 // separately; tests only use its declared interface and never inspect its state.

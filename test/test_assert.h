@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UIOHOOK_TEST_ASSERT_H
-#define UIOHOOK_TEST_ASSERT_H
+#ifndef _included_test_assert
+#define _included_test_assert
 
 #include <stdio.h>
 #include <stdlib.h>

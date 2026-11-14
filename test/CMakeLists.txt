@@ -10,6 +10,27 @@ function(configure_unit_test target)
     )
 endfunction()
 
+add_executable(unicode_table_test
+    windows/unicode_table_test.c windows/unicode_fixture.c
+    "${PROJECT_SOURCE_DIR}/src/windows/unicode_table.c"
+)
+configure_unit_test(unicode_table_test)
+add_test(NAME windows.unicode_table COMMAND unicode_table_test)
+set_tests_properties(windows.unicode_table PROPERTIES LABELS "unit;windows;portable")
+
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_executable(unicode_helper_test
+        windows/unicode_helper_test.c windows/unicode_fixture.c
+        "${PROJECT_SOURCE_DIR}/src/windows/unicode_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/windows/unicode_table.c"
+        "${PROJECT_SOURCE_DIR}/src/logger.c"
+    )
+    configure_unit_test(unicode_helper_test)
+    target_link_libraries(unicode_helper_test user32 advapi32)
+    add_test(NAME windows.unicode_helper COMMAND unicode_helper_test)
+    set_tests_properties(windows.unicode_helper PROPERTIES LABELS "unit;windows")
+endif()
+
 add_executable(logger_test logger_test.c "${PROJECT_SOURCE_DIR}/src/logger.c")
 configure_unit_test(logger_test)
 add_test(NAME common.logger COMMAND logger_test)
@@ -68,6 +89,10 @@ else()
         "${PROJECT_SOURCE_DIR}/src/logger.c"
     )
     if(WIN32)
+        target_sources(uiohook_tests PRIVATE
+            "${PROJECT_SOURCE_DIR}/src/windows/unicode_helper.c"
+            "${PROJECT_SOURCE_DIR}/src/windows/unicode_table.c"
+        )
         target_link_libraries(uiohook_tests user32 advapi32)
     elseif(APPLE)
         find_package(Threads REQUIRED)

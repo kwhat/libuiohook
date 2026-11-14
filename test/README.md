@@ -19,6 +19,8 @@ Tests are not built by default.
 
 | Tests | Platforms | Dependencies exercised |
 | --- | --- | --- |
+| `windows.unicode_table` | All | Owned keyboard-table decoder with fixed x86, x64, and WOW64 byte fixtures |
+| `windows.unicode_helper` | Windows x64 | Real cache/loader code with mocked registry, DLL, memory-read, layout, and key-state APIs |
 | `common.logger` | All | Production logger with a mock callback |
 | `<backend>.input_helper` | evdev, Windows, macOS | Production key mappings and modifier masks with fixed native/virtual code fixtures |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
@@ -89,3 +91,26 @@ virtual-device forwarding, libinput contact interpretation, and desktop behavior
 These checks are not part of the automated unit suite and must be performed on
 each supported OS. Windows and macOS native builds have not been verified by the
 Linux test run.
+
+## Windows Unicode translation
+
+`unicode_helper.c` owns layout discovery and the cache; `unicode_table.c` imports
+and translates keyboard DLL data without Windows headers. Fixtures use explicit
+ABI offsets and table strides, including padded rows, instead of native C
+pointer structs. Cases cover x86 pointers, x64 pointers above 4 GB, WOW64's
+8-byte fields at low addresses, invalid ranges/strides/modifier maps, optional
+version-0 fields, truncated/unterminated tables, and missing dead-key rows.
+
+Translation cases cover layout-specific modifier columns, Caps Lock/Shift/AltGr,
+attribute bits, Caps Lock bounds, dead-key composition and chaining, unmatched
+accents, null dead-key tables, ligatures with surrogate pairs, and exact/short
+UTF-16 capacities. Imports own their data: overwriting the fixture afterward
+must not change translation. Short buffers leave output and dead-key state
+unchanged.
+
+The Windows x64 cache test supplies link-time SDK import-pointer mocks. It
+checks layout-switch state reset, cache-head removal, reuse of retained entries,
+new layout loading, registry failure cleanup, unreadable image failure cleanup,
+and immediate DLL unloading after import. Actual WOW64/ARM64 emulation and
+non-US layouts still need native Windows validation; byte fixtures do not
+establish that OS integration works on those machines.

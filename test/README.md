@@ -20,6 +20,8 @@ Tests are not built by default.
 | Tests | Platforms | Dependencies exercised |
 | --- | --- | --- |
 | `common.logger` | All | Production logger with a mock callback |
+| `common.numeric_helper` | All | Signed/unsigned 16-bit conversion boundaries and saturation |
+| `darwin.numeric_conversion` | macOS | Double-to-int64 conversion, overflow, NaN/infinity, and composition with 16-bit clamps |
 | `evdev.input_helper` | Linux/evdev | Production key mappings, modifier masks, and pointer tracking with mock desktop providers |
 | `windows.keycode_helper` | Windows | Production key mappings and modifier masks with fixed fixtures |
 | `darwin.keycode_helper` | macOS | Production Darwin key mappings, modifier masks, and drag state with fixed fixtures |
@@ -135,3 +137,11 @@ coordinates keyboard and pointer initialization and supplies event timestamps.
 Existing evdev fixtures exercise those modules together through the same mock
 desktop providers. Windows and Darwin native Unicode/layout integration remains
 in their input helpers.
+
+## Numeric conversion checks
+
+`numeric_helper_test.c` checks exact limits, values just outside those limits,
+negative-to-unsigned conversion, and extreme signed 64-bit inputs. The Darwin
+numeric conversion fixture runs only on Apple builds and checks finite-value
+truncation, the representable values around the signed 64-bit boundaries, NaN,
+infinity, and subsequent narrowing through the common clamps.

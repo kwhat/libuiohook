@@ -24,6 +24,7 @@ jobs:
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/catalyst/arm64 \
+            -D CMAKE_OSX_ARCHITECTURES=arm64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D USE_APPLICATION_SERVICES=OFF \
@@ -38,8 +39,14 @@ jobs:
 
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
+      - name: Verify binary architecture
+        shell: bash
+        run: |
+          bash "${{github.workspace}}/.github/scripts/verify-binary-architecture.sh" \
+            "${{github.workspace}}/dist/catalyst/arm64" arm64
+
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -64,6 +71,7 @@ jobs:
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/catalyst/x86_64 \
+            -D CMAKE_OSX_ARCHITECTURES=x86_64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D USE_APPLICATION_SERVICES=OFF \
@@ -78,8 +86,14 @@ jobs:
 
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
+      - name: Verify binary architecture
+        shell: bash
+        run: |
+          bash "${{github.workspace}}/.github/scripts/verify-binary-architecture.sh" \
+            "${{github.workspace}}/dist/catalyst/x86_64" x86_64
+
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -105,6 +119,7 @@ jobs:
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/macos/arm64 \
+            -D CMAKE_OSX_ARCHITECTURES=arm64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D BUILD_DEMO=ON
@@ -116,8 +131,14 @@ jobs:
 
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
+      - name: Verify binary architecture
+        shell: bash
+        run: |
+          bash "${{github.workspace}}/.github/scripts/verify-binary-architecture.sh" \
+            "${{github.workspace}}/dist/macos/arm64" arm64
+
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -142,6 +163,7 @@ jobs:
           cmake -B ${{github.workspace}}/build \
             -G "Unix Makefiles" \
             -D CMAKE_INSTALL_PREFIX=${{github.workspace}}/dist/macos/x86_64 \
+            -D CMAKE_OSX_ARCHITECTURES=x86_64 \
             -D CMAKE_VERBOSE_MAKEFILE=true \
             -D BUILD_SHARED_LIBS=ON \
             -D BUILD_DEMO=ON
@@ -153,8 +175,14 @@ jobs:
 
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
+      - name: Verify binary architecture
+        shell: bash
+        run: |
+          bash "${{github.workspace}}/.github/scripts/verify-binary-architecture.sh" \
+            "${{github.workspace}}/dist/macos/x86_64" x86_64
+
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -177,6 +205,7 @@ jobs:
           sudo bash -c 'source /etc/lsb-release && echo "
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
+          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-security main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images.  Left disabled: it upgrades
           # libgcc-s1:amd64 ahead of the armhf ports version, and libgcc-s1 must match across
@@ -185,6 +214,7 @@ jobs:
 
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
+          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-security main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
           #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
@@ -193,13 +223,16 @@ jobs:
           sudo dpkg --add-architecture armhf
           sudo apt-get update -m
 
+          # GLib generators run on the host, including for target development packages.
           sudo apt-get install \
             binutils-arm-linux-gnueabihf \
             gcc-arm-linux-gnueabihf \
+            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
           sudo apt-get install \
+            libglib2.0-dev-bin:amd64 \
             libevdev-dev:armhf \
             libinput-dev:armhf \
             libudev-dev:armhf \
@@ -209,6 +242,8 @@ jobs:
             libxinerama-dev:armhf \
             libxkbcommon-dev:armhf \
             libxkbcommon-x11-dev:armhf
+
+          sudo apt-get install -y --no-install-recommends binutils-gold
 
       - name: Compile
         env:
@@ -233,7 +268,7 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -255,12 +290,14 @@ jobs:
           sudo bash -c 'source /etc/lsb-release && echo "
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
+          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-security main universe
           deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
           #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
 
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
+          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-security main universe
           deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
           # This only seems to be required on GitHub images
           #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
@@ -269,13 +306,16 @@ jobs:
           sudo dpkg --add-architecture arm64
           sudo apt-get update -m
 
+          # GLib generators run on the host, including for target development packages.
           sudo apt-get install \
             binutils-aarch64-linux-gnu \
             gcc-aarch64-linux-gnu \
+            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
           sudo apt-get install \
+            libglib2.0-dev-bin:amd64 \
             libevdev-dev:arm64 \
             libinput-dev:arm64 \
             libudev-dev:arm64 \
@@ -285,6 +325,8 @@ jobs:
             libxinerama-dev:arm64 \
             libxkbcommon-dev:arm64 \
             libxkbcommon-x11-dev:arm64
+
+          sudo apt-get install -y --no-install-recommends binutils-gold
 
       - name: Compile
         env:
@@ -309,7 +351,7 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -327,25 +369,28 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo rm -Rf /etc/apt/sources.list.d
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-          " > /etc/apt/sources.list'
+          # Keep the runner's native mirrors and supplemental repositories.
+          # Removing them can make installed packages newer than apt's candidates.
+          sudo bash -c 'source /etc/os-release && cat > /etc/apt/sources.list.d/libuiohook-i386.list <<SOURCES
+          deb [arch=i386 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu ${VERSION_CODENAME} main universe
+          deb [arch=i386 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu ${VERSION_CODENAME}-updates main universe
+          deb [arch=i386 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://security.ubuntu.com/ubuntu ${VERSION_CODENAME}-security main universe
+          SOURCES'
 
           sudo dpkg --add-architecture i386
-          sudo apt-get update -m
+          sudo apt-get update
 
-          sudo apt-get install \
+          # libinput-dev pulls GLib through libwacom. GLib generators run on
+          # the amd64 host; select them before installing target development files.
+          sudo apt-get install -y --no-install-recommends \
             binutils-i686-linux-gnu \
             gcc-i686-linux-gnu \
+            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
-          sudo apt-get install \
+          sudo apt-get install -y --no-install-recommends \
+            libglib2.0-dev-bin:amd64 \
             libevdev-dev:i386 \
             libinput-dev:i386 \
             libudev-dev:i386 \
@@ -355,6 +400,8 @@ jobs:
             libxinerama-dev:i386 \
             libxkbcommon-dev:i386 \
             libxkbcommon-x11-dev:i386
+
+          sudo apt-get install -y --no-install-recommends binutils-gold
 
       - name: Compile
         env:
@@ -379,7 +426,7 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -397,7 +444,8 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo apt-get install \
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
             libevdev-dev:amd64 \
             libinput-dev:amd64 \
             libudev-dev:amd64 \
@@ -409,6 +457,8 @@ jobs:
             libxinerama-dev:amd64 \
             libxkbcommon-dev:amd64 \
             libxkbcommon-x11-dev:amd64
+
+          sudo apt-get install -y --no-install-recommends binutils-gold
 
       - name: Compile
         env:
@@ -433,7 +483,7 @@ jobs:
           cmake --install ${{github.workspace}}/build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -471,7 +521,7 @@ jobs:
           cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -508,7 +558,7 @@ jobs:
           cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*
@@ -545,7 +595,7 @@ jobs:
           cmake --install ${{github.workspace}}\build --config RelWithDebInfo
 
       - name: Upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{github.job}}
           path: ${{github.workspace}}/dist/**/*

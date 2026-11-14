@@ -25,6 +25,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "numeric_helper.h"
 #include "wayland_helper.h"
 #include "x11_helper.h"
 
@@ -73,10 +74,10 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                 for (int i = 0; i < xine_count; i++) {
                     screens[i] = (screen_data) {
                         .number = xine_info[i].screen_number,
-                        .x = xine_info[i].x_org,
-                        .y = xine_info[i].y_org,
-                        .width = xine_info[i].width,
-                        .height = xine_info[i].height
+                        .x = clamp_int16(xine_info[i].x_org),
+                        .y = clamp_int16(xine_info[i].y_org),
+                        .width = clamp_uint16(xine_info[i].width),
+                        .height = clamp_uint16(xine_info[i].height)
                     };
                 }
             }
@@ -96,8 +97,8 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
                     .number = 1,
                     .x = 0,
                     .y = 0,
-                    .width = default_screen->width,
-                    .height = default_screen->height
+                    .width = clamp_uint16(default_screen->width),
+                    .height = clamp_uint16(default_screen->height)
                 };
             }
         }

@@ -16,17 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "keycode_helper.h"
-#include "mouse_helper.h"
-#include "input_state.h"
+#include <linux/input-event-codes.h>
 #include <stdint.h>
 #include <uiohook.h>
 
-#include "input_helper.h"
-#include "test_assert.h"
-
-#include <linux/input-event-codes.h>
 #include "evdev/mock_desktop.h"
+#include "input_helper.h"
+#include "input_state.h"
+#include "keycode_helper.h"
+#include "mouse_helper.h"
+#include "test_assert.h"
 
 static void test_key_mappings(void) {
     // Explicit expected mappings catch errors that a round trip can hide.

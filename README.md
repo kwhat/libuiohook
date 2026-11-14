@@ -75,6 +75,13 @@ swipe gestures are not forwarded to the desktop while the touchpad is grabbed.
 Pointer coordinates use the existing relative-motion tracker and may differ from
 the desktop cursor because the virtual mouse can receive further acceleration.
 
+On Linux, mouse movement and drag events populate `dx` and `dy` with relative
+motion, even when absolute `x` and `y` are clamped at a screen edge. Physical
+mice report accumulated evdev device counts; touchpads report libinput motion
+with fractional counts carried between events. Deltas saturate at the public
+`int16_t` limits. Press, release, and click events have zero deltas. The hook
+demos print both absolute coordinates and relative motion.
+
 For a hardware smoke test, run `build/demo_hook` with the required device access.
 Check movement, tap and physical clicks, dragging, both scroll directions, event
 consumption in your callback, and normal touchpad operation after stopping the hook.

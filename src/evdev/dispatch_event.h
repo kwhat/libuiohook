@@ -44,8 +44,9 @@ extern bool dispatch_mouse_press(struct input_event *const ev, uint16_t button);
  * event was consumed. */
 extern bool dispatch_mouse_release(struct input_event *const ev, uint16_t button);
 
-/* Dispatch pointer motion as a move or drag event; return whether the event was consumed. */
-extern bool dispatch_mouse_move(struct input_event *const ev);
+/* Dispatch pointer motion with the supplied relative deltas as a move or drag event; return whether
+ * the event was consumed. */
+extern bool dispatch_mouse_move(struct input_event *const ev, int dx, int dy);
 
 /* Dispatch wheel motion with the supplied rotation and direction; return whether the event was
  * consumed. */

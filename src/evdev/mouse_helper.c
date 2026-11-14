@@ -22,6 +22,7 @@
 
 #include "mouse_helper.h"
 #include "logger.h"
+#include "numeric_helper.h"
 #include "wayland_helper.h"
 #include "x11_helper.h"
 
@@ -167,6 +168,6 @@ void set_pointer_position(int16_t x, int16_t y) {
 
 // Return the current tracked absolute pointer position.
 void get_pointer_position(int16_t *x, int16_t *y) {
-    *x = (int16_t) tracked_x;
-    *y = (int16_t) tracked_y;
+    *x = clamp_int16(tracked_x);
+    *y = clamp_int16(tracked_y);
 }

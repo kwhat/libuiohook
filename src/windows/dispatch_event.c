@@ -22,6 +22,7 @@
 #include "input_helper.h"
 #include "input_state.h"
 #include "logger.h"
+#include "numeric_helper.h"
 
 // Virtual event pointer.
 static uiohook_event uio_event;
@@ -31,6 +32,7 @@ static unsigned short click_count = 0;
 static uint64_t click_time = 0;
 static unsigned short int click_button = MOUSE_NOBUTTON;
 static POINT last_click;
+static POINT last_moved;
 
 // Event dispatch callback.
 static dispatcher_t dispatch = NULL;
@@ -78,6 +80,12 @@ static void dispatch_event(uiohook_event *const event) {
 
 bool dispatch_hook_enable(uint64_t timestamp) {
     bool consumed = false;
+
+    // FIXME I am not sure where this should live, it use to be with the call to load_input_helper() before refactor.
+    if (!GetCursorPos(&last_moved)) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Failed to locate cursor position!\n",
+                __FUNCTION__, __LINE__);
+    }
 
     // Populate the hook start event.
     uio_event.time = timestamp;
@@ -251,8 +259,10 @@ bool dispatch_button_press(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_t 
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
 
-    uio_event.data.mouse.x = (int16_t) mshook->pt.x;
-    uio_event.data.mouse.y = (int16_t) mshook->pt.y;
+    uio_event.data.mouse.x = clamp_int16(mshook->pt.x);
+    uio_event.data.mouse.y = clamp_int16(mshook->pt.y);
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u  pressed %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__,
@@ -280,8 +290,10 @@ bool dispatch_button_release(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_
     uio_event.data.mouse.button = button;
     uio_event.data.mouse.clicks = click_count;
 
-    uio_event.data.mouse.x = (int16_t) mshook->pt.x;
-    uio_event.data.mouse.y = (int16_t) mshook->pt.y;
+    uio_event.data.mouse.x = clamp_int16(mshook->pt.x);
+    uio_event.data.mouse.y = clamp_int16(mshook->pt.y);
+    uio_event.data.mouse.dx = 0;
+    uio_event.data.mouse.dy = 0;
 
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u released %u time(s). (%u, %u)\n",
             __FUNCTION__, __LINE__,
@@ -304,8 +316,10 @@ bool dispatch_button_release(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint16_
 
         uio_event.data.mouse.button = button;
         uio_event.data.mouse.clicks = click_count;
-        uio_event.data.mouse.x = (int16_t) mshook->pt.x;
-        uio_event.data.mouse.y = (int16_t) mshook->pt.y;
+        uio_event.data.mouse.x = clamp_int16(mshook->pt.x);
+        uio_event.data.mouse.y = clamp_int16(mshook->pt.y);
+        uio_event.data.mouse.dx = 0;
+        uio_event.data.mouse.dy = 0;
 
         logger(LOG_LEVEL_DEBUG, "%s [%u]: Button %u clicked %u time(s). (%u, %u)\n",
                 __FUNCTION__, __LINE__,
@@ -357,13 +371,17 @@ bool dispatch_mouse_move(uint64_t timestamp, MSLLHOOKSTRUCT *mshook) {
 
         uio_event.data.mouse.button = MOUSE_NOBUTTON;
         uio_event.data.mouse.clicks = click_count;
-        uio_event.data.mouse.x = (int16_t) mshook->pt.x;
-        uio_event.data.mouse.y = (int16_t) mshook->pt.y;
+        uio_event.data.mouse.x = clamp_int16(mshook->pt.x);
+        uio_event.data.mouse.y = clamp_int16(mshook->pt.y);
+        uio_event.data.mouse.dx = clamp_int16((int64_t) mshook->pt.x - last_moved.x);
+        uio_event.data.mouse.dy = clamp_int16((int64_t) mshook->pt.y - last_moved.y);
+        last_moved = mshook->pt;
 
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %u, %u.\n",
+        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse %s to %i, %i (dx=%i, dy=%i).\n",
                 __FUNCTION__, __LINE__,
                 mouse_dragged ? "dragged" : "moved",
-                uio_event.data.mouse.x, uio_event.data.mouse.y);
+                uio_event.data.mouse.x, uio_event.data.mouse.y,
+                uio_event.data.mouse.dx, uio_event.data.mouse.dy);
 
         // Fire mouse move event.
         dispatch_event(&uio_event);
@@ -389,8 +407,8 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
         uio_event.mask |= MASK_EMULATED;
     }
 
-    uio_event.data.wheel.x = (int16_t) mshook->pt.x;
-    uio_event.data.wheel.y = (int16_t) mshook->pt.y;
+    uio_event.data.wheel.x = clamp_int16(mshook->pt.x);
+    uio_event.data.wheel.y = clamp_int16(mshook->pt.y);
 
     /* Delta GET_WHEEL_DELTA_WPARAM(mshook->mouseData)
      * A positive value indicates that the wheel was rotated
@@ -419,7 +437,7 @@ bool dispatch_mouse_wheel(uint64_t timestamp, MSLLHOOKSTRUCT *mshook, uint8_t di
              * should also be interpreted as a page down or page up operation. */
 
             uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
-            uio_event.data.wheel.rotation *= wheel_amount;
+            uio_event.data.wheel.rotation = clamp_int16((int64_t) uio_event.data.wheel.rotation * wheel_amount);
         }
 
         // Set the direction based on what event was received.

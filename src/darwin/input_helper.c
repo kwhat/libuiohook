@@ -35,6 +35,23 @@
 #include <objc/objc-runtime.h>
 #endif
 
+// Convert native floating-point values before calling the shared integer clamps.
+// Finite values truncate toward zero; NaN becomes zero and overflow saturates.
+int64_t conv_double_to_int64(double value) {
+    if (value != value) {
+        return 0;
+    }
+    // INT64_MAX rounds to 2^63 as a double, so compare against that exact bound.
+    if (value >= 0x1p63) {
+        return INT64_MAX;
+    }
+    if (value <= -0x1p63) {
+        return INT64_MIN;
+    }
+    return (int64_t) value;
+}
+
+
 // Dynamic library loading for dispatch_sync_f to offload tasks that must run on the main runloop.
 #if (defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED < __MAC_10_6) \
     || (defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_4_0)

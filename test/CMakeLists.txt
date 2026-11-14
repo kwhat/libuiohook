@@ -33,6 +33,7 @@ if(WIN32)
         "${PROJECT_SOURCE_DIR}/src/windows/keycode_helper.c"
         "${PROJECT_SOURCE_DIR}/src/input_state.c"
         "${PROJECT_SOURCE_DIR}/src/logger.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
     )
     configure_unit_test(windows_keycode_test)
     add_test(NAME windows.keycode_helper COMMAND windows_keycode_test)
@@ -47,6 +48,7 @@ if(UNIX AND NOT APPLE)
     # functions are supplied by the fixture object instead of a live compositor.
     add_library(evdev_test_backend STATIC
         "${PROJECT_SOURCE_DIR}/src/logger.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/input_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/keycode_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/mouse_helper.c"
@@ -62,6 +64,12 @@ if(UNIX AND NOT APPLE)
     )
     target_link_libraries(evdev_test_backend PUBLIC ${XKB_LDFLAGS})
     target_link_libraries(uiohook_tests evdev_test_backend)
+
+    add_executable(relative_mouse_test evdev/relative_mouse_test.c)
+    configure_unit_test(relative_mouse_test)
+    target_link_libraries(relative_mouse_test evdev_test_backend)
+    add_test(NAME evdev.relative_mouse COMMAND relative_mouse_test)
+    set_tests_properties(evdev.relative_mouse PROPERTIES LABELS "unit;evdev")
 
     add_executable(system_properties_test system_properties_test.c)
     configure_unit_test(system_properties_test)
@@ -114,3 +122,17 @@ foreach(mode build install)
     )
     set_tests_properties(package.${mode}_consumer PROPERTIES LABELS "package")
 endforeach()
+
+add_executable(numeric_helper_test numeric_helper_test.c "${PROJECT_SOURCE_DIR}/src/numeric_helper.c")
+configure_unit_test(numeric_helper_test)
+add_test(NAME common.numeric_helper COMMAND numeric_helper_test)
+set_tests_properties(common.numeric_helper PROPERTIES LABELS "unit;common;portable")
+
+# The conversion now lives in Darwin's native input helper.
+if(APPLE)
+    add_executable(darwin_numeric_conversion_test darwin/numeric_conversion_test.c)
+    configure_unit_test(darwin_numeric_conversion_test)
+    target_link_libraries(darwin_numeric_conversion_test uiohook)
+    add_test(NAME darwin.numeric_conversion COMMAND darwin_numeric_conversion_test)
+    set_tests_properties(darwin.numeric_conversion PROPERTIES LABELS "unit;darwin")
+endif()

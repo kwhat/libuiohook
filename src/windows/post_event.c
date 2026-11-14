@@ -22,6 +22,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "monitor_helper.h"
 
 // Some buggy versions of MinGW and MSys do not include these constants in winuser.h.
 #ifndef MAPVK_VK_TO_VSC
@@ -49,10 +50,35 @@
 
 #define MAX_WINDOWS_COORD_VALUE (1 << 16)
 
-static LONG convert_to_relative_position(int coordinate, int screen_size) {
-    // See https://stackoverflow.com/a/4555214 and its comments
-	int offset = (coordinate > 0 ? 1 : -1); // Negative coordinates appear when using multiple monitors
-	return ((coordinate * MAX_WINDOWS_COORD_VALUE) / screen_size) + offset;
+typedef struct {
+    LONG x;
+    LONG y;
+} normalized_coordinate;
+
+static LONG get_absolute_coordinate(LONG coordinate, int screen_size) {
+    return MulDiv((int) coordinate, MAX_WINDOWS_COORD_VALUE, screen_size);
+}
+
+static normalized_coordinate normalize_coordinates(LONG x, LONG y, int screen_width, int screen_height, LARGESTNEGATIVECOORDINATES lnc) {
+    x += abs(lnc.left);
+    y += abs(lnc.top);
+
+    // Prevent clicking 0 coordinates to prevent monitor flicker
+    if (x == 0)
+    {
+        x++;
+    }
+    if (y == 0)
+    {
+        y++;
+    }
+
+    normalized_coordinate nc = {
+            .x = get_absolute_coordinate(x, screen_width),
+            .y = get_absolute_coordinate(y, screen_height)
+    };
+
+    return nc;
 }
 
 static int map_keyboard_event(uiohook_event * const event, INPUT * const input) {
@@ -107,17 +133,20 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
 }
 
 static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
-    // FIXME implement multiple monitor support
-    uint16_t screen_width  = GetSystemMetrics(SM_CXSCREEN);
-    uint16_t screen_height = GetSystemMetrics(SM_CYSCREEN);
+    uint16_t screen_width  = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    uint16_t screen_height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
     input->type = INPUT_MOUSE;
     input->mi.mouseData = 0;
     input->mi.dwExtraInfo = 0;
     input->mi.time = 0; // GetSystemTime();
 
-    input->mi.dx = convert_to_relative_position(event->data.mouse.x, screen_width);
-    input->mi.dy = convert_to_relative_position(event->data.mouse.y, screen_height);
+    LARGESTNEGATIVECOORDINATES lnc = get_largest_negative_coordinates();
+
+    normalized_coordinate nc = normalize_coordinates(event->data.mouse.x, event->data.mouse.y, screen_width, screen_height, lnc);
+
+    input->mi.dx = nc.x;
+    input->mi.dy = nc.y;
 
     switch (event->type) {
         case EVENT_MOUSE_PRESSED:

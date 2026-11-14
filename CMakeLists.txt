@@ -40,6 +40,10 @@ add_library(uiohook
     "src/${UIOHOOK_SOURCE_DIR}/system_properties.c"
 )
 
+if(WIN32 OR WIN64)
+    target_sources(uiohook PRIVATE "src/windows/monitor_helper.c")
+endif()
+
 if(UNIX)
     target_sources(uiohook PRIVATE "src/${UIOHOOK_SOURCE_DIR}/mouse_helper.c")
 endif()

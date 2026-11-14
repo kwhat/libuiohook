@@ -19,8 +19,8 @@
 #include <string.h>
 #include <uiohook.h>
 
-#include "test_assert.h"
 #include "evdev/mock_desktop.h"
+#include "test_assert.h"
 
 static void test_repeat(void) {
     mock_desktop_reset();

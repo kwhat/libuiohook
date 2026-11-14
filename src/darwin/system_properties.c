@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -29,8 +29,8 @@
 #include <stdbool.h>
 #include <uiohook.h>
 
-#include "logger.h"
 #include "input_helper.h"
+#include "logger.h"
 
 #ifdef USE_IOKIT
 static io_connect_t connection;
@@ -116,8 +116,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
     return screens;
 }
 
-/*
- * Apple's documentation is not very good.  I was finally able to find this
+/* Apple's documentation is not very good.  I was finally able to find this
  * information after many hours of googling.  Value is the slider value in the
  * system preferences. That value * 15 is the rate in MS.  66 / the value is the
  * chars per second rate.
@@ -140,8 +139,7 @@ UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count) {
  * MS = (66 / CharSec) * 15
  *
  * CharSec = 66 / V
- * CharSec = 66 / (MS / 15)
- */
+ * CharSec = 66 / (MS / 15) */
 UIOHOOK_API long int hook_get_auto_repeat_rate() {
     #if defined(USE_APPLICATION_SERVICES) || defined(USE_IOKIT)
     bool successful = false;

@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -51,6 +51,7 @@
 #define UIOHOOK_ERROR_CREATE_RUN_LOOP_SOURCE     0x42
 #define UIOHOOK_ERROR_GET_RUNLOOP                0x43
 #define UIOHOOK_ERROR_CREATE_OBSERVER            0x44
+
 /* End Error Codes */
 
 /* Begin Log Levels and Function Prototype */
@@ -61,8 +62,10 @@ typedef enum _log_level {
     LOG_LEVEL_ERROR
 } log_level;
 
-// Logger callback function prototype.
+/* Receive a log level, registered user data, printf-style format, and arguments valid for the
+ * duration of the callback. */
 typedef void (*logger_t)(unsigned int, void *, const char *, va_list);
+
 /* End Log Levels and Function Prototype */
 
 /* Begin Virtual Event Types and Data Structures */
@@ -127,7 +130,10 @@ typedef struct _uiohook_event {
     } data;
 } uiohook_event;
 
+/* Receive an event and registered user data; the event storage is reused after the callback. Set
+ * MASK_CONSUMED in the mask to request suppression. */
 typedef void (*dispatcher_t)(uiohook_event * const, void *);
+
 /* End Virtual Event Types and Data Structures */
 
 
@@ -430,32 +436,32 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 
 
 /* Begin Virtual Modifier Masks */
-#define MASK_SHIFT_L                             1 << 0
-#define MASK_CTRL_L                              1 << 1
-#define MASK_META_L                              1 << 2
-#define MASK_ALT_L                               1 << 3
+#define MASK_SHIFT_L                             1U << 0
+#define MASK_CTRL_L                              1U << 1
+#define MASK_META_L                              1U << 2
+#define MASK_ALT_L                               1U << 3
 
-#define MASK_SHIFT_R                             1 << 4
-#define MASK_CTRL_R                              1 << 5
-#define MASK_META_R                              1 << 6
-#define MASK_ALT_R                               1 << 7
+#define MASK_SHIFT_R                             1U << 4
+#define MASK_CTRL_R                              1U << 5
+#define MASK_META_R                              1U << 6
+#define MASK_ALT_R                               1U << 7
 
 #define MASK_SHIFT                               MASK_SHIFT_L | MASK_SHIFT_R
 #define MASK_CTRL                                MASK_CTRL_L  | MASK_CTRL_R
 #define MASK_META                                MASK_META_L  | MASK_META_R
 #define MASK_ALT                                 MASK_ALT_L   | MASK_ALT_R
 
-#define MASK_BUTTON1                             1 << 8
-#define MASK_BUTTON2                             1 << 9
-#define MASK_BUTTON3                             1 << 10
-#define MASK_BUTTON4                             1 << 11
-#define MASK_BUTTON5                             1 << 12
+#define MASK_BUTTON1                             1U << 8
+#define MASK_BUTTON2                             1U << 9
+#define MASK_BUTTON3                             1U << 10
+#define MASK_BUTTON4                             1U << 11
+#define MASK_BUTTON5                             1U << 12
 
-#define MASK_NUM_LOCK                            1 << 13
-#define MASK_CAPS_LOCK                           1 << 14
-#define MASK_SCROLL_LOCK                         1 << 15
+#define MASK_NUM_LOCK                            1U << 13
+#define MASK_CAPS_LOCK                           1U << 14
+#define MASK_SCROLL_LOCK                         1U << 15
 
-#define MASK_EMULATED                            1 << 30
+#define MASK_EMULATED                            1U << 30
 #define MASK_CONSUMED                            1U << 31
 /* End Virtual Modifier Masks */
 
@@ -486,40 +492,46 @@ typedef void (*dispatcher_t)(uiohook_event * const, void *);
 extern "C" {
 #endif
 
-    // Set the logger callback function.
+    /* Set the logging callback and its user-data pointer; pass NULL to disable logging. */
     UIOHOOK_API void hook_set_logger_proc(logger_t logger_proc, void *user_data);
 
-    // Set the event callback function.
+    /* Set the event callback and its user-data pointer; pass NULL to disable callback delivery. */
     UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data);
 
-    // Send a virtual event back to the system.
+    /* Post a supported virtual input event to the native system; return UIOHOOK_SUCCESS or an error
+     * code. */
     UIOHOOK_API int hook_post_event(uiohook_event * const event);
 
-    // Insert the event hook.
+    /* Install the native input hook and process events until stopped or an error occurs; return
+     * UIOHOOK_SUCCESS or an error code. */
     UIOHOOK_API int hook_run();
 
-    // Withdraw the event hook.
+    /* Request that the running native hook stop; return UIOHOOK_SUCCESS or an error code. */
     UIOHOOK_API int hook_stop();
 
-    // Retrieves an array of screen data for each available monitor.
+    /* Return a heap-allocated array of monitor descriptions and write its length to count; the
+     * caller must free the array. Return NULL if no array can be created. */
     UIOHOOK_API screen_data* hook_create_screen_info(unsigned char *count);
 
-    // Retrieves the keyboard auto repeat rate.
+    /* Return the keyboard auto-repeat rate setting in platform-specific units, or -1 if
+     * unavailable. */
     UIOHOOK_API long int hook_get_auto_repeat_rate();
 
-    // Retrieves the keyboard auto repeat delay.
+    /* Return the keyboard auto-repeat delay setting in platform-specific units, or -1 if
+     * unavailable. */
     UIOHOOK_API long int hook_get_auto_repeat_delay();
 
-    // Retrieves the mouse acceleration multiplier.
+    /* Return the platform pointer acceleration setting, or -1 if unavailable. */
     UIOHOOK_API long int hook_get_pointer_acceleration_multiplier();
 
-    // Retrieves the mouse acceleration threshold.
+    /* Return the platform pointer acceleration threshold, or -1 if unavailable. */
     UIOHOOK_API long int hook_get_pointer_acceleration_threshold();
 
-    // Retrieves the mouse sensitivity.
+    /* Return the platform pointer sensitivity setting, or -1 if unavailable. */
     UIOHOOK_API long int hook_get_pointer_sensitivity();
 
-    // Retrieves the double/triple click interval.
+    /* Return the maximum interval between successive clicks in milliseconds, using a platform
+     * fallback where provided. */
     UIOHOOK_API long int hook_get_multi_click_time();
 
 #ifdef __cplusplus

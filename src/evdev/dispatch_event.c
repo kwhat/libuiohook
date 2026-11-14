@@ -22,7 +22,10 @@
 
 #include "dispatch_event.h"
 #include "input_helper.h"
+#include "input_state.h"
+#include "keycode_helper.h"
 #include "logger.h"
+#include "mouse_helper.h"
 
 typedef struct _mouse_click {
     uint16_t count;
@@ -42,7 +45,6 @@ static uiohook_event uio_event;
 static dispatcher_t dispatch = NULL;
 static void *dispatch_data = NULL;
 
-
 UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_data) {
     logger(LOG_LEVEL_DEBUG, "%s [%u]: Setting new dispatch callback to %#p.\n",
             __FUNCTION__, __LINE__, dispatch_proc);
@@ -50,7 +52,6 @@ UIOHOOK_API void hook_set_dispatch_proc(dispatcher_t dispatch_proc, void *user_d
     dispatch = dispatch_proc;
     dispatch_data = user_data;
 }
-
 
 // Send out an event if a dispatcher was set.
 static void dispatch_event(uiohook_event *const uio_event) {
@@ -198,11 +199,6 @@ bool dispatch_key_release(struct input_event *const ev) {
     return uio_event.mask & MASK_CONSUMED;
 }
 
-// FIXME Why doesn't this live in the click structure? click.is_drag?
-// Set to true by dispatch_mouse_move between a button press and release so we know
-// whether to synthesize an EVENT_MOUSE_CLICKED on release.
-static bool mouse_dragged = false;
-
 bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
     #ifdef USE_EPOCH_TIME
     uint64_t timestamp = get_unix_timestamp(ev->input_event_sec, ev->input_event_usec);
@@ -230,7 +226,7 @@ bool dispatch_mouse_press(struct input_event *const ev, uint16_t button) {
     click.time = timestamp;
 
     // Reset drag tracking; any motion before release cancels the clicked event.
-    mouse_dragged = false;
+    set_mouse_dragged(false);
 
     // Populate mouse pressed event.
     uio_event.time = timestamp;
@@ -301,7 +297,7 @@ bool dispatch_mouse_release(struct input_event *const ev, uint16_t button) {
 
     // If the release was not consumed and the pointer didn't move between press and release,
     // fire a clicked event.
-    if (!consumed && !mouse_dragged) {
+    if (!consumed && !is_mouse_dragged()) {
         dispatch_mouse_clicked(timestamp, button);
     }
 
@@ -337,7 +333,7 @@ bool dispatch_mouse_move(struct input_event *const ev) {
         uio_event.type = EVENT_MOUSE_DRAGGED;
 
         // Motion with a button held cancels the clicked event on release.
-        mouse_dragged = true;
+        set_mouse_dragged(true);
     } else {
         uio_event.type = EVENT_MOUSE_MOVED;
     }

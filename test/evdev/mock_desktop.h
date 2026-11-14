@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UIOHOOK_MOCK_DESKTOP_H
-#define UIOHOOK_MOCK_DESKTOP_H
+#ifndef _included_mock_desktop
+#define _included_mock_desktop
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,6 +38,8 @@ struct mock_desktop_state {
 };
 
 extern struct mock_desktop_state mock_desktop;
+
+/* Reset mock desktop configuration, call counters, and X11 provider functions, and unset WAYLAND_DISPLAY. */
 extern void mock_desktop_reset(void);
 
 #endif

@@ -1,5 +1,5 @@
 /* libUIOHook: Cross-platform keyboard and mouse hooking from userland.
- * Copyright (C) 2006-2023 Alexander Barker.  All Rights Reserved.
+ * Copyright (C) 2006-2026 Alexander Barker.  All Rights Reserved.
  * https://github.com/kwhat/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
@@ -19,15 +19,14 @@
 #include <uiohook.h>
 #include <windows.h>
 
-#include "logger.h"
 #include "input_helper.h"
+#include "logger.h"
 
 // The handle to the DLL module pulled in DllMain on DLL_PROCESS_ATTACH.
 HINSTANCE hInst;
 
 // input_hook.c
 extern void unregister_running_hooks();
-
 
 // Structure for the monitor_enum_proc() callback so we can track the count.
 typedef struct _screen_info {
@@ -42,8 +41,7 @@ typedef struct _screen_info {
  * http://msdn.microsoft.com/en-us/library/windows/desktop/dd162610(v=vs.85).aspx
  * http://msdn.microsoft.com/en-us/library/dd162610%28VS.85%29.aspx
  * http://msdn.microsoft.com/en-us/library/dd145061%28VS.85%29.aspx
- * http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx
- */
+ * http://msdn.microsoft.com/en-us/library/dd144901(v=vs.85).aspx */
 static BOOL CALLBACK monitor_enum_proc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
     int width  = lprcMonitor->right - lprcMonitor->left;
     int height = lprcMonitor->bottom - lprcMonitor->top;

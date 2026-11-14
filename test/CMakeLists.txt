@@ -50,6 +50,7 @@ if(UNIX AND NOT APPLE)
         "${PROJECT_SOURCE_DIR}/src/evdev/input_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/keycode_helper.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/mouse_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
         "${PROJECT_SOURCE_DIR}/src/input_state.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/dispatch_event.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/system_properties.c"
@@ -114,3 +115,24 @@ foreach(mode build install)
     )
     set_tests_properties(package.${mode}_consumer PROPERTIES LABELS "package")
 endforeach()
+
+add_executable(numeric_helper_test
+    numeric_helper_test.c
+    "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
+    "${PROJECT_SOURCE_DIR}/src/logger.c"
+)
+configure_unit_test(numeric_helper_test)
+add_test(NAME common.numeric_helper COMMAND numeric_helper_test)
+set_tests_properties(common.numeric_helper PROPERTIES LABELS "unit;common")
+
+# Floating-point clamps are compiled only on Apple platforms.
+if(APPLE)
+    add_executable(darwin_numeric_conversion_test
+        darwin/numeric_conversion_test.c
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/logger.c"
+    )
+    configure_unit_test(darwin_numeric_conversion_test)
+    add_test(NAME darwin.numeric_conversion COMMAND darwin_numeric_conversion_test)
+    set_tests_properties(darwin.numeric_conversion PROPERTIES LABELS "unit;darwin")
+endif()

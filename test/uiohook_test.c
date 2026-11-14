@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+
 #include "test_assert.h"
 
 extern void input_helper_tests(void);

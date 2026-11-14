@@ -32,6 +32,7 @@
 #include <wayland-client-core.h>
 
 #include "logger.h"
+#include "numeric_helper.h"
 #include "wayland_helper.h"
 
 // libwayland-client is dlopen'd, so only its functions need resolving.  Every
@@ -285,10 +286,10 @@ screen_data *wayland_create_screen_info(unsigned char *count) {
                     if (monitor->have_position && monitor->have_size) {
                         screens[i] = (screen_data) {
                             .number = (uint8_t) (i + 1),
-                            .x = (int16_t) monitor->x,
-                            .y = (int16_t) monitor->y,
-                            .width = (uint16_t) monitor->width,
-                            .height = (uint16_t) monitor->height
+                            .x = clamp_int16(monitor->x),
+                            .y = clamp_int16(monitor->y),
+                            .width = clamp_uint16(monitor->width),
+                            .height = clamp_uint16(monitor->height)
                         };
                         i++;
                     }

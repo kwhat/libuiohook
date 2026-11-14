@@ -16,6 +16,10 @@ add_executable(header_test header_test.c)
 configure_unit_test(header_test)
 add_test(NAME common.header COMMAND header_test)
 set_tests_properties(common.header PROPERTIES LABELS "unit;common;portable")
+add_executable(wheel_helper_test wheel_helper_test.c "${PROJECT_SOURCE_DIR}/src/wheel_helper.c")
+configure_unit_test(wheel_helper_test)
+add_test(NAME common.wheel_helper COMMAND wheel_helper_test)
+set_tests_properties(common.wheel_helper PROPERTIES LABELS "unit;common;portable")
 
 if(WIN32)
     add_executable(unicode_table_test
@@ -80,6 +84,21 @@ if(APPLE)
 endif()
 
 if(WIN32)
+    add_executable(windows_wheel_test
+        windows/wheel_test.c
+        "${PROJECT_SOURCE_DIR}/src/windows/dispatch_event.c"
+        "${PROJECT_SOURCE_DIR}/src/windows/post_event.c"
+        "${PROJECT_SOURCE_DIR}/src/windows/keycode_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/wheel_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/logger.c"
+        "${PROJECT_SOURCE_DIR}/src/input_state.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
+    )
+    configure_unit_test(windows_wheel_test)
+    target_link_libraries(windows_wheel_test PRIVATE user32)
+    add_test(NAME windows.wheel COMMAND windows_wheel_test)
+    set_tests_properties(windows.wheel PROPERTIES LABELS "unit;windows")
+
     add_executable(windows_keycode_test
         windows/keycode_helper_test.c
         "${PROJECT_SOURCE_DIR}/src/windows/keycode_helper.c"
@@ -89,6 +108,24 @@ if(WIN32)
     configure_unit_test(windows_keycode_test)
     add_test(NAME windows.keycode_helper COMMAND windows_keycode_test)
     set_tests_properties(windows.keycode_helper PROPERTIES LABELS "unit;windows")
+endif()
+
+if(APPLE)
+    add_executable(darwin_wheel_test
+        darwin/wheel_test.c
+        "${PROJECT_SOURCE_DIR}/src/darwin/dispatch_event.c"
+        "${PROJECT_SOURCE_DIR}/src/darwin/post_event.c"
+        "${PROJECT_SOURCE_DIR}/src/darwin/keycode_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/wheel_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/logger.c"
+        "${PROJECT_SOURCE_DIR}/src/input_state.c"
+        "${PROJECT_SOURCE_DIR}/src/numeric_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/darwin/mouse_helper.c"
+    )
+    configure_unit_test(darwin_wheel_test)
+    target_link_libraries(darwin_wheel_test PRIVATE "-framework ApplicationServices" "-framework CoreFoundation")
+    add_test(NAME darwin.wheel COMMAND darwin_wheel_test)
+    set_tests_properties(darwin.wheel PROPERTIES LABELS "unit;darwin")
 endif()
 
 if(UNIX AND NOT APPLE)
@@ -107,6 +144,7 @@ if(UNIX AND NOT APPLE)
         "${PROJECT_SOURCE_DIR}/src/evdev/dispatch_event.c"
         "${PROJECT_SOURCE_DIR}/src/evdev/system_properties.c"
         evdev/mock_desktop.c
+        "${PROJECT_SOURCE_DIR}/src/wheel_helper.c"
     )
     configure_unit_test(evdev_test_backend)
     target_include_directories(evdev_test_backend PUBLIC
@@ -125,6 +163,17 @@ if(UNIX AND NOT APPLE)
     target_link_libraries(post_event_test evdev_test_backend ${EVDEV_LDFLAGS})
     add_test(NAME evdev.post_event COMMAND post_event_test)
     set_tests_properties(evdev.post_event PROPERTIES LABELS "unit;evdev")
+    add_executable(evdev_wheel_test
+        evdev/wheel_test.c
+        "${PROJECT_SOURCE_DIR}/src/evdev/post_event.c"
+        "${PROJECT_SOURCE_DIR}/src/wheel_helper.c"
+    )
+    configure_unit_test(evdev_wheel_test)
+    target_include_directories(evdev_wheel_test PRIVATE ${EVDEV_INCLUDE_DIRS})
+    target_link_libraries(evdev_wheel_test evdev_test_backend ${EVDEV_LDFLAGS})
+    add_test(NAME evdev.wheel COMMAND evdev_wheel_test)
+    set_tests_properties(evdev.wheel PROPERTIES LABELS "unit;evdev")
+
 
     add_executable(relative_mouse_test evdev/relative_mouse_test.c)
     configure_unit_test(relative_mouse_test)

@@ -44,6 +44,13 @@ if(UNIX)
     target_sources(uiohook PRIVATE "src/${UIOHOOK_SOURCE_DIR}/mouse_helper.c")
 endif()
 
+if(WIN32)
+    target_sources(uiohook PRIVATE
+        "src/windows/unicode_helper.c"
+        "src/windows/unicode_table.c"
+    )
+endif()
+
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
         "src/${UIOHOOK_SOURCE_DIR}/x11_helper.c"

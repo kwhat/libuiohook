@@ -138,3 +138,22 @@ id -nG
 The device should be owned by group `input` with group read/write permissions
 (`crw-rw----`). The application also needs read access to the physical
 `/dev/input/event*` devices, which commonly belong to the `input` group.
+
+### Windows character translation
+
+`unicode_helper` manages keyboard-layout discovery and cached translations;
+`unicode_table` decodes the layout DLL's documented keyboard tables into owned
+data. Character lookup does not call `ToUnicode` or alter Windows' dead-key
+buffer. Layout changes reset the library's pending dead-key state.
+
+Table pointers are decoded explicitly as 4-byte or 8-byte fields. In a 32-bit
+process, validation also tries the WOW64 long-pointer format instead of relying
+only on OS architecture detection. Reads must stay within the loaded DLL image
+and succeed through `ReadProcessMemory`; normalized data survives unloading the
+DLL. Custom layouts whose tables live outside that image are not imported.
+
+Internal character buffer capacities and return values count UTF-16 code units,
+not bytes. Translation handles dead-key sequences and ligatures, copies whole
+results without splitting them when capacity is short, and leaves state and
+output unchanged on insufficient capacity. IME composition remains outside this
+static layout-table translation path.

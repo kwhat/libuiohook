@@ -115,9 +115,9 @@ typedef struct _mouse_event_data {
 typedef struct _mouse_wheel_event_data {
     int16_t x;
     int16_t y;
-    uint8_t type;
-    int16_t rotation;
-    uint16_t delta;
+    uint8_t type;      // WHEEL_UNIT_SCROLL or WHEEL_BLOCK_SCROLL.
+    int16_t rotation;  // Signed scroll movement, scaled by delta.
+    uint16_t delta;    // Nonzero rotation units per scroll step.
     uint8_t direction;
 } mouse_wheel_event_data;
 

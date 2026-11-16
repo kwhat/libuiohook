@@ -96,6 +96,27 @@ ctest --test-dir build --output-on-failure
 
 See [test/README.md](test/README.md) for mock boundaries and platform coverage.
 
+### Wheel event scaling
+
+Wheel movement is `rotation / delta`, with a nonzero `delta`. Windows and evdev
+report 120 units per wheel detent; macOS reports 120 units per line, including
+fractional line movement from continuous devices. Positive/negative rotation
+and vertical/horizontal direction are preserved when posting.
+
+Windows keeps physical wheel movement independent of the configured scroll
+line/character count, including when that setting is zero.
+
+Posting rescales movement into each backend's native units, retaining fractional
+remainders independently for each axis and scroll type. Invalid directions,
+scroll types, or a zero `delta` fail. Native posting uses the receiving desktop's
+preferences: Windows applies its current line/page setting; evdev injects wheel
+detents; macOS posts line units. Like AWT, macOS and Linux capture unit scrolls;
+Windows captures block scrolls when configured for page scrolling. Block means
+a page, never pixels. macOS has no native page-scroll injection unit, so posted
+block requests fall back to line steps. macOS diagonal scrolling dispatches
+one callback for each nonzero axis; consuming either suppresses the original
+native event, which contains both axes.
+
 ### Enabling uinput on Linux
 
 Run the setup commands below in a root shell. To enable virtual-device forwarding

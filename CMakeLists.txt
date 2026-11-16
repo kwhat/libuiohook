@@ -24,6 +24,7 @@ add_library(uiohook
     "src/input_state.c"
     "src/logger.c"
     "src/numeric_helper.c"
+    "src/wheel_helper.c"
 )
 
 set_target_properties(uiohook PROPERTIES

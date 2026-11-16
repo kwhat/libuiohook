@@ -28,6 +28,7 @@
 #include "logger.h"
 #include "numeric_helper.h"
 #include "mouse_helper.h"
+#include "wheel_helper.h"
 
 #ifdef USE_EPOCH_TIME
 #define TIMER_RESOLUTION_MS 1
@@ -606,79 +607,38 @@ bool dispatch_mouse_wheel(uint64_t timestamp, CGEventRef event_ref) {
     click_count = 0;
     click_button = MOUSE_NOBUTTON;
 
-    // Check to see what axis was rotated, we only care about axis 1 for vertical rotation.
-    // NOTE kCGScrollWheelEventDeltaAxis3 is currently unused.
-    if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0
-            || CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
-        CGPoint event_point = CGEventGetLocation(event_ref);
+    bool continuous = CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) != 0;
+    static double remainders[2][2];
+    const CGEventField fields[] = {
+        kCGScrollWheelEventFixedPtDeltaAxis1,
+        kCGScrollWheelEventFixedPtDeltaAxis2
+    };
+    CGPoint point = CGEventGetLocation(event_ref);
+    uint16_t delta = 120;
 
-        // Populate mouse wheel event.
+    // Like AWT, continuous devices also produce unit scroll events. Fixed-point
+    // line deltas preserve movement that the rounded line fields would lose.
+    for (unsigned int axis = 0; axis < 2; axis++) {
+        double units = CGEventGetDoubleValueField(event_ref, fields[axis]);
+        int16_t rotation = wheel_capture_rotation(units, delta, &remainders[continuous][axis]);
+        if (rotation == 0) {
+            continue;
+        }
+
         uio_event.time = timestamp;
         uio_event.type = EVENT_MOUSE_WHEEL;
         uio_event.mask = get_modifiers();
         if (CGEventGetIntegerValueField(event_ref, kCGEventSourceUnixProcessID)) {
             uio_event.mask |= MASK_EMULATED;
         }
-
-        uio_event.data.wheel.x = clamp_int16(event_point.x);
-        uio_event.data.wheel.y = clamp_int16(event_point.y);
-
-        uio_event.data.wheel.delta = 0;
-        uio_event.data.wheel.rotation = 0;
-
-        /* This function returns the scale of pixels per line in the specified event source. For example, if the
-         * scale in the event source is 10.5 pixels per line, this function would return 10.5. Every scrolling event
-         * can be interpreted to be scrolling by pixel or by line. By default, the scale is about ten pixels per
-         * line. You can alter the scale with the function CGEventSourceSetPixelsPerLine.
-         * See: https://gist.github.com/svoisen/5215826 */
-        CGEventSourceRef source = CGEventCreateSourceFromEvent(event_ref);
-        double ppl = CGEventSourceGetPixelsPerLine(source);
-
-        if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventIsContinuous) != 0) {
-            // continuous device (trackpad)
-            ppl *= 1;
-            uio_event.data.wheel.type = WHEEL_BLOCK_SCROLL;
-
-            if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
-                uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-                uio_event.data.wheel.rotation = clamp_int16(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis1) * ppl * 1);
-            } else if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
-                uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-                uio_event.data.wheel.rotation = clamp_int16(CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventPointDeltaAxis2) * ppl * 1);
-            }
-        } else {
-            // non-continuous device (wheel mice)
-            ppl *= 10;
-            uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
-
-            if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis1) != 0) {
-                uio_event.data.wheel.direction = WHEEL_VERTICAL_DIRECTION;
-                uio_event.data.wheel.rotation = clamp_int16(CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis1) * ppl * 10);
-            } else if (CGEventGetIntegerValueField(event_ref, kCGScrollWheelEventDeltaAxis2) != 0) {
-                uio_event.data.wheel.direction = WHEEL_HORIZONTAL_DIRECTION;
-                uio_event.data.wheel.rotation = clamp_int16(CGEventGetDoubleValueField(event_ref, kCGScrollWheelEventFixedPtDeltaAxis2) * ppl * 10);
-            }
-        }
-
-        uio_event.data.wheel.delta = clamp_uint16(ppl);
-
-        if (source) {
-            CFRelease(source);
-        }
-
-        logger(LOG_LEVEL_DEBUG, "%s [%u]: Mouse wheel %i / %u of type %u in the %u direction at %u, %u.\n",
-                __FUNCTION__, __LINE__,
-                uio_event.data.wheel.rotation,
-                uio_event.data.wheel.delta,
-                uio_event.data.wheel.type,
-                uio_event.data.wheel.direction,
-                uio_event.data.wheel.x,
-                uio_event.data.wheel.y);
-
-        // Fire mouse wheel event.
+        uio_event.data.wheel.x = clamp_int16(point.x);
+        uio_event.data.wheel.y = clamp_int16(point.y);
+        uio_event.data.wheel.type = WHEEL_UNIT_SCROLL;
+        uio_event.data.wheel.rotation = rotation;
+        uio_event.data.wheel.delta = delta;
+        uio_event.data.wheel.direction = axis ? WHEEL_HORIZONTAL_DIRECTION : WHEEL_VERTICAL_DIRECTION;
         dispatch_event(&uio_event);
-        consumed = uio_event.mask & MASK_CONSUMED;
+        consumed |= uio_event.mask & MASK_CONSUMED;
     }
-
     return consumed;
 }

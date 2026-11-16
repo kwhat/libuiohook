@@ -24,6 +24,7 @@ Tests are not built by default.
 | `windows.unicode_helper` | Windows x64 | Real cache/loader code with mocked registry, DLL, memory-read, layout, and key-state APIs |
 | `darwin.runloop_queue` | macOS | Production request queue with controlled pthread callers and a mock scheduler |
 | `darwin.runloop_helper` | macOS | Actual Core Foundation source, main-thread execution, timeout, stop, and restart without an input hook |
+| `common.wheel_helper` | All | Production scaling, fractional accumulation, range limits, and invalid wheel data |
 | `common.logger` | All | Production logger with a mock callback |
 | `common.numeric_helper` | All | Signed/unsigned 16-bit conversion boundaries and saturation |
 | `darwin.numeric_conversion` | macOS | Double-to-16-bit clamps, overflow, NaN/infinity, and fractional truncation |
@@ -32,6 +33,9 @@ Tests are not built by default.
 | `windows.keycode_helper` | Windows | Production key mappings and modifier masks with fixed fixtures |
 | `darwin.keycode_helper` | macOS | Production Darwin key mappings, modifier masks, and drag state with fixed fixtures |
 | `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
+| `evdev.wheel` | Linux/evdev | Real wheel capture/posting with mock desktop and uinput calls |
+| `windows.wheel` | Windows | Real wheel capture/posting with mock settings queries and SendInput |
+| `darwin.wheel` | macOS | Local Core Graphics events and real capture/posting with intercepted CGEventPost |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
 | `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
 | `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
@@ -113,6 +117,23 @@ initialization, and resource cleanup. The newer-scroll-event check is enabled
 only with libinput 1.19 or later; older headers still build and run the rest of
 the suite. The tests use `/dev/null` through libinput's captured open/close
 callbacks to verify observation mode and failed-grab fallback without hardware.
+
+## Wheel tests
+
+The common wheel helper runs on every host. It checks scale conversion, invalid deltas/types/directions,
+negative and fractional movement (including ten one-tenth steps), and capture
+saturation. Evdev tests round-trip multiple detents on both axes, retain separate
+fractions, and propagate mocked write failures. Touchpad tests also verify wheel rotation and scale.
+
+Windows tests intercept the SDK import pointers for `SendInput` and
+`SystemParametersInfo`. They cover native wheel capture, horizontal posting,
+line/page/disabled settings, large setting values, query failure fallback,
+rescaling, and posting failures. macOS tests construct local Core Graphics
+objects, cover diagonal and fractional line capture from continuous devices, and intercept `CGEventPost`
+so no input is injected. They verify unit-scroll types, horizontal posting,
+fractional accumulation, and invalid deltas. These native suites need their
+platform SDKs; the Linux test run only executes the shared arithmetic and evdev
+coverage.
 
 ## Package and CI checks
 

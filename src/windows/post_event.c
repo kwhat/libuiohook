@@ -22,6 +22,7 @@
 
 #include "input_helper.h"
 #include "logger.h"
+#include "wheel_helper.h"
 
 // Some buggy versions of MinGW and MSys do not include these constants in winuser.h.
 #ifndef MAPVK_VK_TO_VSC
@@ -106,6 +107,45 @@ static int map_keyboard_event(uiohook_event * const event, INPUT * const input) 
     return UIOHOOK_SUCCESS;
 }
 
+static int map_mouse_button(uint16_t button, event_type type, MOUSEINPUT *input) {
+    if (type != EVENT_MOUSE_PRESSED && type != EVENT_MOUSE_RELEASED) {
+        return UIOHOOK_FAILURE;
+    }
+
+    input->mouseData = 0;
+    switch (button) {
+        case MOUSE_NOBUTTON:
+            logger(LOG_LEVEL_WARN, "%s [%u]: No button specified for mouse %s event!\n",
+                    __FUNCTION__, __LINE__, type == EVENT_MOUSE_PRESSED ? "pressed" : "released");
+            return UIOHOOK_FAILURE;
+
+        case MOUSE_BUTTON1:
+            input->dwFlags = type == EVENT_MOUSE_PRESSED ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP;
+            break;
+
+        case MOUSE_BUTTON2:
+            input->dwFlags = type == EVENT_MOUSE_PRESSED ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP;
+            break;
+
+        case MOUSE_BUTTON3:
+            input->dwFlags = type == EVENT_MOUSE_PRESSED ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP;
+            break;
+
+        default:
+            input->dwFlags = type == EVENT_MOUSE_PRESSED ? MOUSEEVENTF_XDOWN : MOUSEEVENTF_XUP;
+            if (button == MOUSE_BUTTON4) {
+                input->mouseData = XBUTTON1;
+            } else if (button == MOUSE_BUTTON5) {
+                input->mouseData = XBUTTON2;
+            } else {
+                input->mouseData = button - 3;
+            }
+            break;
+    }
+
+    return UIOHOOK_SUCCESS;
+}
+
 static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
     // FIXME implement multiple monitor support
     uint16_t screen_width  = GetSystemMetrics(SM_CXSCREEN);
@@ -121,69 +161,22 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
 
     switch (event->type) {
         case EVENT_MOUSE_PRESSED:
-            if (event->data.mouse.button == MOUSE_NOBUTTON) {
-                logger(LOG_LEVEL_WARN, "%s [%u]: No button specified for mouse pressed event!\n",
-                        __FUNCTION__, __LINE__);
-                return UIOHOOK_FAILURE;
-            } else if (event->data.mouse.button == MOUSE_BUTTON1) {
-                input->mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-            } else if (event->data.mouse.button == MOUSE_BUTTON2) {
-                input->mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
-            } else if (event->data.mouse.button == MOUSE_BUTTON3) {
-                input->mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
-            } else {
-                input->mi.dwFlags = MOUSEEVENTF_XDOWN;
-                if (event->data.mouse.button == MOUSE_BUTTON4) {
-                    input->mi.mouseData = XBUTTON1;
-                } else if (event->data.mouse.button == MOUSE_BUTTON5) {
-                    input->mi.mouseData = XBUTTON2;
-                } else {
-                    input->mi.mouseData = event->data.mouse.button - 3;
-                }
+        case EVENT_MOUSE_RELEASED: {
+            int status = map_mouse_button(event->data.mouse.button, event->type, &input->mi);
+            if (status != UIOHOOK_SUCCESS) {
+                return status;
             }
 
-            // We need to move the mouse to the correct location prior to clicking.
-            event->type = EVENT_MOUSE_MOVED;
-            // TODO Remember to check the status here.
-            hook_post_event(event);
-            event->type = EVENT_MOUSE_PRESSED;
-            break;
+            // Move to the requested position before posting the button event.
+            uiohook_event move = *event;
+            move.type = EVENT_MOUSE_MOVED;
 
-        case EVENT_MOUSE_RELEASED:
-            if (event->data.mouse.button == MOUSE_NOBUTTON) {
-                logger(LOG_LEVEL_WARN, "%s [%u]: No button specified for mouse released event!\n",
-                        __FUNCTION__, __LINE__);
-                return UIOHOOK_FAILURE;
-            } else if (event->data.mouse.button == MOUSE_BUTTON1) {
-                input->mi.dwFlags = MOUSEEVENTF_LEFTUP;
-            } else if (event->data.mouse.button == MOUSE_BUTTON2) {
-                input->mi.dwFlags = MOUSEEVENTF_RIGHTUP;
-            } else if (event->data.mouse.button == MOUSE_BUTTON3) {
-                input->mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
-            } else {
-                input->mi.dwFlags = MOUSEEVENTF_XUP;
-                if (event->data.mouse.button == MOUSE_BUTTON4) {
-                    input->mi.mouseData = XBUTTON1;
-                } else if (event->data.mouse.button == MOUSE_BUTTON5) {
-                    input->mi.mouseData = XBUTTON2;
-                } else {
-                    input->mi.mouseData = event->data.mouse.button - 3;
-                }
+            status = hook_post_event(&move);
+            if (status != UIOHOOK_SUCCESS) {
+                return status;
             }
-
-            // We need to move the mouse to the correct location prior to clicking.
-            event->type = EVENT_MOUSE_MOVED;
-            // TODO Remember to check the status here.
-            hook_post_event(event);
-            event->type = EVENT_MOUSE_PRESSED;
             break;
-
-        case EVENT_MOUSE_WHEEL:
-            input->mi.dwFlags = MOUSEEVENTF_WHEEL;
-
-            // type, amount and rotation?
-            input->mi.mouseData = event->data.wheel.rotation;
-            break;
+        }
 
         case EVENT_MOUSE_DRAGGED:
         case EVENT_MOUSE_MOVED:
@@ -199,7 +192,38 @@ static int map_mouse_event(uiohook_event * const event, INPUT * const input) {
     return UIOHOOK_SUCCESS;
 }
 
+static int post_mouse_wheel_event(uiohook_event * const event) {
+    static double remainders[2][2];
+    unsigned int axis = event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION;
+    unsigned int mode = event->data.wheel.type == WHEEL_BLOCK_SCROLL;
+
+    double remainder = remainders[mode][axis];
+    int32_t rotation;
+    if (!wheel_post_rotation(&event->data.wheel, WHEEL_DELTA, &remainder, &rotation)) {
+        return UIOHOOK_FAILURE;
+    }
+
+    if (rotation != 0) {
+        INPUT input = { 0 };
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = axis ? MOUSEEVENTF_HWHEEL : MOUSEEVENTF_WHEEL;
+        input.mi.mouseData = (DWORD) rotation;
+
+        // Send physical motion; Windows applies its current line/page preference.
+        if (SendInput(1, &input, sizeof(input)) != 1) {
+            return UIOHOOK_FAILURE;
+        }
+    }
+    remainders[mode][axis] = remainder;
+
+    return UIOHOOK_SUCCESS;
+}
+
 UIOHOOK_API int hook_post_event(uiohook_event * const event) {
+    if (event->type == EVENT_MOUSE_WHEEL) {
+        return post_mouse_wheel_event(event);
+    }
+
     INPUT *input = (INPUT *) calloc(1, sizeof(INPUT))   ;
     if (input == NULL) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: failed to allocate memory: calloc!\n",
@@ -216,7 +240,6 @@ UIOHOOK_API int hook_post_event(uiohook_event * const event) {
 
         case EVENT_MOUSE_PRESSED:
         case EVENT_MOUSE_RELEASED:
-        case EVENT_MOUSE_WHEEL:
         case EVENT_MOUSE_MOVED:
         case EVENT_MOUSE_DRAGGED:
             status = map_mouse_event(event, input);

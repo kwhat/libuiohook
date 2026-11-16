@@ -389,21 +389,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
 }
 
 
-// Create a shared object constructor.
-__attribute__ ((constructor))
-void on_library_load() {
-    #ifdef USE_IOKIT
-    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
-    if (service) {
-        kern_return_t kren_ret = IOServiceOpen(service, mach_task_self(), kIOHIDParamConnectType, &connection);
-        if (kren_ret != kIOReturnSuccess) {
-            logger(LOG_LEVEL_INFO, "%s [%u]: IOServiceOpen failure (%#X)!\n",
-                    __FUNCTION__, __LINE__, kren_ret);
-        }
-    }
-    #endif
-}
-
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
@@ -416,6 +401,21 @@ void on_library_unload() {
         if (kren_ret != kIOReturnSuccess) {
             logger(LOG_LEVEL_INFO, "%s [%u]: IOServiceClose failure (%#X) %#X!\n",
                     __FUNCTION__, __LINE__, kren_ret, kIOReturnError);
+        }
+    }
+    #endif
+}
+
+// Create a shared object constructor.
+__attribute__ ((constructor))
+void on_library_load() {
+    #ifdef USE_IOKIT
+    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(kIOHIDSystemClass));
+    if (service) {
+        kern_return_t kren_ret = IOServiceOpen(service, mach_task_self(), kIOHIDParamConnectType, &connection);
+        if (kren_ret != kIOReturnSuccess) {
+            logger(LOG_LEVEL_INFO, "%s [%u]: IOServiceOpen failure (%#X)!\n",
+                    __FUNCTION__, __LINE__, kren_ret);
         }
     }
     #endif

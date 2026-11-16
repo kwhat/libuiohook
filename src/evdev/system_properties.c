@@ -290,18 +290,6 @@ UIOHOOK_API long int hook_get_multi_click_time() {
     return value;
 }
 
-// Create a shared object constructor.
-__attribute__ ((constructor))
-void on_library_load() {
-    // Load the X11 libraries at runtime and open the shared connection (also calls
-    // XInitThreads).  Owned here for the whole library lifetime so the public property
-    // queries work whether or not the hook is currently running.
-    if (load_x11_helper() != UIOHOOK_SUCCESS) {
-        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
-                __FUNCTION__, __LINE__, "Failed to open shared X11 display!");
-    }
-}
-
 // Create a shared object destructor.
 __attribute__ ((destructor))
 void on_library_unload() {
@@ -313,4 +301,20 @@ void on_library_unload() {
 
     // Closes the shared connection and dlcloses the X11 libraries.
     unload_x11_helper();
+}
+
+// Create a shared object constructor.
+__attribute__ ((constructor))
+void on_library_load() {
+    // Load the X11 libraries at runtime and open the shared connection (also calls
+    // XInitThreads).  Owned here for the whole library lifetime so the public property
+    // queries work whether or not the hook is currently running.
+    if (load_x11_helper() != UIOHOOK_SUCCESS) {
+        logger(LOG_LEVEL_ERROR, "%s [%u]: %s\n",
+                __FUNCTION__, __LINE__, "Failed to open shared X11 display!");
+    }
+
+    // dlopen dependencies can finalize before our ELF destructor at process exit.
+    // Close the shared display while Xlib still owns its threading locks.
+    atexit(on_library_unload);
 }

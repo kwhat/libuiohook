@@ -435,7 +435,14 @@ jobs:
             libxkbcommon-dev:i386 \
             libxkbcommon-x11-dev:i386
 
-          sudo apt-get install -y --no-install-recommends binutils-gold
+          # Newer Ubuntu releases package Gold separately for each cross target.
+          gold_package=binutils-gold-i686-linux-gnu
+          if ! apt-cache show "$gold_package" >/dev/null 2>&1; then
+            # Older cross-binutils packages include Gold themselves.
+            gold_package=binutils-i686-linux-gnu
+          fi
+          sudo apt-get install -y --no-install-recommends "$gold_package"
+          i686-linux-gnu-ld.gold --version
 
       - name: Compile
         env:

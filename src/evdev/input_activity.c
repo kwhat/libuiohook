@@ -31,6 +31,7 @@
 
 static bool bit_is_set(const unsigned long *bits, unsigned int bit) {
     const unsigned int width = sizeof(*bits) * 8;
+
     return (bits[bit / width] & (1UL << (bit % width))) != 0;
 }
 
@@ -40,6 +41,7 @@ int input_activity_init(struct input_activity *activity, int fd) {
     if (ioctl(fd, EVIOCGBIT(0, sizeof(types)), types) < 0) {
         return -errno;
     }
+
     activity->has_keys = bit_is_set(types, EV_KEY);
 
     if (bit_is_set(types, EV_ABS)) {
@@ -47,17 +49,21 @@ int input_activity_init(struct input_activity *activity, int fd) {
         if (ioctl(fd, EVIOCGBIT(EV_ABS, sizeof(axes)), axes) < 0) {
             return -errno;
         }
+
         if (bit_is_set(axes, ABS_MT_SLOT)) {
             struct input_absinfo slots;
             if (ioctl(fd, EVIOCGABS(ABS_MT_SLOT), &slots) < 0) {
                 return -errno;
             }
+
             if (slots.maximum < 0 || slots.maximum == INT_MAX) {
                 return -EINVAL;
             }
+
             activity->slot_count = slots.maximum + 1;
         }
     }
+
     return 0;
 }
 
@@ -67,6 +73,7 @@ int input_activity_is_idle(const struct input_activity *activity) {
         if (ioctl(activity->fd, EVIOCGKEY(sizeof(keys)), keys) < 0) {
             return -errno;
         }
+
         for (unsigned int code = 0; code <= KEY_MAX; code++) {
             if (bit_is_set(keys, code)) {
                 return 0;
@@ -80,6 +87,7 @@ int input_activity_is_idle(const struct input_activity *activity) {
         if (values == NULL) {
             return -ENOMEM;
         }
+
         values[0] = ABS_MT_TRACKING_ID;
         int status = ioctl(activity->fd, EVIOCGMTSLOTS(count * sizeof(*values)), values);
         if (status < 0) {
@@ -87,15 +95,19 @@ int input_activity_is_idle(const struct input_activity *activity) {
             free(values);
             return -error;
         }
+
         bool active = false;
         for (size_t i = 1; i < count; i++) {
             active |= values[i] >= 0;
         }
+
         free(values);
+
         if (active) {
             return 0;
         }
     }
+
     return 1;
 }
 
@@ -108,9 +120,11 @@ int input_activity_wait(const struct input_activity *activity) {
         do {
             size = read(activity->fd, events, sizeof(events));
         } while (size > 0 || (size < 0 && errno == EINTR));
+
         if (size == 0) {
             return -ENODEV;
         }
+
         if (errno != EAGAIN) {
             return -errno;
         }
@@ -125,6 +139,7 @@ int input_activity_wait(const struct input_activity *activity) {
         if (status < 0 && errno != EINTR) {
             return -errno;
         }
+
         if (status > 0 && (event.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
             return -ENODEV;
         }

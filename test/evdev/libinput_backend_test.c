@@ -34,7 +34,6 @@
 #include "input_state.h"
 #include "mouse_helper.h"
 #include "test_assert.h"
-#include "touchpad_helper.h"
 
 // Native dependencies are supplied at link time. The real helper is compiled
 // separately; tests only use its declared interface and never inspect its state.
@@ -313,28 +312,28 @@ static void test_callback(uiohook_event *const event, void *data) {
     }
 }
 
-static void send_event(struct touchpad *touchpad, enum libinput_event_type type) {
+static void send_event(struct libinput_backend *touchpad, enum libinput_event_type type) {
     test_event_type = type;
     pending = true;
-    TEST_ASSERT(touchpad_dispatch(touchpad) == 0);
+    TEST_ASSERT(libinput_backend_dispatch(touchpad) == 0);
 }
 
-static struct touchpad * create_test_touchpad(void) {
-    struct touchpad *touchpad = NULL;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_SUCCESS);
+static struct libinput_backend * create_test_backend(void) {
+    struct libinput_backend *touchpad = NULL;
+    TEST_ASSERT(libinput_backend_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_SUCCESS);
     TEST_ASSERT(touchpad != NULL);
     return touchpad;
 }
 
 static void test_initialization(void) {
-    struct touchpad *touchpad = create_test_touchpad();
+    struct libinput_backend *touchpad = create_test_backend();
     TEST_ASSERT(context_data == touchpad);
-    TEST_ASSERT(touchpad_get_fd(touchpad) == 42);
-    TEST_ASSERT(strcmp(touchpad_get_devnode(touchpad), "/mock/virtual-mouse") == 0);
+    TEST_ASSERT(libinput_backend_get_fd(touchpad) == 42);
+    TEST_ASSERT(strcmp(libinput_backend_get_devnode(touchpad), "/mock/virtual-mouse") == 0);
     TEST_ASSERT(devices_added == 1 && tap_requests == 1 && scroll_requests == 1);
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
     TEST_ASSERT(touchpad == NULL && uinput_destroyed == 1 && context_destroyed == 1);
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
     TEST_ASSERT(uinput_destroyed == 1 && context_destroyed == 1);
 
     // Missing or inaccessible uinput still permits event observation. The open
@@ -342,38 +341,38 @@ static void test_initialization(void) {
     const int failures[] = { -ENOENT, -EACCES };
     for (unsigned int i = 0; i < sizeof(failures) / sizeof(failures[0]); i++) {
         uinput_status = failures[i];
-        touchpad = create_test_touchpad();
-        TEST_ASSERT(context_data == touchpad && touchpad_get_devnode(touchpad) == NULL);
+        touchpad = create_test_backend();
+        TEST_ASSERT(context_data == touchpad && libinput_backend_get_devnode(touchpad) == NULL);
         int fd = context_interface->open_restricted("/dev/null", O_RDONLY, context_data);
         TEST_ASSERT(fd >= 0);
         context_interface->close_restricted(fd, context_data);
-        touchpad_destroy(&touchpad);
+        libinput_backend_destroy(&touchpad);
     }
     TEST_ASSERT(uinput_destroyed == 1 && context_destroyed == 3);
 
     uinput_status = 0;
     context_failure = true;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
+    TEST_ASSERT(libinput_backend_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
     TEST_ASSERT(touchpad == NULL && uinput_destroyed == 2 && context_destroyed == 3);
 
     context_failure = false;
     device_failure = true;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
+    TEST_ASSERT(libinput_backend_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
     TEST_ASSERT(touchpad == NULL && uinput_destroyed == 3 && context_destroyed == 4);
     TEST_ASSERT(tap_requests == 3 && scroll_requests == 3);
 
     uinput_status = -ENOENT;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
+    TEST_ASSERT(libinput_backend_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
     TEST_ASSERT(touchpad == NULL && uinput_destroyed == 3 && context_destroyed == 5);
 
     // A forwarding device that cannot be grabbed must become observation-only.
     uinput_status = 0;
     device_failure = false;
-    touchpad = create_test_touchpad();
+    touchpad = create_test_backend();
     int fd = context_interface->open_restricted("/dev/null", O_RDONLY, context_data);
-    TEST_ASSERT(fd >= 0 && touchpad_get_devnode(touchpad) == NULL && uinput_destroyed == 4);
+    TEST_ASSERT(fd >= 0 && libinput_backend_get_devnode(touchpad) == NULL && uinput_destroyed == 4);
     context_fd = fd;
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
     TEST_ASSERT(fcntl(fd, F_GETFD) == -1 && errno == EBADF);
     TEST_ASSERT(touchpad == NULL && uinput_destroyed == 4 && context_destroyed == 6);
     puts("Touchpad initialization tests passed");
@@ -384,7 +383,7 @@ static void test_translation(void) {
     set_pointer_position(0, 0);
     unset_modifier_mask(UINT16_MAX);
 
-    struct touchpad *touchpad = create_test_touchpad();
+    struct libinput_backend *touchpad = create_test_backend();
     dx = 0.75;
     dy = -0.75;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
@@ -427,10 +426,10 @@ static void test_translation(void) {
 #endif
     pending = true;
     test_event_type = LIBINPUT_EVENT_DEVICE_REMOVED;
-    TEST_ASSERT(touchpad_dispatch(touchpad) == -ENODEV);
+    TEST_ASSERT(libinput_backend_dispatch(touchpad) == -ENODEV);
     TEST_ASSERT(destroyed == 10);
     dispatch_status = -EIO;
-    TEST_ASSERT(touchpad_dispatch(touchpad) == -EIO && destroyed == 10);
+    TEST_ASSERT(libinput_backend_dispatch(touchpad) == -EIO && destroyed == 10);
     dispatch_status = 0;
 
     axis = 7.5;
@@ -440,11 +439,11 @@ static void test_translation(void) {
     axis = 7.5;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
     TEST_ASSERT(wheels == -2); // Scroll stop clears the fractional step.
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
 
     // Observation still dispatches events but must never write to uinput.
     uinput_status = -ENOENT;
-    touchpad = create_test_touchpad();
+    touchpad = create_test_backend();
     dx = 3;
     dy = 3;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
@@ -467,10 +466,10 @@ static void test_translation(void) {
     TEST_ASSERT((get_modifiers() & MASK_BUTTON1) == 0);
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
     TEST_ASSERT(last_mouse_type == EVENT_MOUSE_MOVED);
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
 
     uinput_status = 0;
-    touchpad = create_test_touchpad();
+    touchpad = create_test_backend();
     active_axis = LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL;
     axis = 7.5;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
@@ -492,10 +491,10 @@ static void test_translation(void) {
     axis = 7.5;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
     TEST_ASSERT(horizontal_wheels == 0 && emitted_hwheel == -1);
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
     // Fractional deltas belong to each helper, not to shared/global state.
-    struct touchpad *other = create_test_touchpad();
-    touchpad = create_test_touchpad();
+    struct libinput_backend *other = create_test_backend();
+    touchpad = create_test_backend();
     int previous_moves = moves;
     int previous_x = emitted_x;
     dx = 0.6;
@@ -506,18 +505,18 @@ static void test_translation(void) {
     send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
     send_event(other, LIBINPUT_EVENT_POINTER_MOTION);
     TEST_ASSERT(moves == previous_moves + 2 && emitted_x == previous_x + 2);
-    touchpad_destroy(&touchpad);
-    touchpad_destroy(&other);
+    libinput_backend_destroy(&touchpad);
+    libinput_backend_destroy(&other);
     puts("Touchpad translation tests passed");
 }
 
 static void test_passthrough(void) {
     hook_set_dispatch_proc(test_callback, NULL);
-    struct touchpad *touchpad = create_test_touchpad();
+    struct libinput_backend *touchpad = create_test_backend();
     button_state = LIBINPUT_BUTTON_STATE_PRESSED;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
     TEST_ASSERT(presses == 1 && emitted_buttons == 1);
-    touchpad_set_passthrough(touchpad);
+    libinput_backend_set_passthrough(touchpad);
     consume = true;
     button_state = LIBINPUT_BUTTON_STATE_RELEASED;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
@@ -529,40 +528,40 @@ static void test_passthrough(void) {
     axis = 15;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
     TEST_ASSERT(wheels == 0 && emitted_wheel == -1);
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
     puts("Pending-stop passthrough tests passed");
 }
 
 static void test_idle(void) {
     mock_activity = true;
     hook_set_dispatch_proc(test_callback, NULL);
-    struct touchpad *touchpad = create_test_touchpad();
+    struct libinput_backend *touchpad = create_test_backend();
     // A pipe provides a real nonblocking descriptor without input hardware.
     int fds[2];
     TEST_ASSERT(pipe(fds) == 0);
     char path[64];
     snprintf(path, sizeof(path), "/proc/self/fd/%d", fds[0]);
     context_fd = context_interface->open_restricted(path, O_RDONLY, context_data);
-    TEST_ASSERT(context_fd >= 0 && touchpad_get_devnode(touchpad) != NULL);
-    TEST_ASSERT(touchpad_is_idle(touchpad));
+    TEST_ASSERT(context_fd >= 0 && libinput_backend_get_devnode(touchpad) != NULL);
+    TEST_ASSERT(libinput_backend_is_idle(touchpad));
     physical_contact = true;
-    TEST_ASSERT(!touchpad_is_idle(touchpad));
+    TEST_ASSERT(!libinput_backend_is_idle(touchpad));
     physical_contact = false;
     physical_button = true;
-    TEST_ASSERT(!touchpad_is_idle(touchpad));
+    TEST_ASSERT(!libinput_backend_is_idle(touchpad));
     physical_button = false;
-    TEST_ASSERT(touchpad_is_idle(touchpad));
+    TEST_ASSERT(libinput_backend_is_idle(touchpad));
 
     // A synthetic tap remains active after physical contacts are gone.
     button_state = LIBINPUT_BUTTON_STATE_PRESSED;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(!touchpad_is_idle(touchpad));
-    touchpad_set_passthrough(touchpad);
+    TEST_ASSERT(!libinput_backend_is_idle(touchpad));
+    libinput_backend_set_passthrough(touchpad);
     button_state = LIBINPUT_BUTTON_STATE_RELEASED;
     send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(touchpad_is_idle(touchpad));
+    TEST_ASSERT(libinput_backend_is_idle(touchpad));
     TEST_ASSERT(presses == 1 && releases == 0 && emitted_buttons == 2);
-    touchpad_destroy(&touchpad);
+    libinput_backend_destroy(&touchpad);
     close(fds[0]);
     close(fds[1]);
     puts("Input and delayed tap release tests passed");

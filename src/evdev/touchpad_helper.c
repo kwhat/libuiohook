@@ -37,8 +37,100 @@ struct touchpad {
     struct libinput *context;
     struct libevdev_uinput *uinput;
     touchpad_button_proc dispatch_button;
+    int fd;
+    int slot_count;
+    uint32_t touch_key_mask;
+    bool grabbed;
+    bool passthrough;
+    bool contact_query_error_logged;
     double motion_x, motion_y, scroll_x, scroll_y;
 };
+
+static const unsigned int touch_keys[] = {
+    BTN_TOUCH,
+    BTN_TOOL_FINGER,
+    BTN_TOOL_DOUBLETAP,
+    BTN_TOOL_TRIPLETAP,
+    BTN_TOOL_QUADTAP,
+    BTN_TOOL_QUINTTAP
+};
+
+static bool bit_is_set(const unsigned long *bits, unsigned int bit) {
+    const unsigned int bits_per_word = sizeof(*bits) * 8;
+    return (bits[bit / bits_per_word] & (1UL << (bit % bits_per_word))) != 0;
+}
+
+static int touchpad_read_contact_state(const struct touchpad *touchpad, int fd, bool *active);
+
+static int touchpad_configure_contact_query(struct touchpad *touchpad, int fd, bool *active) {
+    struct input_absinfo slots;
+    if (ioctl(fd, EVIOCGABS(ABS_MT_SLOT), &slots) == 0 && slots.maximum >= 0) {
+        touchpad->slot_count = slots.maximum + 1;
+    }
+
+    unsigned long key_capabilities[(KEY_MAX + 1 + sizeof(unsigned long) * 8 - 1)
+            / (sizeof(unsigned long) * 8)] = { 0 };
+    if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_capabilities)), key_capabilities) == 0) {
+        for (unsigned int i = 0; i < sizeof(touch_keys) / sizeof(touch_keys[0]); i++) {
+            if (bit_is_set(key_capabilities, touch_keys[i])) {
+                touchpad->touch_key_mask |= 1U << i;
+            }
+        }
+    }
+
+    if (touchpad->slot_count == 0 && touchpad->touch_key_mask == 0) {
+        return -ENOTSUP;
+    }
+
+    return touchpad_read_contact_state(touchpad, fd, active);
+}
+
+static int touchpad_read_contact_state(const struct touchpad *touchpad, int fd, bool *active) {
+    *active = false;
+
+    if (touchpad->slot_count > 0) {
+        size_t count = (size_t) touchpad->slot_count + 1;
+        int32_t *values = calloc(count, sizeof(int32_t));
+        if (values == NULL) {
+            return -ENOMEM;
+        }
+
+        values[0] = ABS_MT_TRACKING_ID;
+        int status = ioctl(fd, EVIOCGMTSLOTS(count * sizeof(int32_t)), values);
+        if (status == 0) {
+            for (size_t i = 1; i < count; i++) {
+                if (values[i] >= 0) {
+                    *active = true;
+                    break;
+                }
+            }
+        } else if (touchpad->touch_key_mask == 0) {
+            int error = errno;
+            free(values);
+            return -error;
+        }
+
+        free(values);
+    }
+
+    if (touchpad->touch_key_mask != 0) {
+        unsigned long key_states[(KEY_MAX + 1 + sizeof(unsigned long) * 8 - 1)
+                / (sizeof(unsigned long) * 8)] = { 0 };
+        if (ioctl(fd, EVIOCGKEY(sizeof(key_states)), key_states) < 0) {
+            return -errno;
+        }
+
+        for (unsigned int i = 0; i < sizeof(touch_keys) / sizeof(touch_keys[0]); i++) {
+            if ((touchpad->touch_key_mask & (1U << i)) != 0
+                    && bit_is_set(key_states, touch_keys[i])) {
+                *active = true;
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
 
 // Only grab the device when a virtual mouse can forward its events. Otherwise
 // leave desktop input untouched and observe events, as the raw evdev path does.
@@ -52,12 +144,35 @@ static int touchpad_open(const char *path, int flags, void *data) {
         return -error;
     }
 
+    touchpad->fd = fd;
+    if (touchpad->uinput != NULL) {
+        bool active = false;
+        if (touchpad_configure_contact_query(touchpad, fd, &active) < 0 || active) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Cannot safely grab active touchpad %s; observing only.\n",
+                    __FUNCTION__, __LINE__, path);
+            libevdev_uinput_destroy(touchpad->uinput);
+            touchpad->uinput = NULL;
+        }
+    }
+
     if (touchpad->uinput != NULL && ioctl(fd, EVIOCGRAB, 1) < 0) {
         int error = errno;
         logger(LOG_LEVEL_WARN, "%s [%u]: Failed to grab touchpad: %s! (%d); observing only.\n",
                 __FUNCTION__, __LINE__, path, error);
         libevdev_uinput_destroy(touchpad->uinput);
         touchpad->uinput = NULL;
+    } else if (touchpad->uinput != NULL) {
+        touchpad->grabbed = true;
+
+        bool active = false;
+        if (touchpad_read_contact_state(touchpad, fd, &active) < 0 || active) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Touchpad became active while grabbing %s; observing only.\n",
+                    __FUNCTION__, __LINE__, path);
+            ioctl(fd, EVIOCGRAB, 0);
+            touchpad->grabbed = false;
+            libevdev_uinput_destroy(touchpad->uinput);
+            touchpad->uinput = NULL;
+        }
     }
 
     return fd;
@@ -65,8 +180,12 @@ static int touchpad_open(const char *path, int flags, void *data) {
 
 static void touchpad_close(int fd, void *data) {
     struct touchpad *touchpad = data;
-    if (touchpad->uinput != NULL) {
+    if (touchpad->grabbed) {
         ioctl(fd, EVIOCGRAB, 0);
+        touchpad->grabbed = false;
+    }
+    if (touchpad->fd == fd) {
+        touchpad->fd = -1;
     }
     close(fd);
 }
@@ -84,6 +203,7 @@ int touchpad_create(const char *path, touchpad_button_proc dispatch_button, stru
     }
 
     touchpad->dispatch_button = dispatch_button;
+    touchpad->fd = -1;
 
     struct libevdev *mouse = libevdev_new();
     if (mouse == NULL) {
@@ -192,7 +312,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 int dy = touchpad_delta(libinput_event_pointer_get_dy(pointer), &touchpad->motion_y);
                 if (dx != 0 || dy != 0) {
                     track_pointer_delta(dx, dy);
-                    if (!dispatch_mouse_move(&ev, dx, dy)) {
+                    if (touchpad->passthrough || !dispatch_mouse_move(&ev, dx, dy)) {
                         touchpad_emit(touchpad, EV_REL, REL_X, dx);
                         touchpad_emit(touchpad, EV_REL, REL_Y, dy);
                     }
@@ -201,7 +321,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 ev.type = EV_KEY;
                 ev.code = libinput_event_pointer_get_button(pointer);
                 ev.value = libinput_event_pointer_get_button_state(pointer) == LIBINPUT_BUTTON_STATE_PRESSED;
-                if (!touchpad->dispatch_button(&ev)) {
+                if (touchpad->passthrough || !touchpad->dispatch_button(&ev)) {
                     touchpad_emit(touchpad, EV_KEY, ev.code, ev.value);
                 }
             } else {
@@ -226,8 +346,8 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                     if (i == 0) {
                         steps = -steps;
                     }
-                    if (steps != 0 && !dispatch_mouse_wheel(&ev, steps,
-                            i == 0 ? WHEEL_VERTICAL_DIRECTION : WHEEL_HORIZONTAL_DIRECTION)) {
+                    if (steps != 0 && (touchpad->passthrough || !dispatch_mouse_wheel(&ev, steps,
+                            i == 0 ? WHEEL_VERTICAL_DIRECTION : WHEEL_HORIZONTAL_DIRECTION))) {
                         touchpad_emit(touchpad, EV_REL, i == 0 ? REL_WHEEL : REL_HWHEEL, steps);
                     }
                 }
@@ -252,6 +372,30 @@ void touchpad_destroy(struct touchpad **touchpad) {
         }
         free(*touchpad);
         *touchpad = NULL;
+    }
+}
+
+bool touchpad_is_idle(struct touchpad *touchpad) {
+    if (touchpad == NULL || !touchpad->grabbed) {
+        return true;
+    }
+
+    bool active = true;
+    if (touchpad_read_contact_state(touchpad, touchpad->fd, &active) < 0) {
+        if (!touchpad->contact_query_error_logged) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to inspect active touchpad contacts; keeping device grabbed.\n",
+                    __FUNCTION__, __LINE__);
+            touchpad->contact_query_error_logged = true;
+        }
+        return false;
+    }
+
+    return !active;
+}
+
+void touchpad_set_passthrough(struct touchpad *touchpad) {
+    if (touchpad != NULL) {
+        touchpad->passthrough = true;
     }
 }
 

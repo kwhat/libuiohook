@@ -469,6 +469,22 @@ static void destroy_event_listeners(int epoll_fd) {
     }
 }
 
+static void set_touchpad_passthrough(void) {
+    for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
+        touchpad_set_passthrough(hook->touchpad);
+    }
+}
+
+static bool touchpads_are_idle(void) {
+    for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
+        if (hook->touchpad != NULL && !touchpad_is_idle(hook->touchpad)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // Process pending hotplug events from the udev monitor.
 static void hook_monitor_proc(int epoll_fd) {
     struct udev_device *device;
@@ -675,8 +691,10 @@ UIOHOOK_API int hook_run() {
     dispatch_hook_enabled();
 
     bool is_running = true;
+    bool stop_requested = false;
     while (is_running) {
-        int event_count = epoll_wait(epoll_fd, event_buffer, EVENT_BUFFER_SIZE, EVENT_BUFFER_WAIT * 1000);
+        int timeout = stop_requested ? 250 : EVENT_BUFFER_WAIT * 1000;
+        int event_count = epoll_wait(epoll_fd, event_buffer, EVENT_BUFFER_SIZE, timeout);
         if (event_count < 0) {
             if (errno == EINTR) {
                 continue;
@@ -693,13 +711,23 @@ UIOHOOK_API int hook_run() {
             void *ptr = event_buffer[i].data.ptr;
 
             if (ptr == &stop_tag) {
-                // hook_stop() signaled shutdown.
-                is_running = false;
+                // Keep the touchpad grabbed until every contact is released so
+                // the desktop's libinput context does not resume mid-gesture.
+                uint64_t signal;
+                read(stop_fd, &signal, sizeof(signal));
+                if (!stop_requested) {
+                    set_touchpad_passthrough();
+                    stop_requested = true;
+                }
             } else if (ptr == &monitor_tag) {
                 hook_monitor_proc(epoll_fd);
             } else {
                 hook_device_proc(epoll_fd, ptr);
             }
+        }
+
+        if (stop_requested && touchpads_are_idle()) {
+            is_running = false;
         }
     }
 

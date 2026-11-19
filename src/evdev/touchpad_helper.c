@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "dispatch_event.h"
+#include "input_activity.h"
 #include "input_helper.h"
 #include "logger.h"
 #include "mouse_helper.h"
@@ -38,105 +39,19 @@ struct touchpad {
     struct libevdev_uinput *uinput;
     touchpad_button_proc dispatch_button;
     int fd;
-    int slot_count;
-    uint32_t touch_key_mask;
+    struct input_activity activity;
+    unsigned int buttons_down;
     bool grabbed;
     bool passthrough;
-    bool contact_query_error_logged;
+    bool activity_query_error_logged;
     double motion_x, motion_y, scroll_x, scroll_y;
 };
-
-static const unsigned int touch_keys[] = {
-    BTN_TOUCH,
-    BTN_TOOL_FINGER,
-    BTN_TOOL_DOUBLETAP,
-    BTN_TOOL_TRIPLETAP,
-    BTN_TOOL_QUADTAP,
-    BTN_TOOL_QUINTTAP
-};
-
-static bool bit_is_set(const unsigned long *bits, unsigned int bit) {
-    const unsigned int bits_per_word = sizeof(*bits) * 8;
-    return (bits[bit / bits_per_word] & (1UL << (bit % bits_per_word))) != 0;
-}
-
-static int touchpad_read_contact_state(const struct touchpad *touchpad, int fd, bool *active);
-
-static int touchpad_configure_contact_query(struct touchpad *touchpad, int fd, bool *active) {
-    struct input_absinfo slots;
-    if (ioctl(fd, EVIOCGABS(ABS_MT_SLOT), &slots) == 0 && slots.maximum >= 0) {
-        touchpad->slot_count = slots.maximum + 1;
-    }
-
-    unsigned long key_capabilities[(KEY_MAX + 1 + sizeof(unsigned long) * 8 - 1)
-            / (sizeof(unsigned long) * 8)] = { 0 };
-    if (ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(key_capabilities)), key_capabilities) == 0) {
-        for (unsigned int i = 0; i < sizeof(touch_keys) / sizeof(touch_keys[0]); i++) {
-            if (bit_is_set(key_capabilities, touch_keys[i])) {
-                touchpad->touch_key_mask |= 1U << i;
-            }
-        }
-    }
-
-    if (touchpad->slot_count == 0 && touchpad->touch_key_mask == 0) {
-        return -ENOTSUP;
-    }
-
-    return touchpad_read_contact_state(touchpad, fd, active);
-}
-
-static int touchpad_read_contact_state(const struct touchpad *touchpad, int fd, bool *active) {
-    *active = false;
-
-    if (touchpad->slot_count > 0) {
-        size_t count = (size_t) touchpad->slot_count + 1;
-        int32_t *values = calloc(count, sizeof(int32_t));
-        if (values == NULL) {
-            return -ENOMEM;
-        }
-
-        values[0] = ABS_MT_TRACKING_ID;
-        int status = ioctl(fd, EVIOCGMTSLOTS(count * sizeof(int32_t)), values);
-        if (status == 0) {
-            for (size_t i = 1; i < count; i++) {
-                if (values[i] >= 0) {
-                    *active = true;
-                    break;
-                }
-            }
-        } else if (touchpad->touch_key_mask == 0) {
-            int error = errno;
-            free(values);
-            return -error;
-        }
-
-        free(values);
-    }
-
-    if (touchpad->touch_key_mask != 0) {
-        unsigned long key_states[(KEY_MAX + 1 + sizeof(unsigned long) * 8 - 1)
-                / (sizeof(unsigned long) * 8)] = { 0 };
-        if (ioctl(fd, EVIOCGKEY(sizeof(key_states)), key_states) < 0) {
-            return -errno;
-        }
-
-        for (unsigned int i = 0; i < sizeof(touch_keys) / sizeof(touch_keys[0]); i++) {
-            if ((touchpad->touch_key_mask & (1U << i)) != 0
-                    && bit_is_set(key_states, touch_keys[i])) {
-                *active = true;
-                break;
-            }
-        }
-    }
-
-    return 0;
-}
 
 // Only grab the device when a virtual mouse can forward its events. Otherwise
 // leave desktop input untouched and observe events, as the raw evdev path does.
 static int touchpad_open(const char *path, int flags, void *data) {
     struct touchpad *touchpad = data;
-    int fd = open(path, flags | O_CLOEXEC);
+    int fd = open(path, flags | O_CLOEXEC | O_NONBLOCK);
     if (fd < 0) {
         int error = errno;
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open touchpad: %s! (%d)\n",
@@ -146,9 +61,9 @@ static int touchpad_open(const char *path, int flags, void *data) {
 
     touchpad->fd = fd;
     if (touchpad->uinput != NULL) {
-        bool active = false;
-        if (touchpad_configure_contact_query(touchpad, fd, &active) < 0 || active) {
-            logger(LOG_LEVEL_WARN, "%s [%u]: Cannot safely grab active touchpad %s; observing only.\n",
+        if (input_activity_init(&touchpad->activity, fd) < 0
+                || input_activity_wait(&touchpad->activity) < 0) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Cannot wait for idle input device %s; observing only.\n",
                     __FUNCTION__, __LINE__, path);
             libevdev_uinput_destroy(touchpad->uinput);
             touchpad->uinput = NULL;
@@ -164,8 +79,7 @@ static int touchpad_open(const char *path, int flags, void *data) {
     } else if (touchpad->uinput != NULL) {
         touchpad->grabbed = true;
 
-        bool active = false;
-        if (touchpad_read_contact_state(touchpad, fd, &active) < 0 || active) {
+        if (input_activity_is_idle(&touchpad->activity) != 1) {
             logger(LOG_LEVEL_WARN, "%s [%u]: Touchpad became active while grabbing %s; observing only.\n",
                     __FUNCTION__, __LINE__, path);
             ioctl(fd, EVIOCGRAB, 0);
@@ -275,7 +189,15 @@ static int touchpad_delta(double delta, double *remainder) {
 
 static void touchpad_emit(struct touchpad *touchpad, unsigned int type, unsigned int code, int value) {
     if (touchpad->uinput != NULL) {
-        libevdev_uinput_write_event(touchpad->uinput, type, code, value);
+        if (libevdev_uinput_write_event(touchpad->uinput, type, code, value) == 0
+                && type == EV_KEY && code >= BTN_LEFT && code <= BTN_MIDDLE) {
+            unsigned int bit = 1U << (code - BTN_LEFT);
+            if (value != 0) {
+                touchpad->buttons_down |= bit;
+            } else {
+                touchpad->buttons_down &= ~bit;
+            }
+        }
     }
 }
 
@@ -380,17 +302,18 @@ bool touchpad_is_idle(struct touchpad *touchpad) {
         return true;
     }
 
-    bool active = true;
-    if (touchpad_read_contact_state(touchpad, touchpad->fd, &active) < 0) {
-        if (!touchpad->contact_query_error_logged) {
-            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to inspect active touchpad contacts; keeping device grabbed.\n",
+    int idle = input_activity_is_idle(&touchpad->activity);
+    if (idle < 0) {
+        if (!touchpad->activity_query_error_logged) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to inspect input state; keeping device grabbed.\n",
                     __FUNCTION__, __LINE__);
-            touchpad->contact_query_error_logged = true;
+            touchpad->activity_query_error_logged = true;
         }
         return false;
     }
 
-    return !active;
+    // libinput may schedule a tap release after physical contacts have ended.
+    return idle == 1 && touchpad->buttons_down == 0;
 }
 
 void touchpad_set_passthrough(struct touchpad *touchpad) {

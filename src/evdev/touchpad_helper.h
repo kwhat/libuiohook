@@ -36,7 +36,7 @@ extern int touchpad_create(const char *path, touchpad_button_proc dispatch_butto
  * backend. */
 extern void touchpad_destroy(struct touchpad **touchpad);
 
-/* Return whether the physical touchpad currently has no active contacts. */
+/* Return whether the physical input and any forwarded buttons are released. */
 extern bool touchpad_is_idle(struct touchpad *touchpad);
 
 /* Forward touchpad input without dispatching callbacks while a stop is pending. */

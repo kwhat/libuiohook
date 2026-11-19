@@ -30,16 +30,18 @@
 #include <unistd.h>
 
 #include "dispatch_event.h"
+#include "input_activity.h"
 #include "input_helper.h"
 #include "input_state.h"
 #include "logger.h"
 #include "mouse_helper.h"
+#include "touchpad_helper.h"
 
 struct input_hook {
     struct libevdev *evdev;
     struct libevdev_uinput *uinput;
     char *devnode;
-    struct libinput_backend *libinput;
+    struct touchpad *touchpad;
     struct input_activity activity;
     bool passthrough;
     bool activity_query_error_logged;
@@ -170,7 +172,7 @@ static bool hook_event_proc(struct input_event *ev) {
 }
 
 static int hook_fd(struct input_hook *hook) {
-    return hook->libinput != NULL ? libinput_backend_get_fd(hook->libinput) : libevdev_get_fd(hook->evdev);
+    return hook->touchpad != NULL ? touchpad_get_fd(hook->touchpad) : libevdev_get_fd(hook->evdev);
 }
 
 static int create_hook(const char *path, int dpi, const char *label, struct input_hook **hook) {
@@ -187,7 +189,7 @@ static int create_hook(const char *path, int dpi, const char *label, struct inpu
     (*hook)->dpi = dpi;
 
     if (strcmp(label, "touchpad") == 0) {
-        return libinput_backend_create(path, hook_key_proc, &(*hook)->libinput);
+        return touchpad_create(path, hook_key_proc, &(*hook)->touchpad);
     }
 
     int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -251,7 +253,7 @@ static void destroy_hook(struct input_hook **hook) {
     if (*hook != NULL) {
         int fd = -1;
 
-        libinput_backend_destroy(&(*hook)->libinput);
+        touchpad_destroy(&(*hook)->touchpad);
 
         if ((*hook)->evdev != NULL) {
             fd = libevdev_get_fd((*hook)->evdev);
@@ -311,8 +313,8 @@ static bool is_device_hooked(const char *devnode) {
         }
 
         const char *clone_devnode = NULL;
-        if (hook->libinput != NULL) {
-            clone_devnode = libinput_backend_get_devnode(hook->libinput);
+        if (hook->touchpad != NULL) {
+            clone_devnode = touchpad_get_devnode(hook->touchpad);
         } else if (hook->uinput != NULL) {
             clone_devnode = libevdev_uinput_get_devnode(hook->uinput);
         }
@@ -414,7 +416,7 @@ static void detach_device(int epoll_fd, struct input_hook *hook) {
         *indirect = hook->next;
     }
 
-    if (hook->evdev != NULL || hook->libinput != NULL) {
+    if (hook->evdev != NULL || hook->touchpad != NULL) {
         int fd = hook_fd(hook);
         if (fd >= 0) {
             epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
@@ -474,14 +476,14 @@ static void set_input_passthrough(void) {
     rel_x = rel_y = wheel_h = wheel_v = 0;
     for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
         hook->passthrough = true;
-        libinput_backend_set_passthrough(hook->libinput);
+        touchpad_set_passthrough(hook->touchpad);
     }
 }
 
 static bool input_devices_are_idle(void) {
     for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
-        if (hook->libinput != NULL) {
-            if (!libinput_backend_is_idle(hook->libinput)) {
+        if (hook->touchpad != NULL) {
+            if (!touchpad_is_idle(hook->touchpad)) {
                 return false;
             }
         } else if (hook->uinput != NULL) {
@@ -548,8 +550,8 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
         return;
     }
 
-    if (hook->libinput != NULL) {
-        if (libinput_backend_dispatch(hook->libinput) < 0) {
+    if (hook->touchpad != NULL) {
+        if (touchpad_dispatch(hook->touchpad) < 0) {
             detach_device(epoll_fd, hook);
         }
         return;

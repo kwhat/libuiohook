@@ -26,7 +26,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include "input_helper.h"
+#include "input_activity.h"
 #include "test_assert.h"
 
 static bool has_keys, has_slots;

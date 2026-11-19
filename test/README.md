@@ -34,10 +34,10 @@ Tests are not built by default.
 | `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
 | `evdev.input_activity` | Linux/evdev | Shared grab/ungrab idle checks for keys, mouse buttons and multitouch slots, release waits and device errors |
-| `evdev.libinput_idle` | Linux/evdev | Physical contacts/buttons and delayed synthetic tap releases at shutdown |
-| `evdev.libinput_passthrough` | Linux/evdev | Stop-pending releases, movement and scrolling forward without callbacks |
-| `evdev.libinput_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
-| `evdev.libinput_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
+| `evdev.touchpad_idle` | Linux/evdev | Physical contacts/buttons and delayed synthetic tap releases at shutdown |
+| `evdev.touchpad_passthrough` | Linux/evdev | Stop-pending releases, movement and scrolling forward without callbacks |
+| `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
+| `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
 | `package.*_consumer` | All | Independent CMake consumers of build-tree and installed packages |
 
 Common logger and package-consumer tests run on all platforms. Platform-specific
@@ -98,11 +98,11 @@ edges, delta saturation, consumption, and zero deltas on button/click events.
 Touchpad cases also verify that fractional and observation-mode motion populate
 `dx` and `dy`.
 
-`evdev/libinput_backend_test.c` exercises the libinput backend in the production
-`src/evdev/input_helper.c` through `input_helper.h`. Mock libinput and uinput
-functions are supplied at link time; the test does not include implementation
-files or rename functions with preprocessor macros. The backend's state is
-opaque to the test.
+`evdev/touchpad_helper_test.c` compiles `src/evdev/touchpad_helper.c` as a
+separate source file and accesses it through `touchpad_helper.h`. Mock libinput
+and uinput functions are supplied at link time; the test does not link libinput,
+include implementation files, or rename functions with preprocessor macros.
+The helper's state is opaque to the test.
 
 The tests exercise fractional movement, independent state for multiple touchpads,
 vertical/horizontal scrolling, consumption, observation mode, device removal,
@@ -117,8 +117,7 @@ only with libinput 1.19 or later; older headers still build and run the rest of
 the suite. The tests use `/dev/null` through libinput's captured open/close
 callbacks to verify observation mode and failed-grab fallback without hardware.
 
-The hook uses the shared activity checks in `input_helper` before grabbing and
-while stopping. Idle means all
+The hook uses `input_activity` before grabbing and while stopping. Idle means all
 keys, mouse buttons and multitouch contacts are released. Shutdown continues to
 forward input without callbacks until devices are idle; touchpads also wait for
 libinput's delayed synthetic tap releases. Observation-only devices do not delay

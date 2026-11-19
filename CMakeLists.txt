@@ -117,12 +117,14 @@ endif()
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
         "src/evdev/dispatch_event.c"
+        "src/evdev/input_activity.c"
         "src/evdev/input_helper.c"
         "src/evdev/input_hook.c"
         "src/evdev/keycode_helper.c"
         "src/evdev/mouse_helper.c"
         "src/evdev/post_event.c"
         "src/evdev/system_properties.c"
+        "src/evdev/touchpad_helper.c"
         "src/evdev/x11_helper.c"
     )
     target_include_directories(uiohook PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/evdev")

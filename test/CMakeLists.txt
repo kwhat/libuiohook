@@ -110,11 +110,10 @@ if(UNIX AND NOT APPLE)
     )
     configure_unit_test(evdev_test_backend)
     target_include_directories(evdev_test_backend PUBLIC
-        ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS}
         ${XKB_INCLUDE_DIRS} ${XKB_X11_INCLUDE_DIRS} ${XCB_X11_INCLUDE_DIRS}
         ${X11_INCLUDE_DIRS} ${XINERAMA_INCLUDE_DIRS}
     )
-    target_link_libraries(evdev_test_backend PUBLIC ${XKB_LDFLAGS} ${LIBINPUT_LDFLAGS} ${EVDEV_LDFLAGS})
+    target_link_libraries(evdev_test_backend PUBLIC ${XKB_LDFLAGS})
     target_link_libraries(uiohook_tests evdev_test_backend)
 
     add_executable(post_event_test
@@ -143,32 +142,34 @@ if(UNIX AND NOT APPLE)
 
     add_executable(input_activity_test
         evdev/input_activity_test.c
+        "${PROJECT_SOURCE_DIR}/src/evdev/input_activity.c"
     )
     configure_unit_test(input_activity_test)
-    target_link_libraries(input_activity_test evdev_test_backend)
     add_test(NAME evdev.input_activity COMMAND input_activity_test)
     set_tests_properties(evdev.input_activity PROPERTIES LABELS "unit;evdev")
 
-    add_executable(libinput_backend_test
-        evdev/libinput_backend_test.c
+    add_executable(touchpad_test
+        evdev/touchpad_helper_test.c
+        "${PROJECT_SOURCE_DIR}/src/evdev/touchpad_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/evdev/input_activity.c"
     )
-    configure_unit_test(libinput_backend_test)
-    target_include_directories(libinput_backend_test PRIVATE ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS})
+    configure_unit_test(touchpad_test)
+    target_include_directories(touchpad_test PRIVATE ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS})
     # libinput and uinput calls are provided by the test, not a live backend.
-    target_link_libraries(libinput_backend_test evdev_test_backend ${EVDEV_LDFLAGS})
+    target_link_libraries(touchpad_test evdev_test_backend ${EVDEV_LDFLAGS})
     # New scroll events are only used to check that legacy and new events are
     # not both dispatched. Keep the test buildable with older libinput headers.
     if(LIBINPUT_VERSION VERSION_GREATER_EQUAL "1.19")
-        target_compile_definitions(libinput_backend_test PRIVATE HAVE_LIBINPUT_POINTER_SCROLL_FINGER)
+        target_compile_definitions(touchpad_test PRIVATE HAVE_LIBINPUT_POINTER_SCROLL_FINGER)
     endif()
-    add_test(NAME evdev.libinput_translation COMMAND libinput_backend_test)
-    set_tests_properties(evdev.libinput_translation PROPERTIES LABELS "unit;evdev")
-    add_test(NAME evdev.libinput_idle COMMAND libinput_backend_test idle)
-    set_tests_properties(evdev.libinput_idle PROPERTIES LABELS "unit;evdev")
-    add_test(NAME evdev.libinput_passthrough COMMAND libinput_backend_test passthrough)
-    set_tests_properties(evdev.libinput_passthrough PROPERTIES LABELS "unit;evdev")
-    add_test(NAME evdev.libinput_initialization COMMAND libinput_backend_test initialization)
-    set_tests_properties(evdev.libinput_initialization PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_translation COMMAND touchpad_test)
+    set_tests_properties(evdev.touchpad_translation PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_idle COMMAND touchpad_test idle)
+    set_tests_properties(evdev.touchpad_idle PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_passthrough COMMAND touchpad_test passthrough)
+    set_tests_properties(evdev.touchpad_passthrough PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_initialization COMMAND touchpad_test initialization)
+    set_tests_properties(evdev.touchpad_initialization PROPERTIES LABELS "unit;evdev")
 
     add_test(NAME evdev.input_helper COMMAND uiohook_tests)
     set_tests_properties(evdev.input_helper PROPERTIES LABELS "unit;evdev")

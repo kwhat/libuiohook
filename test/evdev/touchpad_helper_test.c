@@ -22,6 +22,9 @@
 #include <libevdev/libevdev-uinput.h>
 #include <libinput.h>
 #include <stdio.h>
+#include <stdarg.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
 #include <uiohook.h>
@@ -53,6 +56,41 @@ static int dispatch_status;
 static int context_fd = -1;
 static int context_token, device_token, uinput_token;
 static int context_destroyed, devices_added, tap_requests, scroll_requests;
+
+static bool mock_activity, physical_button, physical_contact;
+
+int ioctl(int fd, unsigned long request, ...) {
+    (void) fd;
+    if (!mock_activity) {
+        errno = ENOTTY;
+        return -1;
+    }
+    if (request == EVIOCGRAB) {
+        return 0;
+    }
+    va_list args;
+    va_start(args, request);
+    void *value = va_arg(args, void *);
+    va_end(args);
+    if (_IOC_NR(request) == _IOC_NR(EVIOCGBIT(0, 0))) {
+        *(unsigned long *) value = (1UL << EV_KEY) | (1UL << EV_ABS);
+    } else if (_IOC_NR(request) == _IOC_NR(EVIOCGBIT(EV_ABS, 0))) {
+        unsigned int width = sizeof(unsigned long) * 8;
+        ((unsigned long *) value)[ABS_MT_SLOT / width] |= 1UL << (ABS_MT_SLOT % width);
+    } else if (request == EVIOCGABS(ABS_MT_SLOT)) {
+        ((struct input_absinfo *) value)->maximum = 0;
+    } else if (_IOC_NR(request) == _IOC_NR(EVIOCGKEY(0))) {
+        if (physical_button) {
+            unsigned int width = sizeof(unsigned long) * 8;
+            ((unsigned long *) value)[BTN_LEFT / width] |= 1UL << (BTN_LEFT % width);
+        }
+    } else if (_IOC_NR(request) == _IOC_NR(EVIOCGMTSLOTS(0))) {
+        ((int32_t *) value)[1] = physical_contact ? 123 : -1;
+    } else {
+        TEST_ASSERT(false);
+    }
+    return 0;
+}
 
 int gettimeofday(struct timeval *timestamp, void *timezone) {
     (void) timezone;
@@ -473,9 +511,70 @@ static void test_translation(void) {
     puts("Touchpad translation tests passed");
 }
 
+static void test_passthrough(void) {
+    hook_set_dispatch_proc(test_callback, NULL);
+    struct touchpad *touchpad = create_test_touchpad();
+    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+    TEST_ASSERT(presses == 1 && emitted_buttons == 1);
+    touchpad_set_passthrough(touchpad);
+    consume = true;
+    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+    TEST_ASSERT(releases == 0 && emitted_buttons == 2);
+    dx = 3;
+    dy = -2;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
+    TEST_ASSERT(moves == 0 && emitted_x == 3 && emitted_y == -2);
+    axis = 15;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
+    TEST_ASSERT(wheels == 0 && emitted_wheel == -1);
+    touchpad_destroy(&touchpad);
+    puts("Pending-stop passthrough tests passed");
+}
+
+static void test_idle(void) {
+    mock_activity = true;
+    hook_set_dispatch_proc(test_callback, NULL);
+    struct touchpad *touchpad = create_test_touchpad();
+    // A pipe provides a real nonblocking descriptor without input hardware.
+    int fds[2];
+    TEST_ASSERT(pipe(fds) == 0);
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/self/fd/%d", fds[0]);
+    context_fd = context_interface->open_restricted(path, O_RDONLY, context_data);
+    TEST_ASSERT(context_fd >= 0 && touchpad_get_devnode(touchpad) != NULL);
+    TEST_ASSERT(touchpad_is_idle(touchpad));
+    physical_contact = true;
+    TEST_ASSERT(!touchpad_is_idle(touchpad));
+    physical_contact = false;
+    physical_button = true;
+    TEST_ASSERT(!touchpad_is_idle(touchpad));
+    physical_button = false;
+    TEST_ASSERT(touchpad_is_idle(touchpad));
+
+    // A synthetic tap remains active after physical contacts are gone.
+    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+    TEST_ASSERT(!touchpad_is_idle(touchpad));
+    touchpad_set_passthrough(touchpad);
+    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
+    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
+    TEST_ASSERT(touchpad_is_idle(touchpad));
+    TEST_ASSERT(presses == 1 && releases == 0 && emitted_buttons == 2);
+    touchpad_destroy(&touchpad);
+    close(fds[0]);
+    close(fds[1]);
+    puts("Input and delayed tap release tests passed");
+}
+
 int main(int argc, char **argv) {
     if (argc == 2 && strcmp(argv[1], "initialization") == 0) {
         test_initialization();
+    } else if (argc == 2 && strcmp(argv[1], "idle") == 0) {
+        test_idle();
+    } else if (argc == 2 && strcmp(argv[1], "passthrough") == 0) {
+        test_passthrough();
     } else {
         TEST_ASSERT(argc == 1);
         test_translation();

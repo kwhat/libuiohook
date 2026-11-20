@@ -28,7 +28,7 @@
 #include <unistd.h>
 
 #include "dispatch_event.h"
-#include "input_helper.h"
+#include "input_activity.h"
 #include "logger.h"
 #include "mouse_helper.h"
 #include "touchpad_helper.h"
@@ -37,19 +37,43 @@ struct touchpad {
     struct libinput *context;
     struct libevdev_uinput *uinput;
     touchpad_button_proc dispatch_button;
+    int fd;
+    struct input_activity activity;
+    unsigned int buttons_down;
+    bool grabbed;
+    bool passthrough;
+    bool activity_query_error_logged;
     double motion_x, motion_y, scroll_x, scroll_y;
+};
+
+static int touchpad_open(const char *path, int flags, void *data);
+static void touchpad_close(int fd, void *data);
+
+static const struct libinput_interface touchpad_interface = {
+    .open_restricted = touchpad_open,
+    .close_restricted = touchpad_close
 };
 
 // Only grab the device when a virtual mouse can forward its events. Otherwise
 // leave desktop input untouched and observe events, as the raw evdev path does.
 static int touchpad_open(const char *path, int flags, void *data) {
     struct touchpad *touchpad = data;
-    int fd = open(path, flags | O_CLOEXEC);
+    int fd = open(path, flags | O_CLOEXEC | O_NONBLOCK);
     if (fd < 0) {
         int error = errno;
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to open touchpad: %s! (%d)\n",
                 __FUNCTION__, __LINE__, path, error);
         return -error;
+    }
+
+    touchpad->fd = fd;
+    if (touchpad->uinput != NULL) {
+        if (input_activity_init(&touchpad->activity, fd) < 0 || input_activity_wait(&touchpad->activity) < 0) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Cannot wait for idle input device %s; observing only.\n",
+                    __FUNCTION__, __LINE__, path);
+            libevdev_uinput_destroy(touchpad->uinput);
+            touchpad->uinput = NULL;
+        }
     }
 
     if (touchpad->uinput != NULL && ioctl(fd, EVIOCGRAB, 1) < 0) {
@@ -58,6 +82,17 @@ static int touchpad_open(const char *path, int flags, void *data) {
                 __FUNCTION__, __LINE__, path, error);
         libevdev_uinput_destroy(touchpad->uinput);
         touchpad->uinput = NULL;
+    } else if (touchpad->uinput != NULL) {
+        touchpad->grabbed = true;
+
+        if (input_activity_is_idle(&touchpad->activity) != 1) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Touchpad became active while grabbing %s; observing only.\n",
+                    __FUNCTION__, __LINE__, path);
+            ioctl(fd, EVIOCGRAB, 0);
+            touchpad->grabbed = false;
+            libevdev_uinput_destroy(touchpad->uinput);
+            touchpad->uinput = NULL;
+        }
     }
 
     return fd;
@@ -65,16 +100,17 @@ static int touchpad_open(const char *path, int flags, void *data) {
 
 static void touchpad_close(int fd, void *data) {
     struct touchpad *touchpad = data;
-    if (touchpad->uinput != NULL) {
+    if (touchpad->grabbed) {
         ioctl(fd, EVIOCGRAB, 0);
+        touchpad->grabbed = false;
     }
+
+    if (touchpad->fd == fd) {
+        touchpad->fd = -1;
+    }
+
     close(fd);
 }
-
-static const struct libinput_interface touchpad_interface = {
-    .open_restricted = touchpad_open,
-    .close_restricted = touchpad_close
-};
 
 int touchpad_create(const char *path, touchpad_button_proc dispatch_button, struct touchpad **result) {
     *result = NULL;
@@ -84,6 +120,7 @@ int touchpad_create(const char *path, touchpad_button_proc dispatch_button, stru
     }
 
     touchpad->dispatch_button = dispatch_button;
+    touchpad->fd = -1;
 
     struct libevdev *mouse = libevdev_new();
     if (mouse == NULL) {
@@ -155,7 +192,15 @@ static int touchpad_delta(double delta, double *remainder) {
 
 static void touchpad_emit(struct touchpad *touchpad, unsigned int type, unsigned int code, int value) {
     if (touchpad->uinput != NULL) {
-        libevdev_uinput_write_event(touchpad->uinput, type, code, value);
+        if (libevdev_uinput_write_event(touchpad->uinput, type, code, value) == 0
+                && type == EV_KEY && code >= BTN_LEFT && code <= BTN_MIDDLE) {
+            unsigned int bit = 1U << (code - BTN_LEFT);
+            if (value != 0) {
+                touchpad->buttons_down |= bit;
+            } else {
+                touchpad->buttons_down &= ~bit;
+            }
+        }
     }
 }
 
@@ -192,7 +237,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 int dy = touchpad_delta(libinput_event_pointer_get_dy(pointer), &touchpad->motion_y);
                 if (dx != 0 || dy != 0) {
                     track_pointer_delta(dx, dy);
-                    if (!dispatch_mouse_move(&ev, dx, dy)) {
+                    if (touchpad->passthrough || !dispatch_mouse_move(&ev, dx, dy)) {
                         touchpad_emit(touchpad, EV_REL, REL_X, dx);
                         touchpad_emit(touchpad, EV_REL, REL_Y, dy);
                     }
@@ -201,7 +246,7 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                 ev.type = EV_KEY;
                 ev.code = libinput_event_pointer_get_button(pointer);
                 ev.value = libinput_event_pointer_get_button_state(pointer) == LIBINPUT_BUTTON_STATE_PRESSED;
-                if (!touchpad->dispatch_button(&ev)) {
+                if (touchpad->passthrough || !touchpad->dispatch_button(&ev)) {
                     touchpad_emit(touchpad, EV_KEY, ev.code, ev.value);
                 }
             } else {
@@ -226,9 +271,16 @@ int touchpad_dispatch(struct touchpad *touchpad) {
                     if (i == 0) {
                         steps = -steps;
                     }
-                    if (steps != 0 && !dispatch_mouse_wheel(&ev, steps,
-                            i == 0 ? WHEEL_VERTICAL_DIRECTION : WHEEL_HORIZONTAL_DIRECTION)) {
-                        touchpad_emit(touchpad, EV_REL, i == 0 ? REL_WHEEL : REL_HWHEEL, steps);
+
+                    int direction = WHEEL_HORIZONTAL_DIRECTION;
+                    unsigned int code = REL_HWHEEL;
+                    if (i == 0) {
+                        direction = WHEEL_VERTICAL_DIRECTION;
+                        code = REL_WHEEL;
+                    }
+
+                    if (steps != 0 && (touchpad->passthrough || !dispatch_mouse_wheel(&ev, steps, direction))) {
+                        touchpad_emit(touchpad, EV_REL, code, steps);
                     }
                 }
             }
@@ -247,11 +299,38 @@ void touchpad_destroy(struct touchpad **touchpad) {
         if ((*touchpad)->context != NULL) {
             libinput_unref((*touchpad)->context);
         }
+
         if ((*touchpad)->uinput != NULL) {
             libevdev_uinput_destroy((*touchpad)->uinput);
         }
+
         free(*touchpad);
         *touchpad = NULL;
+    }
+}
+
+bool touchpad_is_idle(struct touchpad *touchpad) {
+    if (touchpad == NULL || !touchpad->grabbed) {
+        return true;
+    }
+
+    int idle = input_activity_is_idle(&touchpad->activity);
+    if (idle < 0) {
+        if (!touchpad->activity_query_error_logged) {
+            logger(LOG_LEVEL_WARN, "%s [%u]: Failed to inspect input state; keeping device grabbed.\n",
+                    __FUNCTION__, __LINE__);
+            touchpad->activity_query_error_logged = true;
+        }
+        return false;
+    }
+
+    // libinput may schedule a tap release after physical contacts have ended.
+    return idle == 1 && touchpad->buttons_down == 0;
+}
+
+void touchpad_set_passthrough(struct touchpad *touchpad) {
+    if (touchpad != NULL) {
+        touchpad->passthrough = true;
     }
 }
 
@@ -260,5 +339,9 @@ int touchpad_get_fd(const struct touchpad *touchpad) {
 }
 
 const char * touchpad_get_devnode(const struct touchpad *touchpad) {
-    return touchpad->uinput != NULL ? libevdev_uinput_get_devnode(touchpad->uinput) : NULL;
+    if (touchpad->uinput != NULL) {
+        return libevdev_uinput_get_devnode(touchpad->uinput);
+    }
+
+    return NULL;
 }

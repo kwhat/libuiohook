@@ -117,6 +117,7 @@ endif()
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
         "src/evdev/dispatch_event.c"
+        "src/evdev/input_activity.c"
         "src/evdev/input_helper.c"
         "src/evdev/input_hook.c"
         "src/evdev/keycode_helper.c"

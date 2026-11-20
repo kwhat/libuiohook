@@ -33,6 +33,9 @@ Tests are not built by default.
 | `darwin.keycode_helper` | macOS | Production Darwin key mappings, modifier masks, and drag state with fixed fixtures |
 | `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
+| `evdev.input_activity` | Linux/evdev | Shared grab/ungrab idle checks for keys, mouse buttons and multitouch slots, release waits and device errors |
+| `evdev.touchpad_idle` | Linux/evdev | Physical contacts/buttons and delayed synthetic tap releases at shutdown |
+| `evdev.touchpad_passthrough` | Linux/evdev | Stop-pending releases, movement and scrolling forward without callbacks |
 | `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
 | `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
 | `package.*_consumer` | All | Independent CMake consumers of build-tree and installed packages |
@@ -113,6 +116,14 @@ initialization, and resource cleanup. The newer-scroll-event check is enabled
 only with libinput 1.19 or later; older headers still build and run the rest of
 the suite. The tests use `/dev/null` through libinput's captured open/close
 callbacks to verify observation mode and failed-grab fallback without hardware.
+
+The hook uses `input_activity` before grabbing and while stopping. Idle means all
+keys, mouse buttons and multitouch contacts are released. Shutdown continues to
+forward input without callbacks until devices are idle; touchpads also wait for
+libinput's delayed synthetic tap releases. Observation-only devices do not delay
+shutdown, and new devices are not attached while stopping. Generic activity tests
+mock the kernel queries and poll/read calls; touchpad idle tests use a pipe with
+mocked evdev queries, so neither requires real input devices.
 
 ## Package and CI checks
 

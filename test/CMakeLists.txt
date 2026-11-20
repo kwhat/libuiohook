@@ -140,9 +140,18 @@ if(UNIX AND NOT APPLE)
         set_tests_properties(evdev.properties.${property} PROPERTIES LABELS "unit;evdev")
     endforeach()
 
+    add_executable(input_activity_test
+        evdev/input_activity_test.c
+        "${PROJECT_SOURCE_DIR}/src/evdev/input_activity.c"
+    )
+    configure_unit_test(input_activity_test)
+    add_test(NAME evdev.input_activity COMMAND input_activity_test)
+    set_tests_properties(evdev.input_activity PROPERTIES LABELS "unit;evdev")
+
     add_executable(touchpad_test
         evdev/touchpad_helper_test.c
         "${PROJECT_SOURCE_DIR}/src/evdev/touchpad_helper.c"
+        "${PROJECT_SOURCE_DIR}/src/evdev/input_activity.c"
     )
     configure_unit_test(touchpad_test)
     target_include_directories(touchpad_test PRIVATE ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS})
@@ -155,6 +164,10 @@ if(UNIX AND NOT APPLE)
     endif()
     add_test(NAME evdev.touchpad_translation COMMAND touchpad_test)
     set_tests_properties(evdev.touchpad_translation PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_idle COMMAND touchpad_test idle)
+    set_tests_properties(evdev.touchpad_idle PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_passthrough COMMAND touchpad_test passthrough)
+    set_tests_properties(evdev.touchpad_passthrough PROPERTIES LABELS "unit;evdev")
     add_test(NAME evdev.touchpad_initialization COMMAND touchpad_test initialization)
     set_tests_properties(evdev.touchpad_initialization PROPERTIES LABELS "unit;evdev")
 

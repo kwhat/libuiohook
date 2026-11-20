@@ -493,6 +493,7 @@ static bool input_devices_are_idle(void) {
                         __FUNCTION__, __LINE__, hook->devnode);
                 hook->activity_query_error_logged = true;
             }
+
             if (idle != 1) {
                 return false;
             }
@@ -546,6 +547,7 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
     while (hook != NULL && hook != ptr) {
         hook = hook->next;
     }
+
     if (hook == NULL) {
         return;
     }
@@ -554,6 +556,7 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
         if (touchpad_dispatch(hook->touchpad) < 0) {
             detach_device(epoll_fd, hook);
         }
+
         return;
     }
 

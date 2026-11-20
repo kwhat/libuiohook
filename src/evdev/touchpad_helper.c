@@ -46,6 +46,9 @@ struct touchpad {
     double motion_x, motion_y, scroll_x, scroll_y;
 };
 
+static int touchpad_open(const char *path, int flags, void *data);
+static void touchpad_close(int fd, void *data);
+
 static const struct libinput_interface touchpad_interface = {
     .open_restricted = touchpad_open,
     .close_restricted = touchpad_close

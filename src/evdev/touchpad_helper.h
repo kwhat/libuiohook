@@ -28,7 +28,7 @@ struct touchpad;
  * whether it was consumed. */
 typedef bool (*touchpad_button_proc)(struct input_event *event);
 
-/* Create a libinput touchpad backend, falling back to observation when virtual forwarding is
+/* Create an evdev touchpad backend, falling back to observation when virtual forwarding is
  * unavailable; return UIOHOOK_SUCCESS or an error, clearing the output pointer on failure. */
 extern int touchpad_create(const char *path, touchpad_button_proc dispatch_button, struct touchpad **touchpad);
 
@@ -36,13 +36,19 @@ extern int touchpad_create(const char *path, touchpad_button_proc dispatch_butto
  * backend. */
 extern void touchpad_destroy(struct touchpad **touchpad);
 
-/* Return the libinput descriptor to register with the hook manager's epoll instance. */
+/* Return whether the physical input and any forwarded buttons are released. */
+extern bool touchpad_is_idle(struct touchpad *touchpad);
+
+/* Forward touchpad input without dispatching callbacks while a stop is pending. */
+extern void touchpad_set_passthrough(struct touchpad *touchpad);
+
+/* Return the physical evdev descriptor to register with the hook manager's epoll instance. */
 extern int touchpad_get_fd(const struct touchpad *touchpad);
 
 /* Return the virtual-device node to exclude from hotplug enumeration, or NULL in observation mode. */
 extern const char * touchpad_get_devnode(const struct touchpad *touchpad);
 
-/* Drain and translate pending libinput events; return zero on success or a negative errno on
+/* Drain and translate pending evdev frames; return zero on success or a negative errno on
  * dispatch failure or device removal. */
 extern int touchpad_dispatch(struct touchpad *touchpad);
 

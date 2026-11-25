@@ -201,40 +201,45 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo rm -Rf /etc/apt/sources.list.d
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-security main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images.  Left disabled: it upgrades
-          # libgcc-s1:amd64 ahead of the armhf ports version, and libgcc-s1 must match across
-          # architectures, which breaks the libc6:armhf / libffi8:armhf cross dependencies.
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-security main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-          " > /etc/apt/sources.list'
+          # Keep native repositories so installed host packages retain matching candidates.
+          host_arch=$(dpkg --print-architecture)
+          for source_file in /etc/apt/sources.list.d/*.sources; do
+            if [ -f "$source_file" ]; then
+              sudo sed -i -E "/^Architectures(-Add|-Remove)?:/d; /^Types:/a Architectures: $host_arch" "$source_file"
+            fi
+          done
+          for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do
+            if [ -f "$source_file" ]; then
+              sudo sed -i -E "/^[[:space:]]*deb(-src)?[[:space:]]/ {
+                s/arch(\+|-)?=[^][:space:]]+/arch=$host_arch/g
+                /\[/ {
+                  /arch=/!s/\[/[arch=$host_arch /
+                  b
+                }
+                s/^([[:space:]]*deb(-src)?[[:space:]]+)/\1[arch=$host_arch] /
+              }" "$source_file"
+            fi
+          done
+          sudo bash -c 'source /etc/os-release && cat > /etc/apt/sources.list.d/libuiohook-armhf.list <<SOURCES
+          deb [arch=armhf signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME} main universe
+          deb [arch=armhf signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-updates main universe
+          deb [arch=armhf signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main universe
+          deb [arch=armhf signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-backports main universe
+          SOURCES'
 
           sudo dpkg --add-architecture armhf
           sudo apt-get update -m
 
-          # GLib generators run on the host, including for target development packages.
-          sudo apt-get install \
+          # APT can classify same-version metadata replacements as downgrades.
+          # https://bugs.debian.org/1149125
+          sudo apt-get install -y --allow-downgrades --no-install-recommends \
             binutils-arm-linux-gnueabihf \
             gcc-arm-linux-gnueabihf \
-            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
-          sudo apt-get install \
-            libglib2.0-dev-bin:amd64 \
+          sudo apt-get install -y --allow-downgrades --no-install-recommends \
             libevdev-dev:armhf \
-            libinput-dev:armhf \
             libudev-dev:armhf \
             libwayland-dev:armhf \
             libx11-dev:armhf \
@@ -243,7 +248,14 @@ jobs:
             libxkbcommon-dev:armhf \
             libxkbcommon-x11-dev:armhf
 
-          sudo apt-get install -y --no-install-recommends binutils-gold
+          # Newer Ubuntu releases package Gold separately for each cross target.
+          gold_package=binutils-gold-arm-linux-gnueabihf
+          if ! apt-cache show "$gold_package" >/dev/null 2>&1; then
+            # Older cross-binutils packages include Gold themselves.
+            gold_package=binutils-arm-linux-gnueabihf
+          fi
+          sudo apt-get install -y --allow-downgrades --no-install-recommends "$gold_package"
+          arm-linux-gnueabihf-ld.gold --version
 
       - name: Compile
         env:
@@ -286,38 +298,45 @@ jobs:
       - name: Setup
         shell: bash
         run: |
-          sudo rm -Rf /etc/apt/sources.list.d/*
-          sudo bash -c 'source /etc/lsb-release && echo "
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME} main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=amd64,i386] http://security.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-security main universe
-          deb [arch=amd64,i386] http://us.archive.ubuntu.com/ubuntu ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=amd64,i386 trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME} main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-updates main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-security main universe
-          deb [arch=arm64,armhf] http://ports.ubuntu.com/ubuntu-ports ${DISTRIB_CODENAME}-backports main universe
-          # This only seems to be required on GitHub images
-          #deb [arch=arm64,armhf trusted=yes] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu ${DISTRIB_CODENAME} main
-          " > /etc/apt/sources.list'
+          # Keep native repositories so installed host packages retain matching candidates.
+          host_arch=$(dpkg --print-architecture)
+          for source_file in /etc/apt/sources.list.d/*.sources; do
+            if [ -f "$source_file" ]; then
+              sudo sed -i -E "/^Architectures(-Add|-Remove)?:/d; /^Types:/a Architectures: $host_arch" "$source_file"
+            fi
+          done
+          for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.list; do
+            if [ -f "$source_file" ]; then
+              sudo sed -i -E "/^[[:space:]]*deb(-src)?[[:space:]]/ {
+                s/arch(\+|-)?=[^][:space:]]+/arch=$host_arch/g
+                /\[/ {
+                  /arch=/!s/\[/[arch=$host_arch /
+                  b
+                }
+                s/^([[:space:]]*deb(-src)?[[:space:]]+)/\1[arch=$host_arch] /
+              }" "$source_file"
+            fi
+          done
+          sudo bash -c 'source /etc/os-release && cat > /etc/apt/sources.list.d/libuiohook-arm64.list <<SOURCES
+          deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME} main universe
+          deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-updates main universe
+          deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-security main universe
+          deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports ${VERSION_CODENAME}-backports main universe
+          SOURCES'
 
           sudo dpkg --add-architecture arm64
           sudo apt-get update -m
 
-          # GLib generators run on the host, including for target development packages.
-          sudo apt-get install \
+          # APT can classify same-version metadata replacements as downgrades.
+          # https://bugs.debian.org/1149125
+          sudo apt-get install -y --allow-downgrades --no-install-recommends \
             binutils-aarch64-linux-gnu \
             gcc-aarch64-linux-gnu \
-            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
-          sudo apt-get install \
-            libglib2.0-dev-bin:amd64 \
+          sudo apt-get install -y --allow-downgrades --no-install-recommends \
             libevdev-dev:arm64 \
-            libinput-dev:arm64 \
             libudev-dev:arm64 \
             libwayland-dev:arm64 \
             libx11-dev:arm64 \
@@ -326,7 +345,14 @@ jobs:
             libxkbcommon-dev:arm64 \
             libxkbcommon-x11-dev:arm64
 
-          sudo apt-get install -y --no-install-recommends binutils-gold
+          # Newer Ubuntu releases package Gold separately for each cross target.
+          gold_package=binutils-gold-aarch64-linux-gnu
+          if ! apt-cache show "$gold_package" >/dev/null 2>&1; then
+            # Older cross-binutils packages include Gold themselves.
+            gold_package=binutils-aarch64-linux-gnu
+          fi
+          sudo apt-get install -y --allow-downgrades --no-install-recommends "$gold_package"
+          aarch64-linux-gnu-ld.gold --version
 
       - name: Compile
         env:
@@ -380,19 +406,15 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
 
-          # libinput-dev pulls GLib through libwacom. GLib generators run on
-          # the amd64 host; select them before installing target development files.
+          # Keep native build tools separate from target development files.
           sudo apt-get install -y --no-install-recommends \
             binutils-i686-linux-gnu \
             gcc-i686-linux-gnu \
-            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
           sudo apt-get install -y --no-install-recommends \
-            libglib2.0-dev-bin:amd64 \
             libevdev-dev:i386 \
-            libinput-dev:i386 \
             libudev-dev:i386 \
             libwayland-dev:i386 \
             libx11-dev:i386 \
@@ -401,7 +423,14 @@ jobs:
             libxkbcommon-dev:i386 \
             libxkbcommon-x11-dev:i386
 
-          sudo apt-get install -y --no-install-recommends binutils-gold
+          # Newer Ubuntu releases package Gold separately for each cross target.
+          gold_package=binutils-gold-i686-linux-gnu
+          if ! apt-cache show "$gold_package" >/dev/null 2>&1; then
+            # Older cross-binutils packages include Gold themselves.
+            gold_package=binutils-i686-linux-gnu
+          fi
+          sudo apt-get install -y --no-install-recommends "$gold_package"
+          i686-linux-gnu-ld.gold --version
 
       - name: Compile
         env:
@@ -447,7 +476,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libevdev-dev:amd64 \
-            libinput-dev:amd64 \
             libudev-dev:amd64 \
             libwayland-dev:amd64 \
             libwayland-bin \

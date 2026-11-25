@@ -30,6 +30,7 @@
 #include <unistd.h>
 
 #include "dispatch_event.h"
+#include "input_activity.h"
 #include "input_helper.h"
 #include "input_state.h"
 #include "logger.h"
@@ -41,6 +42,9 @@ struct input_hook {
     struct libevdev_uinput *uinput;
     char *devnode;
     struct touchpad *touchpad;
+    struct input_activity activity;
+    bool passthrough;
+    bool activity_query_error_logged;
 
     // Device DPI from the MOUSE_DPI udev property (0 = unknown / no normalization).  The
     // uinput clone carries no MOUSE_DPI, so libinput cannot normalize its motion to the
@@ -195,6 +199,11 @@ static int create_hook(const char *path, int dpi, const char *label, struct inpu
         return UIOHOOK_FAILURE;
     }
 
+    int activity_status = input_activity_init(&(*hook)->activity, fd);
+    if (activity_status == 0) {
+        activity_status = input_activity_wait(&(*hook)->activity);
+    }
+
     int err = libevdev_new_from_fd(fd, &(*hook)->evdev);
     if (err < 0) {
         logger(LOG_LEVEL_ERROR, "%s [%u]: Failed to create evdev from file descriptor! (%d)\n",
@@ -207,20 +216,10 @@ static int create_hook(const char *path, int dpi, const char *label, struct inpu
         return UIOHOOK_FAILURE;
     }
 
-    // We need to wait until no key is being pressed because we are going
-    // to grab below and that will cause keys to stick.
-    struct input_event ev;
-    for (unsigned int i = 0; i < KEY_MAX; i++) {
-        while (libevdev_get_event_value((*hook)->evdev, EV_KEY, i)) {
-            int status = -EAGAIN;
-            unsigned int flags = LIBEVDEV_READ_FLAG_NORMAL;
-            do {
-                status = libevdev_next_event((*hook)->evdev, flags, &ev);
-                if (status == LIBEVDEV_READ_STATUS_SYNC) {
-                    flags = LIBEVDEV_READ_FLAG_SYNC;
-                }
-            } while (status == LIBEVDEV_READ_STATUS_SYNC);
-        }
+    if (activity_status < 0) {
+        logger(LOG_LEVEL_WARN, "%s [%u]: Cannot wait for idle input device %s; observing only.\n",
+                __FUNCTION__, __LINE__, path);
+        return UIOHOOK_SUCCESS;
     }
 
     err = libevdev_uinput_create_from_device((*hook)->evdev, LIBEVDEV_UINPUT_OPEN_MANAGED, &(*hook)->uinput);
@@ -233,6 +232,10 @@ static int create_hook(const char *path, int dpi, const char *label, struct inpu
     } else {
         // On success, grab the device so we can consume events.
         err = libevdev_grab((*hook)->evdev, LIBEVDEV_GRAB);
+        if (err == 0 && input_activity_is_idle(&(*hook)->activity) != 1) {
+            libevdev_grab((*hook)->evdev, LIBEVDEV_UNGRAB);
+            err = -EBUSY;
+        }
         if (err != 0) {
             logger(LOG_LEVEL_WARN, "%s [%u]: Failed to grab evdev! (%d)\n",
                     __FUNCTION__, __LINE__,
@@ -469,8 +472,39 @@ static void destroy_event_listeners(int epoll_fd) {
     }
 }
 
+static void set_input_passthrough(void) {
+    rel_x = rel_y = wheel_h = wheel_v = 0;
+    for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
+        hook->passthrough = true;
+        touchpad_set_passthrough(hook->touchpad);
+    }
+}
+
+static bool input_devices_are_idle(void) {
+    for (struct input_hook *hook = hook_list; hook != NULL; hook = hook->next) {
+        if (hook->touchpad != NULL) {
+            if (!touchpad_is_idle(hook->touchpad)) {
+                return false;
+            }
+        } else if (hook->uinput != NULL) {
+            int idle = input_activity_is_idle(&hook->activity);
+            if (idle < 0 && !hook->activity_query_error_logged) {
+                logger(LOG_LEVEL_WARN, "%s [%u]: Failed to inspect input state for %s; keeping device grabbed.\n",
+                        __FUNCTION__, __LINE__, hook->devnode);
+                hook->activity_query_error_logged = true;
+            }
+
+            if (idle != 1) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 // Process pending hotplug events from the udev monitor.
-static void hook_monitor_proc(int epoll_fd) {
+static void hook_monitor_proc(int epoll_fd, bool stop_requested) {
     struct udev_device *device;
     while ((device = udev_monitor_receive_device(udev_mon)) != NULL) {
         const char *action = udev_device_get_action(device);
@@ -488,7 +522,7 @@ static void hook_monitor_proc(int epoll_fd) {
             // Never attach our own uinput clones; doing so would grab them and clone
             // them again, cascading into an infinite chain of grabbed virtual devices.
             const char *label = get_device_label(device);
-            if (label != NULL && !is_device_hooked(devnode)) {
+            if (!stop_requested && label != NULL && !is_device_hooked(devnode)) {
                 attach_device(epoll_fd, devnode, get_device_dpi(device), label);
             }
         } else if (strcmp(action, "remove") == 0) {
@@ -513,6 +547,7 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
     while (hook != NULL && hook != ptr) {
         hook = hook->next;
     }
+
     if (hook == NULL) {
         return;
     }
@@ -521,6 +556,7 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
         if (touchpad_dispatch(hook->touchpad) < 0) {
             detach_device(epoll_fd, hook);
         }
+
         return;
     }
 
@@ -534,7 +570,7 @@ static void hook_device_proc(int epoll_fd, void *ptr) {
         }
 
         if (read_status == LIBEVDEV_READ_STATUS_SUCCESS || read_status == LIBEVDEV_READ_STATUS_SYNC) {
-            bool consumed = hook_event_proc(&ev);
+            bool consumed = !hook->passthrough && hook_event_proc(&ev);
 
             if (hook->uinput != NULL && !consumed) {
                 int value = ev.value;
@@ -675,8 +711,10 @@ UIOHOOK_API int hook_run() {
     dispatch_hook_enabled();
 
     bool is_running = true;
+    bool stop_requested = false;
     while (is_running) {
-        int event_count = epoll_wait(epoll_fd, event_buffer, EVENT_BUFFER_SIZE, EVENT_BUFFER_WAIT * 1000);
+        int timeout = stop_requested ? 250 : EVENT_BUFFER_WAIT * 1000;
+        int event_count = epoll_wait(epoll_fd, event_buffer, EVENT_BUFFER_SIZE, timeout);
         if (event_count < 0) {
             if (errno == EINTR) {
                 continue;
@@ -693,12 +731,30 @@ UIOHOOK_API int hook_run() {
             void *ptr = event_buffer[i].data.ptr;
 
             if (ptr == &stop_tag) {
-                // hook_stop() signaled shutdown.
-                is_running = false;
+                // Keep devices grabbed and forward releases until all keys,
+                // buttons and contacts are idle, just as before grabbing.
+                uint64_t signal;
+                read(stop_fd, &signal, sizeof(signal));
+                if (!stop_requested) {
+                    set_input_passthrough();
+                    stop_requested = true;
+                }
             } else if (ptr == &monitor_tag) {
-                hook_monitor_proc(epoll_fd);
+                hook_monitor_proc(epoll_fd, stop_requested);
             } else {
                 hook_device_proc(epoll_fd, ptr);
+            }
+        }
+
+        if (stop_requested) {
+            // The stop notification can precede readable devices outside this
+            // epoll batch. Forward their queued releases before checking idle.
+            for (struct input_hook *hook = hook_list, *next; hook != NULL; hook = next) {
+                next = hook->next;
+                hook_device_proc(epoll_fd, hook);
+            }
+            if (input_devices_are_idle()) {
+                is_running = false;
             }
         }
     }

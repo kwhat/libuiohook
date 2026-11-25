@@ -117,6 +117,7 @@ endif()
 if(UNIX AND NOT APPLE)
     target_sources(uiohook PRIVATE
         "src/evdev/dispatch_event.c"
+        "src/evdev/input_activity.c"
         "src/evdev/input_helper.c"
         "src/evdev/input_hook.c"
         "src/evdev/keycode_helper.c"
@@ -133,10 +134,6 @@ if(UNIX AND NOT APPLE)
     pkg_check_modules(EVDEV REQUIRED libevdev)
     target_include_directories(uiohook PRIVATE "${EVDEV_INCLUDE_DIRS}")
     target_link_libraries(uiohook "${EVDEV_LDFLAGS}")
-
-    pkg_check_modules(LIBINPUT REQUIRED libinput)
-    target_include_directories(uiohook PRIVATE "${LIBINPUT_INCLUDE_DIRS}")
-    target_link_libraries(uiohook "${LIBINPUT_LDFLAGS}")
 
     pkg_check_modules(UDEV REQUIRED libudev)
     target_include_directories(uiohook PRIVATE "${UDEV_INCLUDE_DIRS}")

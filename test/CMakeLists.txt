@@ -154,16 +154,15 @@ if(UNIX AND NOT APPLE)
         "${PROJECT_SOURCE_DIR}/src/evdev/input_activity.c"
     )
     configure_unit_test(touchpad_test)
-    target_include_directories(touchpad_test PRIVATE ${LIBINPUT_INCLUDE_DIRS} ${EVDEV_INCLUDE_DIRS})
-    # libinput and uinput calls are provided by the test, not a live backend.
+    target_include_directories(touchpad_test PRIVATE ${EVDEV_INCLUDE_DIRS})
+    # Physical event reads, grabs and uinput writes are supplied by the fixture.
     target_link_libraries(touchpad_test evdev_test_backend ${EVDEV_LDFLAGS})
-    # New scroll events are only used to check that legacy and new events are
-    # not both dispatched. Keep the test buildable with older libinput headers.
-    if(LIBINPUT_VERSION VERSION_GREATER_EQUAL "1.19")
-        target_compile_definitions(touchpad_test PRIVATE HAVE_LIBINPUT_POINTER_SCROLL_FINGER)
-    endif()
     add_test(NAME evdev.touchpad_translation COMMAND touchpad_test)
     set_tests_properties(evdev.touchpad_translation PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_gestures COMMAND touchpad_test gestures)
+    set_tests_properties(evdev.touchpad_gestures PROPERTIES LABELS "unit;evdev")
+    add_test(NAME evdev.touchpad_sync COMMAND touchpad_test sync)
+    set_tests_properties(evdev.touchpad_sync PROPERTIES LABELS "unit;evdev")
     add_test(NAME evdev.touchpad_idle COMMAND touchpad_test idle)
     set_tests_properties(evdev.touchpad_idle PROPERTIES LABELS "unit;evdev")
     add_test(NAME evdev.touchpad_passthrough COMMAND touchpad_test passthrough)

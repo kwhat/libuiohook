@@ -20,564 +20,649 @@
 #include <fcntl.h>
 #include <libevdev/libevdev.h>
 #include <libevdev/libevdev-uinput.h>
-#include <libinput.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <string.h>
-#include <sys/time.h>
-#include <uiohook.h>
 
 #include "dispatch_event.h"
-#include "input_helper.h"
 #include "input_state.h"
 #include "mouse_helper.h"
 #include "test_assert.h"
 #include "touchpad_helper.h"
 
-// Native dependencies are supplied at link time. The real helper is compiled
-// separately; tests only use its declared interface and never inspect its state.
-static enum libinput_event_type test_event_type;
-static double dx, dy, axis;
-static bool pending, consume;
-static int moves, wheels, presses, releases;
-static int last_dx, last_dy;
-static int emitted_x, emitted_y, emitted_wheel, emitted_buttons, destroyed;
-static enum libinput_button_state button_state;
-static int uinput_destroyed;
-static enum libinput_pointer_axis active_axis = LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL;
-static int horizontal_wheels, emitted_hwheel;
-static int uinput_status;
-static bool context_failure, device_failure;
-static void *context_data;
-static const struct libinput_interface *context_interface;
-static int dispatch_status;
-static int context_fd = -1;
-static int context_token, device_token, uinput_token;
-static int context_destroyed, devices_added, tap_requests, scroll_requests;
+// Use real libevdev device templates and state accessors. Only physical device
+// creation/reads/grabs and uinput output are replaced; no input hardware is used.
+struct source {
+    struct touchpad *touchpad;
+    struct libevdev *device;
+    int pipes[2], fd;
+    struct input_event events[64];
+    unsigned int count, next;
+    int error, sync_reads;
+    bool sync;
+};
+static struct source sources[4];
+static struct source *creating;
+static bool legacy, missing_resolution, unsupported, consume, active_after_grab, activate_on_grab;
+static int query_error, device_error, uinput_error, grab_error;
+static int grabs, ungrabs, clones, destroyed;
+static int moves, presses, releases, clicks, wheels, horizontal_wheels;
+static int emitted_x, emitted_y, emitted_wheel, emitted_hwheel, emitted_buttons;
+static int last_dx, last_dy, last_button;
+static event_type last_type;
+static int uinput_token;
+static uint64_t now_ms;
 
-static bool mock_activity, physical_button, physical_contact;
+static void bit_set(unsigned long *bits, unsigned int bit) {
+    unsigned int width = sizeof(*bits) * 8;
+    bits[bit / width] |= 1UL << (bit % width);
+}
 
 int ioctl(int fd, unsigned long request, ...) {
-    (void) fd;
-    if (!mock_activity) {
-        errno = ENOTTY;
-        return -1;
-    }
-    if (request == EVIOCGRAB) {
-        return 0;
-    }
     va_list args;
     va_start(args, request);
     void *value = va_arg(args, void *);
     va_end(args);
+    if (query_error) {
+        errno = query_error;
+        return -1;
+    }
+    struct libevdev *device = NULL;
+    for (unsigned int i = 0; i < 4; i++) {
+        if (sources[i].device != NULL && sources[i].fd == fd) {
+            device = sources[i].device;
+        }
+    }
     if (_IOC_NR(request) == _IOC_NR(EVIOCGBIT(0, 0))) {
-        *(unsigned long *) value = (1UL << EV_KEY) | (1UL << EV_ABS);
+        bit_set(value, EV_KEY);
+        bit_set(value, EV_ABS);
     } else if (_IOC_NR(request) == _IOC_NR(EVIOCGBIT(EV_ABS, 0))) {
-        unsigned int width = sizeof(unsigned long) * 8;
-        ((unsigned long *) value)[ABS_MT_SLOT / width] |= 1UL << (ABS_MT_SLOT % width);
+        if (!legacy) {
+            bit_set(value, ABS_MT_SLOT);
+        }
     } else if (request == EVIOCGABS(ABS_MT_SLOT)) {
-        ((struct input_absinfo *) value)->maximum = 0;
+        ((struct input_absinfo *)value)->maximum = 2;
     } else if (_IOC_NR(request) == _IOC_NR(EVIOCGKEY(0))) {
-        if (physical_button) {
-            unsigned int width = sizeof(unsigned long) * 8;
-            ((unsigned long *) value)[BTN_LEFT / width] |= 1UL << (BTN_LEFT % width);
+        if (device != NULL) {
+            for (unsigned int code = 0; code <= KEY_MAX; code++) {
+                if (libevdev_get_event_value(device, EV_KEY, code)) {
+                    bit_set(value, code);
+                }
+            }
+        }
+        if (active_after_grab) {
+            bit_set(value, BTN_TOUCH);
         }
     } else if (_IOC_NR(request) == _IOC_NR(EVIOCGMTSLOTS(0))) {
-        ((int32_t *) value)[1] = physical_contact ? 123 : -1;
+        int32_t *slots = value;
+        for (unsigned int i = 1; i <= 3; i++) {
+            slots[i] = -1;
+            if (device != NULL) {
+                slots[i] = libevdev_get_slot_value(device, i - 1, ABS_MT_TRACKING_ID);
+            }
+        }
     } else {
         TEST_ASSERT(false);
     }
     return 0;
 }
 
-int gettimeofday(struct timeval *timestamp, void *timezone) {
-    (void) timezone;
-    timestamp->tv_sec = 1700000000;
-    timestamp->tv_usec = 123456;
+int libevdev_new_from_fd(int fd, struct libevdev **result) {
+    TEST_ASSERT(creating != NULL);
+    creating->fd = fd;
+    if (device_error) {
+        return device_error;
+    }
+    struct libevdev *device = libevdev_new();
+    TEST_ASSERT(device != NULL && creating != NULL);
+    const unsigned int keys[] = {BTN_TOUCH, BTN_TOOL_FINGER, BTN_TOOL_DOUBLETAP, BTN_TOOL_TRIPLETAP,
+                                 BTN_LEFT,  BTN_RIGHT,       BTN_MIDDLE};
+    for (unsigned int i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+        TEST_ASSERT(libevdev_enable_event_code(device, EV_KEY, keys[i], NULL) == 0);
+    }
+    struct input_absinfo axis = {.maximum = 10000, .resolution = 100};
+    if (missing_resolution) {
+        axis.resolution = 0;
+    }
+    if (!unsupported) {
+        TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_X, &axis) == 0);
+        if (!legacy) {
+            TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_MT_POSITION_X, &axis) == 0);
+        }
+        axis.maximum = 6000;
+        TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_Y, &axis) == 0);
+        if (!legacy) {
+            TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_MT_POSITION_Y, &axis) == 0);
+            axis.maximum = 2;
+            TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_MT_SLOT, &axis) == 0);
+            axis.maximum = 65535;
+            axis.minimum = -1;
+            axis.value = -1;
+            TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_MT_TRACKING_ID, &axis) == 0);
+            axis.maximum = MT_TOOL_PALM;
+            axis.minimum = 0;
+            axis.value = 0;
+            TEST_ASSERT(libevdev_enable_event_code(device, EV_ABS, ABS_MT_TOOL_TYPE, &axis) == 0);
+            for (unsigned int slot = 0; slot < 3; slot++) {
+                TEST_ASSERT(libevdev_set_slot_value(device, slot, ABS_MT_TRACKING_ID, -1) == 0);
+            }
+        }
+    }
+    creating->device = device;
+    creating->fd = fd;
+    *result = device;
     return 0;
+}
+
+int libevdev_grab(struct libevdev *device, enum libevdev_grab_mode mode) {
+    TEST_ASSERT(device != NULL);
+    if (mode == LIBEVDEV_GRAB) {
+        grabs++;
+        active_after_grab = activate_on_grab;
+        return grab_error;
+    }
+    ungrabs++;
+    return 0;
+}
+
+int libevdev_next_event(struct libevdev *device, unsigned int flags, struct input_event *event) {
+    struct source *source = NULL;
+    for (unsigned int i = 0; i < 4; i++) {
+        if (sources[i].device == device) {
+            source = &sources[i];
+        }
+    }
+    TEST_ASSERT(source != NULL);
+    if (flags == LIBEVDEV_READ_FLAG_SYNC) {
+        source->sync_reads++;
+    }
+    if (source->next == source->count) {
+        if (flags == LIBEVDEV_READ_FLAG_SYNC) {
+            source->sync = false;
+            return -EAGAIN;
+        }
+        if (source->error) {
+            return source->error;
+        }
+        return -EAGAIN;
+    }
+    *event = source->events[source->next++];
+    if (event->type == EV_SYN && event->code == SYN_DROPPED) {
+        source->sync = true;
+    }
+    if (event->type == EV_KEY || event->type == EV_ABS) {
+        int status;
+        if (event->type == EV_ABS && event->code >= ABS_MT_TOUCH_MAJOR) {
+            status = libevdev_set_slot_value(device, libevdev_get_current_slot(device), event->code, event->value);
+        } else {
+            status = libevdev_set_event_value(device, event->type, event->code, event->value);
+        }
+        TEST_ASSERT(status == 0);
+    }
+    if (source->sync) {
+        return LIBEVDEV_READ_STATUS_SYNC;
+    }
+    return LIBEVDEV_READ_STATUS_SUCCESS;
 }
 
 int libevdev_uinput_create_from_device(const struct libevdev *device, int fd, struct libevdev_uinput **uinput) {
     TEST_ASSERT(fd == LIBEVDEV_UINPUT_OPEN_MANAGED);
     TEST_ASSERT(libevdev_has_event_code(device, EV_REL, REL_X));
-    TEST_ASSERT(libevdev_has_event_code(device, EV_REL, REL_Y));
-    TEST_ASSERT(libevdev_has_event_code(device, EV_REL, REL_WHEEL));
     TEST_ASSERT(libevdev_has_event_code(device, EV_REL, REL_HWHEEL));
-    TEST_ASSERT(libevdev_has_event_code(device, EV_KEY, BTN_LEFT));
-    TEST_ASSERT(libevdev_has_event_code(device, EV_KEY, BTN_RIGHT));
     TEST_ASSERT(libevdev_has_event_code(device, EV_KEY, BTN_MIDDLE));
-    if (uinput_status == 0) {
-        *uinput = (struct libevdev_uinput *) &uinput_token;
+    if (uinput_error) {
+        return uinput_error;
     }
-    return uinput_status;
-}
-
-struct libinput * libinput_path_create_context(const struct libinput_interface *interface, void *data) {
-    TEST_ASSERT(interface->open_restricted != NULL);
-    TEST_ASSERT(interface->close_restricted != NULL);
-    context_interface = interface;
-    context_data = data;
-    TEST_ASSERT(context_data != NULL);
-    return context_failure ? NULL : (struct libinput *) &context_token;
-}
-
-struct libinput_device * libinput_path_add_device(struct libinput *context, const char *path) {
-    TEST_ASSERT(context == (struct libinput *) &context_token);
-    TEST_ASSERT(strcmp(path, "/mock/touchpad") == 0);
-    devices_added++;
-    return device_failure ? NULL : (struct libinput_device *) &device_token;
-}
-
-enum libinput_config_status libinput_device_config_tap_set_enabled(struct libinput_device *device,
-        enum libinput_config_tap_state enabled) {
-    TEST_ASSERT(device == (struct libinput_device *) &device_token);
-    TEST_ASSERT(enabled == LIBINPUT_CONFIG_TAP_ENABLED);
-    tap_requests++;
-    return LIBINPUT_CONFIG_STATUS_SUCCESS;
-}
-
-enum libinput_config_status libinput_device_config_scroll_set_method(struct libinput_device *device,
-        enum libinput_config_scroll_method method) {
-    TEST_ASSERT(device == (struct libinput_device *) &device_token);
-    TEST_ASSERT(method == LIBINPUT_CONFIG_SCROLL_2FG);
-    scroll_requests++;
-    return LIBINPUT_CONFIG_STATUS_SUCCESS;
-}
-
-struct libinput * libinput_unref(struct libinput *context) {
-    TEST_ASSERT(context == (struct libinput *) &context_token);
-    // libinput closes its physical descriptor while unref releases the context.
-    if (context_fd >= 0) {
-        context_interface->close_restricted(context_fd, context_data);
-        context_fd = -1;
-    }
-    context_destroyed++;
-    return NULL;
+    *uinput = (struct libevdev_uinput *)&uinput_token;
+    clones++;
+    return 0;
 }
 
 void libevdev_uinput_destroy(struct libevdev_uinput *device) {
-    TEST_ASSERT(device != NULL);
-    uinput_destroyed++;
-}
-
-int libinput_dispatch(struct libinput *context) {
-    (void) context;
-    return dispatch_status;
-}
-
-struct libinput_event * libinput_get_event(struct libinput *context) {
-    (void) context;
-    if (!pending) {
-        return NULL;
-    }
-    pending = false;
-    return (struct libinput_event *) &pending;
-}
-
-enum libinput_event_type libinput_event_get_type(struct libinput_event *event) {
-    (void) event;
-    return test_event_type;
-}
-
-struct libinput_event_pointer * libinput_event_get_pointer_event(struct libinput_event *event) {
-    return (void *) event;
-}
-
-double libinput_event_pointer_get_dx(struct libinput_event_pointer *event) {
-    (void) event;
-    return dx;
-}
-
-double libinput_event_pointer_get_dy(struct libinput_event_pointer *event) {
-    (void) event;
-    return dy;
-}
-
-uint32_t libinput_event_pointer_get_button(struct libinput_event_pointer *event) {
-    (void) event;
-    return BTN_LEFT;
-}
-
-enum libinput_button_state libinput_event_pointer_get_button_state(struct libinput_event_pointer *event) {
-    (void) event;
-    return button_state;
-}
-
-int libinput_event_pointer_has_axis(struct libinput_event_pointer *event, enum libinput_pointer_axis which) {
-    (void) event;
-    return which == active_axis;
-}
-
-double libinput_event_pointer_get_axis_value(struct libinput_event_pointer *event, enum libinput_pointer_axis which) {
-    (void) event;
-    (void) which;
-    return axis;
-}
-
-void libinput_event_destroy(struct libinput_event *event) {
-    (void) event;
+    TEST_ASSERT(device == (struct libevdev_uinput *)&uinput_token);
     destroyed++;
 }
 
+const char *libevdev_uinput_get_devnode(struct libevdev_uinput *device) {
+    TEST_ASSERT(device == (struct libevdev_uinput *)&uinput_token);
+    return "/mock/virtual-mouse";
+}
+
 int libevdev_uinput_write_event(const struct libevdev_uinput *device, unsigned int type, unsigned int code, int value) {
-    (void) device;
-    if (type == EV_REL && code == REL_X) {
-        emitted_x += value;
-    }
-    if (type == EV_REL && code == REL_Y) {
-        emitted_y += value;
-    }
-    if (type == EV_REL && code == REL_WHEEL) {
-        emitted_wheel += value;
-    }
-    if (type == EV_REL && code == REL_HWHEEL) {
-        emitted_hwheel += value;
-    }
+    TEST_ASSERT(device == (struct libevdev_uinput *)&uinput_token);
     if (type == EV_KEY) {
         emitted_buttons++;
+    }
+    if (type == EV_REL) {
+        if (code == REL_X) {
+            emitted_x += value;
+        }
+        if (code == REL_Y) {
+            emitted_y += value;
+        }
+        if (code == REL_WHEEL) {
+            emitted_wheel += value;
+        }
+        if (code == REL_HWHEEL) {
+            emitted_hwheel += value;
+        }
     }
     return 0;
 }
 
-int libinput_get_fd(struct libinput *context) {
-    TEST_ASSERT(context == (struct libinput *) &context_token);
-    return 42;
-}
-
-const char * libevdev_uinput_get_devnode(struct libevdev_uinput *device) {
-    TEST_ASSERT(device == (struct libevdev_uinput *) &uinput_token);
-    return "/mock/virtual-mouse";
-}
-
-// The hook manager supplies this callback in production. Check that the helper
-// delivers a native button event, then use real dispatch to exercise drag state.
-static bool test_button_dispatch(struct input_event *event) {
-    TEST_ASSERT(event->type == EV_KEY && event->code == BTN_LEFT);
-    TEST_ASSERT(event->input_event_sec == 1700000000);
-    TEST_ASSERT(event->input_event_usec == 123456);
-    if (event->value > 0) {
-        set_modifier_mask(MASK_BUTTON1);
-        return dispatch_mouse_press(event, MOUSE_BUTTON1);
+static void callback(uiohook_event *const event, void *data) {
+    (void)data;
+    last_type = event->type;
+    if (event->type == EVENT_MOUSE_MOVED || event->type == EVENT_MOUSE_DRAGGED) {
+        moves++;
+        last_dx = event->data.mouse.dx;
+        last_dy = event->data.mouse.dy;
+    } else if (event->type == EVENT_MOUSE_PRESSED) {
+        presses++;
+        last_button = event->data.mouse.button;
+    } else if (event->type == EVENT_MOUSE_RELEASED) {
+        releases++;
+    } else if (event->type == EVENT_MOUSE_CLICKED) {
+        clicks++;
+    } else if (event->type == EVENT_MOUSE_WHEEL) {
+        if (event->data.wheel.direction == WHEEL_VERTICAL_DIRECTION) {
+            wheels += event->data.wheel.rotation / 120;
+        } else {
+            horizontal_wheels += event->data.wheel.rotation / 120;
+        }
     }
-    unset_modifier_mask(MASK_BUTTON1);
-    return dispatch_mouse_release(event, MOUSE_BUTTON1);
-}
-
-// Exercise the real mouse dispatcher and modifier state, including drag detection.
-static event_type last_mouse_type;
-
-static void test_callback(uiohook_event *const event, void *data) {
-    (void) data;
-    last_mouse_type = event->type;
-    switch (event->type) {
-        case EVENT_MOUSE_MOVED:
-        case EVENT_MOUSE_DRAGGED:
-            TEST_ASSERT(event->data.mouse.button == MOUSE_NOBUTTON);
-            last_dx = event->data.mouse.dx;
-            last_dy = event->data.mouse.dy;
-            TEST_ASSERT((event->type == EVENT_MOUSE_DRAGGED) == ((get_modifiers() & 0x1F00) != 0));
-            moves++;
-            break;
-
-        case EVENT_MOUSE_PRESSED:
-            TEST_ASSERT(event->data.mouse.button == MOUSE_BUTTON1);
-            TEST_ASSERT(event->data.mouse.dx == 0 && event->data.mouse.dy == 0);
-            presses++;
-            break;
-
-        case EVENT_MOUSE_RELEASED:
-            TEST_ASSERT(event->data.mouse.button == MOUSE_BUTTON1);
-            TEST_ASSERT(event->data.mouse.dx == 0 && event->data.mouse.dy == 0);
-            releases++;
-            break;
-
-        case EVENT_MOUSE_WHEEL:
-            TEST_ASSERT(event->data.wheel.delta == 120);
-            if (active_axis == LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL) {
-                TEST_ASSERT(event->data.wheel.direction == WHEEL_VERTICAL_DIRECTION);
-                wheels += event->data.wheel.rotation / 120;
-            } else {
-                TEST_ASSERT(event->data.wheel.direction == WHEEL_HORIZONTAL_DIRECTION);
-                horizontal_wheels += event->data.wheel.rotation / 120;
-            }
-            break;
-
-        default:
-            break;
-    }
-
     if (consume) {
         event->mask |= MASK_CONSUMED;
     }
 }
 
-static void send_event(struct touchpad *touchpad, enum libinput_event_type type) {
-    test_event_type = type;
-    pending = true;
-    TEST_ASSERT(touchpad_dispatch(touchpad) == 0);
-}
-
-static struct touchpad * create_test_touchpad(void) {
-    struct touchpad *touchpad = NULL;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_SUCCESS);
-    TEST_ASSERT(touchpad != NULL);
-    return touchpad;
-}
-
-static void test_initialization(void) {
-    struct touchpad *touchpad = create_test_touchpad();
-    TEST_ASSERT(context_data == touchpad);
-    TEST_ASSERT(touchpad_get_fd(touchpad) == 42);
-    TEST_ASSERT(strcmp(touchpad_get_devnode(touchpad), "/mock/virtual-mouse") == 0);
-    TEST_ASSERT(devices_added == 1 && tap_requests == 1 && scroll_requests == 1);
-    touchpad_destroy(&touchpad);
-    TEST_ASSERT(touchpad == NULL && uinput_destroyed == 1 && context_destroyed == 1);
-    touchpad_destroy(&touchpad);
-    TEST_ASSERT(uinput_destroyed == 1 && context_destroyed == 1);
-
-    // Missing or inaccessible uinput still permits event observation. The open
-    // callback gets the opaque helper state and must leave the device ungrabbed.
-    const int failures[] = { -ENOENT, -EACCES };
-    for (unsigned int i = 0; i < sizeof(failures) / sizeof(failures[0]); i++) {
-        uinput_status = failures[i];
-        touchpad = create_test_touchpad();
-        TEST_ASSERT(context_data == touchpad && touchpad_get_devnode(touchpad) == NULL);
-        int fd = context_interface->open_restricted("/dev/null", O_RDONLY, context_data);
-        TEST_ASSERT(fd >= 0);
-        context_interface->close_restricted(fd, context_data);
-        touchpad_destroy(&touchpad);
+static bool button_callback(struct input_event *event) {
+    uint16_t button = MOUSE_BUTTON1, mask = MASK_BUTTON1;
+    if (event->code == BTN_RIGHT) {
+        button = MOUSE_BUTTON2;
+        mask = MASK_BUTTON2;
     }
-    TEST_ASSERT(uinput_destroyed == 1 && context_destroyed == 3);
+    if (event->code == BTN_MIDDLE) {
+        button = MOUSE_BUTTON3;
+        mask = MASK_BUTTON3;
+    }
+    if (event->value) {
+        set_modifier_mask(mask);
+        return dispatch_mouse_press(event, button);
+    }
+    unset_modifier_mask(mask);
+    return dispatch_mouse_release(event, button);
+}
 
-    uinput_status = 0;
-    context_failure = true;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
-    TEST_ASSERT(touchpad == NULL && uinput_destroyed == 2 && context_destroyed == 3);
+static struct source *create_source(void) {
+    struct source *source = NULL;
+    for (unsigned int i = 0; i < 4; i++) {
+        if (sources[i].device == NULL && sources[i].touchpad == NULL) {
+            source = &sources[i];
+            break;
+        }
+    }
+    TEST_ASSERT(source != NULL);
+    memset(source, 0, sizeof(*source));
+    source->fd = -1;
+    TEST_ASSERT(pipe(source->pipes) == 0);
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/self/fd/%d", source->pipes[0]);
+    creating = source;
+    TEST_ASSERT(touchpad_create(path, button_callback, &source->touchpad) == UIOHOOK_SUCCESS);
+    creating = NULL;
+    TEST_ASSERT(source->touchpad != NULL && touchpad_get_fd(source->touchpad) >= 0);
+    return source;
+}
 
-    context_failure = false;
-    device_failure = true;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
-    TEST_ASSERT(touchpad == NULL && uinput_destroyed == 3 && context_destroyed == 4);
-    TEST_ASSERT(tap_requests == 3 && scroll_requests == 3);
-
-    uinput_status = -ENOENT;
-    TEST_ASSERT(touchpad_create("/mock/touchpad", test_button_dispatch, &touchpad) == UIOHOOK_FAILURE);
-    TEST_ASSERT(touchpad == NULL && uinput_destroyed == 3 && context_destroyed == 5);
-
-    // A forwarding device that cannot be grabbed must become observation-only.
-    uinput_status = 0;
-    device_failure = false;
-    touchpad = create_test_touchpad();
-    int fd = context_interface->open_restricted("/dev/null", O_RDONLY, context_data);
-    TEST_ASSERT(fd >= 0 && touchpad_get_devnode(touchpad) == NULL && uinput_destroyed == 4);
-    context_fd = fd;
-    touchpad_destroy(&touchpad);
+static void destroy_source(struct source *source) {
+    int fd = touchpad_get_fd(source->touchpad);
+    touchpad_destroy(&source->touchpad);
     TEST_ASSERT(fcntl(fd, F_GETFD) == -1 && errno == EBADF);
-    TEST_ASSERT(touchpad == NULL && uinput_destroyed == 4 && context_destroyed == 6);
-    puts("Touchpad initialization tests passed");
+    touchpad_destroy(&source->touchpad);
+    source->device = NULL;
+    source->fd = -1;
+    close(source->pipes[0]);
+    close(source->pipes[1]);
+}
+
+static void queue(struct source *source, unsigned int type, unsigned int code, int value) {
+    TEST_ASSERT(source->count < 64);
+    struct input_event event = {0};
+    event.input_event_sec = 1700000000 + now_ms / 1000;
+    event.input_event_usec = (now_ms % 1000) * 1000;
+    event.type = type;
+    event.code = code;
+    event.value = value;
+    source->events[source->count++] = event;
+}
+
+static void frame(struct source *source, unsigned int elapsed) {
+    now_ms += elapsed;
+    queue(source, EV_SYN, SYN_REPORT, 0);
+    TEST_ASSERT(touchpad_dispatch(source->touchpad) == 0);
+    source->count = source->next = 0;
+}
+
+static void contact(struct source *source, int slot, int id, int x, int y) {
+    queue(source, EV_ABS, ABS_MT_SLOT, slot);
+    queue(source, EV_ABS, ABS_MT_TRACKING_ID, id);
+    if (id >= 0) {
+        queue(source, EV_ABS, ABS_MT_POSITION_X, x);
+        queue(source, EV_ABS, ABS_MT_POSITION_Y, y);
+    }
 }
 
 static void test_translation(void) {
-    hook_set_dispatch_proc(test_callback, NULL);
-    set_pointer_position(0, 0);
-    unset_modifier_mask(UINT16_MAX);
-
-    struct touchpad *touchpad = create_test_touchpad();
-    dx = 0.75;
-    dy = -0.75;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(moves == 0);
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(moves == 1 && emitted_x == 1 && emitted_y == -1);
-    TEST_ASSERT(last_dx == 1 && last_dy == -1);
+    struct source *source = create_source();
+    TEST_ASSERT(strcmp(touchpad_get_devnode(source->touchpad), "/mock/virtual-mouse") == 0);
+    contact(source, 0, 10, 1000, 1000);
+    frame(source, 10);
+    TEST_ASSERT(moves == 0 && !touchpad_is_idle(source->touchpad));
+    contact(source, 0, 10, 1100, 1200);
+    frame(source, 10);
+    TEST_ASSERT(moves == 1 && last_dx == 39 && last_dy == 78);
+    TEST_ASSERT(emitted_x == 39 && emitted_y == 78);
+    contact(source, 0, 10, 1101, 1200);
+    frame(source, 10);
+    TEST_ASSERT(moves == 1);
+    contact(source, 0, 10, 1102, 1200);
+    frame(source, 10);
+    TEST_ASSERT(moves == 2 && last_dx == 1 && emitted_x == 40);
     consume = true;
-    dx = 2;
-    dy = -2;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    int16_t x, y;
-    get_pointer_position(&x, &y);
-    TEST_ASSERT(moves == 2 && x == 3 && y == -3);
-    TEST_ASSERT(last_dx == 2 && last_dy == -2);
-    TEST_ASSERT(emitted_x == 1 && emitted_y == -1);
+    contact(source, 0, 10, 1202, 1200);
+    frame(source, 10);
+    TEST_ASSERT(moves == 3 && emitted_x == 40);
     consume = false;
-    axis = 7.5;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(wheels == 0);
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(wheels == -1 && emitted_wheel == -1);
+    // A newly added contact changes the centroid but must not cause a jump.
+    contact(source, 1, 11, 2202, 2200);
+    frame(source, 10);
+    TEST_ASSERT(moves == 3);
+    contact(source, 0, 10, 1702, 1700);
+    contact(source, 1, 11, 2702, 2700);
+    frame(source, 10);
+    TEST_ASSERT(wheels == -1 && horizontal_wheels == 1);
+    TEST_ASSERT(emitted_wheel == -1 && emitted_hwheel == 1);
     consume = true;
-    axis = 15;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(wheels == -2 && emitted_wheel == -1);
-    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(presses == 1 && emitted_buttons == 0);
+    contact(source, 0, 10, 2202, 2200);
+    contact(source, 1, 11, 3202, 3200);
+    frame(source, 10);
+    TEST_ASSERT(wheels == -2 && horizontal_wheels == 2);
+    TEST_ASSERT(emitted_wheel == -1 && emitted_hwheel == 1);
     consume = false;
-    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(releases == 1 && emitted_buttons == 1);
-#ifdef HAVE_LIBINPUT_POINTER_SCROLL_FINGER
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_SCROLL_FINGER);
-    TEST_ASSERT(wheels == -2);
-#else
-    send_event(touchpad, LIBINPUT_EVENT_DEVICE_ADDED);
-    TEST_ASSERT(wheels == -2);
-#endif
-    pending = true;
-    test_event_type = LIBINPUT_EVENT_DEVICE_REMOVED;
-    TEST_ASSERT(touchpad_dispatch(touchpad) == -ENODEV);
-    TEST_ASSERT(destroyed == 10);
-    dispatch_status = -EIO;
-    TEST_ASSERT(touchpad_dispatch(touchpad) == -EIO && destroyed == 10);
-    dispatch_status = 0;
+    contact(source, 1, -1, 0, 0);
+    frame(source, 10);
+    TEST_ASSERT(moves == 3);
+    contact(source, 0, 99, 9000, 5000);
+    frame(source, 10);
+    TEST_ASSERT(moves == 3); // Replaced tracking ID also rebases motion.
+    contact(source, 0, -1, 0, 0);
+    frame(source, 200);
+    TEST_ASSERT(touchpad_is_idle(source->touchpad) && presses == 0);
+    destroy_source(source);
 
-    axis = 7.5;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    axis = 0;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    axis = 7.5;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(wheels == -2); // Scroll stop clears the fractional step.
-    touchpad_destroy(&touchpad);
+    // Missing resolution uses the documented dimensions. Legacy BTN_TOUCH/ABS
+    // devices retain physical-button dragging and tool-count scrolling.
+    legacy = missing_resolution = true;
+    source = create_source();
+    queue(source, EV_KEY, BTN_TOUCH, 1);
+    queue(source, EV_ABS, ABS_X, 1000);
+    queue(source, EV_ABS, ABS_Y, 1000);
+    frame(source, 10);
+    queue(source, EV_KEY, BTN_LEFT, 1);
+    frame(source, 10);
+    queue(source, EV_ABS, ABS_X, 1100);
+    frame(source, 10);
+    TEST_ASSERT(last_type == EVENT_MOUSE_DRAGGED && last_dx == 39);
+    queue(source, EV_KEY, BTN_LEFT, 0);
+    frame(source, 10);
+    queue(source, EV_KEY, BTN_TOOL_DOUBLETAP, 1);
+    frame(source, 10);
+    queue(source, EV_ABS, ABS_X, 1600);
+    queue(source, EV_ABS, ABS_Y, 1500);
+    frame(source, 10);
+    TEST_ASSERT(wheels == -3 && horizontal_wheels == 3);
+    queue(source, EV_KEY, BTN_TOOL_DOUBLETAP, 0);
+    queue(source, EV_KEY, BTN_TOUCH, 0);
+    frame(source, 10);
+    TEST_ASSERT(presses == 1 && releases == 1);
+    destroy_source(source);
 
-    // Observation still dispatches events but must never write to uinput.
-    uinput_status = -ENOENT;
-    touchpad = create_test_touchpad();
-    dx = 3;
-    dy = 3;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(moves == 3 && emitted_x == 1 && emitted_y == -1);
-    TEST_ASSERT(last_dx == 3 && last_dy == 3);
-    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(presses == 2 && emitted_buttons == 1);
-    axis = 15;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(wheels == -3 && emitted_wheel == -1);
+    // Independent carries for simultaneous devices.
+    legacy = missing_resolution = false;
+    source = create_source();
+    struct source *other = create_source();
+    int before = moves;
+    contact(source, 0, 10, 1000, 1000);
+    frame(source, 1);
+    contact(other, 0, 10, 1000, 1000);
+    frame(other, 1);
+    contact(source, 0, 10, 1002, 1000);
+    frame(source, 1);
+    contact(other, 0, 10, 1002, 1000);
+    frame(other, 1);
+    TEST_ASSERT(moves == before);
+    contact(source, 0, 10, 1003, 1000);
+    frame(source, 1);
+    TEST_ASSERT(moves == before + 1 && last_dx == 1);
+    destroy_source(other);
+    destroy_source(source);
+}
 
-    TEST_ASSERT((get_modifiers() & MASK_BUTTON1) != 0);
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_DRAGGED);
-    TEST_ASSERT(last_dx == 3 && last_dy == 3);
-    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_RELEASED);
-    TEST_ASSERT((get_modifiers() & MASK_BUTTON1) == 0);
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(last_mouse_type == EVENT_MOUSE_MOVED);
-    touchpad_destroy(&touchpad);
-
-    uinput_status = 0;
-    touchpad = create_test_touchpad();
-    active_axis = LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL;
-    axis = 7.5;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(horizontal_wheels == 0 && emitted_hwheel == 0);
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(horizontal_wheels == 1 && emitted_hwheel == 1);
+static void test_gestures(void) {
+    struct source *source = create_source();
+    contact(source, 0, 1, 1000, 1000);
+    frame(source, 10);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 100);
+    TEST_ASSERT(presses == 1 && releases == 1 && emitted_buttons == 2);
+    contact(source, 0, 2, 1000, 1000);
+    frame(source, 50);
+    TEST_ASSERT(presses == 2); // Second touch holds the synthetic drag button.
+    contact(source, 0, 2, 1200, 1000);
+    frame(source, 10);
+    TEST_ASSERT(last_type == EVENT_MOUSE_DRAGGED);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 10);
+    TEST_ASSERT(releases == 2 && emitted_buttons == 4);
+    TEST_ASSERT(touchpad_is_idle(source->touchpad));
+    contact(source, 0, 3, 1000, 1000);
+    contact(source, 1, 4, 2000, 2000);
+    frame(source, 300);
+    contact(source, 0, -1, 0, 0);
+    contact(source, 1, -1, 0, 0);
+    frame(source, 50);
+    TEST_ASSERT(presses == 3 && last_button == MOUSE_BUTTON2);
+    contact(source, 0, 10, 1000, 1000);
+    contact(source, 1, 11, 2000, 2000);
+    contact(source, 2, 12, 3000, 3000);
+    frame(source, 300);
+    contact(source, 0, -1, 0, 0);
+    contact(source, 1, -1, 0, 0);
+    contact(source, 2, -1, 0, 0);
+    frame(source, 50);
+    TEST_ASSERT(presses == 4 && releases == 4 && last_button == MOUSE_BUTTON3);
     consume = true;
-    axis = 15;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(horizontal_wheels == 2 && emitted_hwheel == 1);
+    contact(source, 0, 5, 1000, 1000);
+    frame(source, 300);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 50);
+    TEST_ASSERT(presses == 5 && releases == 5 && emitted_buttons == 8);
     consume = false;
-    axis = -30;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(horizontal_wheels == 0 && emitted_hwheel == -1);
-    axis = 7.5;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    axis = 0;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    axis = 7.5;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(horizontal_wheels == 0 && emitted_hwheel == -1);
-    touchpad_destroy(&touchpad);
-    // Fractional deltas belong to each helper, not to shared/global state.
-    struct touchpad *other = create_test_touchpad();
-    touchpad = create_test_touchpad();
-    int previous_moves = moves;
-    int previous_x = emitted_x;
-    dx = 0.6;
-    dy = 0;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    send_event(other, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(moves == previous_moves && emitted_x == previous_x);
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    send_event(other, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(moves == previous_moves + 2 && emitted_x == previous_x + 2);
-    touchpad_destroy(&touchpad);
-    touchpad_destroy(&other);
-    puts("Touchpad translation tests passed");
+    contact(source, 0, 6, 1000, 1000);
+    frame(source, 300);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 200);
+    TEST_ASSERT(presses == 5); // Long touches do not tap.
+    int before_palms = moves;
+    contact(source, 0, 7, 1000, 1000);
+    queue(source, EV_ABS, ABS_MT_TOOL_TYPE, MT_TOOL_PALM);
+    frame(source, 300);
+    contact(source, 0, 7, 2000, 2000);
+    frame(source, 10);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 10);
+    TEST_ASSERT(presses == 5 && moves == before_palms); // Hardware-labelled palms neither tap nor move.
+    destroy_source(source);
 }
 
 static void test_passthrough(void) {
-    hook_set_dispatch_proc(test_callback, NULL);
-    struct touchpad *touchpad = create_test_touchpad();
-    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(presses == 1 && emitted_buttons == 1);
-    touchpad_set_passthrough(touchpad);
+    struct source *source = create_source();
+    contact(source, 0, 1, 1000, 1000);
+    frame(source, 10);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 50);
+    contact(source, 0, 2, 1000, 1000);
+    frame(source, 50);
+    TEST_ASSERT(presses == 2 && releases == 1);
+    touchpad_set_passthrough(source->touchpad);
     consume = true;
-    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(releases == 0 && emitted_buttons == 2);
-    dx = 3;
-    dy = -2;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_MOTION);
-    TEST_ASSERT(moves == 0 && emitted_x == 3 && emitted_y == -2);
-    axis = 15;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_AXIS);
-    TEST_ASSERT(wheels == 0 && emitted_wheel == -1);
-    touchpad_destroy(&touchpad);
-    puts("Pending-stop passthrough tests passed");
+    contact(source, 0, 2, 1100, 1000);
+    frame(source, 10);
+    TEST_ASSERT(moves == 0 && emitted_x == 39);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 10);
+    TEST_ASSERT(presses == 2 && releases == 1 && emitted_buttons == 4);
+    TEST_ASSERT(touchpad_is_idle(source->touchpad));
+    // No new taps/callbacks may be synthesized during the stop wait.
+    contact(source, 0, 3, 1000, 1000);
+    frame(source, 10);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 50);
+    TEST_ASSERT(emitted_buttons == 4 && presses == 2);
+    contact(source, 0, 4, 1000, 1000);
+    contact(source, 1, 5, 2000, 2000);
+    frame(source, 10);
+    contact(source, 0, 4, 1500, 1500);
+    contact(source, 1, 5, 2500, 2500);
+    frame(source, 10);
+    TEST_ASSERT(wheels == 0 && horizontal_wheels == 0);
+    TEST_ASSERT(emitted_wheel == -1 && emitted_hwheel == 1);
+    destroy_source(source);
+}
+
+static void test_sync(void) {
+    struct source *source = create_source();
+    contact(source, 0, 1, 1000, 1000);
+    frame(source, 10);
+    queue(source, EV_SYN, SYN_DROPPED, 0);
+    contact(source, 0, 1, 9000, 5000);
+    frame(source, 10);
+    TEST_ASSERT(moves == 0 && source->sync_reads > 0);
+    contact(source, 0, 1, 9100, 5000);
+    frame(source, 10);
+    TEST_ASSERT(moves == 1 && last_dx == 39);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 10);
+    TEST_ASSERT(presses == 0);
+    source->error = -ENODEV;
+    TEST_ASSERT(touchpad_dispatch(source->touchpad) == -ENODEV);
+    destroy_source(source);
 }
 
 static void test_idle(void) {
-    mock_activity = true;
-    hook_set_dispatch_proc(test_callback, NULL);
-    struct touchpad *touchpad = create_test_touchpad();
-    // A pipe provides a real nonblocking descriptor without input hardware.
-    int fds[2];
-    TEST_ASSERT(pipe(fds) == 0);
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/self/fd/%d", fds[0]);
-    context_fd = context_interface->open_restricted(path, O_RDONLY, context_data);
-    TEST_ASSERT(context_fd >= 0 && touchpad_get_devnode(touchpad) != NULL);
-    TEST_ASSERT(touchpad_is_idle(touchpad));
-    physical_contact = true;
-    TEST_ASSERT(!touchpad_is_idle(touchpad));
-    physical_contact = false;
-    physical_button = true;
-    TEST_ASSERT(!touchpad_is_idle(touchpad));
-    physical_button = false;
-    TEST_ASSERT(touchpad_is_idle(touchpad));
-
-    // A synthetic tap remains active after physical contacts are gone.
-    button_state = LIBINPUT_BUTTON_STATE_PRESSED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(!touchpad_is_idle(touchpad));
-    touchpad_set_passthrough(touchpad);
-    button_state = LIBINPUT_BUTTON_STATE_RELEASED;
-    send_event(touchpad, LIBINPUT_EVENT_POINTER_BUTTON);
-    TEST_ASSERT(touchpad_is_idle(touchpad));
+    struct source *source = create_source();
+    contact(source, 0, 1, 1000, 1000);
+    frame(source, 10);
+    queue(source, EV_KEY, BTN_LEFT, 1);
+    frame(source, 10);
+    TEST_ASSERT(!touchpad_is_idle(source->touchpad));
+    query_error = EIO;
+    TEST_ASSERT(!touchpad_is_idle(source->touchpad));
+    query_error = 0;
+    touchpad_set_passthrough(source->touchpad);
+    contact(source, 0, -1, 0, 0);
+    frame(source, 10);
+    TEST_ASSERT(!touchpad_is_idle(source->touchpad)); // Still holding a physical button.
+    queue(source, EV_KEY, BTN_LEFT, 0);
+    frame(source, 10);
+    TEST_ASSERT(touchpad_is_idle(source->touchpad));
     TEST_ASSERT(presses == 1 && releases == 0 && emitted_buttons == 2);
-    touchpad_destroy(&touchpad);
-    close(fds[0]);
-    close(fds[1]);
-    puts("Input and delayed tap release tests passed");
+    destroy_source(source);
+}
+
+static void failed_source(void) {
+    struct source *source = &sources[0];
+    memset(source, 0, sizeof(*source));
+    TEST_ASSERT(pipe(source->pipes) == 0);
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/self/fd/%d", source->pipes[0]);
+    creating = source;
+    TEST_ASSERT(touchpad_create(path, button_callback, &source->touchpad) == UIOHOOK_FAILURE);
+    TEST_ASSERT(source->touchpad == NULL);
+    TEST_ASSERT(fcntl(source->fd, F_GETFD) == -1 && errno == EBADF);
+    source->device = NULL;
+    source->fd = -1;
+    creating = NULL;
+    close(source->pipes[0]);
+    close(source->pipes[1]);
+}
+
+static void test_initialization(void) {
+    struct touchpad *touchpad = NULL;
+    TEST_ASSERT(touchpad_create("/does-not-exist", button_callback, &touchpad) == UIOHOOK_FAILURE && touchpad == NULL);
+    struct source *source = create_source();
+    TEST_ASSERT(grabs == 1 && clones == 1);
+    destroy_source(source);
+    TEST_ASSERT(ungrabs == 1 && destroyed == 1);
+    uinput_error = -EACCES;
+    source = create_source();
+    TEST_ASSERT(touchpad_get_devnode(source->touchpad) == NULL && touchpad_is_idle(source->touchpad));
+    contact(source, 0, 1, 1000, 1000);
+    frame(source, 10);
+    contact(source, 0, 1, 1100, 1000);
+    frame(source, 10);
+    TEST_ASSERT(moves == 1 && emitted_x == 0);
+    destroy_source(source);
+    uinput_error = 0;
+    grab_error = -EBUSY;
+    source = create_source();
+    TEST_ASSERT(touchpad_get_devnode(source->touchpad) == NULL);
+    destroy_source(source);
+    grab_error = 0;
+    query_error = EIO;
+    source = create_source();
+    TEST_ASSERT(touchpad_get_devnode(source->touchpad) == NULL);
+    destroy_source(source);
+    query_error = 0;
+    activate_on_grab = true;
+    source = create_source();
+    TEST_ASSERT(touchpad_get_devnode(source->touchpad) == NULL);
+    active_after_grab = activate_on_grab = false;
+    destroy_source(source);
+    device_error = -EIO;
+    failed_source();
+    device_error = 0;
+    unsupported = true;
+    failed_source();
+    unsupported = false;
+    TEST_ASSERT(clones == destroyed);
 }
 
 int main(int argc, char **argv) {
+    for (unsigned int i = 0; i < 4; i++) {
+        sources[i].fd = -1;
+    }
+    hook_set_dispatch_proc(callback, NULL);
+    set_pointer_position(0, 0);
+    unset_modifier_mask(UINT16_MAX);
     if (argc == 2 && strcmp(argv[1], "initialization") == 0) {
         test_initialization();
+    } else if (argc == 2 && strcmp(argv[1], "gestures") == 0) {
+        test_gestures();
     } else if (argc == 2 && strcmp(argv[1], "idle") == 0) {
         test_idle();
     } else if (argc == 2 && strcmp(argv[1], "passthrough") == 0) {
         test_passthrough();
+    } else if (argc == 2 && strcmp(argv[1], "sync") == 0) {
+        test_sync();
     } else {
         TEST_ASSERT(argc == 1);
         test_translation();
     }
+    puts("Evdev touchpad tests passed");
     return EXIT_SUCCESS;
 }

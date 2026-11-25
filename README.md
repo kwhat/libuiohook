@@ -8,7 +8,6 @@ Prerequisites:
  * [cmake](https://cmake.org)
  * gcc, clang or msvc
  * Linux dependencies:
-   * libinput-dev
    * libevdev-dev
    * libudev-dev
    * libwayland-dev
@@ -59,26 +58,37 @@ $ cmake --build . --parallel 2 --target install
 
 ### Linux touchpads
 
-Touchpads are processed with libinput and forwarded through a virtual mouse.
-This requires read access to the input device. Forwarding and event consumption
-also require permission to grab it and write access to `/dev/uinput`. If the virtual
-mouse cannot be created or the device cannot be grabbed, the hook observes events
-without grabbing the touchpad; desktop input continues normally, but consumption
-is unavailable. If initialization fails, the physical device is released.
-Single-finger movement, physical clicks, tap-to-click, dragging, and two-finger
-vertical/horizontal scrolling are translated into the existing mouse API.
-Scrolling currently accumulates into wheel steps (15 libinput scroll units per step).
+Touchpads are read directly through libevdev and translated into events for a
+virtual mouse. There is no libinput dependency. Supported devices provide either
+multitouch slots (type B) or legacy ABS_X/ABS_Y coordinates with BTN_TOUCH.
+Unsupported contact formats are left ungrabbed.
 
-The hook uses its own libinput defaults, with tapping and two-finger scrolling
-requested where supported. Desktop touchpad settings are not imported. Pinch and
-swipe gestures are not forwarded to the desktop while the touchpad is grabbed.
-Pointer coordinates use the existing relative-motion tracker and may differ from
-the desktop cursor because the virtual mouse can receive further acceleration.
+The built-in interpretation provides single-finger movement, physical-button
+clicking and dragging, one/two/three-finger taps (left/right/middle click),
+tap-and-drag, and two-finger vertical/horizontal scrolling. A tap lasts at most
+180 ms and travels at most 2 mm; touching again within 250 ms starts a drag.
+Pointer motion uses 1000 counts per inch, and scrolling emits one wheel step per
+5 mm. Device axis resolutions provide physical distances. When unavailable,
+the coordinate ranges are mapped to an assumed 100 by 60 mm surface.
+
+These are fixed defaults; desktop touchpad settings are not imported. Only
+hardware-labelled palms are rejected. There is no pressure/size-based palm
+rejection, device-specific quirk database, acceleration curve, drag lock,
+natural-scrolling setting, or pinch/swipe gesture forwarding. A grabbed touchpad
+therefore behaves differently from the desktop's usual touchpad driver. The
+virtual mouse may receive additional acceleration from the desktop.
+
+Read access to the input device is required. Forwarding and event consumption
+also require a successful device grab and write access to `/dev/uinput`.
+Without forwarding permissions, events are observed without grabbing the device;
+callbacks still use our interpretation and cannot consume desktop input.
+Grabs and shutdown wait for physical keys, buttons and contacts to be released.
+Shutdown forwards an active drag's release without callbacks and disables new taps.
 
 On Linux, mouse movement and drag events populate `dx` and `dy` with relative
 motion, even when absolute `x` and `y` are clamped at a screen edge. Physical
-mice report accumulated evdev device counts; touchpads report libinput motion
-with fractional counts carried between events. Deltas saturate at the public
+mice report accumulated evdev device counts; touchpads report distance-scaled motion
+with fractional counts carried between frames. Deltas saturate at the public
 `int16_t` limits. Press, release, and click events have zero deltas. The hook
 demos print both absolute coordinates and relative motion.
 

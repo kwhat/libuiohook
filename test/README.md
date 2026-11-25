@@ -34,10 +34,12 @@ Tests are not built by default.
 | `evdev.relative_mouse` | Linux/evdev | Real mouse dispatch and pointer tracking with mock display bounds |
 | `evdev.properties.*` | Linux/evdev | Production property queries with mocked X11 and Wayland responses |
 | `evdev.input_activity` | Linux/evdev | Shared grab/ungrab idle checks for keys, mouse buttons and multitouch slots, release waits and device errors |
-| `evdev.touchpad_idle` | Linux/evdev | Physical contacts/buttons and delayed synthetic tap releases at shutdown |
+| `evdev.touchpad_idle` | Linux/evdev | Physical contacts/buttons and active tap-drag releases at shutdown |
 | `evdev.touchpad_passthrough` | Linux/evdev | Stop-pending releases, movement and scrolling forward without callbacks |
-| `evdev.touchpad_translation` | Linux/evdev | Mock libinput events, mock uinput writes, real mouse dispatch and pointer/modifier state |
-| `evdev.touchpad_initialization` | Linux/evdev | Mock uinput creation and libinput setup, with real helper cleanup |
+| `evdev.touchpad_translation` | Linux/evdev | Raw evdev frames, mock uinput writes, real mouse dispatch and pointer/modifier state |
+| `evdev.touchpad_gestures` | Linux/evdev | One/two/three-finger taps, tap-and-drag, duration thresholds, consumed taps and hardware-labelled palms |
+| `evdev.touchpad_sync` | Linux/evdev | Dropped-event recovery without pointer jumps or phantom taps, and device removal |
+| `evdev.touchpad_initialization` | Linux/evdev | Mock physical device setup, uinput/grab failures, and real helper cleanup |
 | `package.*_consumer` | All | Independent CMake consumers of build-tree and installed packages |
 
 Common logger and package-consumer tests run on all platforms. Platform-specific
@@ -99,31 +101,27 @@ Touchpad cases also verify that fractional and observation-mode motion populate
 `dx` and `dy`.
 
 `evdev/touchpad_helper_test.c` compiles `src/evdev/touchpad_helper.c` as a
-separate source file and accesses it through `touchpad_helper.h`. Mock libinput
-and uinput functions are supplied at link time; the test does not link libinput,
-include implementation files, or rename functions with preprocessor macros.
-The helper's state is opaque to the test.
+separate source file and accesses it through `touchpad_helper.h`. Real libevdev
+device templates and cached-state accessors handle event capabilities, legacy
+axes and multitouch slots. Physical device creation, event reads, state queries,
+grabs and uinput writes are supplied by the fixture. Pipes provide nonblocking
+descriptors; no input hardware or elevated permissions are required.
 
-The tests exercise fractional movement, independent state for multiple touchpads,
-vertical/horizontal scrolling, consumption, observation mode, device removal,
-dispatch errors, and press/drag/release dispatch. The real mouse dispatcher and
-pointer/modifier tracker run against the mock desktop providers. The button
-callback is a test implementation of the callback supplied by the hook manager.
+Cases cover fractional motion, independent devices, contact additions/removals
+and replacement, both scroll directions, legacy coordinates, missing resolution,
+physical dragging, short/long taps, multi-finger tapping, tap-and-drag,
+hardware-labelled palms, consumption, observation mode and shutdown passthrough.
+Dropped-event synchronization rebases positions and cancels tap detection rather
+than producing jumps or phantom clicks. Initialization cases check inaccessible
+devices, unsupported formats, failed uinput/grabs, activity queries, a device
+becoming active while grabbing, and descriptor/virtual-device cleanup.
 
-Initialization cases cover successful creation, descriptor and virtual-device
-queries, missing or inaccessible uinput, failed libinput context/device
-initialization, and resource cleanup. The newer-scroll-event check is enabled
-only with libinput 1.19 or later; older headers still build and run the rest of
-the suite. The tests use `/dev/null` through libinput's captured open/close
-callbacks to verify observation mode and failed-grab fallback without hardware.
-
-The hook uses `input_activity` before grabbing and while stopping. Idle means all
-keys, mouse buttons and multitouch contacts are released. Shutdown continues to
-forward input without callbacks until devices are idle; touchpads also wait for
-libinput's delayed synthetic tap releases. Observation-only devices do not delay
-shutdown, and new devices are not attached while stopping. Generic activity tests
-mock the kernel queries and poll/read calls; touchpad idle tests use a pipe with
-mocked evdev queries, so neither requires real input devices.
+The hook uses shared `input_activity` checks before grabbing and while stopping.
+Idle means all keys, mouse buttons and multitouch contacts are released. Shutdown
+forwards input without callbacks until idle, including an active tap-drag release;
+it disables new taps. Observation-only devices do not delay shutdown, and new
+devices are not attached while stopping. Generic activity tests mock kernel
+queries and poll/read calls separately from touchpad interpretation.
 
 ## Package and CI checks
 
@@ -134,14 +132,14 @@ Neither check changes the system installation or runs the consumer executable.
 
 `.github/workflows/tests.yml` builds and runs CTest on native Linux, Windows, and
 macOS runners. Linux packaging uses `ubuntu-latest`; ARM32, ARM64, and x86
-cross builds install target development packages and select native GLib build
-tools explicitly. They retain gold linker selection and do not execute target
+cross builds install target development packages and native Wayland protocol
+generation tools separately. They retain gold linker selection and do not execute target
 binaries. Unit tests run on pushes to every branch without a separate PR trigger.
 
 ## Hardware checks
 
 Run `demo_hook` separately to verify real device discovery, permissions, grabs,
-virtual-device forwarding, libinput contact interpretation, and desktop behavior.
+virtual-device forwarding, evdev contact interpretation, and desktop behavior.
 These checks are not part of the automated unit suite and must be performed on
 each supported OS. Windows and macOS native builds have not been verified by the
 Linux test run.

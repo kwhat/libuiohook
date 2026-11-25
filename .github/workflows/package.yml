@@ -232,18 +232,14 @@ jobs:
 
           # APT can classify same-version metadata replacements as downgrades.
           # https://bugs.debian.org/1149125
-          # GLib generators run on the host, including for target development packages.
           sudo apt-get install -y --allow-downgrades --no-install-recommends \
             binutils-arm-linux-gnueabihf \
             gcc-arm-linux-gnueabihf \
-            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
           sudo apt-get install -y --allow-downgrades --no-install-recommends \
-            libglib2.0-dev-bin:amd64 \
             libevdev-dev:armhf \
-            libinput-dev:armhf \
             libudev-dev:armhf \
             libwayland-dev:armhf \
             libx11-dev:armhf \
@@ -333,18 +329,14 @@ jobs:
 
           # APT can classify same-version metadata replacements as downgrades.
           # https://bugs.debian.org/1149125
-          # GLib generators run on the host, including for target development packages.
           sudo apt-get install -y --allow-downgrades --no-install-recommends \
             binutils-aarch64-linux-gnu \
             gcc-aarch64-linux-gnu \
-            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
           sudo apt-get install -y --allow-downgrades --no-install-recommends \
-            libglib2.0-dev-bin:amd64 \
             libevdev-dev:arm64 \
-            libinput-dev:arm64 \
             libudev-dev:arm64 \
             libwayland-dev:arm64 \
             libx11-dev:arm64 \
@@ -414,19 +406,15 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
 
-          # libinput-dev pulls GLib through libwacom. GLib generators run on
-          # the amd64 host; select them before installing target development files.
+          # Keep native build tools separate from target development files.
           sudo apt-get install -y --no-install-recommends \
             binutils-i686-linux-gnu \
             gcc-i686-linux-gnu \
-            libglib2.0-dev-bin:amd64 \
             libwayland-bin \
             wayland-protocols
 
           sudo apt-get install -y --no-install-recommends \
-            libglib2.0-dev-bin:amd64 \
             libevdev-dev:i386 \
-            libinput-dev:i386 \
             libudev-dev:i386 \
             libwayland-dev:i386 \
             libx11-dev:i386 \
@@ -488,7 +476,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libevdev-dev:amd64 \
-            libinput-dev:amd64 \
             libudev-dev:amd64 \
             libwayland-dev:amd64 \
             libwayland-bin \
